@@ -1,0 +1,5 @@
+add_subdirectory(pce)
+add_subdirectory(pce-disasm)
+add_subdirectory(pce-sdl)
+#add_subdirectory(pce-qt)
+add_subdirectory(pce-tests)

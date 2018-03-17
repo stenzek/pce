@@ -1,0 +1,26 @@
+<RCC>
+  <qresource>
+    <file>icons/emblem-symbolic-link.png</file>
+    <file>icons/media-playback-pause.png</file>
+    <file>icons/system-reboot.png</file>
+    <file>icons/system-run.png</file>
+    <file>icons/system-search.png</file>
+    <file>icons/emblem-important.png</file>
+    <file>icons/debug-execute-from-cursor.png</file>
+    <file>icons/debug-execute-to-cursor.png</file>
+    <file>icons/debug-run.png</file>
+    <file>icons/debug-run-cursor.png</file>
+    <file>icons/debug-step-instruction.png</file>
+    <file>icons/debug-step-into.png</file>
+    <file>icons/debug-step-into-instruction.png</file>
+    <file>icons/debug-step-out.png</file>
+    <file>icons/debug-step-over.png</file>
+    <file>icons/document-revert.png</file>
+    <file>icons/input-mouse.png</file>
+    <file>icons/media-floppy.png</file>
+    <file>icons/media-optical.png</file>
+    <file>icons/media-record.png</file>
+    <file>icons/media-seek-backward.png</file>
+    <file>icons/system-shutdown.png</file>
+  </qresource>
+</RCC>

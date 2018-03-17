@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DebuggerWindow</class>
+ <widget class="QMainWindow" name="DebuggerWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>939</width>
+    <height>731</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="QSplitter" name="splitter_3">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <widget class="QSplitter" name="splitter">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>1</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <widget class="QTreeView" name="codeView">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+       <widget class="QTreeView" name="registerView">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>220</width>
+          <height>16777215</height>
+         </size>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QSplitter" name="splitter_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <widget class="QTabWidget" name="tabWidget">
+        <property name="currentIndex">
+         <number>0</number>
+        </property>
+        <widget class="QWidget" name="consoleTab">
+         <attribute name="title">
+          <string>Console</string>
+         </attribute>
+         <layout class="QVBoxLayout" name="verticalLayout">
+          <item>
+           <widget class="QListWidget" name="consoleLog"/>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <item>
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Command:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="lineEdit"/>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="tabMemoryView">
+         <attribute name="title">
+          <string>Memory</string>
+         </attribute>
+        </widget>
+       </widget>
+       <widget class="QTreeView" name="stackView">
+        <property name="maximumSize">
+         <size>
+          <width>220</width>
+          <height>16777215</height>
+         </size>
+        </property>
+       </widget>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>939</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu_Debugger">
+    <property name="title">
+     <string>&amp;Debugger</string>
+    </property>
+    <addaction name="actionPause_Continue"/>
+    <addaction name="separator"/>
+    <addaction name="actionStep_Into"/>
+    <addaction name="actionStep_Over"/>
+    <addaction name="separator"/>
+    <addaction name="actionToggle_Breakpoint"/>
+    <addaction name="separator"/>
+    <addaction name="action_Close"/>
+   </widget>
+   <addaction name="menu_Debugger"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionPause_Continue"/>
+   <addaction name="actionStep_Into"/>
+   <addaction name="actionStep_Over"/>
+   <addaction name="actionToggle_Breakpoint"/>
+  </widget>
+  <action name="actionPause_Continue">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/debug-run.png</normaloff>:/icons/debug-run.png</iconset>
+   </property>
+   <property name="text">
+    <string>Pause/Continue</string>
+   </property>
+  </action>
+  <action name="actionStep_Into">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/debug-step-into-instruction.png</normaloff>:/icons/debug-step-into-instruction.png</iconset>
+   </property>
+   <property name="text">
+    <string>Step Into</string>
+   </property>
+  </action>
+  <action name="actionStep_Over">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/debug-step-over.png</normaloff>:/icons/debug-step-over.png</iconset>
+   </property>
+   <property name="text">
+    <string>Step Over</string>
+   </property>
+  </action>
+  <action name="actionToggle_Breakpoint">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/emblem-important.png</normaloff>:/icons/emblem-important.png</iconset>
+   </property>
+   <property name="text">
+    <string>Toggle Breakpoint</string>
+   </property>
+  </action>
+  <action name="action_Close">
+   <property name="text">
+    <string>&amp;Close</string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="resources/icons.qrc"/>
+ </resources>
+ <connections/>
+</ui>

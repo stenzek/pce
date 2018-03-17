@@ -1,0 +1,300 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="system.cpp" />
+    <ClCompile Include="hw\cga.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\fdc.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="display.cpp" />
+    <ClCompile Include="mmio.cpp" />
+    <ClCompile Include="hw\hdc.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\i8259_pic.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\i8253_pit.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="clock.cpp" />
+    <ClCompile Include="hw\i8237_dma.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\cmos.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\pcxt.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\pcbase.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\pcat.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\vga.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\pcbochs.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="audio.cpp" />
+    <ClCompile Include="hw\pcspeaker.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\serial.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\debugger_interface.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\decode.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\instprint.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\interpreter.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\cpu.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\interpreter_backend.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\fast_interpreter_backend.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="host_interface.cpp" />
+    <ClCompile Include="hw\serial_mouse.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="timing.cpp" />
+    <ClCompile Include="hw\keyboard_scancodes.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\ps2.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\xt_ppi.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\adlib.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\dosbox\dbopl.cpp">
+      <Filter>thirdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\pcami386.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\soundblaster.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\ymf262.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\cached_interpreter_backend.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\jitx64_backend.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\jitx64_codegen.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\code_cache_backend.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\jitx64_code.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="bus.cpp" />
+    <ClCompile Include="cpu_x86\interpreter_fpu.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\new_interpreter_backend.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\new_decoder.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="system.h" />
+    <ClInclude Include="component.h" />
+    <ClInclude Include="types.h" />
+    <ClInclude Include="hw\cga.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\fdc.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="display.h" />
+    <ClInclude Include="bitfield.h" />
+    <ClInclude Include="mmio.h" />
+    <ClInclude Include="hw\hdc.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="interrupt_controller.h" />
+    <ClInclude Include="cpu.h" />
+    <ClInclude Include="clock.h" />
+    <ClInclude Include="hw\i8259_pic.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\i8253_pit.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\i8237_dma.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="dma_controller.h" />
+    <ClInclude Include="hw\cmos.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\pcxt.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\pcbase.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\pcat.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\vga.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="scancodes.h" />
+    <ClInclude Include="save_state_version.h" />
+    <ClInclude Include="debugger_interface.h" />
+    <ClInclude Include="systems\pcbochs.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="audio.h" />
+    <ClInclude Include="hw\pcspeaker.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\serial.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\debugger_interface.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\decode.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\interpreter.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\types.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\cpu.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\interpreter_backend.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\backend.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\fast_interpreter_backend.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="host_interface.h" />
+    <ClInclude Include="hw\serial_mouse.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="timing.h" />
+    <ClInclude Include="hw\keyboard_scancodes.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\ps2.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\xt_ppi.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\adlib.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\dosbox\dbopl.h">
+      <Filter>thirdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\pcami386.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\soundblaster.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\ymf262.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\cached_interpreter_backend.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\jitx64_backend.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\jitx64_codegen.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\code_cache_backend.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\jitx64_code.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="bus.h" />
+    <ClInclude Include="cpu_x86\new_interpreter.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\opcodes.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\new_interpreter_backend.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\new_interpreter.inl">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\new_decoder.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="hw">
+      <UniqueIdentifier>{80ae99fd-8113-4b15-b19d-5cbd1b50fbd8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="systems">
+      <UniqueIdentifier>{20b342f2-0cc4-4b9d-af4e-44e37dab4b82}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cpu_x86">
+      <UniqueIdentifier>{4e91bc55-73a4-4880-a9f7-67b078934086}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty">
+      <UniqueIdentifier>{c33612a7-f725-4c16-a2b0-6bbc56761a9a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="hw\cga_font.inl">
+      <Filter>hw</Filter>
+    </None>
+    <None Include="hw\cga_palette.inl">
+      <Filter>hw</Filter>
+    </None>
+    <None Include="hw\soundblaster_adpcm.inl">
+      <Filter>hw</Filter>
+    </None>
+    <None Include="cpu_x86\new_interpreter_x87.inl">
+      <Filter>cpu_x86</Filter>
+    </None>
+    <None Include="cpu_x86\new_decoder.inl">
+      <Filter>cpu_x86</Filter>
+    </None>
+  </ItemGroup>
+</Project>

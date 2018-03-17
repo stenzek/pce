@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="helpers.cpp" />
+    <ClCompile Include="tests\test186.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="testpcsystem.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="tests\test386.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dep\googletest\src\gtest-filepath.cc">
+      <Filter>googletest</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dep\googletest\src\gtest-port.cc">
+      <Filter>googletest</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dep\googletest\src\gtest-printers.cc">
+      <Filter>googletest</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dep\googletest\src\gtest-test-part.cc">
+      <Filter>googletest</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dep\googletest\src\gtest-typed-test.cc">
+      <Filter>googletest</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dep\googletest\src\gtest.cc">
+      <Filter>googletest</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dep\googletest\src\gtest-death-test.cc">
+      <Filter>googletest</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="googletest">
+      <UniqueIdentifier>{a12c0cea-9928-4de7-9f16-4134c18a5688}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests">
+      <UniqueIdentifier>{78230d50-fc95-43c3-96a7-a435b3b3c89e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="helpers.h" />
+    <ClInclude Include="testpcsystem.h" />
+    <ClInclude Include="..\..\dep\googletest\src\gtest-internal-inl.h">
+      <Filter>googletest</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

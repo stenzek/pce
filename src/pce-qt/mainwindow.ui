@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu_System">
+    <property name="title">
+     <string>&amp;System</string>
+    </property>
+    <addaction name="actionEnableDebugger"/>
+    <addaction name="separator"/>
+    <addaction name="actionPower"/>
+    <addaction name="actionPause"/>
+    <addaction name="actionReset"/>
+    <addaction name="separator"/>
+    <addaction name="actionLoadState"/>
+    <addaction name="actionSaveState"/>
+    <addaction name="separator"/>
+    <addaction name="actionClose"/>
+   </widget>
+   <widget class="QMenu" name="menu_View">
+    <property name="title">
+     <string>&amp;View</string>
+    </property>
+    <widget class="QMenu" name="menuDisplay_Scale">
+     <property name="title">
+      <string>Display &amp;Scale</string>
+     </property>
+     <addaction name="action_DisplayScale1x"/>
+     <addaction name="action_DisplayScale2x"/>
+     <addaction name="action_DisplayScale3x"/>
+    </widget>
+    <addaction name="menuDisplay_Scale"/>
+   </widget>
+   <widget class="QMenu" name="menu_Help">
+    <property name="title">
+     <string>&amp;Devices</string>
+    </property>
+    <addaction name="actionChange_Floppy_A"/>
+    <addaction name="actionChange_Floppy_B"/>
+   </widget>
+   <widget class="QMenu" name="menu_Help_2">
+    <property name="title">
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="action_About"/>
+   </widget>
+   <widget class="QMenu" name="menu_Input">
+    <property name="title">
+     <string>&amp;Input</string>
+    </property>
+    <addaction name="actionCapture"/>
+    <addaction name="actionSend_Ctrl_Alt_Delete"/>
+   </widget>
+   <addaction name="menu_System"/>
+   <addaction name="menu_Input"/>
+   <addaction name="menu_Help"/>
+   <addaction name="menu_View"/>
+   <addaction name="menu_Help_2"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionCapture"/>
+   <addaction name="actionSend_Ctrl_Alt_Delete"/>
+   <addaction name="separator"/>
+   <addaction name="actionPower"/>
+   <addaction name="actionPause"/>
+   <addaction name="actionReset"/>
+   <addaction name="separator"/>
+   <addaction name="actionLoadState"/>
+   <addaction name="actionSaveState"/>
+   <addaction name="separator"/>
+   <addaction name="actionChange_Floppy_A"/>
+   <addaction name="actionChange_Floppy_B"/>
+  </widget>
+  <action name="action_About">
+   <property name="text">
+    <string>&amp;About</string>
+   </property>
+  </action>
+  <action name="action_DisplayScale1x">
+   <property name="text">
+    <string>&amp;1x</string>
+   </property>
+  </action>
+  <action name="action_DisplayScale2x">
+   <property name="text">
+    <string>&amp;2x</string>
+   </property>
+  </action>
+  <action name="action_DisplayScale3x">
+   <property name="text">
+    <string>&amp;3x</string>
+   </property>
+  </action>
+  <action name="actionReset">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/system-reboot.png</normaloff>:/icons/system-reboot.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Reset</string>
+   </property>
+  </action>
+  <action name="actionSend_Ctrl_Alt_Delete">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/emblem-symbolic-link.png</normaloff>:/icons/emblem-symbolic-link.png</iconset>
+   </property>
+   <property name="text">
+    <string>Send Ctrl+Alt+&amp;Del</string>
+   </property>
+  </action>
+  <action name="actionCapture">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/input-mouse.png</normaloff>:/icons/input-mouse.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Capture</string>
+   </property>
+  </action>
+  <action name="actionClose">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/system-shutdown.png</normaloff>:/icons/system-shutdown.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Close</string>
+   </property>
+  </action>
+  <action name="actionChange_Floppy_A">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/media-floppy.png</normaloff>:/icons/media-floppy.png</iconset>
+   </property>
+   <property name="text">
+    <string>Change Floppy &amp;A</string>
+   </property>
+  </action>
+  <action name="actionChange_Floppy_B">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/media-floppy.png</normaloff>:/icons/media-floppy.png</iconset>
+   </property>
+   <property name="text">
+    <string>Change Floppy &amp;B</string>
+   </property>
+  </action>
+  <action name="actionEnableDebugger">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Enable &amp;Debugger</string>
+   </property>
+   <property name="toolTip">
+    <string>Enable Debugger</string>
+   </property>
+  </action>
+  <action name="actionPower">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/system-run.png</normaloff>:/icons/system-run.png</iconset>
+   </property>
+   <property name="text">
+    <string>P&amp;ower</string>
+   </property>
+  </action>
+  <action name="actionPause">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/media-playback-pause.png</normaloff>:/icons/media-playback-pause.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Pause</string>
+   </property>
+  </action>
+  <action name="actionLoadState">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/media-seek-backward.png</normaloff>:/icons/media-seek-backward.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Load State</string>
+   </property>
+  </action>
+  <action name="actionSaveState">
+   <property name="icon">
+    <iconset resource="resources/icons.qrc">
+     <normaloff>:/icons/media-record.png</normaloff>:/icons/media-record.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Save State</string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="resources/icons.qrc"/>
+ </resources>
+ <connections>
+  <connection>
+   <sender>actionClose</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

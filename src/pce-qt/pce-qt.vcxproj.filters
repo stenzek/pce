@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="mainwindow.cpp" />
+    <ClCompile Include="displaywidget.cpp" />
+    <ClCompile Include="moc_mainwindow.cpp" />
+    <ClCompile Include="debuggerwindow.cpp" />
+    <ClCompile Include="moc_debuggerwindow.cpp" />
+    <ClCompile Include="debuggermodels.cpp" />
+    <ClCompile Include="scancodes_qt.cpp" />
+    <ClCompile Include="moc_displaywidget.cpp" />
+    <ClCompile Include="rcc_icons.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="mainwindow.h" />
+    <ClInclude Include="displaywidget.h" />
+    <ClInclude Include="ui_mainwindow.h" />
+    <ClInclude Include="debuggerwindow.h" />
+    <ClInclude Include="ui_debuggerwindow.h" />
+    <ClInclude Include="debuggermodels.h" />
+    <ClInclude Include="scancodes_qt.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="mainwindow.ui" />
+    <None Include="debuggerwindow.ui" />
+    <None Include="build_intermediates.bat" />
+  </ItemGroup>
+</Project>

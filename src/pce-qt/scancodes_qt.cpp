@@ -1,0 +1,127 @@
+#include "pce-qt/scancodes_qt.h"
+
+struct QTKeyMapping
+{
+  Qt::Key key;
+  GenScanCode gen_scancode;
+};
+
+// FIXME: A lot of these are incorrect, especially the numpad
+static const QTKeyMapping qt_mapping[] = {{Qt::Key_Escape, GenScanCode_Escape},
+                                          {Qt::Key_F1, GenScanCode_F1},
+                                          {Qt::Key_F2, GenScanCode_F2},
+                                          {Qt::Key_F3, GenScanCode_F3},
+                                          {Qt::Key_F4, GenScanCode_F4},
+                                          {Qt::Key_F5, GenScanCode_F5},
+                                          {Qt::Key_F6, GenScanCode_F6},
+                                          {Qt::Key_F7, GenScanCode_F7},
+                                          {Qt::Key_F8, GenScanCode_F8},
+                                          {Qt::Key_F9, GenScanCode_F9},
+                                          {Qt::Key_F10, GenScanCode_F10},
+                                          {Qt::Key_F11, GenScanCode_F11},
+                                          {Qt::Key_F12, GenScanCode_F12},
+                                          {Qt::Key_1, GenScanCode_1},
+                                          {Qt::Key_2, GenScanCode_2},
+                                          {Qt::Key_3, GenScanCode_3},
+                                          {Qt::Key_4, GenScanCode_4},
+                                          {Qt::Key_5, GenScanCode_5},
+                                          {Qt::Key_6, GenScanCode_6},
+                                          {Qt::Key_7, GenScanCode_7},
+                                          {Qt::Key_8, GenScanCode_8},
+                                          {Qt::Key_9, GenScanCode_9},
+                                          {Qt::Key_0, GenScanCode_0},
+                                          {Qt::Key_Minus, GenScanCode_Minus},
+                                          {Qt::Key_Equal, GenScanCode_Equals},
+                                          {Qt::Key_Backspace, GenScanCode_Backspace},
+                                          {Qt::Key_Tab, GenScanCode_Tab},
+                                          {Qt::Key_Q, GenScanCode_Q},
+                                          {Qt::Key_W, GenScanCode_W},
+                                          {Qt::Key_E, GenScanCode_E},
+                                          {Qt::Key_R, GenScanCode_R},
+                                          {Qt::Key_T, GenScanCode_T},
+                                          {Qt::Key_Y, GenScanCode_Y},
+                                          {Qt::Key_U, GenScanCode_U},
+                                          {Qt::Key_I, GenScanCode_I},
+                                          {Qt::Key_O, GenScanCode_O},
+                                          {Qt::Key_P, GenScanCode_P},
+                                          {Qt::Key_BracketLeft, GenScanCode_LeftBracket},
+                                          {Qt::Key_BracketRight, GenScanCode_RightBracket},
+                                          {Qt::Key_Backslash, GenScanCode_Backslash},
+                                          {Qt::Key_CapsLock, GenScanCode_CapsLock},
+                                          {Qt::Key_A, GenScanCode_A},
+                                          {Qt::Key_S, GenScanCode_S},
+                                          {Qt::Key_D, GenScanCode_D},
+                                          {Qt::Key_F, GenScanCode_F},
+                                          {Qt::Key_G, GenScanCode_G},
+                                          {Qt::Key_H, GenScanCode_H},
+                                          {Qt::Key_J, GenScanCode_J},
+                                          {Qt::Key_K, GenScanCode_K},
+                                          {Qt::Key_L, GenScanCode_L},
+                                          {Qt::Key_Semicolon, GenScanCode_Semicolon},
+                                          {Qt::Key_Apostrophe, GenScanCode_Quote},
+                                          {Qt::Key_Return, GenScanCode_Return},
+                                          {Qt::Key_Shift, GenScanCode_LeftShift},
+                                          {Qt::Key_Z, GenScanCode_Z},
+                                          {Qt::Key_X, GenScanCode_X},
+                                          {Qt::Key_C, GenScanCode_C},
+                                          {Qt::Key_V, GenScanCode_V},
+                                          {Qt::Key_B, GenScanCode_B},
+                                          {Qt::Key_N, GenScanCode_N},
+                                          {Qt::Key_M, GenScanCode_M},
+                                          {Qt::Key_Comma, GenScanCode_Comma},
+                                          {Qt::Key_Period, GenScanCode_Period},
+                                          {Qt::Key_Slash, GenScanCode_Slash},
+                                          {Qt::Key_Shift, GenScanCode_RightShift},
+                                          {Qt::Key_Control, GenScanCode_LeftControl},
+                                          {Qt::Key_Super_L, GenScanCode_LeftSuper},
+                                          {Qt::Key_Alt, GenScanCode_LeftAlt},
+                                          {Qt::Key_Space, GenScanCode_Space},
+                                          {Qt::Key_Alt, GenScanCode_RightAlt},
+                                          {Qt::Key_Super_R, GenScanCode_RightSuper},
+                                          {Qt::Key_ApplicationRight, GenScanCode_RightMenu},
+                                          {Qt::Key_Control, GenScanCode_RightControl},
+                                          {Qt::Key_Print, GenScanCode_PrintScreen},
+                                          {Qt::Key_ScrollLock, GenScanCode_ScrollLock},
+                                          {Qt::Key_Pause, GenScanCode_PauseBreak},
+                                          {Qt::Key_AsciiTilde, GenScanCode_Backtick},
+                                          {Qt::Key_Insert, GenScanCode_Insert},
+                                          {Qt::Key_Home, GenScanCode_Home},
+                                          {Qt::Key_PageUp, GenScanCode_PageUp},
+                                          {Qt::Key_Delete, GenScanCode_Delete},
+                                          {Qt::Key_End, GenScanCode_End},
+                                          {Qt::Key_PageDown, GenScanCode_PageDown},
+                                          {Qt::Key_Up, GenScanCode_Up},
+                                          {Qt::Key_Left, GenScanCode_Left},
+                                          {Qt::Key_Down, GenScanCode_Down},
+                                          {Qt::Key_Right, GenScanCode_Right},
+                                          {Qt::Key_NumLock, GenScanCode_Numpad_NumLock},
+                                          {Qt::Key_division, GenScanCode_Numpad_Divide},
+                                          {Qt::Key_multiply, GenScanCode_Numpad_Multiply},
+                                          {Qt::Key_Minus, GenScanCode_Numpad_Minus},
+                                          {Qt::Key_Plus, GenScanCode_Numpad_Plus},
+                                          {Qt::Key_Enter, GenScanCode_Numpad_Enter},
+                                          {Qt::Key_1, GenScanCode_Numpad_1},
+                                          {Qt::Key_2, GenScanCode_Numpad_2},
+                                          {Qt::Key_3, GenScanCode_Numpad_3},
+                                          {Qt::Key_4, GenScanCode_Numpad_4},
+                                          {Qt::Key_5, GenScanCode_Numpad_5},
+                                          {Qt::Key_6, GenScanCode_Numpad_6},
+                                          {Qt::Key_7, GenScanCode_Numpad_7},
+                                          {Qt::Key_8, GenScanCode_Numpad_8},
+                                          {Qt::Key_9, GenScanCode_Numpad_9},
+                                          {Qt::Key_0, GenScanCode_Numpad_0},
+                                          {Qt::Key_Period, GenScanCode_Numpad_Decimal}};
+
+bool MapQTKeyToGenScanCode(GenScanCode* gen_scancode, Qt::Key key)
+{
+  for (size_t i = 0; i < countof(qt_mapping); i++)
+  {
+    if (qt_mapping[i].key == key)
+    {
+      *gen_scancode = qt_mapping[i].gen_scancode;
+      return true;
+    }
+  }
+
+  return false;
+}
