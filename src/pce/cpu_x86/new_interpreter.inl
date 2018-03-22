@@ -5030,7 +5030,71 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void NewInterpreter::Execute_Operation_MOV_TR(CPU* cpu)
 {
-  Panic("Not implemented");
+  static_assert((src_mode == OperandMode_ModRM_TestRegister && dst_mode == OperandMode_ModRM_RM) ||
+                  (src_mode == OperandMode_ModRM_RM && dst_mode == OperandMode_ModRM_TestRegister),
+                "loading or storing debug register");
+  static_assert(src_size == OperandSize_32 && dst_size == OperandSize_32, "source sizes are 32-bits");
+
+  CalculateEffectiveAddress<src_mode>(cpu);
+  CalculateEffectiveAddress<dst_mode>(cpu);
+
+  // Requires privilege level zero
+  if ((cpu->InProtectedMode() && cpu->GetCPL() != 0) || cpu->InVirtual8086Mode())
+  {
+    cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+    return;
+  }
+
+  // TODO: Is this correct?
+  DebugAssert(cpu->idata.modrm_rm_register);
+  if (!cpu->idata.modrm_rm_register)
+    RaiseInvalidOpcode(cpu);
+
+  // Load test register
+  uint8 tr_index = cpu->idata.GetModRM_Reg();
+  if constexpr (dst_mode == OperandMode_ModRM_TestRegister)
+  {
+    uint32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
+
+    // Validate selected register
+    switch (tr_index)
+    {
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+        // Only load to registers 3-7
+        cpu->LoadSpecialRegister(static_cast<Reg32>(Reg32_TR3 + (tr_index - 3)), value);
+        break;
+
+      default:
+        cpu->RaiseException(Interrupt_InvalidOpcode);
+        return;
+    }
+  }
+  // Store test register
+  if constexpr (src_mode == OperandMode_ModRM_TestRegister)
+  {
+    // Validate selected register
+    uint32 value;
+    switch (tr_index)
+    {
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+        value = cpu->m_registers.reg32[Reg32_TR3 + (tr_index - 3)];
+        break;
+
+      default:
+        cpu->RaiseException(Interrupt_InvalidOpcode);
+        return;
+    }
+
+    WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
+  }
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -5044,6 +5108,13 @@ void NewInterpreter::Execute_Operation_MOV_DR(CPU* cpu)
 
   CalculateEffectiveAddress<src_mode>(cpu);
   CalculateEffectiveAddress<dst_mode>(cpu);
+
+  // Requires privilege level zero
+  if ((cpu->InProtectedMode() && cpu->GetCPL() != 0) || cpu->InVirtual8086Mode())
+  {
+    cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+    return;
+  }
 
   // TODO Validation:
   // #UD If CR4.DE[bit 3] = 1 (debug extensions) and a MOV instruction is executed involving DR4 or DR5.
@@ -5190,7 +5261,139 @@ void NewInterpreter::Execute_Operation_RDTSC(CPU* cpu)
 
 void NewInterpreter::Execute_Operation_LOADALL_286(CPU* cpu)
 {
-  Panic("Not implemented");
+#pragma pack(push, 1)
+  union LOADALL_286_TABLE
+  {
+    struct ADDRESS24
+    {
+      uint8 bits[3];
+
+      uint32 GetValue() const
+      {
+        return ((ZeroExtend32(bits[0])) | (ZeroExtend32(bits[1]) << 8) | (ZeroExtend32(bits[2]) << 16));
+      }
+    };
+
+    struct DESC_CACHE_286
+    {
+      ADDRESS24 physical_address;
+      uint8 access_rights_or_zero;
+      uint16 limit;
+    };
+
+    struct
+    {
+      uint16 unused_00;
+      uint16 unused_02;
+      uint16 MSW;
+      uint16 unused_06;
+      uint16 unused_08;
+      uint16 unused_0A;
+      uint16 unused_0C;
+      uint16 unused_0E;
+      uint16 unused_10;
+      uint16 unused_12;
+      uint16 unused_14;
+      uint16 TR_REG;
+      uint16 FLAGS;
+      uint16 IP;
+      uint16 LDT_REG;
+      uint16 DS_REG;
+      uint16 SS_REG;
+      uint16 CS_REG;
+      uint16 ES_REG;
+      uint16 DI;
+      uint16 SI;
+      uint16 BP;
+      uint16 SP;
+      uint16 BX;
+      uint16 DX;
+      uint16 CX;
+      uint16 AX;
+      DESC_CACHE_286 ES_DESC;
+      DESC_CACHE_286 CS_DESC;
+      DESC_CACHE_286 SS_DESC;
+      DESC_CACHE_286 DS_DESC;
+      DESC_CACHE_286 GDT_DESC;
+      DESC_CACHE_286 LDT_DESC;
+      DESC_CACHE_286 IDT_DESC;
+      DESC_CACHE_286 TSS_DESC;
+    };
+
+    uint16 words[51];
+  };
+  static_assert(sizeof(LOADALL_286_TABLE) == 0x66, "286 loadall table is correct size");
+#pragma pack(pop)
+
+  if (cpu->m_model != MODEL_286)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
+  // Check CPL = 0, GPF?
+  if (cpu->GetCPL() != 0)
+  {
+    cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+    return;
+  }
+
+  LOADALL_286_TABLE table = {};
+  for (uint32 i = 0; i < countof(table.words); i++)
+    table.words[i] = cpu->m_bus->ReadMemoryWord(0x800 + i * 2);
+
+  // 286 can't switch from protected to real mode.
+  // cpu->m_registers.CR0 = table.MSW;
+  if (table.MSW & CR0Bit_PE)
+    cpu->m_registers.CR0 |= CR0Bit_PE;
+
+  cpu->SetFlags16(table.FLAGS);
+  cpu->m_registers.IP = table.IP;
+  cpu->m_registers.DS = table.DS_REG;
+  cpu->m_registers.SS = table.SS_REG;
+  cpu->m_registers.CS = table.CS_REG;
+  cpu->m_registers.ES = table.ES_REG;
+  cpu->m_registers.DI = table.DI;
+  cpu->m_registers.SI = table.SI;
+  cpu->m_registers.BP = table.BP;
+  cpu->m_registers.SP = table.SP;
+  cpu->m_registers.BX = table.BX;
+  cpu->m_registers.DX = table.DX;
+  cpu->m_registers.CX = table.CX;
+  cpu->m_registers.AX = table.AX;
+
+  // TODO: Handle expand-up here, and access mask.
+  cpu->m_segment_cache[Segment_ES].base_address = table.ES_DESC.physical_address.GetValue();
+  cpu->m_segment_cache[Segment_ES].access.bits = table.ES_DESC.access_rights_or_zero;
+  cpu->m_segment_cache[Segment_ES].limit_low = 0;
+  cpu->m_segment_cache[Segment_ES].limit_high = table.ES_DESC.limit;
+  cpu->m_segment_cache[Segment_ES].limit_raw = table.ES_DESC.limit;
+  cpu->m_segment_cache[Segment_ES].access_mask = AccessTypeMask::All;
+  cpu->m_segment_cache[Segment_CS].base_address = table.CS_DESC.physical_address.GetValue();
+  cpu->m_segment_cache[Segment_CS].access.bits = table.CS_DESC.access_rights_or_zero;
+  cpu->m_segment_cache[Segment_CS].limit_low = 0;
+  cpu->m_segment_cache[Segment_CS].limit_high = table.CS_DESC.limit;
+  cpu->m_segment_cache[Segment_CS].limit_raw = table.CS_DESC.limit;
+  cpu->m_segment_cache[Segment_CS].access_mask = AccessTypeMask::All;
+  cpu->m_segment_cache[Segment_SS].base_address = table.SS_DESC.physical_address.GetValue();
+  cpu->m_segment_cache[Segment_SS].access.bits = table.SS_DESC.access_rights_or_zero;
+  cpu->m_segment_cache[Segment_SS].limit_low = 0;
+  cpu->m_segment_cache[Segment_SS].limit_high = table.SS_DESC.limit;
+  cpu->m_segment_cache[Segment_SS].limit_raw = table.SS_DESC.limit;
+  cpu->m_segment_cache[Segment_SS].access_mask = AccessTypeMask::All;
+  cpu->m_segment_cache[Segment_DS].base_address = table.DS_DESC.physical_address.GetValue();
+  cpu->m_segment_cache[Segment_DS].access.bits = table.DS_DESC.access_rights_or_zero;
+  cpu->m_segment_cache[Segment_DS].limit_low = 0;
+  cpu->m_segment_cache[Segment_DS].limit_high = table.DS_DESC.limit;
+  cpu->m_segment_cache[Segment_DS].limit_raw = table.DS_DESC.limit;
+  cpu->m_segment_cache[Segment_DS].access_mask = AccessTypeMask::All;
+
+  cpu->m_gdt_location.base_address = table.GDT_DESC.physical_address.GetValue();
+  cpu->m_gdt_location.limit = table.GDT_DESC.limit;
+  cpu->m_ldt_location.base_address = table.LDT_DESC.physical_address.GetValue();
+  cpu->m_ldt_location.limit = table.LDT_DESC.limit;
+  cpu->m_idt_location.base_address = table.IDT_DESC.physical_address.GetValue();
+  cpu->m_idt_location.limit = table.IDT_DESC.limit;
 }
 } // namespace CPU_X86
 
