@@ -14,6 +14,10 @@ class CGA : public Component
 public:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('C', 'G', 'A');
   static const uint32 VRAM_SIZE = 16384;
+  static const uint32 PIXEL_CLOCK = 14318000 / 4;
+  static const uint32 NUM_CRTC_REGISTERS = 18;
+  static const uint32 CHARACTER_WIDTH = 8;
+  static const uint32 CHARACTER_HEIGHT = 8;
 
 public:
   CGA();
@@ -30,27 +34,16 @@ public:
   virtual bool LoadState(BinaryReader& reader) override;
   virtual bool SaveState(BinaryWriter& writer) override;
 
-  // Helpers for HLE to set a character in text mode
-  void SetTextModeCharacter(uint32 page, uint32 x, uint32 y, uint8 character_code, uint8 attributes);
-  void ScrollLine(uint32 page);
-
-  // This should change the CRTC register
-  void SetDisplayPage(uint32 page) { m_display_page = page; }
-
-  void Render();
-
 private:
   void ConnectIOPorts(Bus* bus);
   void Tick(CycleCount cycles);
-  void RenderTextMode();
-  void RenderTextModeCharacter(uint32 page, uint32 x, uint32 y);
-  void RenderGraphicsMode();
-  void RenderGraphicsModeScanline(uint32 scanline);
-  void ResizeFramebuffer();
+  void RenderFramebuffer(bool end_of_vblank = false);
+  void RenderFramebufferLinesText(uint32 count);
+  void RenderFramebufferLinesGraphics(uint32 count);
 
   System* m_system = nullptr;
   Display* m_display;
-  uint8 m_vram[16384];
+  uint8 m_vram[VRAM_SIZE];
 
   // 03D8h: Mode control register
   union
@@ -63,6 +56,7 @@ private:
     BitField<uint8, bool, 4, 1> high_resolution_graphics;
     BitField<uint8, bool, 5, 1> enable_blink;
   } m_mode_control_register;
+  void ModeControlRegisterWrite(uint8 value);
 
   // 03D9h: Colour control register
   union
@@ -72,34 +66,36 @@ private:
     BitField<uint8, bool, 4, 1> foreground_intensity;
     BitField<uint8, uint8, 0, 4> background_color;
   } m_color_control_register;
+  void ColorControlRegisterWrite(uint8 value);
 
   // 03DAh: Status register
-  union
+  union StatusRegister
   {
-    uint8 raw = 0;
+    uint8 raw;
     BitField<uint8, bool, 0, 1> safe_vram_access;
     BitField<uint8, bool, 1, 1> light_pen_trigger_set;
     BitField<uint8, bool, 2, 1> light_pen_switch_status;
     BitField<uint8, bool, 3, 1> vblank;
-  } m_status_register;
+  };
+  void StatusRegisterRead(uint8* value);
 
   // CRTC registers
   union
   {
     struct
     {
-      uint8 horizontal_total;
-      uint8 horizontal_displayed;
-      uint8 horizontal_sync_position;
-      uint8 horizontal_sync_pulse_width;
-      uint8 vertical_total;
-      uint8 vertical_displayed;
-      uint8 vertical_sync_position;
-      uint8 vertical_sync_pulse_width;
+      uint8 horizontal_total;            // characters
+      uint8 horizontal_displayed;        // characters
+      uint8 horizontal_sync_position;    // characters
+      uint8 horizontal_sync_pulse_width; // characters
+      uint8 vertical_total;              // character rows
+      uint8 vertical_total_adjust;       // scanlines
+      uint8 vertical_displayed;          // character rows
+      uint8 vertical_sync_position;      // character rows
       uint8 interlace_mode;
-      uint8 maximum_scan_lines;
-      uint8 cursor_start;
-      uint8 cursor_end;
+      uint8 maximum_scan_lines; // scan lines
+      uint8 cursor_start;       // scan lines
+      uint8 cursor_end;         // scan lines
       uint8 start_address_high; // Big-endian
       uint8 start_address_low;
       uint8 cursor_location_high; // Big-endian
@@ -107,7 +103,7 @@ private:
       uint8 light_pen_high;
       uint8 light_pen_low;
     };
-    uint8 index[18] = {};
+    uint8 index[NUM_CRTC_REGISTERS] = {};
   } m_crtc_registers;
 
   // 03D0/2/4: CRT (6845) index register
@@ -117,18 +113,39 @@ private:
   void CRTDataRegisterRead(uint8* value);
   void CRTDataRegisterWrite(uint8 value);
 
+  // Timing
+  struct Timing
+  {
+    float horizontal_frequency;
+    float vertical_frequency;
+
+    uint32 horizontal_displayed_pixels;
+    uint32 vertical_displayed_lines;
+
+    // NOTE: We're not calculating the front porch/sync/back porch durations here, just the whole thing.
+    SimulationTime horizontal_active_duration;
+    SimulationTime horizontal_total_duration;
+    SimulationTime vertical_active_duration;
+    SimulationTime vertical_total_duration;
+
+    bool operator==(const Timing& rhs) const;
+  };
+  Timing m_timing = {};
+
+  struct ScanoutInfo
+  {
+    uint32 current_line;
+    bool in_horizontal_blank;
+    bool in_vertical_blank;
+    bool display_active;
+  };
+
+  void RecalculateEventTiming();
+  ScanoutInfo GetScanoutInfo();
+
   Clock m_clock;
-  SimulationTime m_active_line_duration = 1;
-  SimulationTime m_hblank_duration = 1;
-  SimulationTime m_vblank_duration = 1;
-  SimulationTime m_vsync_interval = 1;
-  SimulationTime m_downcount = 0;
-  SimulationTime m_time_to_vsync = 0;
-  uint32 m_current_line = 0;
-  uint32 m_state = 0;
-
-  uint32 m_display_page = 0;
-
+  uint32 m_last_rendered_line = 0;
+  uint32 m_address_register = 0;
   TimingEvent::Pointer m_tick_event;
 };
 } // namespace HW
