@@ -183,7 +183,7 @@ bool Bus::ReadIOPortByte(uint32 port, uint8* value)
 
   if (!found_handler)
   {
-    Log_WarningPrintf("Unknown IO port 0x%04X (read)", port);
+    Log_DevPrintf("Unknown IO port 0x%04X (read)", port);
     *value = 0xFF;
     return false;
   }
@@ -277,7 +277,7 @@ bool Bus::WriteIOPortByte(uint32 port, uint8 value)
 
   if (!found_handler)
   {
-    Log_WarningPrintf("Unknown IO port 0x%04X (write), value = %04X", port, value);
+    Log_DevPrintf("Unknown IO port 0x%04X (write), value = %04X", port, value);
     return false;
   }
 
@@ -615,7 +615,7 @@ __attribute__((always_inline))
       }
     }
 
-    Log_WarningPrintf("Failed physical memory write of address 0x%08X", address);
+    Log_DevPrintf("Failed physical memory write of address 0x%08X", address);
     return false;
   }
 
