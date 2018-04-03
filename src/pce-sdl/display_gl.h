@@ -15,13 +15,15 @@ public:
 
   SDL_Window* GetSDLWindow() const { return m_window; }
 
-  virtual void ResizeDisplay(uint32 width = 0, uint32 height = 0) override;
-  virtual void ResizeFramebuffer(uint32 width, uint32 height) override;
-  virtual void DisplayFramebuffer() override;
+  void ResizeDisplay(uint32 width = 0, uint32 height = 0) override;
+  void ResizeFramebuffer(uint32 width, uint32 height) override;
+  void DisplayFramebuffer() override;
 
-  bool IsFullscreen() const;
-  void SetFullscreen(bool enable);
-  void MakeCurrent();
+  bool IsFullscreen() const override;
+  void SetFullscreen(bool enable) override;
+
+  void OnWindowResized() override;
+  void MakeCurrent() override;
 
 private:
   SDL_Window* m_window = nullptr;

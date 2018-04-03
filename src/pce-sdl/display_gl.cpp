@@ -30,7 +30,7 @@ std::unique_ptr<Display> DisplayGL::Create()
   display->m_window =
     SDL_CreateWindow("Slightly-faster but still deprecated GL window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                      static_cast<int>(display->m_display_width), static_cast<int>(display->m_display_height),
-                     SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+                     SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
   if (!display->m_window)
     return nullptr;
@@ -38,6 +38,7 @@ std::unique_ptr<Display> DisplayGL::Create()
   SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
   SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
   SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   display->m_gl_context = SDL_GL_CreateContext(display->m_window);
   if (!display->m_gl_context)
     return nullptr;
@@ -51,6 +52,7 @@ std::unique_ptr<Display> DisplayGL::Create()
   display->ResizeFramebuffer(width, height);
   display->DisplayFramebuffer();
 
+  glFinish();
   SDL_GL_MakeCurrent(nullptr, nullptr);
 
   return std::unique_ptr<Display>(display);
@@ -105,7 +107,8 @@ void DisplayGL::DisplayFramebuffer()
   AddFrameRendered();
 
   int window_width, window_height;
-  SDL_GetWindowSize(m_window, &window_width, &window_height);
+  // SDL_GetWindowSize(m_window, &window_width, &window_height);
+  SDL_GL_GetDrawableSize(m_window, &window_width, &window_height);
 
   float display_ratio = float(m_display_width) / float(m_display_height);
   float window_ratio = float(window_width) / float(window_height);
@@ -162,6 +165,8 @@ void DisplayGL::SetFullscreen(bool enable)
 {
   SDL_SetWindowFullscreen(m_window, enable ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
 }
+
+void DisplayGL::OnWindowResized() {}
 
 void DisplayGL::MakeCurrent()
 {

@@ -99,3 +99,14 @@ void DisplaySDL::DisplayFramebuffer()
 
   SDL_UpdateWindowSurface(m_window);
 }
+
+bool DisplaySDL::IsFullscreen() const
+{
+  return false;
+}
+
+void DisplaySDL::SetFullscreen(bool enable) {}
+
+void DisplaySDL::OnWindowResized() {}
+
+void DisplaySDL::MakeCurrent() {}

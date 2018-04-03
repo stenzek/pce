@@ -7,6 +7,7 @@
 #include "YBaseLib/Thread.h"
 #include "YBaseLib/Timer.h"
 #include "pce-sdl/audio_sdl.h"
+#include "pce-sdl/display_d3d.h"
 #include "pce-sdl/display_gl.h"
 #include "pce-sdl/display_sdl.h"
 #include "pce-sdl/scancodes_sdl.h"
@@ -73,7 +74,8 @@ protected:
 
 std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
 {
-  std::unique_ptr<Display> display = DisplayGL::Create();
+  // std::unique_ptr<Display> display = DisplayGL::Create();
+  std::unique_ptr<Display> display = DisplayD3D::Create();
   if (!display)
   {
     Panic("Failed to create display");
@@ -90,7 +92,7 @@ bool SDLHostInterface::Initialize(System* system)
   if (!HostInterface::Initialize(system))
     return false;
 
-  static_cast<DisplayGL*>(m_display.get())->MakeCurrent();
+  m_display->MakeCurrent();
 
   m_mixer = Mixer_SDL::Create();
   // m_mixer = Audio::NullMixer::Create();
@@ -479,8 +481,11 @@ static void TestBIOS()
       // Use an external event so we call handle on the simulation thread.
       system->QueueExternalEvent([&host_interface, ev]() { host_interface->HandleSDLEvent(&ev); });
     }
-
-    if (ev.type == SDL_KEYUP && (SDL_GetModState() & (KMOD_LCTRL | KMOD_LALT)) == (KMOD_LCTRL | KMOD_LALT))
+    else if (ev.type == SDL_WINDOWEVENT && ev.window.event == SDL_WINDOWEVENT_RESIZED)
+    {
+      host_interface->GetDisplay()->OnWindowResized();
+    }
+    else if (ev.type == SDL_KEYUP && (SDL_GetModState() & (KMOD_LCTRL | KMOD_LALT)) == (KMOD_LCTRL | KMOD_LALT))
     {
       if (ev.key.keysym.sym == SDLK_r)
       {
@@ -553,8 +558,7 @@ static void TestBIOS()
       }
       else if (ev.key.keysym.sym == SDLK_RETURN)
       {
-        static_cast<DisplayGL*>(host_interface->GetDisplay())
-          ->SetFullscreen(!static_cast<DisplayGL*>(host_interface->GetDisplay())->IsFullscreen());
+        host_interface->GetDisplay()->SetFullscreen(!host_interface->GetDisplay()->IsFullscreen());
       }
       else if (ev.key.keysym.sym == SDLK_BACKSPACE)
       {

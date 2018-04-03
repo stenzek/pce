@@ -91,3 +91,14 @@ std::unique_ptr<Display> NullDisplay::Create()
 void NullDisplay::ResizeFramebuffer(uint32 width, uint32 height) {}
 
 void NullDisplay::DisplayFramebuffer() {}
+
+bool NullDisplay::IsFullscreen() const
+{
+  return false;
+}
+
+void NullDisplay::SetFullscreen(bool enable) {}
+
+void NullDisplay::OnWindowResized() {}
+
+void NullDisplay::MakeCurrent() {}
