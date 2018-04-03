@@ -14,11 +14,20 @@ namespace Systems {
 class PCXT : public PCBase
 {
 public:
+  enum class VideoType
+  {
+    MDA,
+    CGA40,
+    CGA80,
+    Other
+  };
+
   static const uint32 PHYSICAL_MEMORY_BITS = 20;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_8K = 0xFE000;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_32K = 0xF8000;
 
-  PCXT(HostInterface* host_interface, float cpu_frequency = 1000000.0f, uint32 memory_size = 640 * 1024);
+  PCXT(HostInterface* host_interface, float cpu_frequency = 1000000.0f, uint32 memory_size = 640 * 1024,
+       VideoType video_type = VideoType::Other);
   ~PCXT();
 
   const char* GetSystemName() const override { return "IBM XT"; }
@@ -34,13 +43,6 @@ public:
 private:
   static constexpr uint32 SERIALIZATION_ID = Component::MakeSerializationID('P', 'C', 'X', 'T');
   static constexpr size_t SWITCH_COUNT = 8;
-  enum VIDEO_TYPE
-  {
-    VIDEO_TYPE_MDA,
-    VIDEO_TYPE_CGA40,
-    VIDEO_TYPE_CGA80,
-    VIDEO_TYPE_OTHER
-  };
 
   virtual bool LoadSystemState(BinaryReader& reader) override;
   virtual bool SaveSystemState(BinaryWriter& writer) override;
@@ -59,6 +61,8 @@ private:
   HW::XT_PPI* m_ppi = nullptr;
   HW::PCSpeaker* m_speaker = nullptr;
   HW::FDC* m_fdd_controller = nullptr;
+
+  VideoType m_video_type = VideoType::Other;
 
   // State to save below:
   uint8 m_nmi_mask = 0;

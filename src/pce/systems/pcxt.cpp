@@ -9,8 +9,9 @@ Log_SetChannel(Systems::PCBase);
 
 namespace Systems {
 
-PCXT::PCXT(HostInterface* host_interface, float cpu_frequency /* = 1000000.0f */, uint32 memory_size /* = 640 * 1024 */)
-  : PCBase(host_interface)
+PCXT::PCXT(HostInterface* host_interface, float cpu_frequency /* = 1000000.0f */, uint32 memory_size /* = 640 * 1024 */,
+           VideoType video_type /* = VideoType::Other */)
+  : PCBase(host_interface), m_video_type(video_type)
 {
   m_cpu = new CPU_X86::CPU(CPU_X86::MODEL_8086, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
@@ -113,7 +114,6 @@ void PCXT::SetSwitches()
   bool boot_loop = false;
   bool numeric_processor_installed = false;
   PhysicalMemoryAddress base_memory = GetBaseMemorySize();
-  VIDEO_TYPE video_type = VIDEO_TYPE_OTHER;
   uint32 num_disk_drives = m_fdd_controller->GetDriveCount();
 
   // From http://www.rci.rutgers.edu/~preid/pcxtsw.htm
@@ -140,21 +140,21 @@ void PCXT::SetSwitches()
     m_ppi->SetSwitch(4 - 1, true);
   }
 
-  switch (video_type)
+  switch (m_video_type)
   {
-    case VIDEO_TYPE_MDA:
+    case VideoType::MDA:
       m_ppi->SetSwitch(5 - 1, false);
       m_ppi->SetSwitch(6 - 1, false);
       break;
-    case VIDEO_TYPE_CGA40:
+    case VideoType::CGA80:
       m_ppi->SetSwitch(5 - 1, false);
       m_ppi->SetSwitch(6 - 1, true);
       break;
-    case VIDEO_TYPE_CGA80:
+    case VideoType::CGA40:
       m_ppi->SetSwitch(5 - 1, true);
       m_ppi->SetSwitch(6 - 1, false);
       break;
-    case VIDEO_TYPE_OTHER:
+    case VideoType::Other:
     default:
       m_ppi->SetSwitch(5 - 1, true);
       m_ppi->SetSwitch(6 - 1, true);
