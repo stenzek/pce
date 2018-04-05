@@ -240,6 +240,13 @@ void DisplayD3D::DisplayFramebuffer()
   int viewport_x = (int(m_window_width) - viewport_width) / 2;
   int viewport_y = (int(m_window_height) - viewport_height) / 2;
 
+  std::lock_guard<std::mutex> guard(m_present_mutex);
+  if (m_window_resized)
+  {
+    ResizeSwapChain();
+    m_window_resized = false;
+  }
+
   std::array<float, 4> clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   m_context->ClearRenderTargetView(m_swap_chain_rtv.Get(), clear_color.data());
 
@@ -279,18 +286,24 @@ void DisplayD3D::MakeCurrent() {}
 
 void DisplayD3D::OnWindowResized()
 {
+  std::lock_guard<std::mutex> guard(m_present_mutex);
+
   int width, height;
   SDL_GetWindowSize(m_window, &width, &height);
+  m_window_width = width;
+  m_window_height = height;
+  m_window_resized = true;
+}
 
+void DisplayD3D::ResizeSwapChain()
+{
   m_context->OMSetRenderTargets(0, nullptr, nullptr);
   m_swap_chain_rtv.Reset();
 
-  HRESULT hr = m_swap_chain->ResizeBuffers(SWAP_CHAIN_BUFFER_COUNT, width, height, SWAP_CHAIN_BUFFER_FORMAT, 0);
+  HRESULT hr =
+    m_swap_chain->ResizeBuffers(SWAP_CHAIN_BUFFER_COUNT, m_window_width, m_window_height, SWAP_CHAIN_BUFFER_FORMAT, 0);
   if (FAILED(hr) || !CreateRenderTargetView())
     Panic("Failed to resize swap chain buffers.");
-
-  m_window_width = width;
-  m_window_height = height;
 }
 
 #endif

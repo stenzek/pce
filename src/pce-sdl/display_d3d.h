@@ -7,6 +7,7 @@
 #include <SDL.h>
 #include <d3d11.h>
 #include <memory>
+#include <mutex>
 #include <wrl.h>
 
 class DisplayD3D : public Display
@@ -33,6 +34,7 @@ private:
   bool CreateRenderTargetView();
   void MapFramebufferTexture();
   void UnmapFramebufferTexture();
+  void ResizeSwapChain();
 
   SDL_Window* m_window = nullptr;
   Microsoft::WRL::ComPtr<ID3D11Device> m_device = nullptr;
@@ -50,6 +52,8 @@ private:
 
   uint32 m_window_width = 0;
   uint32 m_window_height = 0;
+  bool m_window_resized = false;
+  std::mutex m_present_mutex;
 };
 
 #endif
