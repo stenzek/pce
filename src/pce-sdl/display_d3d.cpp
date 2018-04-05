@@ -96,6 +96,17 @@ std::unique_ptr<Display> DisplayD3D::Create()
   if (FAILED(hr) || feature_level < D3D_FEATURE_LEVEL_10_0)
     return nullptr;
 
+  // Disable DXGI responding to ALT+ENTER, we need to capture these keystrokes and handle it ourselves.
+  Microsoft::WRL::ComPtr<IDXGIFactory> dxgi_factory;
+  hr = display->m_swap_chain->GetParent(IID_PPV_ARGS(dxgi_factory.GetAddressOf()));
+  if (FAILED(hr))
+    return nullptr;
+
+  hr = dxgi_factory->MakeWindowAssociation(desc.OutputWindow, DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER |
+                                                                DXGI_MWA_NO_PRINT_SCREEN);
+  if (FAILED(hr))
+    return nullptr;
+
   if (!display->CreateRenderTargetView())
     return nullptr;
 
