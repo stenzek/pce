@@ -293,7 +293,7 @@ MakeModRMRegExtension(0xD2, d2) \
 MakeModRMRegExtension(0xD3, d3) \
 MakeOneOperand(0xD4, Operation_AAM, Ib) \
 MakeOneOperand(0xD5, Operation_AAD, Ib) \
-MakeInvalidOpcode(0xD6) \
+MakeNoOperands(0xD6, Operation_SALC) \
 MakeNoOperands(0xD7, Operation_XLAT) \
 MakeX87Extension(0xD8, d8) \
 MakeX87Extension(0xD9, d9) \

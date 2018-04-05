@@ -3242,6 +3242,14 @@ void NewInterpreter::Execute_Operation_STI(CPU* cpu)
   SET_FLAG(&cpu->m_registers, IF, true);
 }
 
+void NewInterpreter::Execute_Operation_SALC(CPU* cpu)
+{
+  // Undocumented instruction. Same as SBB AL, AL without modifying any flags.
+  uint32 old_flags = cpu->m_registers.EFLAGS.bits;
+  cpu->m_registers.AL = ALUOp_Sbb8(&cpu->m_registers, cpu->m_registers.AL, cpu->m_registers.AL);
+  cpu->m_registers.EFLAGS.bits = old_flags;
+}
+
 void NewInterpreter::Execute_Operation_LAHF(CPU* cpu)
 {
   //         // Don't clear/set all flags, only those allowed

@@ -296,6 +296,7 @@ enum Operation : uint8
   Operation_ROR,
   Operation_SAHF,
   Operation_SAL,
+  Operation_SALC,
   Operation_SAR,
   Operation_SBB,
   Operation_SCAS,

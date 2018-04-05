@@ -329,6 +329,7 @@ public:
   static inline void Execute_Operation_STC(CPU* cpu);
   static inline void Execute_Operation_STD(CPU* cpu);
   static inline void Execute_Operation_STI(CPU* cpu);
+  static inline void Execute_Operation_SALC(CPU* cpu);
   static inline void Execute_Operation_LAHF(CPU* cpu);
   static inline void Execute_Operation_SAHF(CPU* cpu);
   static inline void Execute_Operation_PUSHF(CPU* cpu);
