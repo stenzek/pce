@@ -14,10 +14,15 @@ class CGA : public Component
 public:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('C', 'G', 'A');
   static const uint32 VRAM_SIZE = 16384;
-  static const uint32 PIXEL_CLOCK = 14318000 / 4;
+  static const uint32 PIXEL_CLOCK = 14318181;
   static const uint32 NUM_CRTC_REGISTERS = 18;
   static const uint32 CHARACTER_WIDTH = 8;
   static const uint32 CHARACTER_HEIGHT = 8;
+  static const uint32 ADDRESS_COUNTER_MASK = 0x3FFF;
+  static const uint32 ADDRESS_COUNTER_VRAM_MASK_TEXT = 0x1FFF;
+  static const uint32 ADDRESS_COUNTER_VRAM_MASK_GRAPHICS = 0x0FFF;
+  static const uint32 ROW_COUNTER_MASK = 0x1F;
+  static const uint32 CRTC_ADDRESS_SHIFT = 1;
 
 public:
   CGA();
@@ -25,9 +30,6 @@ public:
 
   const uint8* GetVRAM() const { return m_vram; }
   uint8* GetVRAM() { return m_vram; }
-
-  uint8 GetModeControlRegister() const { return m_mode_control_register.raw; }
-  void SetModeControlRegister(uint8 value);
 
   virtual void Initialize(System* system, Bus* bus) override;
   virtual void Reset() override;
@@ -146,6 +148,7 @@ private:
   Clock m_clock;
   uint32 m_last_rendered_line = 0;
   uint32 m_address_register = 0;
+  uint32 m_character_row_register = 0;
   TimingEvent::Pointer m_tick_event;
 };
 } // namespace HW

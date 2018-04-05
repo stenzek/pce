@@ -487,7 +487,8 @@ static void TestBIOS()
     {
       host_interface->GetDisplay()->OnWindowResized();
     }
-    else if (ev.type == SDL_KEYUP && (SDL_GetModState() & (KMOD_LCTRL | KMOD_LALT)) == (KMOD_LCTRL | KMOD_LALT))
+
+    if (ev.type == SDL_KEYUP && (SDL_GetModState() & (KMOD_LCTRL | KMOD_LALT)) == (KMOD_LCTRL | KMOD_LALT))
     {
       if (ev.key.keysym.sym == SDLK_r)
       {
