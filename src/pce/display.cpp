@@ -65,6 +65,25 @@ void Display::SetPixel(uint32 x, uint32 y, uint32 rgb)
 #endif
 }
 
+void Display::CopyFrame(const void* pixels, uint32 stride)
+{
+  if (stride == m_framebuffer_pitch)
+  {
+    std::memcpy(m_framebuffer_pointer, pixels, stride * m_framebuffer_height);
+    return;
+  }
+
+  const byte* pixels_src = reinterpret_cast<const byte*>(pixels);
+  byte* pixels_dst = m_framebuffer_pointer;
+  uint32 copy_stride = std::min(m_framebuffer_pitch, stride);
+  for (uint32 i = 0; i < m_framebuffer_height; i++)
+  {
+    std::memcpy(pixels_dst, pixels_src, copy_stride);
+    pixels_src += stride;
+    pixels_dst += m_framebuffer_pitch;
+  }
+}
+
 void Display::AddFrameRendered()
 {
   m_frames_rendered++;

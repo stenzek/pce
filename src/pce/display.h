@@ -39,6 +39,7 @@ public:
 
   void SetPixel(uint32 x, uint32 y, uint8 r, uint8 g, uint8 b);
   void SetPixel(uint32 x, uint32 y, uint32 rgb);
+  void CopyFrame(const void* pixels, uint32 stride);
 
 protected:
   void AddFrameRendered();

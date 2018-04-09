@@ -21,7 +21,8 @@ public:
   static const uint32 ADDRESS_COUNTER_MASK = 0x3FFF;
   static const uint32 ADDRESS_COUNTER_VRAM_MASK_TEXT = 0x1FFF;
   static const uint32 ADDRESS_COUNTER_VRAM_MASK_GRAPHICS = 0x0FFF;
-  static const uint32 ROW_COUNTER_MASK = 0x1F;
+  static const uint32 CHARACTER_ROW_COUNTER_MASK = 0x1F;
+  static const uint32 VERTICAL_COUNTER_MASK = 0x7F;
   static const uint32 CRTC_ADDRESS_SHIFT = 1;
 
 public:
@@ -39,9 +40,11 @@ public:
 private:
   void ConnectIOPorts(Bus* bus);
   void Tick(CycleCount cycles);
-  void RenderFramebuffer(bool end_of_vblank = false);
-  void RenderFramebufferLinesText(uint32 count);
-  void RenderFramebufferLinesGraphics(uint32 count);
+  void BeginFrame();
+  void RenderLineText();
+  void RenderLineGraphics();
+  void RenderLineBorder();
+  void FlushFrame();
 
   System* m_system = nullptr;
   Display* m_display;
@@ -118,37 +121,36 @@ private:
   // Timing
   struct Timing
   {
-    float horizontal_frequency;
-    float vertical_frequency;
+    double horizontal_frequency;
 
-    uint32 horizontal_displayed_pixels;
-    uint32 vertical_displayed_lines;
+    uint32 horizontal_left_border_pixels;
+    uint32 horizontal_right_border_pixels;
+    SimulationTime horizontal_display_start_time;
+    SimulationTime horizontal_display_end_time;
 
-    // NOTE: We're not calculating the front porch/sync/back porch durations here, just the whole thing.
-    SimulationTime horizontal_active_duration;
-    SimulationTime horizontal_total_duration;
-    SimulationTime vertical_active_duration;
-    SimulationTime vertical_total_duration;
+    uint32 vertical_total_rows;
+    uint32 vertical_display_end;
+    uint32 vertical_sync_start;
+    uint32 vertical_sync_end;
+    uint32 vertical_total_lines;
 
     bool operator==(const Timing& rhs) const;
   };
   Timing m_timing = {};
 
-  struct ScanoutInfo
-  {
-    uint32 current_line;
-    bool in_horizontal_blank;
-    bool in_vertical_blank;
-    bool display_active;
-  };
-
   void RecalculateEventTiming();
-  ScanoutInfo GetScanoutInfo();
 
   Clock m_clock;
-  uint32 m_last_rendered_line = 0;
-  uint32 m_address_register = 0;
-  uint32 m_character_row_register = 0;
+  uint32 m_address_counter = 0;
+  uint32 m_character_row_counter = 0;
+  uint32 m_current_row = 0;
+  uint32 m_remaining_adjust_lines = 0;
   TimingEvent::Pointer m_tick_event;
+
+  // Currently-rendering frame.
+  std::vector<uint32> m_current_frame;
+  uint32 m_current_frame_width = 0;
+  uint32 m_current_frame_line = 0;
+  uint32 m_current_frame_offset = 0;
 };
 } // namespace HW
