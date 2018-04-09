@@ -53,4 +53,7 @@ protected:
   uint32 m_render_event_type = 0;
   bool m_needs_render = false;
   bool m_ui_active = false;
+
+private:
+  bool PassEventToImGui(const SDL_Event* event);
 };

@@ -1,7 +1,7 @@
 #include "pce-sdl/display_sdl.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/Memory.h"
-#include <algorithm>
+#include "imgui.h"
 
 DisplaySDL::DisplaySDL()
 {
@@ -41,12 +41,76 @@ bool DisplaySDL::HandleSDLEvent(const SDL_Event* ev)
     return true;
   }
 
+  if (PassEventToImGui(ev))
+    return true;
+
+  return false;
+}
+
+bool DisplaySDL::PassEventToImGui(const SDL_Event* event)
+{
+  ImGuiIO& io = ImGui::GetIO();
+  switch (event->type)
+  {
+    case SDL_MOUSEWHEEL:
+    {
+      if (event->wheel.x > 0)
+        io.MouseWheelH += 1;
+      if (event->wheel.x < 0)
+        io.MouseWheelH -= 1;
+      if (event->wheel.y > 0)
+        io.MouseWheel += 1;
+      if (event->wheel.y < 0)
+        io.MouseWheel -= 1;
+      return io.WantCaptureMouse;
+    }
+
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP:
+    {
+      bool down = event->type == SDL_MOUSEBUTTONDOWN;
+      if (event->button.button == SDL_BUTTON_LEFT)
+        io.MouseDown[0] = down;
+      if (event->button.button == SDL_BUTTON_RIGHT)
+        io.MouseDown[1] = down;
+      if (event->button.button == SDL_BUTTON_MIDDLE)
+        io.MouseDown[2] = down;
+      return io.WantCaptureMouse;
+    }
+
+    case SDL_MOUSEMOTION:
+    {
+      io.MousePos.x = float(event->motion.x);
+      io.MousePos.y = float(event->motion.y);
+      return io.WantCaptureMouse;
+    }
+
+    case SDL_TEXTINPUT:
+    {
+      io.AddInputCharactersUTF8(event->text.text);
+      return io.WantCaptureKeyboard;
+    }
+
+    case SDL_KEYDOWN:
+    case SDL_KEYUP:
+    {
+      int key = event->key.keysym.scancode;
+      IM_ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
+      io.KeysDown[key] = (event->type == SDL_KEYDOWN);
+      io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
+      io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
+      io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
+      io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
+      return io.WantCaptureKeyboard;
+    }
+  }
   return false;
 }
 
 void DisplaySDL::RenderFrame()
 {
   RenderImpl();
+  m_needs_render = false;
 }
 
 void DisplaySDL::ResizeDisplay(uint32 width /*= 0*/, uint32 height /*= 0*/)

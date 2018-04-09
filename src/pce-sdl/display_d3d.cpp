@@ -3,6 +3,8 @@
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/Memory.h"
 #include "YBaseLib/String.h"
+#include "imgui.h"
+#include "imgui_impl_dx11.h"
 #include <SDL_syswm.h>
 #include <algorithm>
 #include <array>
@@ -51,7 +53,12 @@ static const uint32 PS_BYTECODE[] = {
   0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000};
 
 DisplayD3D::DisplayD3D() = default;
-DisplayD3D::~DisplayD3D() = default;
+
+DisplayD3D::~DisplayD3D()
+{
+  if (m_device && m_context)
+    ImGui_ImplDX11_Shutdown();
+}
 
 std::unique_ptr<DisplayD3D> DisplayD3D::Create()
 {
@@ -135,6 +142,10 @@ bool DisplayD3D::Initialize()
   if (FAILED(hr))
     return false;
 
+  if (!ImGui_ImplDX11_Init(info.info.win.window, m_device.Get(), m_context.Get()))
+    return false;
+
+  ImGui_ImplDX11_NewFrame();
   return true;
 }
 
@@ -250,9 +261,12 @@ void DisplayD3D::RenderImpl()
 
   m_context->Draw(3, 0);
 
+  ImGui::Render();
+  ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
   m_swap_chain->Present(0, 0);
 
-  m_needs_render = false;
+  ImGui_ImplDX11_NewFrame();
 }
 
 void DisplayD3D::OnWindowResized()

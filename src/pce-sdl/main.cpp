@@ -6,6 +6,7 @@
 #include "YBaseLib/String.h"
 #include "YBaseLib/Thread.h"
 #include "YBaseLib/Timer.h"
+#include "imgui.h"
 #include "pce-sdl/audio_sdl.h"
 #include "pce-sdl/display_d3d.h"
 #include "pce-sdl/display_gl.h"
@@ -41,7 +42,7 @@ class SDLHostInterface : public HostInterface
 {
 public:
   SDLHostInterface() = default;
-  ~SDLHostInterface() = default;
+  ~SDLHostInterface();
 
   static std::unique_ptr<SDLHostInterface> Create();
 
@@ -51,6 +52,7 @@ public:
 
   DisplaySDL* GetDisplay() const override { return m_display.get(); }
   Audio::Mixer* GetAudioMixer() const override { return m_mixer.get(); }
+  bool NeedsRender() const { return m_display->NeedsRender(); }
 
   void ReportMessage(const char* message) override;
   void OnSimulationSpeedUpdate(float speed_percent) override;
@@ -58,11 +60,14 @@ public:
   bool HandleSDLEvent(const SDL_Event* ev);
   void InjectKeyEvent(GenScanCode sc, bool down);
 
+  void Render();
+
 protected:
   // We only pass mouse input through if it's grabbed
   bool IsMouseGrabbed() const;
   void GrabMouse();
   void ReleaseMouse();
+  void RenderImGui();
 
   std::unique_ptr<DisplaySDL> m_display;
   std::unique_ptr<Audio::Mixer> m_mixer;
@@ -73,17 +78,27 @@ protected:
 
 std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
 {
+  // Initialize imgui.
+  ImGui::CreateContext();
+  ImGui::GetIO().IniFilename = nullptr;
+
   // std::unique_ptr<DisplaySDL> display = DisplayGL::Create();
   std::unique_ptr<DisplaySDL> display = DisplayD3D::Create();
   if (!display)
   {
     Panic("Failed to create display");
+    ImGui::DestroyContext();
     return nullptr;
   }
 
   std::unique_ptr<SDLHostInterface> hi = std::make_unique<SDLHostInterface>();
   hi->m_display = std::move(display);
   return hi;
+}
+
+SDLHostInterface::~SDLHostInterface()
+{
+  ImGui::DestroyContext();
 }
 
 bool SDLHostInterface::Initialize(System* system)
@@ -282,6 +297,46 @@ void SDLHostInterface::ReleaseMouse()
   SDL_SetRelativeMouseMode(SDL_FALSE);
 }
 
+void SDLHostInterface::Render()
+{
+  RenderImGui();
+  m_display->RenderFrame();
+}
+
+void SDLHostInterface::RenderImGui()
+{
+  if (ImGui::BeginMainMenuBar())
+  {
+    if (ImGui::BeginMenu("System"))
+    {
+      if (ImGui::MenuItem("Reset"))
+        m_system->QueueExternalEvent([this]() { m_system->Reset(); });
+
+      ImGui::Separator();
+
+      if (ImGui::MenuItem("Exit"))
+        Log_DevPrintf("TODO");
+
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("View"))
+    {
+      if (ImGui::MenuItem("Fullscreen", nullptr, m_display->IsFullscreen()))
+        m_display->SetFullscreen(!m_display->IsFullscreen());
+
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Devices"))
+    {
+      ImGui::EndMenu();
+    }
+
+    ImGui::EndMainMenuBar();
+  }
+}
+
 static bool LoadBIOS(const char* filename, std::function<bool(ByteStream*)> callback)
 {
   ByteStream* stream;
@@ -356,25 +411,20 @@ static bool LoadHDD(HW::HDC* hdc, uint32 drive, const char* path, uint32 cylinde
   return result;
 }
 
-static void TestBIOS()
+static void TestBIOS(SDLHostInterface* host_interface)
 {
-  std::unique_ptr<SDLHostInterface> host_interface = SDLHostInterface::Create();
-  if (!host_interface)
-    Panic("Failed to create host interface");
-
-  Systems::PCXT* system =
-    new Systems::PCXT(host_interface.get(), 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
-  // Systems::PCAT* system = new Systems::PCAT(host_interface.get(), cpu, 1 * 1024 * 1024);
-  // Systems::PCAT* system = new Systems::PCAT(host_interface.get(), cpu, 4 * 1024 * 1024);
-  // Systems::PCAT* system = new Systems::PCAT(host_interface.get(), cpu, 8 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface.get(), cpu, 4 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface.get(), cpu, 8 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface.get(), cpu, 16 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface.get(), cpu, 20 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface.get(), CPU_X86::MODEL_486, 1000000, 32 * 1024 *
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface.get(), CPU_X86::MODEL_486, 20000000, 32 * 1024 *
-  // 1024); Systems::PC_AMI_386* system = new Systems::PC_AMI_386(host_interface.get(), CPU_X86::MODEL_386, 4000000, 4 *
-  // 1024 * 1024);
+  Systems::PCXT* system = new Systems::PCXT(host_interface, 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
+  // Systems::PCAT* system = new Systems::PCAT(host_interface, cpu, 1 * 1024 * 1024);
+  // Systems::PCAT* system = new Systems::PCAT(host_interface, cpu, 4 * 1024 * 1024);
+  // Systems::PCAT* system = new Systems::PCAT(host_interface, cpu, 8 * 1024 * 1024);
+  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 4 * 1024 * 1024);
+  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 8 * 1024 * 1024);
+  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 16 * 1024 * 1024);
+  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 20 * 1024 * 1024);
+  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 1000000, 32 * 1024 * 1024);
+  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 20000000, 32 * 1024 * 1024);
+  // Systems::PC_AMI_386* system = new Systems::PC_AMI_386(host_interface, CPU_X86::MODEL_386, 4000000, 4 * 1024 *
+  // 1024);
 
   system->GetCPU()->SetBackend(CPUBackendType::Interpreter);
   system->GetCPU()->SetBackend(CPUBackendType::FastInterpreter);
@@ -550,8 +600,8 @@ static void TestBIOS()
       }
     }
 
-    if (host_interface->GetDisplay()->NeedsRender())
-      host_interface->GetDisplay()->RenderFrame();
+    if (host_interface->NeedsRender())
+      host_interface->Render();
   }
 }
 
@@ -585,7 +635,15 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  TestBIOS();
+  // create display and host interface
+  std::unique_ptr<SDLHostInterface> host_interface = SDLHostInterface::Create();
+  if (!host_interface)
+    Panic("Failed to create host interface");
+
+  TestBIOS(host_interface.get());
+
+  // done
+  host_interface.reset();
 
   SDL_Quit();
   return 0;
