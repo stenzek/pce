@@ -19,12 +19,6 @@ public:
   void ResizeFramebuffer(uint32 width, uint32 height) override;
   void DisplayFramebuffer() override;
 
-  bool IsFullscreen() const override;
-  void SetFullscreen(bool enable) override;
-
-  void OnWindowResized() override;
-  void MakeCurrent() override;
-
 private:
   SDL_Window* m_window = nullptr;
   SDL_GLContext m_gl_context = nullptr;

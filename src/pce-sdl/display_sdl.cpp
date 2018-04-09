@@ -3,110 +3,122 @@
 #include "YBaseLib/Memory.h"
 #include <algorithm>
 
-inline SDL_Surface* CreateOffscreenSurface(uint32 width, uint32 height)
+DisplaySDL::DisplaySDL()
 {
-  return SDL_CreateRGBSurface(0, width, height, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+  m_window_width = 900;
+  m_window_height = 700;
 }
-
-DisplaySDL::DisplaySDL() {}
 
 DisplaySDL::~DisplaySDL()
 {
-  if (m_offscreen_surface)
-    SDL_FreeSurface(m_offscreen_surface);
-
   if (m_window)
     SDL_DestroyWindow(m_window);
 }
 
-std::unique_ptr<Display> DisplaySDL::Create()
+bool DisplaySDL::Initialize()
 {
-  DisplaySDL* display = new DisplaySDL();
+  const uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+  m_window = SDL_CreateWindow("PCE - Initializing...", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, m_window_width,
+                              m_window_height, flags | GetAdditionalWindowCreateFlags());
+  if (!m_window)
+    return false;
 
-  display->m_window = SDL_CreateWindow("Slow-ass SDL window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                       static_cast<int>(display->m_display_width),
-                                       static_cast<int>(display->m_display_height), SDL_WINDOW_SHOWN);
+  m_render_event_type = SDL_RegisterEvents(1);
+  return true;
+}
 
-  if (!display->m_window)
-    return nullptr;
+bool DisplaySDL::HandleSDLEvent(const SDL_Event* ev)
+{
+  if (ev->type == m_render_event_type)
+  {
+    m_needs_render = true;
+    return true;
+  }
 
-  display->m_window_surface = SDL_GetWindowSurface(display->m_window);
-  if (!display->m_window_surface)
-    return nullptr;
+  if (ev->type == SDL_WINDOWEVENT && ev->window.event == SDL_WINDOWEVENT_RESIZED)
+  {
+    OnWindowResized();
+    return true;
+  }
 
-  display->m_offscreen_surface = CreateOffscreenSurface(display->m_framebuffer_width, display->m_framebuffer_height);
-  if (!display->m_offscreen_surface)
-    return nullptr;
+  return false;
+}
 
-  if (SDL_MUSTLOCK(display->m_offscreen_surface))
-    SDL_LockSurface(display->m_offscreen_surface);
-
-  display->m_framebuffer_pointer = static_cast<uint8*>(display->m_offscreen_surface->pixels);
-  display->m_framebuffer_pitch = static_cast<uint32>(display->m_offscreen_surface->pitch);
-  Y_memzero(display->m_framebuffer_pointer, display->m_framebuffer_pitch * display->m_framebuffer_height);
-  display->DisplayFramebuffer();
-
-  return std::unique_ptr<Display>(display);
+void DisplaySDL::RenderFrame()
+{
+  RenderImpl();
 }
 
 void DisplaySDL::ResizeDisplay(uint32 width /*= 0*/, uint32 height /*= 0*/)
 {
   Display::ResizeDisplay(width, height);
-
-  SDL_SetWindowSize(m_window, static_cast<int>(m_display_width), static_cast<int>(m_display_height));
-
-  m_window_surface = SDL_GetWindowSurface(m_window);
-  Assert(m_window_surface != nullptr);
+  // SDL_SetWindowSize(m_window, static_cast<int>(m_display_width), static_cast<int>(m_display_height));
+  // Don't do anything when it's maximized or fullscreen
+  // if (SDL_GetWindowFlags(m_window) & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN))
+  // return;
 }
 
 void DisplaySDL::ResizeFramebuffer(uint32 width, uint32 height)
 {
-  SDL_Surface* new_surface = CreateOffscreenSurface(width, height);
-  Assert(new_surface != nullptr);
-
-  // Copy as much as possible in
-  uint32 copy_width = std::min(m_framebuffer_width, width);
-  uint32 copy_height = std::min(m_framebuffer_height, height);
-  if (SDL_MUSTLOCK(new_surface))
-    SDL_LockSurface(new_surface);
-
-  Y_memzero(new_surface->pixels, new_surface->pitch * height);
-  Y_memcpy_stride(new_surface->pixels, new_surface->pitch, m_offscreen_surface->pixels, m_offscreen_surface->pitch,
-                  copy_width * 4, copy_height);
-
-  if (SDL_MUSTLOCK(m_offscreen_surface))
-    SDL_UnlockSurface(m_offscreen_surface);
-
-  SDL_FreeSurface(m_offscreen_surface);
-  m_offscreen_surface = new_surface;
-  m_framebuffer_pointer = reinterpret_cast<uint8*>(new_surface->pixels);
-  m_framebuffer_pitch = static_cast<uint32>(new_surface->pitch);
   m_framebuffer_width = width;
   m_framebuffer_height = height;
+
+  FrameBuffer& fb = m_framebuffers[m_write_framebuffer_index];
+  if (fb.width != width || fb.height != height)
+  {
+    fb.width = width;
+    fb.height = height;
+    fb.data.resize(fb.width * fb.height);
+    fb.stride = width * sizeof(uint32);
+    m_framebuffer_pointer = reinterpret_cast<uint8*>(fb.data.data());
+    m_framebuffer_pitch = width * sizeof(uint32);
+  }
 }
 
 void DisplaySDL::DisplayFramebuffer()
 {
-  if (SDL_MUSTLOCK(m_window_surface))
-    SDL_LockSurface(m_window_surface);
+  // Queue current FB.
+  {
+    std::lock_guard<std::mutex> guard(m_framebuffer_mutex);
+    m_read_framebuffer_index = m_write_framebuffer_index;
+    m_write_framebuffer_index = (m_write_framebuffer_index + 1) % NUM_FRAMEBUFFERS;
+  }
 
-  SDL_Rect src_rect = {0, 0, static_cast<int>(m_framebuffer_width), static_cast<int>(m_framebuffer_height)};
-  SDL_Rect dst_rect = {0, 0, static_cast<int>(m_display_width), static_cast<int>(m_display_height)};
-  SDL_BlitScaled(m_offscreen_surface, &src_rect, m_window_surface, &dst_rect);
+  // Push event to present the current FB.
+  {
+    SDL_Event ev;
+    std::memset(&ev, 0, sizeof(ev));
+    ev.type = m_render_event_type;
+    SDL_PushEvent(&ev);
+  }
 
-  if (SDL_MUSTLOCK(m_window_surface))
-    SDL_UnlockSurface(m_window_surface);
-
-  SDL_UpdateWindowSurface(m_window);
+  // Set up the next framebuffer.
+  FrameBuffer& fb = m_framebuffers[m_write_framebuffer_index];
+  if (fb.width != m_framebuffer_width || fb.height != m_framebuffer_height)
+  {
+    fb.width = m_framebuffer_width;
+    fb.height = m_framebuffer_height;
+    fb.data.resize(fb.width * fb.height);
+    fb.stride = fb.width * sizeof(uint32);
+  }
+  m_framebuffer_pointer = reinterpret_cast<uint8*>(fb.data.data());
+  AddFrameRendered();
 }
 
 bool DisplaySDL::IsFullscreen() const
 {
-  return false;
+  return ((SDL_GetWindowFlags(m_window) & SDL_WINDOW_FULLSCREEN) != 0);
 }
 
-void DisplaySDL::SetFullscreen(bool enable) {}
+void DisplaySDL::SetFullscreen(bool enable)
+{
+  SDL_SetWindowFullscreen(m_window, enable ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+}
 
-void DisplaySDL::OnWindowResized() {}
-
-void DisplaySDL::MakeCurrent() {}
+void DisplaySDL::OnWindowResized()
+{
+  int width, height;
+  SDL_GetWindowSize(m_window, &width, &height);
+  m_window_width = width;
+  m_window_height = height;
+}

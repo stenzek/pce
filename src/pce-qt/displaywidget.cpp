@@ -120,17 +120,6 @@ void DisplayWidget::DisplayFramebuffer()
   doneCurrent();
 }
 
-bool DisplayWidget::IsFullscreen() const
-{
-  return false;
-}
-
-void DisplayWidget::SetFullscreen(bool enable) {}
-
-void DisplayWidget::OnWindowResized() {}
-
-void DisplayWidget::MakeCurrent() {}
-
 QSize DisplayWidget::sizeHint() const
 {
   return QSize(static_cast<int>(std::max(m_display_width, 1u)), static_cast<int>(std::max(m_display_height, 1u)));

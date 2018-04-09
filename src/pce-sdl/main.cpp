@@ -49,13 +49,12 @@ public:
   void Reset() override;
   void Cleanup() override;
 
-  Display* GetDisplay() const override { return m_display.get(); }
+  DisplaySDL* GetDisplay() const override { return m_display.get(); }
   Audio::Mixer* GetAudioMixer() const override { return m_mixer.get(); }
 
   void ReportMessage(const char* message) override;
   void OnSimulationSpeedUpdate(float speed_percent) override;
 
-  bool IsInputSDLEvent(const SDL_Event* ev);
   bool HandleSDLEvent(const SDL_Event* ev);
   void InjectKeyEvent(GenScanCode sc, bool down);
 
@@ -65,7 +64,7 @@ protected:
   void GrabMouse();
   void ReleaseMouse();
 
-  std::unique_ptr<Display> m_display;
+  std::unique_ptr<DisplaySDL> m_display;
   std::unique_ptr<Audio::Mixer> m_mixer;
 
   String m_last_message;
@@ -74,8 +73,8 @@ protected:
 
 std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
 {
-  // std::unique_ptr<Display> display = DisplayGL::Create();
-  std::unique_ptr<Display> display = DisplayD3D::Create();
+  // std::unique_ptr<DisplaySDL> display = DisplayGL::Create();
+  std::unique_ptr<DisplaySDL> display = DisplayD3D::Create();
   if (!display)
   {
     Panic("Failed to create display");
@@ -91,8 +90,6 @@ bool SDLHostInterface::Initialize(System* system)
 {
   if (!HostInterface::Initialize(system))
     return false;
-
-  m_display->MakeCurrent();
 
   m_mixer = Mixer_SDL::Create();
   // m_mixer = Audio::NullMixer::Create();
@@ -155,8 +152,7 @@ void SDLHostInterface::OnSimulationSpeedUpdate(float speed_percent)
                       speed_percent, m_display->GetFramesPerSecond(), m_last_message.IsEmpty() ? "" : " | ",
                       m_last_message.GetCharArray());
 
-  SDL_Window* window = static_cast<DisplayGL*>(m_display.get())->GetSDLWindow();
-  SDL_SetWindowTitle(window, window_title);
+  SDL_SetWindowTitle(m_display->GetSDLWindow(), window_title);
 }
 
 static inline uint32 SDLButtonToHostButton(uint32 button)
@@ -175,24 +171,11 @@ static inline uint32 SDLButtonToHostButton(uint32 button)
   }
 }
 
-bool SDLHostInterface::IsInputSDLEvent(const SDL_Event* ev)
-{
-  switch (ev->type)
-  {
-    case SDL_MOUSEBUTTONDOWN:
-    case SDL_MOUSEBUTTONUP:
-    case SDL_MOUSEMOTION:
-    case SDL_KEYDOWN:
-    case SDL_KEYUP:
-      return true;
-
-    default:
-      return false;
-  }
-}
-
 bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
 {
+  if (m_display->HandleSDLEvent(ev))
+    return true;
+
   switch (ev->type)
   {
     case SDL_MOUSEBUTTONDOWN:
@@ -200,7 +183,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
       uint32 button = SDLButtonToHostButton(ev->button.button);
       if (IsMouseGrabbed())
       {
-        ExecuteMouseButtonChangeCallbacks(button, true);
+        m_system->QueueExternalEvent([this, button]() { ExecuteMouseButtonChangeCallbacks(button, true); });
         return true;
       }
     }
@@ -211,7 +194,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
       uint32 button = SDLButtonToHostButton(ev->button.button);
       if (IsMouseGrabbed())
       {
-        ExecuteMouseButtonChangeCallbacks(button, false);
+        m_system->QueueExternalEvent([this, button]() { ExecuteMouseButtonChangeCallbacks(button, false); });
         return true;
       }
       else
@@ -230,7 +213,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
 
       int32 dx = ev->motion.xrel;
       int32 dy = ev->motion.yrel;
-      ExecuteMousePositionChangeCallbacks(dx, dy);
+      m_system->QueueExternalEvent([this, dx, dy]() { ExecuteMousePositionChangeCallbacks(dx, dy); });
       return true;
     }
     break;
@@ -252,7 +235,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
       GenScanCode scancode;
       if (MapSDLScanCode(&scancode, ev->key.keysym.scancode))
       {
-        ExecuteKeyboardCallback(scancode, true);
+        m_system->QueueExternalEvent([this, scancode]() { ExecuteKeyboardCallback(scancode, true); });
         return false;
       }
     }
@@ -265,7 +248,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
       GenScanCode scancode;
       if (MapSDLScanCode(&scancode, ev->key.keysym.scancode))
       {
-        ExecuteKeyboardCallback(scancode, false);
+        m_system->QueueExternalEvent([this, scancode]() { ExecuteKeyboardCallback(scancode, false); });
         return false;
       }
     }
@@ -277,7 +260,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
 
 void SDLHostInterface::InjectKeyEvent(GenScanCode sc, bool down)
 {
-  ExecuteKeyboardCallback(sc, down);
+  m_system->QueueExternalEvent([this, sc, down]() { ExecuteKeyboardCallback(sc, down); });
 }
 
 bool SDLHostInterface::IsMouseGrabbed() const
@@ -289,15 +272,13 @@ bool SDLHostInterface::IsMouseGrabbed() const
 
 void SDLHostInterface::GrabMouse()
 {
-  SDL_Window* window = static_cast<DisplayGL*>(m_display.get())->GetSDLWindow();
-  SDL_SetWindowGrab(window, SDL_TRUE);
+  SDL_SetWindowGrab(m_display->GetSDLWindow(), SDL_TRUE);
   SDL_SetRelativeMouseMode(SDL_TRUE);
 }
 
 void SDLHostInterface::ReleaseMouse()
 {
-  SDL_Window* window = static_cast<DisplayGL*>(m_display.get())->GetSDLWindow();
-  SDL_SetWindowGrab(window, SDL_FALSE);
+  SDL_SetWindowGrab(m_display->GetSDLWindow(), SDL_FALSE);
   SDL_SetRelativeMouseMode(SDL_FALSE);
 }
 
@@ -458,12 +439,10 @@ static void TestBIOS()
     {
       Log_InfoPrintf("Loading state...");
       system->LoadState(stream);
-      system->QueueExternalEvent([&]() {
-        system->SetState(System::State::Running);
-        host_interface->InjectKeyEvent(GenScanCode_LeftControl, false);
-        host_interface->InjectKeyEvent(GenScanCode_LeftAlt, false);
-        host_interface->InjectKeyEvent(GenScanCode_Y, true);
-      });
+      system->QueueExternalEvent([&]() { system->SetState(System::State::Running); });
+      host_interface->InjectKeyEvent(GenScanCode_LeftControl, false);
+      host_interface->InjectKeyEvent(GenScanCode_LeftAlt, false);
+      host_interface->InjectKeyEvent(GenScanCode_Y, true);
       stream->Release();
     }
   }
@@ -473,102 +452,106 @@ static void TestBIOS()
 
   while (system->GetState() != System::State::Stopped)
   {
-    SDL_Event ev;
-    if (!SDL_WaitEvent(&ev))
-      continue;
-
-    // Needs to push event to the guest?
-    if (host_interface->IsInputSDLEvent(&ev))
+    // SDL event loop...
+    for (;;)
     {
-      // Use an external event so we call handle on the simulation thread.
-      system->QueueExternalEvent([&host_interface, ev]() { host_interface->HandleSDLEvent(&ev); });
-    }
-    else if (ev.type == SDL_WINDOWEVENT && ev.window.event == SDL_WINDOWEVENT_RESIZED)
-    {
-      host_interface->GetDisplay()->OnWindowResized();
-    }
-
-    if (ev.type == SDL_KEYUP && (SDL_GetModState() & (KMOD_LCTRL | KMOD_LALT)) == (KMOD_LCTRL | KMOD_LALT))
-    {
-      if (ev.key.keysym.sym == SDLK_r)
+      SDL_Event ev;
+      if (!SDL_PollEvent(&ev))
       {
-        system->Reset();
-      }
-      else if (ev.key.keysym.sym == SDLK_l)
-      {
-        ByteStream* stream;
-        if (ByteStream_OpenFileStream("savestate.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
-        {
-          system->LoadState(stream);
-          stream->Release();
-        }
+        // If we don't have to render, sleep until we get an event.
+        if (!host_interface->GetDisplay()->NeedsRender())
+          SDL_WaitEvent(nullptr);
         else
+          break;
+      }
+
+      host_interface->HandleSDLEvent(&ev);
+
+      if (ev.type == SDL_KEYUP && (SDL_GetModState() & (KMOD_LCTRL | KMOD_LALT)) == (KMOD_LCTRL | KMOD_LALT))
+      {
+        if (ev.key.keysym.sym == SDLK_r)
         {
-          Log_ErrorPrintf("Failed to open stream");
+          system->Reset();
         }
-      }
-      else if (ev.key.keysym.sym == SDLK_s)
-      {
-        ByteStream* stream;
-        if (ByteStream_OpenFileStream("savestate.bin",
-                                      BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_WRITE | BYTESTREAM_OPEN_TRUNCATE |
-                                        BYTESTREAM_OPEN_SEEKABLE | BYTESTREAM_OPEN_ATOMIC_UPDATE,
-                                      &stream))
+        else if (ev.key.keysym.sym == SDLK_l)
         {
-          system->SaveState(stream);
-          stream->Release();
+          ByteStream* stream;
+          if (ByteStream_OpenFileStream("savestate.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
+          {
+            system->LoadState(stream);
+            stream->Release();
+          }
+          else
+          {
+            Log_ErrorPrintf("Failed to open stream");
+          }
         }
-        else
+        else if (ev.key.keysym.sym == SDLK_s)
         {
-          Log_ErrorPrintf("Failed to open stream");
+          ByteStream* stream;
+          if (ByteStream_OpenFileStream("savestate.bin",
+                                        BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_WRITE | BYTESTREAM_OPEN_TRUNCATE |
+                                          BYTESTREAM_OPEN_SEEKABLE | BYTESTREAM_OPEN_ATOMIC_UPDATE,
+                                        &stream))
+          {
+            system->SaveState(stream);
+            stream->Release();
+          }
+          else
+          {
+            Log_ErrorPrintf("Failed to open stream");
+          }
         }
-      }
-      else if (ev.key.keysym.sym == SDLK_1)
-      {
-        system->SetCPUBackend(CPUBackendType::Interpreter);
-      }
-      else if (ev.key.keysym.sym == SDLK_2)
-      {
-        system->SetCPUBackend(CPUBackendType::FastInterpreter);
-      }
-      else if (ev.key.keysym.sym == SDLK_3)
-      {
-        system->SetCPUBackend(CPUBackendType::CachedInterpreter);
-      }
-      else if (ev.key.keysym.sym == SDLK_4)
-      {
-        system->SetCPUBackend(CPUBackendType::Recompiler);
-      }
-      else if (ev.key.keysym.sym == SDLK_5)
-      {
-        system->SetCPUBackend(CPUBackendType::NewInterpreter);
-      }
-      else if (ev.key.keysym.sym == SDLK_SPACE)
-      {
-        system->SetSpeedLimiterEnabled(!system->IsSpeedLimiterEnabled());
-      }
-      else if (ev.key.keysym.sym == SDLK_KP_PLUS)
-      {
-        system->GetCPU()->SetFrequency(std::max(system->GetCPU()->GetFrequency() + 1000000.0f, 1000000.0f));
-        host_interface->ReportFormattedMessage("CPU frequency set to %.1f M-IPS",
-                                               system->GetCPU()->GetFrequency() / 1000000.0f);
-      }
-      else if (ev.key.keysym.sym == SDLK_KP_MINUS)
-      {
-        system->GetCPU()->SetFrequency(std::max(system->GetCPU()->GetFrequency() - 1000000.0f, 1000000.0f));
-        host_interface->ReportFormattedMessage("CPU frequency set to %.1f M-IPS",
-                                               system->GetCPU()->GetFrequency() / 1000000.0f);
-      }
-      else if (ev.key.keysym.sym == SDLK_RETURN)
-      {
-        host_interface->GetDisplay()->SetFullscreen(!host_interface->GetDisplay()->IsFullscreen());
-      }
-      else if (ev.key.keysym.sym == SDLK_BACKSPACE)
-      {
-        system->QueueExternalEvent([system]() { system->GetCPU()->FlushCodeCache(); });
-        host_interface->ReportMessage("Flushed code cache.");
+        else if (ev.key.keysym.sym == SDLK_1)
+        {
+          system->SetCPUBackend(CPUBackendType::Interpreter);
+        }
+        else if (ev.key.keysym.sym == SDLK_2)
+        {
+          system->SetCPUBackend(CPUBackendType::FastInterpreter);
+        }
+        else if (ev.key.keysym.sym == SDLK_3)
+        {
+          system->SetCPUBackend(CPUBackendType::CachedInterpreter);
+        }
+        else if (ev.key.keysym.sym == SDLK_4)
+        {
+          system->SetCPUBackend(CPUBackendType::Recompiler);
+        }
+        else if (ev.key.keysym.sym == SDLK_5)
+        {
+          system->SetCPUBackend(CPUBackendType::NewInterpreter);
+        }
+        else if (ev.key.keysym.sym == SDLK_SPACE)
+        {
+          system->SetSpeedLimiterEnabled(!system->IsSpeedLimiterEnabled());
+        }
+        else if (ev.key.keysym.sym == SDLK_KP_PLUS)
+        {
+          system->GetCPU()->SetFrequency(std::max(system->GetCPU()->GetFrequency() + 1000000.0f, 1000000.0f));
+          host_interface->ReportFormattedMessage("CPU frequency set to %.1f M-IPS",
+                                                 system->GetCPU()->GetFrequency() / 1000000.0f);
+        }
+        else if (ev.key.keysym.sym == SDLK_KP_MINUS)
+        {
+          system->GetCPU()->SetFrequency(std::max(system->GetCPU()->GetFrequency() - 1000000.0f, 1000000.0f));
+          host_interface->ReportFormattedMessage("CPU frequency set to %.1f M-IPS",
+                                                 system->GetCPU()->GetFrequency() / 1000000.0f);
+        }
+        else if (ev.key.keysym.sym == SDLK_RETURN)
+        {
+          host_interface->GetDisplay()->SetFullscreen(!host_interface->GetDisplay()->IsFullscreen());
+        }
+        else if (ev.key.keysym.sym == SDLK_BACKSPACE)
+        {
+          system->QueueExternalEvent([system]() { system->GetCPU()->FlushCodeCache(); });
+          host_interface->ReportMessage("Flushed code cache.");
+        }
       }
     }
+
+    if (host_interface->GetDisplay()->NeedsRender())
+      host_interface->GetDisplay()->RenderFrame();
   }
 }
 

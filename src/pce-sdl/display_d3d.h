@@ -3,40 +3,29 @@
 #ifdef WIN32
 
 #include "YBaseLib/Windows/WindowsHeaders.h"
-#include "pce/display.h"
-#include <SDL.h>
+#include "pce-sdl/display_sdl.h"
 #include <d3d11.h>
 #include <memory>
 #include <mutex>
 #include <wrl.h>
 
-class DisplayD3D : public Display
+class DisplayD3D : public DisplaySDL
 {
 public:
   DisplayD3D();
   ~DisplayD3D();
 
-  static std::unique_ptr<Display> Create();
+  static std::unique_ptr<DisplayD3D> Create();
 
-  SDL_Window* GetSDLWindow() const { return m_window; }
-
-  void ResizeDisplay(uint32 width = 0, uint32 height = 0) override;
-  void ResizeFramebuffer(uint32 width, uint32 height) override;
-  void DisplayFramebuffer() override;
-
-  bool IsFullscreen() const override;
-  void SetFullscreen(bool enable) override;
-
+protected:
+  bool Initialize() override;
   void OnWindowResized() override;
-  void MakeCurrent() override;
+  void RenderImpl() override;
 
 private:
+  bool UpdateFramebufferTexture();
   bool CreateRenderTargetView();
-  void MapFramebufferTexture();
-  void UnmapFramebufferTexture();
-  void ResizeSwapChain();
 
-  SDL_Window* m_window = nullptr;
   Microsoft::WRL::ComPtr<ID3D11Device> m_device = nullptr;
   Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_context = nullptr;
   Microsoft::WRL::ComPtr<IDXGISwapChain> m_swap_chain = nullptr;
@@ -50,10 +39,8 @@ private:
   Microsoft::WRL::ComPtr<ID3D11Texture2D> m_framebuffer_texture = nullptr;
   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_framebuffer_texture_srv = nullptr;
 
-  uint32 m_window_width = 0;
-  uint32 m_window_height = 0;
-  bool m_window_resized = false;
-  std::mutex m_present_mutex;
+  uint32 m_framebuffer_texture_width = 0;
+  uint32 m_framebuffer_texture_height = 0;
 };
 
 #endif

@@ -52,8 +52,9 @@ std::unique_ptr<Display> DisplayGL::Create()
   display->ResizeFramebuffer(width, height);
   display->DisplayFramebuffer();
 
-  glFinish();
-  SDL_GL_MakeCurrent(nullptr, nullptr);
+  // glFinish();
+  // SDL_GL_MakeCurrent(nullptr, nullptr);
+  // SDL_GL_SetSwapInterval(0);
 
   return std::unique_ptr<Display>(display);
 }
@@ -154,22 +155,4 @@ void DisplayGL::DisplayFramebuffer()
   glEnd();
 
   SDL_GL_SwapWindow(m_window);
-}
-
-bool DisplayGL::IsFullscreen() const
-{
-  return ((SDL_GetWindowFlags(m_window) & SDL_WINDOW_FULLSCREEN) != 0);
-}
-
-void DisplayGL::SetFullscreen(bool enable)
-{
-  SDL_SetWindowFullscreen(m_window, enable ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-}
-
-void DisplayGL::OnWindowResized() {}
-
-void DisplayGL::MakeCurrent()
-{
-  SDL_GL_MakeCurrent(m_window, m_gl_context);
-  SDL_GL_SetSwapInterval(0);
 }

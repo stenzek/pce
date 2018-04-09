@@ -25,12 +25,6 @@ public:
   virtual void ResizeFramebuffer(uint32 width, uint32 height) = 0;
   virtual void DisplayFramebuffer() = 0;
 
-  virtual bool IsFullscreen() const = 0;
-  virtual void SetFullscreen(bool enable) = 0;
-
-  virtual void OnWindowResized() = 0;
-  virtual void MakeCurrent() = 0;
-
   static constexpr uint32 PackRGB(uint8 r, uint8 g, uint8 b)
   {
     return (static_cast<uint32>(r) << 0) | (static_cast<uint32>(g) << 8) | (static_cast<uint32>(b) << 16) |
@@ -71,10 +65,4 @@ public:
 
   void ResizeFramebuffer(uint32 width, uint32 height) override;
   void DisplayFramebuffer() override;
-
-  bool IsFullscreen() const override;
-  void SetFullscreen(bool enable) override;
-
-  void OnWindowResized() override;
-  void MakeCurrent() override;
 };
