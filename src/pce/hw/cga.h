@@ -24,6 +24,8 @@ public:
   static const uint32 CHARACTER_ROW_COUNTER_MASK = 0x1F;
   static const uint32 VERTICAL_COUNTER_MASK = 0x7F;
   static const uint32 CRTC_ADDRESS_SHIFT = 1;
+  static const uint32 VSYNC_PULSE_WIDTH = 16;
+  static const uint8 BLINK_INTERVAL = 8;
 
 public:
   CGA();
@@ -38,8 +40,11 @@ public:
   virtual bool SaveState(BinaryWriter& writer) override;
 
 private:
+  uint32 GetBorderColor() const;
+  uint32 GetCursorAddress() const;
+  uint32 InCursorBox() const;
   void ConnectIOPorts(Bus* bus);
-  void Tick(CycleCount cycles);
+  void RenderLineEvent(CycleCount cycles);
   void BeginFrame();
   void RenderLineText();
   void RenderLineGraphics();
@@ -128,11 +133,9 @@ private:
     SimulationTime horizontal_display_start_time;
     SimulationTime horizontal_display_end_time;
 
-    uint32 vertical_total_rows;
     uint32 vertical_display_end;
     uint32 vertical_sync_start;
     uint32 vertical_sync_end;
-    uint32 vertical_total_lines;
 
     bool operator==(const Timing& rhs) const;
   };
@@ -145,12 +148,18 @@ private:
   uint32 m_character_row_counter = 0;
   uint32 m_current_row = 0;
   uint32 m_remaining_adjust_lines = 0;
-  TimingEvent::Pointer m_tick_event;
+  TimingEvent::Pointer m_line_event;
 
   // Currently-rendering frame.
   std::vector<uint32> m_current_frame;
   uint32 m_current_frame_width = 0;
   uint32 m_current_frame_line = 0;
   uint32 m_current_frame_offset = 0;
+
+  // Blink bit. XOR with the character value.
+  uint8 m_blink_frame_counter = BLINK_INTERVAL;
+  uint8 m_cursor_frame_counter = BLINK_INTERVAL;
+  uint8 m_blink_state = 0;
+  uint8 m_cursor_state = 0;
 };
 } // namespace HW

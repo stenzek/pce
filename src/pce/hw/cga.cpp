@@ -26,7 +26,7 @@ void CGA::Initialize(System* system, Bus* bus)
   m_clock.SetManager(system->GetTimingManager());
   ConnectIOPorts(bus);
 
-  m_tick_event = m_clock.NewEvent("Tick", 1, std::bind(&CGA::Tick, this, std::placeholders::_2));
+  m_line_event = m_clock.NewEvent("Tick", 1, std::bind(&CGA::RenderLineEvent, this, std::placeholders::_2));
 }
 
 void CGA::Reset()
@@ -103,6 +103,24 @@ bool CGA::SaveState(BinaryWriter& writer)
   return valid;
 }
 
+uint32 CGA::GetBorderColor() const
+{
+  return CGA_PALETTE[m_color_control_register.background_color];
+}
+
+uint32 CGA::GetCursorAddress() const
+{
+  return (ZeroExtend32(m_crtc_registers.cursor_location_high) << 8) |
+         ZeroExtend32(m_crtc_registers.cursor_location_low);
+}
+
+uint32 CGA::InCursorBox() const
+{
+  const uint8 cursor_mask = BoolToUInt8(m_character_row_counter >= ZeroExtend32(m_crtc_registers.cursor_start & 0x3F) &&
+                                        m_character_row_counter <= ZeroExtend32(m_crtc_registers.cursor_end));
+  return ((cursor_mask & m_cursor_state) != 0);
+}
+
 void CGA::ConnectIOPorts(Bus* bus)
 {
   bus->ConnectIOPortReadToPointer(0x03D0, this, &m_crtc_index_register);
@@ -132,7 +150,7 @@ void CGA::ConnectIOPorts(Bus* bus)
   mmio_BC000->Release();
 }
 
-void CGA::Tick(CycleCount cycles)
+void CGA::RenderLineEvent(CycleCount cycles)
 {
   while (cycles > 0)
   {
@@ -156,7 +174,7 @@ void CGA::Tick(CycleCount cycles)
       {
         FlushFrame();
       }
-      else if ((m_current_row + 1) == m_timing.vertical_total_rows)
+      else if (m_current_row == m_crtc_registers.vertical_total)
       {
         // Are we still in the adjust region?
         if (m_remaining_adjust_lines == 0)
@@ -206,38 +224,79 @@ void CGA::BeginFrame()
   m_character_row_counter = 0;
   m_current_row = 0;
   m_remaining_adjust_lines = m_crtc_registers.vertical_total_adjust;
+
+  // Update blink state.
+  if ((--m_blink_frame_counter) == 0)
+  {
+    m_blink_frame_counter = BLINK_INTERVAL;
+    m_blink_state ^= 1;
+  }
+
+  // Update cursor state.
+  // TODO: Should this be at the start of a line, or the start of a frame?
+  const uint8 cursor_val = (m_crtc_registers.cursor_start >> 5) & 3;
+  switch (cursor_val)
+  {
+    case 1:
+      m_cursor_state = 0;
+      break;
+    case 0:
+    case 2:
+    case 3:
+    {
+      if ((--m_cursor_frame_counter) == 0)
+      {
+        m_cursor_frame_counter = BLINK_INTERVAL << ((cursor_val == 3) ? 1 : 0);
+        m_cursor_state ^= 1;
+      }
+    }
+    break;
+  }
 }
 
 void CGA::RenderLineText()
 {
   const uint32 num_characters =
     std::min(m_current_frame_width / CHARACTER_WIDTH, ZeroExtend32(m_crtc_registers.horizontal_displayed));
-  const uint32 line_width = num_characters * CHARACTER_WIDTH;
+  const uint32 line_width = (num_characters * CHARACTER_WIDTH) + m_timing.horizontal_left_border_pixels +
+                            m_timing.horizontal_right_border_pixels;
   if (m_current_frame.size() < (m_current_frame_offset + line_width))
     m_current_frame.resize(m_current_frame_offset + line_width);
 
+  const uint32 border_color = GetBorderColor();
+  for (uint32 i = 0; i < m_timing.horizontal_left_border_pixels; i++)
+    m_current_frame[m_current_frame_offset++] = border_color;
+
+  uint32 cursor_address = GetCursorAddress();
   uint32 address_register = m_address_counter;
   uint32 character_start_y = m_character_row_counter & 0x7;
-
   for (uint32 j = 0; j < num_characters; j++)
   {
-    uint32 vram_address = (address_register++ & ADDRESS_COUNTER_VRAM_MASK_TEXT) << CRTC_ADDRESS_SHIFT;
+    uint32 vram_address = (address_register & ADDRESS_COUNTER_VRAM_MASK_TEXT) << CRTC_ADDRESS_SHIFT;
     uint8 character_code = m_vram[vram_address + 0];
     uint8 character_attributes = m_vram[vram_address + 1];
 
-    // TODO: Blinking text
     uint8 source_bits = CGA_FONT[character_code][character_start_y];
     uint32 foreground_color = CGA_PALETTE[character_attributes & 0xF];
-    uint32 background_color = CGA_PALETTE[character_attributes >> 4];
-    uint32 colors[2] = {background_color, foreground_color};
+    uint32 background_color = CGA_PALETTE[(character_attributes >> 4) & 0x7];
+    if (address_register == cursor_address && InCursorBox())
+      source_bits = 0xFF;
+    if ((character_attributes >> 7) & m_blink_state)
+      foreground_color = background_color;
 
+    const uint32 colors[2] = {background_color, foreground_color};
     for (uint32 k = 0; k < 8; k++)
     {
       // This goes MSB..LSB.
       m_current_frame[m_current_frame_offset++] = (source_bits >> 7) ? foreground_color : background_color;
       source_bits <<= 1;
     }
+
+    address_register = (address_register + 1) & ADDRESS_COUNTER_MASK;
   }
+
+  for (uint32 i = 0; i < m_timing.horizontal_right_border_pixels; i++)
+    m_current_frame[m_current_frame_offset++] = border_color;
 
   m_current_frame_line++;
 }
@@ -248,9 +307,14 @@ void CGA::RenderLineGraphics()
   const uint32 num_characters =
     std::min(m_current_frame_width / (high_resolution ? (CHARACTER_WIDTH * 2) : CHARACTER_WIDTH),
              ZeroExtend32(m_crtc_registers.horizontal_displayed));
-  const uint32 line_width = num_characters * (high_resolution ? (CHARACTER_WIDTH * 2) : CHARACTER_WIDTH);
+  const uint32 line_width = (num_characters * (high_resolution ? (CHARACTER_WIDTH * 2) : CHARACTER_WIDTH)) +
+                            m_timing.horizontal_left_border_pixels + m_timing.horizontal_right_border_pixels;
   if (m_current_frame.size() < (m_current_frame_offset + line_width))
     m_current_frame.resize(m_current_frame_offset + line_width);
+
+  const uint32 border_color = GetBorderColor();
+  for (uint32 i = 0; i < m_timing.horizontal_left_border_pixels; i++)
+    m_current_frame[m_current_frame_offset++] = border_color;
 
   uint32 address_counter = m_address_counter;
   for (uint32 j = 0; j < num_characters; j++)
@@ -292,12 +356,15 @@ void CGA::RenderLineGraphics()
     }
   }
 
+  for (uint32 i = 0; i < m_timing.horizontal_right_border_pixels; i++)
+    m_current_frame[m_current_frame_offset++] = border_color;
+
   m_current_frame_line++;
 }
 
 void CGA::RenderLineBorder()
 {
-  const uint32 border_color = CGA_PALETTE[m_color_control_register.background_color];
+  const uint32 border_color = GetBorderColor();
   if (m_current_frame.size() < (m_current_frame_offset + m_current_frame_width))
     m_current_frame.resize(m_current_frame_offset + m_current_frame_width);
 
@@ -326,47 +393,37 @@ void CGA::FlushFrame()
   // clear our buffered frame state, pull new width from the crtc
   const bool hires_graphics = m_mode_control_register.graphics_mode && m_mode_control_register.high_resolution_graphics;
   m_current_frame_width =
-    ZeroExtend32(m_crtc_registers.horizontal_displayed) * (hires_graphics ? (CHARACTER_WIDTH * 2) : CHARACTER_WIDTH);
+    (ZeroExtend32(m_crtc_registers.horizontal_displayed) * (hires_graphics ? (CHARACTER_WIDTH * 2) : CHARACTER_WIDTH)) +
+    m_timing.horizontal_left_border_pixels + m_timing.horizontal_right_border_pixels;
   m_current_frame_line = 0;
   m_current_frame_offset = 0;
 }
 
 void CGA::ModeControlRegisterWrite(uint8 value)
 {
-  //   const bool display_enabled_changed = (m_mode_control_register.raw & 0x08) != (value & 0x08);
-
-  m_tick_event->InvokeEarly();
+  m_line_event->InvokeEarly();
   m_mode_control_register.raw = value;
   RecalculateEventTiming();
-
-  //   if (display_enabled_changed)
-  //   {
-  //     if (m_mode_control_register.enable_video_output)
-  //       BeginFrame();
-  //     else
-  //       FlushFrame();
-  //   }
 }
 
 void CGA::ColorControlRegisterWrite(uint8 value)
 {
-  m_tick_event->InvokeEarly();
+  m_line_event->InvokeEarly();
   m_color_control_register.raw = value;
 }
 
 void CGA::StatusRegisterRead(uint8* value)
 {
-  m_tick_event->InvokeEarly();
+  m_line_event->InvokeEarly();
 
   StatusRegister sr = {};
   if (m_mode_control_register.enable_video_output)
   {
-    const bool in_vertical_blank =
-      m_current_row >= m_timing.vertical_sync_start && m_current_row < m_timing.vertical_sync_end;
+    const bool in_vertical_blank = m_current_row >= m_timing.vertical_sync_start;
     bool safe_vram_access = in_vertical_blank;
     if (!in_vertical_blank)
     {
-      const SimulationTime line_time = m_tick_event->GetTimeSinceLastExecution();
+      const SimulationTime line_time = m_line_event->GetTimeSinceLastExecution();
       const bool in_horizontal_blank =
         line_time < m_timing.horizontal_display_start_time || line_time >= m_timing.horizontal_display_end_time;
       safe_vram_access |= in_horizontal_blank;
@@ -402,7 +459,7 @@ void CGA::CRTDataRegisterWrite(uint8 value)
   if (m_crtc_index_register >= NUM_CRTC_REGISTERS)
     return;
 
-  m_tick_event->InvokeEarly();
+  m_line_event->InvokeEarly();
   m_crtc_registers.index[m_crtc_index_register] = value & masks[m_crtc_index_register];
   RecalculateEventTiming();
 }
@@ -411,9 +468,9 @@ void CGA::RecalculateEventTiming()
 {
   if (!m_mode_control_register.enable_video_output)
   {
-    if (m_tick_event->IsActive())
+    if (m_line_event->IsActive())
     {
-      m_tick_event->Deactivate();
+      m_line_event->Deactivate();
       m_timing = {};
     }
     return;
@@ -428,9 +485,11 @@ void CGA::RecalculateEventTiming()
 
   // Calculate sync times.
   int32 horizontal_total = int32(ZeroExtend32(m_crtc_registers.horizontal_total) + 1);
-  int32 horizontal_displayed = int32(ZeroExtend32(m_crtc_registers.horizontal_displayed) + 1);
-  int32 horizontal_sync_start = int32(ZeroExtend32(m_crtc_registers.horizontal_sync_position));
-  int32 horizontal_sync_end = horizontal_sync_start + int32(ZeroExtend32(m_crtc_registers.horizontal_sync_pulse_width));
+  int32 horizontal_displayed = std::min(int32(ZeroExtend32(m_crtc_registers.horizontal_displayed)), horizontal_total);
+  int32 horizontal_sync_start =
+    std::min(int32(ZeroExtend32(m_crtc_registers.horizontal_sync_position)), horizontal_total);
+  int32 horizontal_sync_end = std::min(
+    horizontal_sync_start + int32(ZeroExtend32(m_crtc_registers.horizontal_sync_pulse_width)), horizontal_total);
   int32 horizontal_display_start = std::clamp(horizontal_total - horizontal_sync_end, int32(0), horizontal_total);
   int32 horizontal_display_end = std::min(horizontal_display_start + horizontal_displayed, horizontal_total);
   timing.horizontal_display_start_time = SimulationTime((1000000000.0 * horizontal_display_start) / dot_clock);
@@ -442,37 +501,35 @@ void CGA::RecalculateEventTiming()
       (CHARACTER_WIDTH * 2) :
       CHARACTER_WIDTH;
   timing.horizontal_left_border_pixels = horizontal_display_start * border_character_width;
-  timing.horizontal_right_border_pixels = (horizontal_total - horizontal_display_end) * border_character_width;
+  timing.horizontal_right_border_pixels = (horizontal_total - horizontal_sync_end) * border_character_width;
 
   // Vertical timing.
-  timing.vertical_total_rows = ZeroExtend32(m_crtc_registers.vertical_total) + 1;
+  const uint32 character_height = ZeroExtend32(m_crtc_registers.maximum_scan_lines + 1);
+  uint32 vertical_total_rows = ZeroExtend32(m_crtc_registers.vertical_total) + 1;
   timing.vertical_display_end = ZeroExtend32(m_crtc_registers.vertical_displayed);
-  timing.vertical_sync_start =
-    std::min(timing.vertical_total_rows, ZeroExtend32(m_crtc_registers.vertical_sync_position));
-  timing.vertical_sync_end = timing.vertical_total_rows;
+  timing.vertical_sync_start = std::min(ZeroExtend32(m_crtc_registers.vertical_sync_position), vertical_total_rows);
+  timing.vertical_sync_end =
+    std::min(timing.vertical_sync_start + (VSYNC_PULSE_WIDTH / character_height), vertical_total_rows);
 
   if (m_timing == timing)
     return;
 
-  //   Log_InfoPrintf("Horizontal frequency: %.4f kHz", timing.horizontal_frequency / 1000.0f);
-  //   Log_InfoPrintf("htotal=%u,hdisp=%u,vtotal=%u,vdisp=%u,vsync=%u", m_crtc_registers.horizontal_total,
-  //                  m_crtc_registers.horizontal_displayed, m_crtc_registers.vertical_total,
-  //                  m_crtc_registers.vertical_displayed, m_crtc_registers.vertical_sync_position);
-
   m_timing = timing;
 
-  m_tick_event->SetFrequency(float(m_timing.horizontal_frequency));
-  if (!m_tick_event->IsActive())
-    m_tick_event->Activate();
+  // Render a whole frame if possible, by delaying the event vtotal lines, to reduce CPU load.
+  uint32 vertical_total_scanlines = vertical_total_rows * character_height;
+  m_line_event->SetFrequency(float(m_timing.horizontal_frequency), vertical_total_scanlines);
+  if (!m_line_event->IsActive())
+    m_line_event->Activate();
 }
 
 bool CGA::Timing::operator==(const Timing& rhs) const
 {
   return std::tie(horizontal_frequency, horizontal_left_border_pixels, horizontal_right_border_pixels,
-                  horizontal_display_start_time, horizontal_display_end_time, vertical_total_rows, vertical_display_end,
-                  vertical_sync_start, vertical_sync_end, vertical_total_lines) ==
-         std::tie(rhs.horizontal_frequency, rhs.horizontal_left_border_pixels, rhs.horizontal_right_border_pixels,
-                  rhs.horizontal_display_start_time, rhs.horizontal_display_end_time, rhs.vertical_total_rows,
-                  rhs.vertical_display_end, rhs.vertical_sync_start, rhs.vertical_sync_end, rhs.vertical_total_lines);
+                  horizontal_display_start_time, horizontal_display_end_time, vertical_display_end, vertical_sync_start,
+                  vertical_sync_end) == std::tie(rhs.horizontal_frequency, rhs.horizontal_left_border_pixels,
+                                                 rhs.horizontal_right_border_pixels, rhs.horizontal_display_start_time,
+                                                 rhs.horizontal_display_end_time, rhs.vertical_display_end,
+                                                 rhs.vertical_sync_start, rhs.vertical_sync_end);
 }
 } // namespace HW
