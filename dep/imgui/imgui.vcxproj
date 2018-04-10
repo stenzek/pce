@@ -112,37 +112,40 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)bin\$(Platform)\</OutDir>
+    <OutDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">
-    <OutDir>$(SolutionDir)bin\$(Platform)\</OutDir>
+    <OutDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IntDir>$(SolutionDir)bin\$(Platform)-build\imgui-$(Configuration)\</IntDir>
-    <TargetName>imgui-$(Configuration)</TargetName>
+    <IntDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IntDir>$(SolutionDir)bin\$(Platform)-build\imgui-$(Configuration)\</IntDir>
-    <TargetName>imgui-$(Configuration)</TargetName>
+    <IntDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
+    <OutDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">
-    <IntDir>$(SolutionDir)bin\$(Platform)-build\imgui-$(Configuration)\</IntDir>
-    <TargetName>imgui-$(Configuration)</TargetName>
+    <IntDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">
-    <IntDir>$(SolutionDir)bin\$(Platform)-build\imgui-$(Configuration)\</IntDir>
-    <TargetName>imgui-$(Configuration)</TargetName>
+    <IntDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
+    <OutDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)bin\$(Platform)\</OutDir>
+    <OutDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IntDir>$(SolutionDir)bin\$(Platform)-build\imgui-$(Configuration)\</IntDir>
-    <TargetName>imgui-$(Configuration)</TargetName>
+    <IntDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IntDir>$(SolutionDir)bin\$(Platform)-build\imgui-$(Configuration)\</IntDir>
-    <TargetName>imgui-$(Configuration)</TargetName>
+    <IntDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
+    <OutDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

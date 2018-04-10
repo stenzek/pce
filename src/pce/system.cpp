@@ -273,6 +273,14 @@ void System::Stop()
   SetState(State::Stopped);
 }
 
+void System::ExternalReset()
+{
+  if (IsOnSimulationThread())
+    Reset();
+  else
+    QueueExternalEvent([this]() { Reset(); });
+}
+
 bool System::IsOnSimulationThread() const
 {
   return (m_simulation_thread_id == std::this_thread::get_id());

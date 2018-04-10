@@ -86,6 +86,9 @@ public:
   // Ensure that it is not executing when calling, otherwise use SetState(Stopped).
   void Stop();
 
+  // Resets the system, when called externally.
+  void ExternalReset();
+
   // Load/save state. If load fails, system is in an undefined state, Reset it.
   // This occurs asynchronously, the event maintains a reference to the stream.
   // The stream is committed upon success, or discarded upon fail.

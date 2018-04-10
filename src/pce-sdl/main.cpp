@@ -68,6 +68,8 @@ protected:
   void GrabMouse();
   void ReleaseMouse();
   void RenderImGui();
+  void DoLoadState(uint32 index);
+  void DoSaveState(uint32 index);
 
   std::unique_ptr<DisplaySDL> m_display;
   std::unique_ptr<Audio::Mixer> m_mixer;
@@ -310,9 +312,66 @@ void SDLHostInterface::RenderImGui()
     if (ImGui::BeginMenu("System"))
     {
       if (ImGui::MenuItem("Reset"))
-        m_system->QueueExternalEvent([this]() { m_system->Reset(); });
+        m_system->ExternalReset();
 
       ImGui::Separator();
+
+      if (ImGui::BeginMenu("CPU Backend"))
+      {
+        CPUBackendType current_backend = m_system->GetCPU()->GetCurrentBackend();
+        if (ImGui::MenuItem("Interpreter", nullptr, current_backend == CPUBackendType::Interpreter))
+          m_system->SetCPUBackend(CPUBackendType::Interpreter);
+        if (ImGui::MenuItem("Fast Interpreter", nullptr, current_backend == CPUBackendType::FastInterpreter))
+          m_system->SetCPUBackend(CPUBackendType::FastInterpreter);
+        if (ImGui::MenuItem("Cached Interpreter", nullptr, current_backend == CPUBackendType::CachedInterpreter))
+          m_system->SetCPUBackend(CPUBackendType::CachedInterpreter);
+        if (ImGui::MenuItem("New Interpreter", nullptr, current_backend == CPUBackendType::NewInterpreter))
+          m_system->SetCPUBackend(CPUBackendType::NewInterpreter);
+        if (ImGui::MenuItem("Recompiler", nullptr, current_backend == CPUBackendType::Recompiler))
+          m_system->SetCPUBackend(CPUBackendType::Recompiler);
+
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::BeginMenu("CPU Speed"))
+      {
+        float frequency = m_system->GetCPU()->GetFrequency();
+        if (ImGui::InputFloat("Frequency", &frequency, 1000000.0f))
+        {
+          frequency = std::max(frequency, 1000000.0f);
+          m_system->QueueExternalEventAndWait(
+            [this, frequency]() { m_system->GetCPU()->SetFrequency(float(frequency)); });
+        }
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::MenuItem("Enable Speed Limiter", nullptr, m_system->IsSpeedLimiterEnabled()))
+        m_system->SetSpeedLimiterEnabled(!m_system->IsSpeedLimiterEnabled());
+
+      if (ImGui::MenuItem("Flush Code Cache"))
+        m_system->QueueExternalEvent([this]() { m_system->GetCPU()->FlushCodeCache(); });
+
+      ImGui::Separator();
+
+      if (ImGui::BeginMenu("Load State"))
+      {
+        for (uint32 i = 1; i <= 8; i++)
+        {
+          if (ImGui::MenuItem(TinyString::FromFormat("State %u", i).GetCharArray()))
+            DoLoadState(i);
+        }
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::BeginMenu("Save State"))
+      {
+        for (uint32 i = 1; i <= 8; i++)
+        {
+          if (ImGui::MenuItem(TinyString::FromFormat("State %u", i).GetCharArray()))
+            DoSaveState(i);
+        }
+        ImGui::EndMenu();
+      }
 
       if (ImGui::MenuItem("Exit"))
         Log_DevPrintf("TODO");
@@ -335,6 +394,41 @@ void SDLHostInterface::RenderImGui()
 
     ImGui::EndMainMenuBar();
   }
+}
+
+void SDLHostInterface::DoLoadState(uint32 index)
+{
+  SmallString filename;
+  filename.Format("savestate_%u.bin", index);
+
+  ByteStream* stream;
+  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
+  {
+    Log_ErrorPrintf("Failed to open %s", filename.GetCharArray());
+    return;
+  }
+
+  m_system->LoadState(stream);
+  stream->Release();
+}
+
+void SDLHostInterface::DoSaveState(uint32 index)
+{
+  SmallString filename;
+  filename.Format("savestate_%u.bin", index);
+
+  ByteStream* stream;
+  if (!ByteStream_OpenFileStream("savestate.bin",
+                                 BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_WRITE | BYTESTREAM_OPEN_TRUNCATE |
+                                   BYTESTREAM_OPEN_SEEKABLE | BYTESTREAM_OPEN_ATOMIC_UPDATE,
+                                 &stream))
+  {
+    Log_ErrorPrintf("Failed to open %s", filename.GetCharArray());
+    return;
+  }
+
+  m_system->SaveState(stream);
+  stream->Release();
 }
 
 static bool LoadBIOS(const char* filename, std::function<bool(ByteStream*)> callback)
@@ -460,6 +554,8 @@ static void TestBIOS(SDLHostInterface* host_interface)
 
   // LoadFloppy(system->GetFDDController(), 0, "images\\386bench.img");
   LoadFloppy(system->GetFDDController(), 0, "images\\DOS33-DISK01.IMG");
+  // LoadFloppy(system->GetFDDController(), 1, "images\\8088mph.img");
+  LoadFloppy(system->GetFDDController(), 1, "images\\checkit3a.img");
 
   LoadBIOS("romimages\\PCXTBIOS.BIN", [&system](ByteStream* s) { return system->AddROM(0xFE000, s); });
   // LoadBIOS("romimages\\386_ami.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });
@@ -510,94 +606,17 @@ static void TestBIOS(SDLHostInterface* host_interface)
       {
         // If we don't have to render, sleep until we get an event.
         if (!host_interface->GetDisplay()->NeedsRender())
+        {
           SDL_WaitEvent(nullptr);
+          continue;
+        }
         else
+        {
           break;
+        }
       }
 
       host_interface->HandleSDLEvent(&ev);
-
-      if (ev.type == SDL_KEYUP && (SDL_GetModState() & (KMOD_LCTRL | KMOD_LALT)) == (KMOD_LCTRL | KMOD_LALT))
-      {
-        if (ev.key.keysym.sym == SDLK_r)
-        {
-          system->Reset();
-        }
-        else if (ev.key.keysym.sym == SDLK_l)
-        {
-          ByteStream* stream;
-          if (ByteStream_OpenFileStream("savestate.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
-          {
-            system->LoadState(stream);
-            stream->Release();
-          }
-          else
-          {
-            Log_ErrorPrintf("Failed to open stream");
-          }
-        }
-        else if (ev.key.keysym.sym == SDLK_s)
-        {
-          ByteStream* stream;
-          if (ByteStream_OpenFileStream("savestate.bin",
-                                        BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_WRITE | BYTESTREAM_OPEN_TRUNCATE |
-                                          BYTESTREAM_OPEN_SEEKABLE | BYTESTREAM_OPEN_ATOMIC_UPDATE,
-                                        &stream))
-          {
-            system->SaveState(stream);
-            stream->Release();
-          }
-          else
-          {
-            Log_ErrorPrintf("Failed to open stream");
-          }
-        }
-        else if (ev.key.keysym.sym == SDLK_1)
-        {
-          system->SetCPUBackend(CPUBackendType::Interpreter);
-        }
-        else if (ev.key.keysym.sym == SDLK_2)
-        {
-          system->SetCPUBackend(CPUBackendType::FastInterpreter);
-        }
-        else if (ev.key.keysym.sym == SDLK_3)
-        {
-          system->SetCPUBackend(CPUBackendType::CachedInterpreter);
-        }
-        else if (ev.key.keysym.sym == SDLK_4)
-        {
-          system->SetCPUBackend(CPUBackendType::Recompiler);
-        }
-        else if (ev.key.keysym.sym == SDLK_5)
-        {
-          system->SetCPUBackend(CPUBackendType::NewInterpreter);
-        }
-        else if (ev.key.keysym.sym == SDLK_SPACE)
-        {
-          system->SetSpeedLimiterEnabled(!system->IsSpeedLimiterEnabled());
-        }
-        else if (ev.key.keysym.sym == SDLK_KP_PLUS)
-        {
-          system->GetCPU()->SetFrequency(std::max(system->GetCPU()->GetFrequency() + 1000000.0f, 1000000.0f));
-          host_interface->ReportFormattedMessage("CPU frequency set to %.1f M-IPS",
-                                                 system->GetCPU()->GetFrequency() / 1000000.0f);
-        }
-        else if (ev.key.keysym.sym == SDLK_KP_MINUS)
-        {
-          system->GetCPU()->SetFrequency(std::max(system->GetCPU()->GetFrequency() - 1000000.0f, 1000000.0f));
-          host_interface->ReportFormattedMessage("CPU frequency set to %.1f M-IPS",
-                                                 system->GetCPU()->GetFrequency() / 1000000.0f);
-        }
-        else if (ev.key.keysym.sym == SDLK_RETURN)
-        {
-          host_interface->GetDisplay()->SetFullscreen(!host_interface->GetDisplay()->IsFullscreen());
-        }
-        else if (ev.key.keysym.sym == SDLK_BACKSPACE)
-        {
-          system->QueueExternalEvent([system]() { system->GetCPU()->FlushCodeCache(); });
-          host_interface->ReportMessage("Flushed code cache.");
-        }
-      }
     }
 
     if (host_interface->NeedsRender())
