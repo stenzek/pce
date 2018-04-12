@@ -31,10 +31,7 @@ uint32 TRACE_EXECUTION_LAST_EIP = 0;
 CPU::CPU(Model model, float frequency, CPUBackendType backend_type) : CPUBase(frequency, backend_type), m_model(model)
 {
 #ifdef ENABLE_TLB_EMULATION
-  // Needed to initialize the silly bitfield to zero..
-  Y_memzero(m_tlb_entries, sizeof(m_tlb_entries));
-  for (auto& tlb_entry : m_tlb_entries)
-    tlb_entry.linear_address = 0xFFFFFFFF;
+  InvalidateAllTLBEntries();
 #endif
 }
 
@@ -179,11 +176,6 @@ bool CPU::LoadState(BinaryReader& reader)
   m_stack_address_size = static_cast<AddressSize>(stack_address_size);
   reader.SafeReadUInt32(&m_EIP_mask);
 
-  reader.SafeReadBool(&m_nmi_state);
-  reader.SafeReadBool(&m_irq_state);
-  reader.SafeReadBool(&m_fpu_exception);
-  reader.SafeReadBool(&m_halted);
-
   auto ReadDescriptorTablePointer = [&reader](DescriptorTablePointer* ptr) {
     reader.SafeReadUInt32(&ptr->base_address);
     reader.SafeReadUInt32(&ptr->limit);
@@ -211,24 +203,27 @@ bool CPU::LoadState(BinaryReader& reader)
     ReadSegmentCache(&m_segment_cache[i]);
 
   reader.SafeReadUInt8(&m_cpl);
+  reader.SafeReadUInt8(&m_tlb_user_supervisor_bit);
+
+  reader.SafeReadBool(&m_nmi_state);
+  reader.SafeReadBool(&m_irq_state);
+  reader.SafeReadBool(&m_fpu_exception);
+  reader.SafeReadBool(&m_halted);
 
 #ifdef ENABLE_TLB_EMULATION
   uint32 tlb_entry_count;
   if (!reader.SafeReadUInt32(&tlb_entry_count) || tlb_entry_count != Truncate32(TLB_ENTRY_COUNT))
     return false;
-  for (auto& tlb_entry : m_tlb_entries)
+  for (uint32 user_supervisor = 0; user_supervisor < 2; user_supervisor++)
   {
-    uint32 linear_address = 0xFFFFFFFF, physical_address = 0;
-    uint8 permissions = 0;
-    bool dirty = false;
-    reader.SafeReadUInt32(&linear_address);
-    reader.SafeReadUInt32(&physical_address);
-    reader.SafeReadUInt8(&permissions);
-    reader.SafeReadBool(&dirty);
-    tlb_entry.linear_address = linear_address;
-    tlb_entry.physical_address = physical_address;
-    tlb_entry.permissions = permissions;
-    tlb_entry.dirty = dirty;
+    for (uint32 write_read = 0; write_read < 2; write_read++)
+    {
+      for (auto& entry : m_tlb_entries[user_supervisor][write_read])
+      {
+        reader.SafeReadUInt32(&entry.linear_address);
+        reader.SafeReadUInt32(&entry.physical_address);
+      }
+    }
   }
 #endif
 
@@ -275,11 +270,6 @@ bool CPU::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(static_cast<uint8>(m_stack_address_size));
   writer.WriteUInt32(m_EIP_mask);
 
-  writer.WriteBool(m_nmi_state);
-  writer.WriteBool(m_irq_state);
-  writer.WriteBool(m_fpu_exception);
-  writer.WriteBool(m_halted);
-
   auto WriteDescriptorTablePointer = [&writer](DescriptorTablePointer* ptr) {
     writer.WriteUInt32(ptr->base_address);
     writer.WriteUInt32(ptr->limit);
@@ -305,16 +295,25 @@ bool CPU::SaveState(BinaryWriter& writer)
     WriteSegmentCache(&m_segment_cache[i]);
 
   writer.WriteUInt8(m_cpl);
+  writer.WriteUInt8(m_tlb_user_supervisor_bit);
+
+  writer.WriteBool(m_nmi_state);
+  writer.WriteBool(m_irq_state);
+  writer.WriteBool(m_fpu_exception);
+  writer.WriteBool(m_halted);
 
 #ifdef ENABLE_TLB_EMULATION
   writer.WriteUInt32(Truncate32(TLB_ENTRY_COUNT));
-  for (const auto& entry : m_tlb_entries)
+  for (uint32 user_supervisor = 0; user_supervisor < 2; user_supervisor++)
   {
-    // Needed because of the bitfield
-    writer.WriteUInt32(entry.linear_address);
-    writer.WriteUInt32(entry.physical_address);
-    writer.WriteUInt8(entry.permissions);
-    writer.WriteBool(entry.dirty);
+    for (uint32 write_read = 0; write_read < 2; write_read++)
+    {
+      for (const auto& entry : m_tlb_entries[user_supervisor][write_read])
+      {
+        writer.WriteUInt32(entry.linear_address);
+        writer.WriteUInt32(entry.physical_address);
+      }
+    }
   }
 #endif
 
@@ -796,6 +795,11 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
       if ((value & CR0Bit_NW) != (m_registers.CR0 & CR0Bit_NW))
         Log_ErrorPrintf("CPU cache is now %s", ((value & CR0Bit_NW) != 0) ? "write-back" : "write-through");
 
+      // Some operations cause a TLB flush.
+      constexpr uint32 flush_mask = CR0Bit_PE | CR0Bit_PG | CR0Bit_WP;
+      if ((m_registers.CR0 & flush_mask) != (value & flush_mask))
+        InvalidateAllTLBEntries();
+
       m_registers.CR0 &= ~CHANGE_MASK;
       m_registers.CR0 |= (value & CHANGE_MASK);
 
@@ -804,6 +808,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
         // CPL is always zero in real mode
         // CPL will be updated when CS is loaded after switching to protected mode
         m_cpl = 0;
+        m_tlb_user_supervisor_bit = 0;
       }
 
       m_backend->OnControlRegisterLoaded(Reg32_CR0, old_value, m_registers.CR0);
@@ -877,39 +882,23 @@ bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, Li
     return true;
   }
 
-  // Permission checks only apply in usermode, except if WP bit of CR0 is set
-  bool do_access_check = (access_check && ((m_registers.CR0 & CR0Bit_WP) || InUserMode()));
-  uint8 access_mask = (1 << (uint8)access_type) << (InUserMode() ? 0 : 3);
-
 #ifdef ENABLE_TLB_EMULATION
   // Check TLB.
   size_t tlb_index = GetTLBEntryIndex(linear_address);
-  TLBEntry& tlb_entry = m_tlb_entries[tlb_index];
+  TLBEntry& tlb_entry = m_tlb_entries[m_tlb_user_supervisor_bit][static_cast<uint8>(access_type)][tlb_index];
   if (tlb_entry.linear_address == (linear_address & PAGE_MASK))
   {
-    // Do access check if we're in user-mode.
-    if (do_access_check && (tlb_entry.permissions & access_mask) == 0)
-    {
-      // Don't raise a page fault, as it's possible the page table could have been updated.
-      // Not sure if this is the behavior of the hardware at all.
-      Log_TracePrintf("TLB access check failed for linear address 0x%08X", linear_address);
-    }
-    else if (access_type == AccessType::Write && !tlb_entry.dirty)
-    {
-      // If the dirty bit is not set in the page table entry, fall through as a miss, that
-      // we update it and re-populate the TLB entry with the dirty bit set.
-      Log_TracePrintf("TLB dirty bit check failed for linear address 0x%08X", linear_address);
-    }
-    else
-    {
-      // TLB hit!
-      *out_physical_address = tlb_entry.physical_address + (linear_address & PAGE_OFFSET_MASK);
-      return true;
-    }
+    // TLB hit!
+    *out_physical_address = tlb_entry.physical_address + (linear_address & PAGE_OFFSET_MASK);
+    return true;
   }
 #endif
 
   // TODO: Large (4MB) pages
+
+  // Permission checks only apply in usermode, except if WP bit of CR0 is set
+  bool do_access_check = (access_check && ((m_registers.CR0 & CR0Bit_WP) || InUserMode()));
+  uint8 access_mask = (1 << (uint8)access_type) << (InUserMode() ? 0 : 3);
 
   // Obtain the address of the page directory. Bits 22-31 index the page directory.
   LinearMemoryAddress dir_base_address = (m_registers.CR3 & 0xFFFFF000);
@@ -1004,22 +993,15 @@ bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, Li
   // Calculate the physical address from the page table entry. Pages are 4KB aligned.
   PhysicalMemoryAddress page_base_address = (table_entry.physical_address << 12);
   PhysicalMemoryAddress translated_address = page_base_address + (linear_address & 0xFFF);
-  *out_physical_address = translated_address;
 
 #ifdef ENABLE_TLB_EMULATION
   // Require both directory and page permissions to access in the TLB.
   // TODO: Is this the same on the 386 and 486?
-  bool tlb_dirty = table_entry.dirty;
-
-  // Update TLB.
-  tlb_entry = m_tlb_entries[tlb_index];
   tlb_entry.linear_address = linear_address & PAGE_MASK;
   tlb_entry.physical_address = page_base_address;
-  tlb_entry.permissions = directory_permissions & table_permissions;
-  tlb_entry.dirty = tlb_dirty;
-  tlb_entry.pad = 0;
 #endif
 
+  *out_physical_address = translated_address;
   return true;
 }
 
@@ -1647,6 +1629,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     if (m_cpl != reg_value.rpl)
       Log_DevPrintf("Privilege change: %u -> %u", ZeroExtend32(m_cpl), ZeroExtend32(reg_value.rpl.GetValue()));
     m_cpl = reg_value.rpl;
+    m_tlb_user_supervisor_bit = BoolToUInt8(InSupervisorMode());
     FlushPrefetchQueue();
   }
   else if (segment == Segment_SS)
@@ -2514,6 +2497,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
       m_registers.EFLAGS.bits |= return_EFLAGS & Flag_IOPL;
       SetFlags(return_EFLAGS);
       m_cpl = 3;
+      m_tlb_user_supervisor_bit = BoolToUInt8(InSupervisorMode());
       m_registers.ESP = v86_ESP;
       BranchTo(return_EIP);
       return;
@@ -3448,8 +3432,7 @@ size_t CPU::GetTLBEntryIndex(uint32 linear_address)
 void CPU::InvalidateAllTLBEntries()
 {
 #ifdef ENABLE_TLB_EMULATION
-  for (TLBEntry& entry : m_tlb_entries)
-    entry.linear_address = 0xFFFFFFFF;
+  std::memset(m_tlb_entries, 0xFF, sizeof(m_tlb_entries));
 #endif
 }
 
@@ -3459,8 +3442,15 @@ void CPU::InvalidateTLBEntry(uint32 linear_address)
   linear_address &= PAGE_MASK;
 
   size_t index = GetTLBEntryIndex(linear_address);
-  if (m_tlb_entries[index].linear_address == linear_address)
-    m_tlb_entries[index].linear_address = 0xFFFFFFFF;
+  for (uint32 user_supervisor = 0; user_supervisor < 2; user_supervisor++)
+  {
+    for (uint32 write_read = 0; write_read < 2; write_read++)
+    {
+      TLBEntry& entry = m_tlb_entries[user_supervisor][write_read][index];
+      if (entry.linear_address == linear_address)
+        entry.linear_address = 0xFFFFFFFF;
+    }
+  }
 #endif
 }
 

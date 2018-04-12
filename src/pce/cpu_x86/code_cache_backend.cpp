@@ -121,42 +121,16 @@ bool CodeCacheBackend::GetBlockKeyForCurrentState(BlockKey* key)
   {
     LinearMemoryAddress eip_linear_address = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP);
     PhysicalMemoryAddress eip_physical_address;
-
-#ifdef ENABLE_TLB_EMULATION
-    // Optimal path: The page we're looking for is already in the TLB.
-    size_t tlb_index = m_cpu->GetTLBEntryIndex(eip_linear_address);
-    const CPU::TLBEntry* tlb_entry = &m_cpu->m_tlb_entries[tlb_index];
-    if (tlb_entry->linear_address == (eip_linear_address & CPU::PAGE_MASK))
-      eip_physical_address = tlb_entry->physical_address + (eip_linear_address & CPU::PAGE_OFFSET_MASK);
-
-    // Otherwise, fall back to the slow path. If this fails, it means page fault, so we shouldn't execute anyway.
-    else if (!m_cpu->TranslateLinearAddress(&eip_physical_address, eip_linear_address, true, AccessType::Execute,
-                                            false))
-      return false;
-#else
     if (!m_cpu->TranslateLinearAddress(&eip_physical_address, eip_linear_address, true, AccessType::Execute, false))
       return false;
-#endif
 
     key->eip_physical_address = eip_physical_address;
 
     // The next page address may be valid, but if it isn't, that's fine.
     // TODO: Don't bother checking the next page when the code length is shorter.
     eip_linear_address = (eip_linear_address & CPU::PAGE_MASK) + CPU::PAGE_SIZE;
-    key->eip_next_physical_page_valid = BoolToUInt32(false);
-#ifdef ENABLE_TLB_EMULATION
-    tlb_index = m_cpu->GetTLBEntryIndex(eip_linear_address);
-    tlb_entry = &m_cpu->m_tlb_entries[tlb_index];
-    if (tlb_entry->linear_address == eip_linear_address)
-      eip_physical_address = tlb_entry->physical_address;
-    else
-      key->eip_next_physical_page_valid = BoolToUInt32(
-        m_cpu->TranslateLinearAddress(&eip_physical_address, eip_linear_address, true, AccessType::Execute, false));
-#else
     key->eip_next_physical_page_valid = BoolToUInt32(
       m_cpu->TranslateLinearAddress(&eip_physical_address, eip_linear_address, true, AccessType::Execute, false));
-#endif
-
     key->eip_next_physical_page = eip_physical_address;
   }
 

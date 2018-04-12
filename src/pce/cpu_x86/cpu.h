@@ -267,31 +267,7 @@ public:
 
   // Checks if a given offset is valid into the specified segment.
   template<uint32 size, AccessType access>
-  bool CheckSegmentAccess(Segment segment, VirtualMemoryAddress offset, bool raise_gp_fault)
-  {
-    const SegmentCache* segcache = &m_segment_cache[segment];
-    DebugAssert(segment < Segment_Count && size > 0);
-
-    // These read/write checks should be done at segment load time.
-    // Non-CS segments should be data or code+readable
-    // SS segments should be data+writable
-    // Everything else should be code or writable
-
-    // First we check if we have read/write/execute access.
-    // Then check against the segment limit (can be expand up or down, but calculated at load time).
-    if ((!InRealMode() && (segcache->access_mask & static_cast<AccessTypeMask>(1 << static_cast<uint8>(access))) ==
-                            AccessTypeMask::None) ||
-        (offset < segcache->limit_low) || ((offset + (size - 1)) > segcache->limit_high))
-    {
-      // For the SS selector we issue SF not GPF.
-      if (raise_gp_fault)
-        RaiseException((segment == Segment_SS) ? Interrupt_StackFault : Interrupt_GeneralProtectionFault, 0);
-
-      return false;
-    }
-
-    return true;
-  }
+  bool CheckSegmentAccess(Segment segment, VirtualMemoryAddress offset, bool raise_gp_fault);
 
   // Linear memory reads/writes
   // These should only be used within instruction handlers, or jit code, as they raise exceptions.
@@ -499,18 +475,6 @@ protected:
   // EIP mask - 0xFFFF for 16-bit code, 0xFFFFFFFF for 32-bit code.
   uint32 m_EIP_mask = 0xFFFF;
 
-  // Non-maskable interrupt line
-  bool m_nmi_state = false;
-
-  // External interrupt request line
-  bool m_irq_state = false;
-
-  // Has pending floating-point exception, for WAIT instruction
-  bool m_fpu_exception = false;
-
-  // Halt state, when an interrupt request or nmi comes in this is reset
-  bool m_halted = false;
-
   // Locations of descriptor tables
   DescriptorTablePointer m_idt_location;
   DescriptorTablePointer m_gdt_location;
@@ -523,6 +487,21 @@ protected:
   // Current privilege level of executing code.
   uint8 m_cpl = 0;
 
+  // Used to speed up TLB lookups, 0 - supervisor, 1 - user
+  uint8 m_tlb_user_supervisor_bit = 0;
+
+  // Non-maskable interrupt line
+  bool m_nmi_state = false;
+
+  // External interrupt request line
+  bool m_irq_state = false;
+
+  // Has pending floating-point exception, for WAIT instruction
+  bool m_fpu_exception = false;
+
+  // Halt state, when an interrupt request or nmi comes in this is reset
+  bool m_halted = false;
+
   // Exception currently being thrown. Interrupt_Count at all other times. Not saved to state.
   uint32 m_current_exception = Interrupt_Count;
 
@@ -533,11 +512,10 @@ protected:
     // bits set, so it will never be confused for a real entry.
     LinearMemoryAddress linear_address;
     PhysicalMemoryAddress physical_address;
-    uint8 permissions : 6;
-    uint8 dirty : 1;
-    uint8 pad : 1;
   };
-  TLBEntry m_tlb_entries[TLB_ENTRY_COUNT] = {};
+
+  // Indexed by [user_supervisor][write_read]
+  TLBEntry m_tlb_entries[2][3][TLB_ENTRY_COUNT] = {};
 #endif
 
 #ifdef ENABLE_PREFETCH_EMULATION
@@ -550,5 +528,32 @@ protected:
   VirtualMemoryAddress m_effective_address;
   InstructionData idata;
 };
+
+template<uint32 size, AccessType access>
+bool CPU_X86::CPU::CheckSegmentAccess(Segment segment, VirtualMemoryAddress offset, bool raise_gp_fault)
+{
+  const SegmentCache* segcache = &m_segment_cache[segment];
+  DebugAssert(segment < Segment_Count && size > 0);
+
+  // These read/write checks should be done at segment load time.
+  // Non-CS segments should be data or code+readable
+  // SS segments should be data+writable
+  // Everything else should be code or writable
+
+  // First we check if we have read/write/execute access.
+  // Then check against the segment limit (can be expand up or down, but calculated at load time).
+  if ((!InRealMode() && (segcache->access_mask & static_cast<AccessTypeMask>(1 << static_cast<uint8>(access))) ==
+                          AccessTypeMask::None) ||
+      (offset < segcache->limit_low) || ((offset + (size - 1)) > segcache->limit_high))
+  {
+    // For the SS selector we issue SF not GPF.
+    if (raise_gp_fault)
+      RaiseException((segment == Segment_SS) ? Interrupt_StackFault : Interrupt_GeneralProtectionFault, 0);
+
+    return false;
+  }
+
+  return true;
+}
 
 } // namespace CPU_X86

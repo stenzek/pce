@@ -140,8 +140,6 @@ void TimingManager::RunEvents()
       evt->m_time_since_last_run -= cycles_to_execute * evt->m_cycle_period;
 
       // The cycles_late is only an indicator, it doesn't modify the cycles to execute.
-      Log_TracePrintf("Event triggered: %s - %u cycles, %u cycles late", evt->m_name.GetCharArray(),
-                      uint32(cycles_to_execute), uint32(cycles_late));
       evt->m_callback(evt, cycles_to_execute, cycles_late);
 
       // Place it in the appropriate position in the queue.
