@@ -114,6 +114,7 @@ public:
 
   // Get pointer to memory. Must lie within the same 64KiB page and be RAM not MMIO.
   void* GetRAMPointer(PhysicalMemoryAddress address, uint32 size);
+  byte* GetRAMPagePointer(PhysicalMemoryAddress address);
 
   // MMIO handlers
   void RegisterMMIO(MMIO* mmio);

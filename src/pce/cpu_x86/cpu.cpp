@@ -3489,6 +3489,17 @@ bool CPU::FillPrefetchQueue()
     return false;
   }
 
+  // Fast path: we're fetching from a RAM page.
+  const byte* ram_page_ptr = m_bus->GetRAMPagePointer(physical_address);
+  if (ram_page_ptr)
+  {
+    PhysicalMemoryAddress page_offset = physical_address & PAGE_OFFSET_MASK;
+    std::memcpy(m_prefetch_queue, ram_page_ptr + page_offset, PREFETCH_QUEUE_SIZE);
+    m_prefetch_queue_size = PREFETCH_QUEUE_SIZE;
+    return true;
+  }
+
+  // Slow path: it's a MMIO page, or locked memory.
   while (m_prefetch_queue_size < PREFETCH_QUEUE_SIZE)
   {
     uint64 value = m_bus->ReadMemoryQWord(physical_address);

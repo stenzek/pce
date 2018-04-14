@@ -751,6 +751,12 @@ void* Bus::GetRAMPointer(PhysicalMemoryAddress address, uint32 size)
   return page->ram_ptr + (page_offset - page->ram_start_offset);
 }
 
+byte* Bus::GetRAMPagePointer(PhysicalMemoryAddress address)
+{
+  uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+  return m_ram_lookup[page_number];
+}
+
 void Bus::AllocateMemoryPages(uint32 memory_address_bits)
 {
   uint32 num_pages = uint32((uint64(1) << memory_address_bits) / uint64(MEMORY_PAGE_SIZE));

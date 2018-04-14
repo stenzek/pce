@@ -9,7 +9,7 @@
 // Enable TLB emulation?
 #define ENABLE_TLB_EMULATION 1
 #define ENABLE_PREFETCH_EMULATION 1
-#define PREFETCH_QUEUE_SIZE 8
+#define PREFETCH_QUEUE_SIZE 32
 
 class DebuggerInterface;
 
