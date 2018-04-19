@@ -25,6 +25,7 @@ class Bus : public Component
 {
 public:
   using CodeHashType = uint64;
+  using CodeInvalidateCallback = std::function<void(PhysicalMemoryAddress)>;
 
   static const uint32 SERIALIZATION_ID = Component::MakeSerializationID('B', 'U', 'S');
   static const uint32 MEMORY_PAGE_SIZE = 0x1000; // 4KiB
@@ -125,15 +126,15 @@ public:
   bool IsCachablePage(PhysicalMemoryAddress address) const;
   bool IsWritablePage(PhysicalMemoryAddress address) const;
 
-  // Checks if the dirty bit is set on a physical memory page.
-  // The dirty bit is set whenever a write occurs.
-  bool IsPageDirty(PhysicalMemoryAddress address) const;
-  void SetPageDirty(PhysicalMemoryAddress address);
-  void ClearPageDirty(PhysicalMemoryAddress address);
-  void ClearAllPageDirty();
-
   // Hashes a block of code for use in backend code caches.
   CodeHashType GetCodeHash(PhysicalMemoryAddress address, uint32 length);
+  void MarkPageAsCode(PhysicalMemoryAddress address);
+  void UnmarkPageAsCode(PhysicalMemoryAddress address);
+  void ClearPageCodeFlags();
+
+  // Code invalidate callback - executed when pages marked as code are modified.
+  void SetCodeInvalidationCallback(CodeInvalidateCallback callback);
+  void ClearCodeInvalidationCallback();
 
 protected:
   struct PhysicalMemoryPage
@@ -142,7 +143,8 @@ protected:
     {
       kReadableMemory = 1,
       kWritableMemory = 2,
-      kMemoryMappedIO = 4
+      kCodeMemory = 4,
+      kMemoryMappedIO = 8
     };
     union
     {
@@ -150,7 +152,6 @@ protected:
       MMIO* mmio_handler;
     };
     uint8 type;
-    bool dirty;
   };
 
   struct IOPortConnection
@@ -192,6 +193,9 @@ protected:
 
   // Physical address mask, by default this is set to the maximum address
   PhysicalMemoryAddress m_physical_memory_address_mask = ~0u;
+
+  // Code invalidate callback - executed when pages marked as code are modified.
+  CodeInvalidateCallback m_code_invalidate_callback;
 
   // Amount of RAM allocated overall
   // Do not access this pointer directly

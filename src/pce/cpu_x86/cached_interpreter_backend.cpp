@@ -13,7 +13,7 @@ namespace CPU_X86 {
 
 extern bool TRACE_EXECUTION;
 extern uint32 TRACE_EXECUTION_LAST_EIP;
-bool ENABLE_CI_BLOCK_CHAINING = false;
+bool ENABLE_CI_BLOCK_CHAINING = true;
 static void* last_killed;
 
 CachedInterpreterBackend::CachedInterpreterBackend(CPU* cpu) : CodeCacheBackend(cpu) {}
@@ -99,12 +99,6 @@ void CachedInterpreterBackend::Execute()
               {
                 if (linked_block->key == key)
                 {
-                  if (m_bus->IsPageDirty(key.eip_physical_address))
-                    InvalidateBlocksWithPhysicalPage(key.eip_physical_address);
-                  if (linked_block->crosses_page_boundary &&
-                      m_bus->IsPageDirty(linked_block->next_page_physical_address))
-                    InvalidateBlocksWithPhysicalPage(linked_block->next_page_physical_address);
-
                   if (linked_block->invalidated && !RevalidateCachedBlockForCurrentState(linked_block))
                   {
                     // This will invalidate the list we're looping through.
@@ -186,8 +180,7 @@ void CachedInterpreterBackend::FlushAllBlocks()
   }
 
   m_blocks.clear();
-  m_physical_page_blocks.clear();
-  m_bus->ClearAllPageDirty();
+  ClearPhysicalPageBlockMapping();
 }
 
 void CachedInterpreterBackend::FlushBlock(const BlockKey& key, bool was_invalidated /* = false */)
@@ -240,11 +233,6 @@ CachedInterpreterBackend::Block* CachedInterpreterBackend::LookupBlock(const Blo
       // Block not cachable.
       return nullptr;
     }
-
-    if (m_bus->IsPageDirty(key.eip_physical_address))
-      InvalidateBlocksWithPhysicalPage(key.eip_physical_address);
-    if (block->crosses_page_boundary && m_bus->IsPageDirty(block->next_page_physical_address))
-      InvalidateBlocksWithPhysicalPage(block->next_page_physical_address);
 
     if (!block->invalidated || RevalidateCachedBlockForCurrentState(block))
     {

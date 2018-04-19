@@ -480,8 +480,21 @@ __attribute__((always_inline))
     PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
     if (page.type & PhysicalMemoryPage::kWritableMemory)
     {
+      if (!(page.type & PhysicalMemoryPage::kCodeMemory))
+      {
+        std::memcpy(page.ram_ptr + page_offset, &value, sizeof(value));
+        return true;
+      }
+
+      if (std::memcmp(page.ram_ptr + page_offset, &value, sizeof(value)) == 0)
+      {
+        // Not modified, so don't fire the callback.
+        return true;
+      }
+
+      // Copy value in and fire callback.
       std::memcpy(page.ram_ptr + page_offset, &value, sizeof(value));
-      page.dirty = true;
+      m_code_invalidate_callback(address & MEMORY_PAGE_MASK);
       return true;
     }
 
@@ -912,31 +925,34 @@ bool Bus::IsWritablePage(PhysicalMemoryAddress address) const
   return IsWritablePage(m_physical_memory_pages[page_number]);
 }
 
-bool Bus::IsPageDirty(PhysicalMemoryAddress address) const
+void Bus::MarkPageAsCode(PhysicalMemoryAddress address)
 {
   uint32 page_number = address / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
-  return m_physical_memory_pages[page_number].dirty;
+  m_physical_memory_pages[page_number].type |= PhysicalMemoryPage::kCodeMemory;
 }
 
-void Bus::SetPageDirty(PhysicalMemoryAddress address)
+void Bus::UnmarkPageAsCode(PhysicalMemoryAddress address)
 {
   uint32 page_number = address / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
-  m_physical_memory_pages[page_number].dirty = true;
+  m_physical_memory_pages[page_number].type &= ~PhysicalMemoryPage::kCodeMemory;
 }
 
-void Bus::ClearPageDirty(PhysicalMemoryAddress address)
-{
-  uint32 page_number = address / MEMORY_PAGE_SIZE;
-  DebugAssert(page_number < m_num_physical_memory_pages);
-  m_physical_memory_pages[page_number].dirty = false;
-}
-
-void Bus::ClearAllPageDirty()
+void Bus::ClearPageCodeFlags()
 {
   for (uint32 i = 0; i < m_num_physical_memory_pages; i++)
-    m_physical_memory_pages[i].dirty = false;
+    m_physical_memory_pages[i].type &= ~PhysicalMemoryPage::kCodeMemory;
+}
+
+void Bus::SetCodeInvalidationCallback(CodeInvalidateCallback callback)
+{
+  m_code_invalidate_callback = std::move(callback);
+}
+
+void Bus::ClearCodeInvalidationCallback()
+{
+  m_code_invalidate_callback = [](PhysicalMemoryAddress) {};
 }
 
 Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)

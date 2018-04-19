@@ -72,7 +72,8 @@ protected:
   virtual void FlushBlock(const BlockKey& key, bool was_invalidated = false) = 0;
   virtual void FlushAllBlocks() = 0;
 
-  void InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page);
+  void InvalidateCodePageCallback(PhysicalMemoryAddress physical_page_address);
+  void InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page_address);
   void ClearPhysicalPageBlockMapping();
 
   bool GetBlockKeyForCurrentState(BlockKey* key);

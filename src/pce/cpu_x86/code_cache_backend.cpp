@@ -15,9 +15,16 @@ namespace CPU_X86 {
 extern bool TRACE_EXECUTION;
 extern uint32 TRACE_EXECUTION_LAST_EIP;
 
-CodeCacheBackend::CodeCacheBackend(CPU* cpu) : m_cpu(cpu), m_system(cpu->GetSystem()), m_bus(cpu->GetBus()) {}
+CodeCacheBackend::CodeCacheBackend(CPU* cpu) : m_cpu(cpu), m_system(cpu->GetSystem()), m_bus(cpu->GetBus())
+{
+  m_bus->SetCodeInvalidationCallback(
+    std::bind(&CodeCacheBackend::InvalidateBlocksWithPhysicalPage, this, std::placeholders::_1));
+}
 
-CodeCacheBackend::~CodeCacheBackend() {}
+CodeCacheBackend::~CodeCacheBackend()
+{
+  m_bus->ClearCodeInvalidationCallback();
+}
 
 void CodeCacheBackend::Reset()
 {
@@ -60,9 +67,9 @@ size_t CodeCacheBackend::BlockKeyHash::operator()(const BlockKey& key) const
   // return size_t(key.qword);
 }
 
-void CodeCacheBackend::InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page)
+void CodeCacheBackend::InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page_address)
 {
-  auto map_iter = m_physical_page_blocks.find(physical_page & Bus::MEMORY_PAGE_MASK);
+  auto map_iter = m_physical_page_blocks.find(physical_page_address);
   if (map_iter == m_physical_page_blocks.end())
     return;
 
@@ -73,13 +80,13 @@ void CodeCacheBackend::InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress ph
   }
 
   m_physical_page_blocks.erase(map_iter);
-  m_bus->ClearPageDirty(physical_page);
+  m_bus->UnmarkPageAsCode(physical_page_address);
 }
 
 void CodeCacheBackend::ClearPhysicalPageBlockMapping()
 {
   m_physical_page_blocks.clear();
-  m_bus->ClearAllPageDirty();
+  m_bus->ClearPageCodeFlags();
 }
 
 bool CodeCacheBackend::GetBlockKeyForCurrentState(BlockKey* key)
@@ -89,7 +96,6 @@ bool CodeCacheBackend::GetBlockKeyForCurrentState(BlockKey* key)
 
   // Fast path when paging isn't enabled.
   LinearMemoryAddress eip_linear_address = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP);
-  PhysicalMemoryAddress eip_physical_address;
   if (!m_cpu->TranslateLinearAddress(&key->eip_physical_address, eip_linear_address, true, AccessType::Execute, false))
     return false;
 
@@ -113,9 +119,16 @@ bool CodeCacheBackend::RevalidateCachedBlockForCurrentState(BlockBase* block)
     return false;
   }
 
-  m_physical_page_blocks[block->key.eip_physical_address & Bus::MEMORY_PAGE_MASK].push_back(block);
+  PhysicalMemoryAddress page_address = block->key.eip_physical_address & Bus::MEMORY_PAGE_MASK;
+  m_physical_page_blocks[page_address].push_back(block);
+  m_bus->MarkPageAsCode(page_address);
+
   if (block->crosses_page_boundary)
-    m_physical_page_blocks[block->next_page_physical_address & Bus::MEMORY_PAGE_MASK].push_back(block);
+  {
+    page_address = block->next_page_physical_address & Bus::MEMORY_PAGE_MASK;
+    m_physical_page_blocks[page_address].push_back(block);
+    m_bus->MarkPageAsCode(page_address);
+  }
 
   // Re-validate the block.
   Log_TracePrintf("Block %08X is invalidated - hash matches, revalidating", block->key.eip_physical_address);
@@ -409,13 +422,18 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 
 #endif
 
+  // Mark as code so we know when it is overwritten.
+  PhysicalMemoryAddress page_address = block->key.eip_physical_address & Bus::MEMORY_PAGE_MASK;
+  m_physical_page_blocks[page_address].push_back(block);
+  m_bus->MarkPageAsCode(page_address);
+
   // Does this block cross a page boundary?
-  m_physical_page_blocks[block->key.eip_physical_address & Bus::MEMORY_PAGE_MASK].push_back(block);
   block->crosses_page_boundary = (start_EIP & Bus::MEMORY_PAGE_MASK) != (next_EIP & Bus::MEMORY_PAGE_MASK);
   if (block->crosses_page_boundary)
   {
     block->next_page_physical_address = next_EIP & Bus::MEMORY_PAGE_MASK;
     m_physical_page_blocks[block->next_page_physical_address].push_back(block);
+    m_bus->MarkPageAsCode(block->next_page_physical_address);
   }
 
   block->code_hash = m_bus->GetCodeHash(block->key.eip_physical_address, block->code_length);
