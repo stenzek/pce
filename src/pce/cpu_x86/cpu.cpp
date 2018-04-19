@@ -789,8 +789,8 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
       if ((value & CR0Bit_NW) != (m_registers.CR0 & CR0Bit_NW))
         Log_ErrorPrintf("CPU cache is now %s", ((value & CR0Bit_NW) != 0) ? "write-back" : "write-through");
 
-      // Some operations cause a TLB flush.
-      constexpr uint32 flush_mask = CR0Bit_PE | CR0Bit_PG | CR0Bit_WP;
+      // We must flush the TLB when WP changes, because it changes the cached access masks.
+      constexpr uint32 flush_mask = CR0Bit_WP;
       if ((m_registers.CR0 & flush_mask) != (value & flush_mask))
         InvalidateAllTLBEntries();
 
