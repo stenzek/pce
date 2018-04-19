@@ -1,4 +1,5 @@
 #pragma once
+#include "pce/bus.h"
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cpu.h"
 #include "pce/cpu_x86/instruction.h"
@@ -17,9 +18,6 @@ public:
   virtual void BranchTo(uint32 new_EIP) override;
   virtual void BranchFromException(uint32 new_EIP) override;
 
-  void OnLockedMemoryAccess(PhysicalMemoryAddress address, PhysicalMemoryAddress range_start,
-                            PhysicalMemoryAddress range_end, MemoryLockAccess access) override;
-
   void FlushCodeCache() override;
 
 protected:
@@ -31,13 +29,11 @@ protected:
       {
         // Since a block can span a page, we store two page numbers.
         uint32 eip_physical_address;
-        uint32 eip_next_physical_page : 20;
-        uint32 eip_next_physical_page_valid : 1;
         uint32 cs_size : 1;
         uint32 cs_granularity : 1;
         uint32 ss_size : 1;
         uint32 v8086_mode : 1;
-        uint32 pad : 7;
+        uint32 pad : 28;
       };
 
       uint64 qword;
@@ -53,24 +49,17 @@ protected:
     size_t operator()(const BlockKey& lhs, const BlockKey& rhs) const { return lhs.qword < rhs.qword; }
   };
 
-  struct CodeHash
-  {
-    // uint32 crc32;
-    // uint8 md5[16];
-    uint64 hash;
-
-    bool operator!=(const CodeHash& rhs) const;
-  };
-
   struct BlockBase
   {
-    BlockKey key = {};
     std::vector<Instruction> instructions;
     std::vector<BlockBase*> link_predecessors;
     std::vector<BlockBase*> link_successors;
     CycleCount total_cycles = 0;
+    Bus::CodeHashType code_hash;
+    BlockKey key = {};
     uint32 code_length = 0;
-    CodeHash code_hash;
+    uint32 next_page_physical_address = 0;
+    bool crosses_page_boundary = false;
     bool invalidated = false;
     bool linkable = false;
 
@@ -80,14 +69,14 @@ protected:
   static bool IsExitBlockInstruction(const Instruction* instruction);
   static bool IsLinkableExitInstruction(const Instruction* instruction);
 
-  virtual void FlushAllBlocks() = 0;
   virtual void FlushBlock(const BlockKey& key, bool was_invalidated = false) = 0;
+  virtual void FlushAllBlocks() = 0;
 
+  void InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page);
   void ClearPhysicalPageBlockMapping();
 
   bool GetBlockKeyForCurrentState(BlockKey* key);
-  void GetCodeHashForCurrentState(CodeHash* hash, uint32 code_length);
-  bool RevalidateCachedBlockForCurrentState(const BlockKey* key, BlockBase* block);
+  bool RevalidateCachedBlockForCurrentState(BlockBase* block);
 
   // Uses the current state of the CPU to compile a block.
   bool CompileBlockBase(BlockBase* block);
@@ -107,7 +96,7 @@ protected:
   System* m_system;
   Bus* m_bus;
 
-  std::unordered_map<PhysicalMemoryAddress, std::vector<BlockKey>> m_physical_page_blocks;
+  std::unordered_map<PhysicalMemoryAddress, std::vector<BlockBase*>> m_physical_page_blocks;
   bool m_branched = false;
 };
 } // namespace CPU_X86

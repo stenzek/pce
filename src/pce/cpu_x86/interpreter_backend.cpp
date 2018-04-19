@@ -149,10 +149,5 @@ void InterpreterBackend::BranchFromException(uint32 new_EIP) {}
 
 void InterpreterBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) {}
 
-void InterpreterBackend::OnLockedMemoryAccess(PhysicalMemoryAddress address, PhysicalMemoryAddress range_start,
-                                              PhysicalMemoryAddress range_end, MemoryLockAccess access)
-{
-}
-
 void InterpreterBackend::FlushCodeCache() {}
 } // namespace CPU_X86

@@ -1,5 +1,6 @@
 #include "pce/cpu_x86/cached_interpreter_backend.h"
 #include "YBaseLib/Log.h"
+#include "pce/bus.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/interpreter.h"
 #include "pce/system.h"
@@ -80,7 +81,7 @@ void CachedInterpreterBackend::Execute()
             // Block points to itself?
             if (previous_block->key == key)
             {
-              if (previous_block->invalidated && !RevalidateCachedBlockForCurrentState(&key, previous_block))
+              if (previous_block->invalidated && !RevalidateCachedBlockForCurrentState(previous_block))
               {
                 // Self-linking block invalidated itself.
                 FlushBlock(key, false);
@@ -98,7 +99,7 @@ void CachedInterpreterBackend::Execute()
               {
                 if (linked_block->key == key)
                 {
-                  if (linked_block->invalidated && !RevalidateCachedBlockForCurrentState(&key, linked_block))
+                  if (linked_block->invalidated && !RevalidateCachedBlockForCurrentState(linked_block))
                   {
                     // This will invalidate the list we're looping through.
                     FlushBlock(key, false);
@@ -180,6 +181,7 @@ void CachedInterpreterBackend::FlushAllBlocks()
 
   m_blocks.clear();
   m_physical_page_blocks.clear();
+  m_bus->ClearAllPageDirty();
 }
 
 void CachedInterpreterBackend::FlushBlock(const BlockKey& key, bool was_invalidated /* = false */)
@@ -227,7 +229,18 @@ CachedInterpreterBackend::Block* CachedInterpreterBackend::LookupBlock(const Blo
   if (lookup_iter != m_blocks.end())
   {
     Block* block = lookup_iter->second;
-    if (!block->invalidated || RevalidateCachedBlockForCurrentState(&key, block))
+    if (!block)
+    {
+      // Block not cachable.
+      return nullptr;
+    }
+
+    if (m_bus->IsPageDirty(key.eip_physical_address))
+      InvalidateBlocksWithPhysicalPage(key.eip_physical_address);
+    if (block->crosses_page_boundary && m_bus->IsPageDirty(block->next_page_physical_address))
+      InvalidateBlocksWithPhysicalPage(block->next_page_physical_address);
+
+    if (!block->invalidated || RevalidateCachedBlockForCurrentState(block))
     {
       // Block is valid again.
       return block;
@@ -239,21 +252,15 @@ CachedInterpreterBackend::Block* CachedInterpreterBackend::LookupBlock(const Blo
     DestroyBlock(block);
   }
 
-  Block* block = CompileBlock();
-  if (!block)
-  {
-    Log_PerfPrintf("Falling back to interpreter for block %08X due to compile error.", key.eip_physical_address);
-    return nullptr;
-  }
-
-  block->key = key;
+  Block* block = CompileBlock(key);
   m_blocks.emplace(std::make_pair(key, block));
   return block;
 }
 
-CachedInterpreterBackend::Block* CachedInterpreterBackend::CompileBlock()
+CachedInterpreterBackend::Block* CachedInterpreterBackend::CompileBlock(const BlockKey& key)
 {
   Block* block = new Block();
+  block->key = key;
   if (!CompileBlockBase(block))
   {
     delete block;

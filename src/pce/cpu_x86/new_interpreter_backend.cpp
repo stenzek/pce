@@ -56,11 +56,6 @@ void NewInterpreterBackend::BranchFromException(uint32 new_EIP) {}
 
 void NewInterpreterBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) {}
 
-void NewInterpreterBackend::OnLockedMemoryAccess(PhysicalMemoryAddress address, PhysicalMemoryAddress range_start,
-                                                 PhysicalMemoryAddress range_end, MemoryLockAccess access)
-{
-}
-
 void NewInterpreterBackend::FlushCodeCache() {}
 
 void NewInterpreterBackend::ExecuteInstruction(CPU* cpu)

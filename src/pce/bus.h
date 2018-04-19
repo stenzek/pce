@@ -24,6 +24,8 @@ class MMIO;
 class Bus : public Component
 {
 public:
+  using CodeHashType = uint64;
+
   static const uint32 SERIALIZATION_ID = Component::MakeSerializationID('B', 'U', 'S');
   static const uint32 MEMORY_PAGE_SIZE = 0x1000; // 4KiB
   static const uint32 MEMORY_PAGE_OFFSET_MASK = PhysicalMemoryAddress(MEMORY_PAGE_SIZE - 1);
@@ -85,10 +87,6 @@ public:
   void ConnectIOPortReadToPointer(uint32 port, void* owner, const uint8* var);
   void ConnectIOPortWriteToPointer(uint32 port, void* owner, uint8* var);
 
-  // Memory locks, size is in bytes (converted to pages)
-  void LockPhysicalMemory(PhysicalMemoryAddress address, uint32 size, MemoryLockAccess access);
-  void UnlockPhysicalMemory(PhysicalMemoryAddress address, uint32 size, MemoryLockAccess access);
-
   // Reads/writes memory. Words must be within the same 4KiB page.
   // Reads of unmapped memory return -1.
   uint8 ReadMemoryByte(PhysicalMemoryAddress address);
@@ -112,26 +110,47 @@ public:
   bool CheckedReadMemoryQWord(PhysicalMemoryAddress address, uint64* value);
   bool CheckedWriteMemoryQWord(PhysicalMemoryAddress address, uint64 value);
 
+  // Read/write block of memory.
+  void ReadMemoryBlock(PhysicalMemoryAddress address, uint32 length, void* destination);
+  void WriteMemoryBlock(PhysicalMemoryAddress address, uint32 length, const void* source);
+
   // Get pointer to memory. Must lie within the same 64KiB page and be RAM not MMIO.
-  void* GetRAMPointer(PhysicalMemoryAddress address, uint32 size);
-  byte* GetRAMPagePointer(PhysicalMemoryAddress address);
+  byte* GetRAMPointer(PhysicalMemoryAddress address);
 
   // MMIO handlers
   void RegisterMMIO(MMIO* mmio);
-  void UnregisterMMIO(MMIO* mmio);
+
+  // Checks if a page contains only RAM.
+  // RAM-only pages can be cached, with changes detected through the bitmask.
+  bool IsCachablePage(PhysicalMemoryAddress address) const;
+  bool IsWritablePage(PhysicalMemoryAddress address) const;
+
+  // Checks if the dirty bit is set on a physical memory page.
+  // The dirty bit is set whenever a write occurs.
+  bool IsPageDirty(PhysicalMemoryAddress address) const;
+  void SetPageDirty(PhysicalMemoryAddress address);
+  void ClearPageDirty(PhysicalMemoryAddress address);
+  void ClearAllPageDirty();
+
+  // Hashes a block of code for use in backend code caches.
+  CodeHashType GetCodeHash(PhysicalMemoryAddress address, uint32 length);
 
 protected:
   struct PhysicalMemoryPage
   {
-    byte* ram_ptr = nullptr;
-    PhysicalMemoryAddress ram_start_offset = ~0u;
-    PhysicalMemoryAddress ram_end_offset = ~0u;
-
-    std::vector<MMIO*> mmio_handlers;
-    PhysicalMemoryAddress mmio_start_offset = ~0u;
-    PhysicalMemoryAddress mmio_end_offset = ~0u;
-
-    MemoryLockAccess lock_type = MemoryLockAccess::None;
+    enum Type : uint8
+    {
+      kReadableMemory = 1,
+      kWritableMemory = 2,
+      kMemoryMappedIO = 4
+    };
+    union
+    {
+      byte* ram_ptr;
+      MMIO* mmio_handler;
+    };
+    uint8 type;
+    bool dirty;
   };
 
   struct IOPortConnection
@@ -147,10 +166,10 @@ protected:
 
   void AllocateMemoryPages(uint32 memory_address_bits);
 
-  static void UpdatePageMMIORange(uint32 page_number, PhysicalMemoryPage* page);
-  void UpdatePageFastMemoryLookup(uint32 page_number, PhysicalMemoryPage* page);
   template<typename T>
   void EnumeratePagesForRange(PhysicalMemoryAddress start_address, PhysicalMemoryAddress end_address, T callback);
+  static bool IsCachablePage(const PhysicalMemoryPage& page);
+  static bool IsWritablePage(const PhysicalMemoryPage& page);
 
   // Generic memory read/write handler
   template<typename T, bool aligned>
@@ -173,9 +192,6 @@ protected:
 
   // Physical address mask, by default this is set to the maximum address
   PhysicalMemoryAddress m_physical_memory_address_mask = ~0u;
-
-  // Fast RAM memory access, indexed by page number. If null, needs slow lookup.
-  byte** m_ram_lookup;
 
   // Amount of RAM allocated overall
   // Do not access this pointer directly

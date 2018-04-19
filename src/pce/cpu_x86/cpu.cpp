@@ -418,12 +418,6 @@ void CPU::CommitPendingCycles()
   m_pending_cycles = 0;
 }
 
-void CPU::OnLockedMemoryAccess(PhysicalMemoryAddress address, PhysicalMemoryAddress range_start,
-                               PhysicalMemoryAddress range_end, MemoryLockAccess access)
-{
-  m_backend->OnLockedMemoryAccess(address, range_start, range_end, access);
-}
-
 void CPU::FlushCodeCache()
 {
   m_backend->FlushCodeCache();
@@ -3489,12 +3483,12 @@ bool CPU::FillPrefetchQueue()
     return false;
   }
 
+#if 1
   // Fast path: we're fetching from a RAM page.
-  const byte* ram_page_ptr = m_bus->GetRAMPagePointer(physical_address);
-  if (ram_page_ptr)
+  const byte* ram_ptr = m_bus->GetRAMPointer(physical_address);
+  if (ram_ptr)
   {
-    PhysicalMemoryAddress page_offset = physical_address & PAGE_OFFSET_MASK;
-    std::memcpy(m_prefetch_queue, ram_page_ptr + page_offset, PREFETCH_QUEUE_SIZE);
+    std::memcpy(m_prefetch_queue, ram_ptr, PREFETCH_QUEUE_SIZE);
     m_prefetch_queue_size = PREFETCH_QUEUE_SIZE;
     return true;
   }
@@ -3508,6 +3502,10 @@ bool CPU::FillPrefetchQueue()
     linear_address += sizeof(value);
     physical_address += sizeof(value);
   }
+#else
+  m_bus->ReadMemoryBlock(physical_address, PREFETCH_QUEUE_SIZE, m_prefetch_queue);
+  m_prefetch_queue_size = PREFETCH_QUEUE_SIZE;
+#endif
 
   return true;
 #else

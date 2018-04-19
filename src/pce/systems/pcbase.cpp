@@ -13,10 +13,7 @@ PCBase::PCBase(HostInterface* host_interface) : System(host_interface) {}
 PCBase::~PCBase()
 {
   for (const auto& it : m_roms)
-  {
-    m_bus->UnregisterMMIO(it.mmio);
     it.mmio->Release();
-  }
 }
 
 bool PCBase::AddROM(PhysicalMemoryAddress address, ByteStream* stream)
