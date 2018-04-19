@@ -99,6 +99,12 @@ void CachedInterpreterBackend::Execute()
               {
                 if (linked_block->key == key)
                 {
+                  if (m_bus->IsPageDirty(key.eip_physical_address))
+                    InvalidateBlocksWithPhysicalPage(key.eip_physical_address);
+                  if (linked_block->crosses_page_boundary &&
+                      m_bus->IsPageDirty(linked_block->next_page_physical_address))
+                    InvalidateBlocksWithPhysicalPage(linked_block->next_page_physical_address);
+
                   if (linked_block->invalidated && !RevalidateCachedBlockForCurrentState(linked_block))
                   {
                     // This will invalidate the list we're looping through.

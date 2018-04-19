@@ -25,17 +25,7 @@ void CodeCacheBackend::Reset()
   ClearPhysicalPageBlockMapping();
 }
 
-void CodeCacheBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value)
-{
-  //     if (reg == Reg32_CR3)
-  //         Log_PerfPrintf("CR3 loaded, flushing blocks");
-  //     else if (reg == Reg32_CR0 && ((old_value ^ new_value) & CR0Bit_PG))
-  //         Log_PerfPrintf("Paging state changed, flushing blocks");
-  //     else
-  return;
-
-  // FlushBlocks();
-}
+void CodeCacheBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) {}
 
 void CodeCacheBackend::BranchTo(uint32 new_EIP)
 {
@@ -222,34 +212,10 @@ void CodeCacheBackend::PrintCPUStateAndInstruction(const Instruction* instructio
 
 bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 {
-  static constexpr size_t BUFFER_SIZE = 16;
+  static constexpr uint32 BUFFER_SIZE = 64;
 
   struct FetchCallback : public InstructionFetchCallback
   {
-    inline void CheckPhysicalPage(PhysicalMemoryAddress address)
-    {
-      uint32 physical_page = (address & cpu->m_bus->GetMemoryAddressMask()) & Bus::MEMORY_PAGE_MASK;
-      if (first_physical_page == 0xFFFFFFFF)
-        first_physical_page = physical_page;
-
-      if (physical_page != last_physical_page)
-      {
-        last_physical_page = physical_page;
-
-        // TODO: We shouldn't even read if it's not cachable.
-        if (!cpu->m_bus->IsCachablePage(physical_page))
-        {
-          failed = true;
-          return;
-        }
-
-        // Can't span more than two pages.
-        uint32 page_span = (last_physical_page - first_physical_page) >> 12;
-        if (page_span > 1)
-          failed = true;
-      }
-    }
-
     void FillBuffer()
     {
       if (buffer_pos < buffer_size)
@@ -264,63 +230,42 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
         buffer_pos = 0;
       }
 
-      while (buffer_size < BUFFER_SIZE)
+      const CPU::SegmentCache& segcache = cpu->m_segment_cache[Segment_CS];
+      if (EIP < segcache.limit_low || EIP >= segcache.limit_high)
+        return;
+
+      uint32 available_size = segcache.limit_high - EIP;
+      uint32 fetch_size = std::min(BUFFER_SIZE - buffer_size, available_size);
+      while (fetch_size > 0)
       {
-        LinearMemoryAddress linear_address = cpu->CalculateLinearAddress(Segment_CS, EIP);
         PhysicalMemoryAddress physical_address;
+        LinearMemoryAddress linear_address = segcache.base_address + EIP;
+        uint32 fetch_size_in_page = std::min(CPU::PAGE_SIZE - (linear_address & CPU::PAGE_OFFSET_MASK), fetch_size);
+        if (!cpu->TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, false))
+          return;
 
-        if ((BUFFER_SIZE - buffer_size) >= sizeof(uint64) &&
-            (linear_address & CPU::PAGE_MASK) == ((linear_address + (sizeof(uint64) - 1)) & CPU::PAGE_MASK) &&
-            cpu->CheckSegmentAccess<sizeof(uint64), AccessType::Execute>(Segment_CS, EIP, false) &&
-            cpu->TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, false))
+        uint32 physical_page = (physical_address & cpu->m_bus->GetMemoryAddressMask()) & Bus::MEMORY_PAGE_MASK;
+        if (first_physical_page == 0xFFFFFFFF)
+          first_physical_page = physical_page;
+
+        if (physical_page != last_physical_page)
         {
-          uint64 fetch_qword = cpu->m_bus->ReadMemoryQWord(physical_address);
-          CheckPhysicalPage(physical_address);
-          CheckPhysicalPage(physical_address + (sizeof(fetch_qword) - 1));
-          std::memcpy(&buffer[buffer_size], &fetch_qword, sizeof(fetch_qword));
-          buffer_size += sizeof(fetch_qword);
-          EIP = (EIP + sizeof(fetch_qword)) & EIP_mask;
-          continue;
+          last_physical_page = physical_page;
+
+          // We shouldn't even read if it's not cachable.
+          if (!cpu->m_bus->IsCachablePage(physical_page))
+            return;
+
+          // Can't span more than two pages.
+          uint32 page_span = (last_physical_page - first_physical_page) >> 12;
+          if (page_span > 1)
+            failed = true;
         }
 
-        if ((BUFFER_SIZE - buffer_size) >= sizeof(uint32) &&
-            (linear_address & CPU::PAGE_MASK) == ((linear_address + (sizeof(uint32) - 1)) & CPU::PAGE_MASK) &&
-            cpu->CheckSegmentAccess<sizeof(uint32), AccessType::Execute>(Segment_CS, EIP, false) &&
-            cpu->TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, false))
-        {
-          uint32 fetch_dword = cpu->m_bus->ReadMemoryDWord(physical_address);
-          CheckPhysicalPage(physical_address);
-          CheckPhysicalPage(physical_address + (sizeof(fetch_dword) - 1));
-          std::memcpy(&buffer[buffer_size], &fetch_dword, sizeof(fetch_dword));
-          buffer_size += sizeof(fetch_dword);
-          EIP = (EIP + sizeof(fetch_dword)) & EIP_mask;
-          continue;
-        }
-
-        if ((BUFFER_SIZE - buffer_size) >= sizeof(uint16) &&
-            (linear_address & CPU::PAGE_MASK) == ((linear_address + (sizeof(uint16) - 1)) & CPU::PAGE_MASK) &&
-            cpu->CheckSegmentAccess<sizeof(uint16), AccessType::Execute>(Segment_CS, EIP, false) &&
-            cpu->TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, false))
-        {
-          uint16 fetch_word = cpu->m_bus->ReadMemoryWord(physical_address);
-          CheckPhysicalPage(physical_address);
-          CheckPhysicalPage(physical_address + (sizeof(fetch_word) - 1));
-          std::memcpy(&buffer[buffer_size], &fetch_word, sizeof(fetch_word));
-          buffer_size += sizeof(fetch_word);
-          EIP = (EIP + sizeof(fetch_word)) & EIP_mask;
-          continue;
-        }
-
-        if (!cpu->CheckSegmentAccess<1, AccessType::Execute>(Segment_CS, EIP, false) ||
-            !cpu->TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, false))
-        {
-          break;
-        }
-
-        uint8 fetch_byte = cpu->m_bus->ReadMemoryByte(physical_address);
-        CheckPhysicalPage(physical_address);
-        buffer[buffer_size++] = fetch_byte;
-        EIP = (EIP + 1) & EIP_mask;
+        cpu->m_bus->ReadMemoryBlock(physical_address, fetch_size_in_page, &buffer[buffer_size]);
+        buffer_size += fetch_size_in_page;
+        fetch_size -= fetch_size_in_page;
+        EIP = (EIP + fetch_size_in_page) & EIP_mask;
       }
     }
 
@@ -429,13 +374,6 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
     block->code_length += instruction->length;
     next_EIP = (next_EIP + instruction->length) & m_cpu->m_EIP_mask;
 
-    //     // Skip nops. Cycles are already added so this is fine.
-    //     if (instruction->operation == Operation_NOP)
-    //     {
-    //       block->instructions.pop_back();
-    //       continue;
-    //     }
-
     if (IsExitBlockInstruction(instruction))
     {
       block->linkable = IsLinkableExitInstruction(instruction);
@@ -481,6 +419,8 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
   }
 
   block->code_hash = m_bus->GetCodeHash(block->key.eip_physical_address, block->code_length);
+  // Log_ErrorPrintf("Block %08X - %u inst, %u length", block->key.eip_physical_address,
+  // unsigned(block->instructions.size()), block->code_length);
   return true;
 }
 
@@ -533,20 +473,6 @@ void CodeCacheBackend::InterpretCachedBlock(const BlockBase* block)
 {
   for (const Instruction& instruction : block->instructions)
   {
-#if 0
-    // Check for external interrupts.
-    if (m_cpu->HasExternalInterrupt())
-    {
-      m_cpu->DispatchExternalInterrupt();
-      AbortCurrentInstruction();
-    }
-#endif
-#if 0
-    LinearMemoryAddress linear_addr = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP);
-    if (linear_addr == 0x0040185B && m_cpu->m_registers.FS == 0x1A07)
-      TRACE_EXECUTION = true;
-#endif
-
     m_cpu->AddCycle();
 
     m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
@@ -562,17 +488,11 @@ void CodeCacheBackend::InterpretCachedBlock(const BlockBase* block)
     m_cpu->m_registers.EIP = (m_cpu->m_registers.EIP + instruction.length) & m_cpu->m_EIP_mask;
     std::memcpy(&m_cpu->idata, &instruction.data, sizeof(m_cpu->idata));
     instruction.interpreter_handler(m_cpu);
-
-#if 0
-    // Run events if needed.
-    m_cpu->CommitPendingCycles();
-#endif
   }
 }
 
 void CodeCacheBackend::InterpretUncachedBlock()
 {
-#if 1
   // The prefetch queue is an unknown state, and likely not in sync with our execution.
   m_cpu->FlushPrefetchQueue();
 
@@ -581,59 +501,5 @@ void CodeCacheBackend::InterpretUncachedBlock()
   m_branched = false;
   while (!m_branched)
     NewInterpreterBackend::ExecuteInstruction(m_cpu);
-#else
-  for (;;)
-  {
-    // Check for external interrupts.
-    if (m_cpu->HasExternalInterrupt())
-    {
-      m_cpu->DispatchExternalInterrupt();
-      AbortCurrentInstruction();
-    }
-
-    // if (m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP) == 0xC0050E3F)
-    // TRACE_EXECUTION = true;
-
-    m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
-    m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
-
-    if (TRACE_EXECUTION && m_cpu->m_current_EIP != TRACE_EXECUTION_LAST_EIP)
-    {
-      m_cpu->PrintCurrentStateAndInstruction(nullptr);
-      // PrintCPUStateAndInstruction(&instruction);
-      TRACE_EXECUTION_LAST_EIP = m_cpu->m_current_EIP;
-    }
-
-    Instruction instruction;
-    auto fetchb = [this]() -> uint8 { return m_cpu->FetchInstructionByte(); };
-    auto fetchw = [this]() -> uint16 { return m_cpu->FetchInstructionWord(); };
-    auto fetchd = [this]() -> uint32 { return m_cpu->FetchInstructionDWord(); };
-
-    if (!Decoder::DecodeInstruction(&instruction, m_cpu->m_current_address_size, m_cpu->m_current_operand_size,
-                                    m_cpu->m_registers.EIP, fetchb, fetchw, fetchd))
-    {
-      m_cpu->RaiseException(Interrupt_InvalidOpcode, 0);
-      AbortCurrentInstruction();
-    }
-
-    m_cpu->AddCycle();
-
-    if (instruction.operation != Operation_NOP)
-    {
-      std::memcpy(&m_cpu->idata, &instruction.data, sizeof(m_cpu->idata));
-      instruction.interpreter_handler(m_cpu);
-
-      // m_cpu->m_registers.EIP = m_cpu->m_current_EIP;
-      // m_cpu->FlushPrefetchQueue();
-      // NewInterpreterBackend::ExecuteInstruction(m_cpu);
-    }
-
-    // Run events if needed.
-    m_cpu->CommitPendingCycles();
-
-    if (IsExitBlockInstruction(&instruction))
-      break;
-  }
-#endif
 }
 } // namespace CPU_X86
