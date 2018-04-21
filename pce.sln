@@ -25,6 +25,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "imgui", "dep\imgui\imgui.vc
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xxhash", "dep\xxhash\xxhash.vcxproj", "{09553C96-9F39-49BF-8AE6-7ACBD07C410C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nativefiledialog", "dep\nativefiledialog\nativefiledialog.vcxproj", "{ACE32F47-2960-4FB3-9F77-2C375625BF61}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -155,6 +157,18 @@ Global
 		{09553C96-9F39-49BF-8AE6-7ACBD07C410C}.Release|x64.Build.0 = Release|x64
 		{09553C96-9F39-49BF-8AE6-7ACBD07C410C}.Release|x86.ActiveCfg = Release|Win32
 		{09553C96-9F39-49BF-8AE6-7ACBD07C410C}.Release|x86.Build.0 = Release|Win32
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.Debug|x64.ActiveCfg = Debug|x64
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.Debug|x64.Build.0 = Debug|x64
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.Debug|x86.ActiveCfg = Debug|Win32
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.Debug|x86.Build.0 = Debug|Win32
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.DebugFast|x64.ActiveCfg = DebugFast|x64
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.DebugFast|x64.Build.0 = DebugFast|x64
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.DebugFast|x86.ActiveCfg = DebugFast|Win32
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.DebugFast|x86.Build.0 = DebugFast|Win32
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.Release|x64.ActiveCfg = Release|x64
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.Release|x64.Build.0 = Release|x64
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.Release|x86.ActiveCfg = Release|Win32
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -165,6 +179,7 @@ Global
 		{B56CE698-7300-4FA5-9609-942F1D05C5A2} = {0AA75A9A-66B1-4F6C-B6BF-83C602CFDB62}
 		{BB08260F-6FBC-46AF-8924-090EE71360C6} = {0AA75A9A-66B1-4F6C-B6BF-83C602CFDB62}
 		{09553C96-9F39-49BF-8AE6-7ACBD07C410C} = {0AA75A9A-66B1-4F6C-B6BF-83C602CFDB62}
+		{ACE32F47-2960-4FB3-9F77-2C375625BF61} = {0AA75A9A-66B1-4F6C-B6BF-83C602CFDB62}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F56F9CA3-709E-4C27-861D-8E8C2F11CDD0}
