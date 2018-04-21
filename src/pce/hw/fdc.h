@@ -64,6 +64,7 @@ public:
     return (drive < MAX_DRIVES && m_drives[drive].drive_type != DriveType_None);
   }
   bool IsDiskPresent(uint32 drive) const { return (drive < MAX_DRIVES && m_drives[drive].disk_type != DiskType_None); }
+  void SetDriveType(uint32 drive, DriveType type);
   uint32 GetDriveCount() const;
 
   uint32 GetDiskSize(uint32 drive) { return static_cast<uint32>(m_drives[drive].data.GetSize()); }

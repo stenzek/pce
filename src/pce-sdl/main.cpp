@@ -618,6 +618,8 @@ static void TestBIOS(SDLHostInterface* host_interface)
   system->AddComponent(new HW::SoundBlaster(system->GetDMAController(), HW::SoundBlaster::Type::SoundBlaster16));
 #endif
 
+  // system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_5_25);
+  system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_3_5);
   // LoadFloppy(system->GetFDDController(), 0, "images\\386bench.img");
   LoadFloppy(system->GetFDDController(), 0, "images\\DOS33-DISK01.IMG");
   // LoadFloppy(system->GetFDDController(), 1, "images\\8088mph.img");

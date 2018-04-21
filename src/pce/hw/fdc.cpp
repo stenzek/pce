@@ -294,6 +294,12 @@ bool FDC::SaveState(BinaryWriter& writer)
   return true;
 }
 
+void FDC::SetDriveType(uint32 drive, DriveType type)
+{
+  DebugAssert(drive < MAX_DRIVES);
+  m_drives[drive].drive_type = type;
+}
+
 uint32 FDC::GetDriveCount() const
 {
   uint32 count = 0;
