@@ -105,6 +105,24 @@ this code that are retained.
 *----------------------------------------------------------------------------*/
 #include "softfloat-specialize.h"
 
+const floatx80 floatx80_zero = make_floatx80(0x0000, 0x0000000000000000LL);
+const floatx80 floatx80_one = make_floatx80(0x3fff, 0x8000000000000000LL);
+const floatx80 floatx80_ln2 = make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL);
+const floatx80 floatx80_pi = make_floatx80(0x4000, 0xc90fdaa22168c235LL);
+const floatx80 floatx80_half = make_floatx80(0x3ffe, 0x8000000000000000LL);
+const floatx80 floatx80_infinity = make_floatx80(0x7fff, 0x8000000000000000LL);
+const floatx80 floatx80_negone = make_floatx80(0xbfff, 0x8000000000000000);
+const floatx80 floatx80_neghalf = make_floatx80(0xbffe, 0x8000000000000000);
+const float128 float128_zero = make_float128(0, 0);
+const float128 float128_one = { UINT64_C(0x3fff000000000000), UINT64_C(0x0000000000000000) };
+const float128 float128_sqrt3 = { UINT64_C(0x3fffbb67ae8584ca), UINT64_C(0xa73b25742d7078b8) };
+const float128 float128_pi2 = { UINT64_C(0x3fff921fb54442d1), UINT64_C(0x8469898CC5170416) };
+const float128 float128_pi4 = { UINT64_C(0x3ffe921fb54442d1), UINT64_C(0x8469898CC5170416) };
+const float128 float128_pi6 = { UINT64_C(0x3ffe0c152382d736), UINT64_C(0x58465BB32E0F580F) };
+const float128 float128_two = make_float128(UINT64_C(0x4000000000000000), UINT64_C(0x0000000000000000));
+const float128 float128_ln2inv2 = make_float128(UINT64_C(0x400071547652b82f), UINT64_C(0xe1777d0ffda0d23a));
+
+
 /*----------------------------------------------------------------------------
 | Returns the fraction bits of the half-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
@@ -7914,4 +7932,992 @@ float128 float128_scalbn(float128 a, int n, float_status *status)
     return normalizeRoundAndPackFloat128( aSign, aExp, aSig0, aSig1
                                          , status);
 
+}
+
+/*============================================================================
+This source file is an extension to the SoftFloat IEC/IEEE Floating-point
+Arithmetic Package, Release 2b, written for Bochs (x86 achitecture simulator)
+floating point emulation.
+THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE.  Although reasonable effort has
+been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT TIMES
+RESULT IN INCORRECT BEHAVIOR.  USE OF THIS SOFTWARE IS RESTRICTED TO PERSONS
+AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ALL LOSSES,
+COSTS, OR OTHER PROBLEMS THEY INCUR DUE TO THE SOFTWARE, AND WHO FURTHERMORE
+EFFECTIVELY INDEMNIFY JOHN HAUSER AND THE INTERNATIONAL COMPUTER SCIENCE
+INSTITUTE (possibly via similar legal warning) AGAINST ALL LOSSES, COSTS, OR
+OTHER PROBLEMS INCURRED BY THEIR CUSTOMERS AND CLIENTS DUE TO THE SOFTWARE.
+Derivative works are acceptable, even for commercial purposes, so long as
+(1) the source code for the derivative work includes prominent notice that
+the work is derivative, and (2) the source code includes prominent notice with
+these four paragraphs for those parts of this code that are retained.
+=============================================================================*/
+
+/*============================================================================
+ * Written for Bochs (x86 achitecture simulator) by
+ *            Stanislav Shwartsman [sshwarts at sourceforge net]
+ * ==========================================================================*/
+
+//////////////////////////////
+// PI, PI/2, PI/4 constants
+//////////////////////////////
+
+#define FLOATX80_PI_EXP  (0x4000)
+
+// 128-bit PI fraction
+#ifdef BETTER_THAN_PENTIUM
+#define FLOAT_PI_HI (UINT64_C(0xc90fdaa22168c234))
+#define FLOAT_PI_LO (UINT64_C(0xc4c6628b80dc1cd1))
+#else
+#define FLOAT_PI_HI (UINT64_C(0xc90fdaa22168c234))
+#define FLOAT_PI_LO (UINT64_C(0xC000000000000000))
+#endif
+
+#define FLOATX80_PI2_EXP  (0x3FFF)
+#define FLOATX80_PI4_EXP  (0x3FFE)
+
+//////////////////////////////
+// 3PI/4 constant
+//////////////////////////////
+
+#define FLOATX80_3PI4_EXP (0x4000)
+
+// 128-bit 3PI/4 fraction
+#ifdef BETTER_THAN_PENTIUM
+#define FLOAT_3PI4_HI (UINT64_C(0x96cbe3f9990e91a7))
+#define FLOAT_3PI4_LO (UINT64_C(0x9394c9e8a0a5159c))
+#else
+#define FLOAT_3PI4_HI (UINT64_C(0x96cbe3f9990e91a7))
+#define FLOAT_3PI4_LO (UINT64_C(0x9000000000000000))
+#endif
+
+//////////////////////////////
+// 1/LN2 constant
+//////////////////////////////
+
+#define FLOAT_LN2INV_EXP  (0x3FFF)
+
+// 128-bit 1/LN2 fraction
+#ifdef BETTER_THAN_PENTIUM
+#define FLOAT_LN2INV_HI (UINT64_C(0xb8aa3b295c17f0bb))
+#define FLOAT_LN2INV_LO (UINT64_C(0xbe87fed0691d3e89))
+#else
+#define FLOAT_LN2INV_HI (UINT64_C(0xb8aa3b295c17f0bb))
+#define FLOAT_LN2INV_LO (UINT64_C(0xC000000000000000))
+#endif
+
+
+/* executes single exponent reduction cycle */
+static uint64_t remainder_kernel(uint64_t aSig0, uint64_t bSig, int expDiff, uint64_t *zSig0, uint64_t *zSig1)
+{
+    uint64_t term0, term1;
+    uint64_t aSig1 = 0;
+
+    shortShift128Left(aSig1, aSig0, expDiff, &aSig1, &aSig0);
+    uint64_t q = estimateDiv128To64(aSig1, aSig0, bSig);
+    mul64To128(bSig, q, &term0, &term1);
+    sub128(aSig1, aSig0, term0, term1, zSig1, zSig0);
+    while ((int64_t)(*zSig1) < 0) {
+        --q;
+        add128(*zSig1, *zSig0, 0, bSig, zSig1, zSig0);
+    }
+    return q;
+}
+
+static int do_fprem(floatx80 a, floatx80 b, floatx80 *r, uint64_t *q, int rounding_mode, float_status *status)
+{
+    int32_t aExp, bExp, zExp, expDiff;
+    uint64_t aSig0, aSig1, bSig;
+    int aSign;
+    *q = 0;
+
+    // handle unsupported extended double-precision floating encodings
+    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b))
+    {
+        float_raise(float_flag_invalid, status);
+        *r = floatx80_default_nan(status);
+        return -1;
+    }
+
+    aSig0 = extractFloatx80Frac(a);
+    aExp = extractFloatx80Exp(a);
+    aSign = extractFloatx80Sign(a);
+    bSig = extractFloatx80Frac(b);
+    bExp = extractFloatx80Exp(b);
+
+    if (aExp == 0x7FFF) {
+        if ((uint64_t) (aSig0<<1) || ((bExp == 0x7FFF) && (uint64_t) (bSig<<1))) {
+            *r = propagateFloatx80NaN(a, b, status);
+            return -1;
+        }
+        float_raise(float_flag_invalid, status);
+        *r = floatx80_default_nan(status);
+        return -1;
+    }
+    if (bExp == 0x7FFF) {
+        if ((uint64_t) (bSig<<1)) {
+            *r = propagateFloatx80NaN(a, b, status);
+            return -1;
+        }
+        if (aExp == 0 && aSig0) {
+            float_raise(float_flag_input_denormal, status);
+            normalizeFloatx80Subnormal(aSig0, &aExp, &aSig0);
+            *r = (a.low & UINT64_C(0x8000000000000000)) ?
+                    packFloatx80(aSign, aExp, aSig0) : a;
+            return 0;
+        }
+        *r = a;
+        return 0;
+
+    }
+    if (bExp == 0) {
+        if (bSig == 0) {
+            float_raise(float_flag_invalid, status);
+            *r = floatx80_default_nan(status);
+            return -1;
+        }
+        float_raise(float_flag_output_denormal, status);
+        normalizeFloatx80Subnormal(bSig, &bExp, &bSig);
+    }
+    if (aExp == 0) {
+        if (aSig0 == 0) {
+            *r = a;
+            return 0;
+        }
+        float_raise(float_flag_input_denormal, status);
+        normalizeFloatx80Subnormal(aSig0, &aExp, &aSig0);
+    }
+    expDiff = aExp - bExp;
+    aSig1 = 0;
+
+    uint32_t overflow = 0;
+
+    if (expDiff >= 64) {
+        int n = (expDiff & 0x1f) | 0x20;
+        remainder_kernel(aSig0, bSig, n, &aSig0, &aSig1);
+        zExp = aExp - n;
+        overflow = 1;
+    }
+    else {
+        zExp = bExp;
+
+        if (expDiff < 0) {
+            if (expDiff < -1) {
+               *r = (a.low & UINT64_C(0x8000000000000000)) ?
+                    packFloatx80(aSign, aExp, aSig0) : a;
+               return 0;
+            }
+            shift128Right(aSig0, 0, 1, &aSig0, &aSig1);
+            expDiff = 0;
+        }
+
+        if (expDiff > 0) {
+            *q = remainder_kernel(aSig0, bSig, expDiff, &aSig0, &aSig1);
+        }
+        else {
+            if (bSig <= aSig0) {
+               aSig0 -= bSig;
+               *q = 1;
+            }
+        }
+
+        if (rounding_mode == float_round_nearest_even)
+        {
+            uint64_t term0, term1;
+            shift128Right(bSig, 0, 1, &term0, &term1);
+
+            if (! lt128(aSig0, aSig1, term0, term1))
+            {
+               int lt = lt128(term0, term1, aSig0, aSig1);
+               int eq = eq128(aSig0, aSig1, term0, term1);
+
+               if ((eq && (*q & 1)) || lt) {
+                  aSign = !aSign;
+                  ++q;
+               }
+               if (lt) sub128(bSig, 0, aSig0, aSig1, &aSig0, &aSig1);
+            }
+        }
+    }
+
+    *r = normalizeRoundAndPackFloatx80(80, aSign, zExp, aSig0, aSig1, status);
+    return overflow;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the remainder of the extended double-precision floating-point value
+| `a' with respect to the corresponding value `b'.  The operation is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int floatx80_ieee754_remainder(floatx80 a, floatx80 b, floatx80 *r, uint64_t *q, float_status *status)
+{
+    return do_fprem(a, b, r, q, float_round_nearest_even, status);
+}
+
+/*----------------------------------------------------------------------------
+| Returns the remainder of the extended double-precision floating-point value
+| `a' with  respect to  the corresponding value `b'. Unlike previous function
+| the  function  does not compute  the remainder  specified  in  the IEC/IEEE
+| Standard  for Binary  Floating-Point  Arithmetic.  This  function  operates
+| differently  from the  previous  function in  the way  that it  rounds  the
+| quotient of 'a' divided by 'b' to an integer.
+*----------------------------------------------------------------------------*/
+
+int floatx80_remainder(floatx80 a, floatx80 b, floatx80 *r, uint64_t *q, float_status *status)
+{
+    return do_fprem(a, b, r, q, float_round_to_zero, status);
+}
+
+//                            2         3         4               n
+// f(x) ~ C + (C * x) + (C * x) + (C * x) + (C * x) + ... + (C * x)
+//         0    1         2         3         4               n
+//
+//          --       2k                --        2k+1
+//   p(x) = >  C  * x           q(x) = >  C   * x
+//          --  2k                     --  2k+1
+//
+//   f(x) ~ [ p(x) + x * q(x) ]
+//
+
+float128 EvalPoly(float128 x, const float128 *arr, int n, float_status *status)
+{
+    float128 r = arr[--n];
+
+    do {
+        r = float128_mul(r, x, status);
+        r = float128_add(r, arr[--n], status);
+    } while (n > 0);
+
+    return r;
+}
+
+//                  2         4         6         8               2n
+// f(x) ~ C + (C * x) + (C * x) + (C * x) + (C * x) + ... + (C * x)
+//         0    1         2         3         4               n
+//
+//          --       4k                --        4k+2
+//   p(x) = >  C  * x           q(x) = >  C   * x
+//          --  2k                     --  2k+1
+//
+//                    2
+//   f(x) ~ [ p(x) + x * q(x) ]
+//
+
+float128 EvenPoly(float128 x, const float128 *arr, int n, float_status *status)
+{
+     return EvalPoly(float128_mul(x, x, status), arr, n, status);
+}
+
+//                        3         5         7         9               2n+1
+// f(x) ~ (C * x) + (C * x) + (C * x) + (C * x) + (C * x) + ... + (C * x)
+//          0         1         2         3         4               n
+//                        2         4         6         8               2n
+//      = x * [ C + (C * x) + (C * x) + (C * x) + (C * x) + ... + (C * x)
+//               0    1         2         3         4               n
+//
+//          --       4k                --        4k+2
+//   p(x) = >  C  * x           q(x) = >  C   * x
+//          --  2k                     --  2k+1
+//
+//                        2
+//   f(x) ~ x * [ p(x) + x * q(x) ]
+//
+
+float128 OddPoly(float128 x, const float128 *arr, int n, float_status *status)
+{
+     return float128_mul(x, EvenPoly(x, arr, n, status), status);
+}
+
+#define SQRT2_HALF_SIG 	UINT64_C(0xb504f333f9de6484)
+
+#define L2_ARR_SIZE 9
+
+static float128 ln_arr[L2_ARR_SIZE] =
+{
+    make_float128(0x3fff000000000000, 0x0000000000000000), /*  1 */
+    make_float128(0x3ffd555555555555, 0x5555555555555555), /*  3 */
+    make_float128(0x3ffc999999999999, 0x999999999999999a), /*  5 */
+    make_float128(0x3ffc249249249249, 0x2492492492492492), /*  7 */
+    make_float128(0x3ffbc71c71c71c71, 0xc71c71c71c71c71c), /*  9 */
+    make_float128(0x3ffb745d1745d174, 0x5d1745d1745d1746), /* 11 */
+    make_float128(0x3ffb3b13b13b13b1, 0x3b13b13b13b13b14), /* 13 */
+    make_float128(0x3ffb111111111111, 0x1111111111111111), /* 15 */
+    make_float128(0x3ffae1e1e1e1e1e1, 0xe1e1e1e1e1e1e1e2)  /* 17 */
+};
+
+static float128 poly_ln(float128 x1, float_status *status)
+{
+/*
+    //
+    //                     3     5     7     9     11     13     15
+    //        1+u         u     u     u     u     u      u      u
+    // 1/2 ln ---  ~ u + --- + --- + --- + --- + ---- + ---- + ---- =
+    //        1-u         3     5     7     9     11     13     15
+    //
+    //                     2     4     6     8     10     12     14
+    //                    u     u     u     u     u      u      u
+    //       = u * [ 1 + --- + --- + --- + --- + ---- + ---- + ---- ] =
+    //                    3     5     7     9     11     13     15
+    //
+    //           3                          3
+    //          --       4k                --        4k+2
+    //   p(u) = >  C  * u           q(u) = >  C   * u
+    //          --  2k                     --  2k+1
+    //          k=0                        k=0
+    //
+    //          1+u                 2
+    //   1/2 ln --- ~ u * [ p(u) + u * q(u) ]
+    //          1-u
+    //
+*/
+    return OddPoly(x1, ln_arr, L2_ARR_SIZE, status);
+}
+
+/* required sqrt(2)/2 < x < sqrt(2) */
+static float128 poly_l2(float128 x, float_status *status)
+{
+    /* using float128 for approximation */
+    float128 x_p1 = float128_add(x, float128_one, status);
+    float128 x_m1 = float128_sub(x, float128_one, status);
+    x = float128_div(x_m1, x_p1, status);
+    x = poly_ln(x, status);
+    x = float128_mul(x, float128_ln2inv2, status);
+    return x;
+}
+
+static float128 poly_l2p1(float128 x, float_status *status)
+{
+    /* using float128 for approximation */
+    float128 x_p2 = float128_add(x, float128_two, status);
+    x = float128_div(x, x_p2, status);
+    x = poly_ln(x, status);
+    x = float128_mul(x, float128_ln2inv2, status);
+    return x;
+}
+
+// =================================================
+// FYL2X                   Compute y * log (x)
+//                                        2
+// =================================================
+
+//
+// Uses the following identities:
+//
+// 1. ----------------------------------------------------------
+//              ln(x)
+//   log (x) = -------,  ln (x*y) = ln(x) + ln(y)
+//      2       ln(2)
+//
+// 2. ----------------------------------------------------------
+//                1+u             x-1
+//   ln (x) = ln -----, when u = -----
+//                1-u             x+1
+//
+// 3. ----------------------------------------------------------
+//                        3     5     7           2n+1
+//       1+u             u     u     u           u
+//   ln ----- = 2 [ u + --- + --- + --- + ... + ------ + ... ]
+//       1-u             3     5     7           2n+1
+//
+
+floatx80 fyl2x(floatx80 a, floatx80 b, float_status *status)
+{
+    // handle unsupported extended double-precision floating encodings
+    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
+invalid:
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
+
+    uint64_t aSig = extractFloatx80Frac(a);
+    int32_t aExp = extractFloatx80Exp(a);
+    int aSign = extractFloatx80Sign(a);
+    uint64_t bSig = extractFloatx80Frac(b);
+    int32_t bExp = extractFloatx80Exp(b);
+    int bSign = extractFloatx80Sign(b);
+
+    int zSign = bSign ^ 1;
+
+    if (aExp == 0x7FFF) {
+        if ((uint64_t) (aSig<<1)
+             || ((bExp == 0x7FFF) && (uint64_t) (bSig<<1)))
+        {
+            return propagateFloatx80NaN(a, b, status);
+        }
+        if (aSign) goto invalid;
+        else {
+            if (bExp == 0) {
+                if (bSig == 0) goto invalid;
+                float_raise(float_flag_input_denormal, status);
+            }
+            return packFloatx80(bSign, 0x7FFF, UINT64_C(0x8000000000000000));
+        }
+    }
+    if (bExp == 0x7FFF)
+    {
+        if ((uint64_t) (bSig<<1)) return propagateFloatx80NaN(a, b, status);
+        if (aSign && (uint64_t)(aExp | aSig)) goto invalid;
+        if (aSig && (aExp == 0))
+            float_raise(float_flag_input_denormal, status);
+        if (aExp < 0x3FFF) {
+            return packFloatx80(zSign, 0x7FFF, UINT64_C(0x8000000000000000));
+        }
+        if (aExp == 0x3FFF && ((uint64_t) (aSig<<1) == 0)) goto invalid;
+        return packFloatx80(bSign, 0x7FFF, UINT64_C(0x8000000000000000));
+    }
+    if (aExp == 0) {
+        if (aSig == 0) {
+            if ((bExp | bSig) == 0) goto invalid;
+            float_raise(float_flag_divbyzero, status);
+            return packFloatx80(zSign, 0x7FFF, UINT64_C(0x8000000000000000));
+        }
+        if (aSign) goto invalid;
+        float_raise(float_flag_input_denormal, status);
+        normalizeFloatx80Subnormal(aSig, &aExp, &aSig);
+    }
+    if (aSign) goto invalid;
+    if (bExp == 0) {
+        if (bSig == 0) {
+            if (aExp < 0x3FFF) return packFloatx80(zSign, 0, 0);
+            return packFloatx80(bSign, 0, 0);
+        }
+        float_raise(float_flag_input_denormal, status);
+        normalizeFloatx80Subnormal(bSig, &bExp, &bSig);
+    }
+    if (aExp == 0x3FFF && ((uint64_t) (aSig<<1) == 0))
+        return packFloatx80(bSign, 0, 0);
+
+    float_raise(float_flag_inexact, status);
+
+    int ExpDiff = aExp - 0x3FFF;
+    aExp = 0;
+    if (aSig >= SQRT2_HALF_SIG) {
+        ExpDiff++;
+        aExp--;
+    }
+
+    /* ******************************** */
+    /* using float128 for approximation */
+    /* ******************************** */
+
+    uint64_t zSig0, zSig1;
+    shift128Right(aSig<<1, 0, 16, &zSig0, &zSig1);
+    float128 x = packFloat128(0, aExp+0x3FFF, zSig0, zSig1);
+    x = poly_l2(x, status);
+    x = float128_add(x, int64_to_float128((int64_t) ExpDiff, status), status);
+    floatx80 x80 = float128_to_floatx80(x, status);
+    return floatx80_mul(b, x80, status);
+}
+
+// =================================================
+// FYL2XP1                 Compute y * log (x + 1)
+//                                        2
+// =================================================
+
+//
+// Uses the following identities:
+//
+// 1. ----------------------------------------------------------
+//              ln(x)
+//   log (x) = -------
+//      2       ln(2)
+//
+// 2. ----------------------------------------------------------
+//                  1+u              x
+//   ln (x+1) = ln -----, when u = -----
+//                  1-u             x+2
+//
+// 3. ----------------------------------------------------------
+//                        3     5     7           2n+1
+//       1+u             u     u     u           u
+//   ln ----- = 2 [ u + --- + --- + --- + ... + ------ + ... ]
+//       1-u             3     5     7           2n+1
+//
+
+floatx80 fyl2xp1(floatx80 a, floatx80 b, float_status *status)
+{
+    int32_t aExp, bExp;
+    uint64_t aSig, bSig, zSig0, zSig1, zSig2;
+    int aSign, bSign;
+
+    // handle unsupported extended double-precision floating encodings
+    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
+invalid:
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
+
+    aSig = extractFloatx80Frac(a);
+    aExp = extractFloatx80Exp(a);
+    aSign = extractFloatx80Sign(a);
+    bSig = extractFloatx80Frac(b);
+    bExp = extractFloatx80Exp(b);
+    bSign = extractFloatx80Sign(b);
+    int zSign = aSign ^ bSign;
+
+    if (aExp == 0x7FFF) {
+        if ((uint64_t) (aSig<<1)
+             || ((bExp == 0x7FFF) && (uint64_t) (bSig<<1)))
+        {
+            return propagateFloatx80NaN(a, b, status);
+        }
+        if (aSign) goto invalid;
+        else {
+            if (bExp == 0) {
+                if (bSig == 0) goto invalid;
+                float_raise(float_flag_input_denormal, status);
+            }
+            return packFloatx80(bSign, 0x7FFF, UINT64_C(0x8000000000000000));
+        }
+    }
+    if (bExp == 0x7FFF)
+    {
+        if ((uint64_t) (bSig<<1))
+            return propagateFloatx80NaN(a, b, status);
+
+        if (aExp == 0) {
+            if (aSig == 0) goto invalid;
+            float_raise(float_flag_input_denormal, status);
+        }
+
+        return packFloatx80(zSign, 0x7FFF, UINT64_C(0x8000000000000000));
+    }
+    if (aExp == 0) {
+        if (aSig == 0) {
+            if (bSig && (bExp == 0)) float_raise(float_flag_input_denormal, status);
+            return packFloatx80(zSign, 0, 0);
+        }
+        float_raise(float_flag_input_denormal, status);
+        normalizeFloatx80Subnormal(aSig, &aExp, &aSig);
+    }
+    if (bExp == 0) {
+        if (bSig == 0) return packFloatx80(zSign, 0, 0);
+        float_raise(float_flag_input_denormal, status);
+        normalizeFloatx80Subnormal(bSig, &bExp, &bSig);
+    }
+
+    float_raise(float_flag_inexact, status);
+
+    if (aSign && aExp >= 0x3FFF)
+        return a;
+
+    if (aExp >= 0x3FFC) // big argument
+    {
+        return fyl2x(floatx80_add(a, floatx80_one, status), b, status);
+    }
+
+    // handle tiny argument
+    if (aExp < FLOATX80_EXP_BIAS-70)
+    {
+        // first order approximation, return (a*b)/ln(2)
+        int32_t zExp = aExp + FLOAT_LN2INV_EXP - 0x3FFE;
+
+  mul128By64To192(FLOAT_LN2INV_HI, FLOAT_LN2INV_LO, aSig, &zSig0, &zSig1, &zSig2);
+        if (0 < (int64_t) zSig0) {
+            shortShift128Left(zSig0, zSig1, 1, &zSig0, &zSig1);
+            --zExp;
+        }
+
+        zExp = zExp + bExp - 0x3FFE;
+  mul128By64To192(zSig0, zSig1, bSig, &zSig0, &zSig1, &zSig2);
+        if (0 < (int64_t) zSig0) {
+            shortShift128Left(zSig0, zSig1, 1, &zSig0, &zSig1);
+            --zExp;
+        }
+
+        return
+            roundAndPackFloatx80(80, aSign ^ bSign, zExp, zSig0, zSig1, status);
+    }
+
+    /* ******************************** */
+    /* using float128 for approximation */
+    /* ******************************** */
+
+    shift128Right(aSig<<1, 0, 16, &zSig0, &zSig1);
+    float128 x = packFloat128(aSign, aExp, zSig0, zSig1);
+    x = poly_l2p1(x, status);
+    floatx80 x80 = float128_to_floatx80(x, status);
+    return floatx80_mul(b, x80, status);
+}
+
+#define FPATAN_ARR_SIZE 11
+
+static const float128 atan_arr[FPATAN_ARR_SIZE] =
+{
+    make_float128(0x3fff000000000000, 0x0000000000000000), /*  1 */
+    make_float128(0xbffd555555555555, 0x5555555555555555), /*  3 */
+    make_float128(0x3ffc999999999999, 0x999999999999999a), /*  5 */
+    make_float128(0xbffc249249249249, 0x2492492492492492), /*  7 */
+    make_float128(0x3ffbc71c71c71c71, 0xc71c71c71c71c71c), /*  9 */
+    make_float128(0xbffb745d1745d174, 0x5d1745d1745d1746), /* 11 */
+    make_float128(0x3ffb3b13b13b13b1, 0x3b13b13b13b13b14), /* 13 */
+    make_float128(0xbffb111111111111, 0x1111111111111111), /* 15 */
+    make_float128(0x3ffae1e1e1e1e1e1, 0xe1e1e1e1e1e1e1e2), /* 17 */
+    make_float128(0xbffaaf286bca1af2, 0x86bca1af286bca1b), /* 19 */
+    make_float128(0x3ffa861861861861, 0x8618618618618618)  /* 21 */
+};
+
+/* |x| < 1/4 */
+static float128 poly_atan(float128 x1, float_status *status)
+{
+/*
+    //                 3     5     7     9     11     13     15     17
+    //                x     x     x     x     x      x      x      x
+    // atan(x) ~ x - --- + --- - --- + --- - ---- + ---- - ---- + ----
+    //                3     5     7     9     11     13     15     17
+    //
+    //                 2     4     6     8     10     12     14     16
+    //                x     x     x     x     x      x      x      x
+    //   = x * [ 1 - --- + --- - --- + --- - ---- + ---- - ---- + ---- ]
+    //                3     5     7     9     11     13     15     17
+    //
+    //           5                          5
+    //          --       4k                --        4k+2
+    //   p(x) = >  C  * x           q(x) = >  C   * x
+    //          --  2k                     --  2k+1
+    //          k=0                        k=0
+    //
+    //                            2
+    //    atan(x) ~ x * [ p(x) + x * q(x) ]
+    //
+*/
+    return OddPoly(x1, atan_arr, FPATAN_ARR_SIZE, status);
+}
+
+// =================================================
+// FPATAN                  Compute y * log (x)
+//                                        2
+// =================================================
+
+//
+// Uses the following identities:
+//
+// 1. ----------------------------------------------------------
+//
+//   atan(-x) = -atan(x)
+//
+// 2. ----------------------------------------------------------
+//
+//                             x + y
+//   atan(x) + atan(y) = atan -------, xy < 1
+//                             1-xy
+//
+//                             x + y
+//   atan(x) + atan(y) = atan ------- + PI, x > 0, xy > 1
+//                             1-xy
+//
+//                             x + y
+//   atan(x) + atan(y) = atan ------- - PI, x < 0, xy > 1
+//                             1-xy
+//
+// 3. ----------------------------------------------------------
+//
+//   atan(x) = atan(INF) + atan(- 1/x)
+//
+//                           x-1
+//   atan(x) = PI/4 + atan( ----- )
+//                           x+1
+//
+//                           x * sqrt(3) - 1
+//   atan(x) = PI/6 + atan( ----------------- )
+//                             x + sqrt(3)
+//
+// 4. ----------------------------------------------------------
+//                   3     5     7     9                 2n+1
+//                  x     x     x     x              n  x
+//   atan(x) = x - --- + --- - --- + --- - ... + (-1)  ------ + ...
+//                  3     5     7     9                 2n+1
+//
+
+floatx80 fpatan(floatx80 a, floatx80 b, float_status *status)
+{
+    // handle unsupported extended double-precision floating encodings
+    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
+
+    uint64_t aSig = extractFloatx80Frac(a);
+    int32_t aExp = extractFloatx80Exp(a);
+    int aSign = extractFloatx80Sign(a);
+    uint64_t bSig = extractFloatx80Frac(b);
+    int32_t bExp = extractFloatx80Exp(b);
+    int bSign = extractFloatx80Sign(b);
+
+    int zSign = aSign ^ bSign;
+
+    if (bExp == 0x7FFF)
+    {
+        if ((uint64_t) (bSig<<1))
+            return propagateFloatx80NaN(a, b, status);
+
+        if (aExp == 0x7FFF) {
+            if ((uint64_t) (aSig<<1))
+                return propagateFloatx80NaN(a, b, status);
+
+            if (aSign) {   /* return 3PI/4 */
+                return roundAndPackFloatx80(80, bSign,
+                        FLOATX80_3PI4_EXP, FLOAT_3PI4_HI, FLOAT_3PI4_LO, status);
+            }
+            else {         /* return  PI/4 */
+                return roundAndPackFloatx80(80, bSign,
+                        FLOATX80_PI4_EXP, FLOAT_PI_HI, FLOAT_PI_LO, status);
+            }
+        }
+
+        if (aSig && (aExp == 0))
+            float_raise(float_flag_input_denormal, status);
+
+        /* return PI/2 */
+        return roundAndPackFloatx80(80, bSign, FLOATX80_PI2_EXP, FLOAT_PI_HI, FLOAT_PI_LO, status);
+    }
+    if (aExp == 0x7FFF)
+    {
+        if ((uint64_t) (aSig<<1))
+            return propagateFloatx80NaN(a, b, status);
+
+        if (bSig && (bExp == 0))
+            float_raise(float_flag_input_denormal, status);
+
+return_PI_or_ZERO:
+
+        if (aSign) {   /* return PI */
+            return roundAndPackFloatx80(80, bSign, FLOATX80_PI_EXP, FLOAT_PI_HI, FLOAT_PI_LO, status);
+        } else {       /* return  0 */
+            return packFloatx80(bSign, 0, 0);
+        }
+    }
+    if (bExp == 0)
+    {
+        if (bSig == 0) {
+             if (aSig && (aExp == 0)) float_raise(float_flag_input_denormal, status);
+             goto return_PI_or_ZERO;
+        }
+
+        float_raise(float_flag_input_denormal, status);
+        normalizeFloatx80Subnormal(bSig, &bExp, &bSig);
+    }
+    if (aExp == 0)
+    {
+        if (aSig == 0)   /* return PI/2 */
+            return roundAndPackFloatx80(80, bSign, FLOATX80_PI2_EXP, FLOAT_PI_HI, FLOAT_PI_LO, status);
+
+        float_raise(float_flag_input_denormal, status);
+        normalizeFloatx80Subnormal(aSig, &aExp, &aSig);
+    }
+
+    float_raise(float_flag_inexact, status);
+
+    /* |a| = |b| ==> return PI/4 */
+    if (aSig == bSig && aExp == bExp)
+        return roundAndPackFloatx80(80, bSign, FLOATX80_PI4_EXP, FLOAT_PI_HI, FLOAT_PI_LO, status);
+
+    /* ******************************** */
+    /* using float128 for approximation */
+    /* ******************************** */
+
+    float128 a128 = normalizeRoundAndPackFloat128(0, aExp-0x10, aSig, 0, status);
+    float128 b128 = normalizeRoundAndPackFloat128(0, bExp-0x10, bSig, 0, status);
+    float128 x;
+    int swap = 0, add_pi6 = 0, add_pi4 = 0;
+
+    if (aExp > bExp || (aExp == bExp && aSig > bSig))
+    {
+        x = float128_div(b128, a128, status);
+    }
+    else {
+        x = float128_div(a128, b128, status);
+        swap = 1;
+    }
+
+    int32_t xExp = extractFloat128Exp(x);
+
+    if (xExp <= FLOATX80_EXP_BIAS-40)
+        goto approximation_completed;
+
+    if (x.high >= UINT64_C(0x3ffe800000000000))        // 3/4 < x < 1
+    {
+        /*
+        arctan(x) = arctan((x-1)/(x+1)) + pi/4
+        */
+        float128 t1 = float128_sub(x, float128_one, status);
+        float128 t2 = float128_add(x, float128_one, status);
+        x = float128_div(t1, t2, status);
+        add_pi4 = 1;
+    }
+    else
+    {
+        /* argument correction */
+        if (xExp >= 0x3FFD)                     // 1/4 < x < 3/4
+        {
+            /*
+            arctan(x) = arctan((x*sqrt(3)-1)/(x+sqrt(3))) + pi/6
+            */
+            float128 t1 = float128_mul(x, float128_sqrt3, status);
+            float128 t2 = float128_add(x, float128_sqrt3, status);
+            x = float128_sub(t1, float128_one, status);
+            x = float128_div(x, t2, status);
+            add_pi6 = 1;
+        }
+    }
+
+    x = poly_atan(x, status);
+    if (add_pi6) x = float128_add(x, float128_pi6, status);
+    if (add_pi4) x = float128_add(x, float128_pi4, status);
+
+approximation_completed:
+    if (swap) x = float128_sub(float128_pi2, x, status);
+    floatx80 result = float128_to_floatx80(x, status);
+    if (zSign) floatx80_chs(result);
+    int rSign = extractFloatx80Sign(result);
+    if (!bSign && rSign)
+        return floatx80_add(result, floatx80_pi, status);
+    if (bSign && !rSign)
+        return floatx80_sub(result, floatx80_pi, status);
+    return result;
+}
+
+
+static const float128 float128_ln2     = make_float128(UINT64_C(0x3ffe62e42fefa39e), UINT64_C(0xf35793c7673007e6));
+
+#ifdef BETTER_THAN_PENTIUM
+
+#define LN2_SIG_HI UINT64_C(0xb17217f7d1cf79ab)
+#define LN2_SIG_LO UINT64_C(0xc9e3b39800000000)  /* 96 bit precision */
+
+#else
+
+#define LN2_SIG_HI UINT64_C(0xb17217f7d1cf79ab)
+#define LN2_SIG_LO UINT64_C(0xc000000000000000)  /* 67-bit precision */
+
+#endif
+
+#define EXP_ARR_SIZE 15
+
+static const float128 exp_arr[EXP_ARR_SIZE] =
+{
+    make_float128(0x3fff000000000000, 0x0000000000000000), /*  1 */
+    make_float128(0x3ffe000000000000, 0x0000000000000000), /*  2 */
+    make_float128(0x3ffc555555555555, 0x5555555555555555), /*  3 */
+    make_float128(0x3ffa555555555555, 0x5555555555555555), /*  4 */
+    make_float128(0x3ff8111111111111, 0x1111111111111111), /*  5 */
+    make_float128(0x3ff56c16c16c16c1, 0x6c16c16c16c16c17), /*  6 */
+    make_float128(0x3ff2a01a01a01a01, 0xa01a01a01a01a01a), /*  7 */
+    make_float128(0x3fefa01a01a01a01, 0xa01a01a01a01a01a), /*  8 */
+    make_float128(0x3fec71de3a556c73, 0x38faac1c88e50017), /*  9 */
+    make_float128(0x3fe927e4fb7789f5, 0xc72ef016d3ea6679), /* 10 */
+    make_float128(0x3fe5ae64567f544e, 0x38fe747e4b837dc7), /* 11 */
+    make_float128(0x3fe21eed8eff8d89, 0x7b544da987acfe85), /* 12 */
+    make_float128(0x3fde6124613a86d0, 0x97ca38331d23af68), /* 13 */
+    make_float128(0x3fda93974a8c07c9, 0xd20badf145dfa3e5), /* 14 */
+    make_float128(0x3fd6ae7f3e733b81, 0xf11d8656b0ee8cb0)  /* 15 */
+};
+
+/* required -1 < x < 1 */
+static float128 poly_exp(float128 x, float_status *status)
+{
+/*
+    //               2     3     4     5     6     7     8     9
+    //  x           x     x     x     x     x     x     x     x
+    // e - 1 ~ x + --- + --- + --- + --- + --- + --- + --- + --- + ...
+    //              2!    3!    4!    5!    6!    7!    8!    9!
+    //
+    //                     2     3     4     5     6     7     8
+    //              x     x     x     x     x     x     x     x
+    //   = x [ 1 + --- + --- + --- + --- + --- + --- + --- + --- + ... ]
+    //              2!    3!    4!    5!    6!    7!    8!    9!
+    //
+    //           8                          8
+    //          --       2k                --        2k+1
+    //   p(x) = >  C  * x           q(x) = >  C   * x
+    //          --  2k                     --  2k+1
+    //          k=0                        k=0
+    //
+    //    x
+    //   e  - 1 ~ x * [ p(x) + x * q(x) ]
+    //
+*/
+    float128 t = EvalPoly(x, exp_arr, EXP_ARR_SIZE, status);
+    return float128_mul(t, x, status);
+}
+
+// =================================================
+//                                  x
+// FX2M1                   Compute 2  - 1
+// =================================================
+
+//
+// Uses the following identities:
+//
+// 1. ----------------------------------------------------------
+//      x    x*ln(2)
+//     2  = e
+//
+// 2. ----------------------------------------------------------
+//                      2     3     4     5           n
+//      x        x     x     x     x     x           x
+//     e  = 1 + --- + --- + --- + --- + --- + ... + --- + ...
+//               1!    2!    3!    4!    5!          n!
+//
+
+floatx80 f2xm1(floatx80 a, float_status *status)
+{
+    uint64_t zSig0, zSig1, zSig2;
+
+    // handle unsupported extended double-precision floating encodings
+    if (floatx80_invalid_encoding(a))
+    {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
+
+    uint64_t aSig = extractFloatx80Frac(a);
+    int32_t aExp = extractFloatx80Exp(a);
+    int aSign = extractFloatx80Sign(a);
+
+    if (aExp == 0x7FFF) {
+        if ((uint64_t) (aSig<<1))
+            return propagateFloatx80NaN(a, a, status);
+
+        return (aSign) ? floatx80_negone : a;
+    }
+
+    if (aExp == 0) {
+        if (aSig == 0) return a;
+        float_raise(float_flag_input_denormal | float_flag_inexact, status);
+        normalizeFloatx80Subnormal(aSig, &aExp, &aSig);
+
+    tiny_argument:
+        mul128By64To192(LN2_SIG_HI, LN2_SIG_LO, aSig, &zSig0, &zSig1, &zSig2);
+        if (0 < (int64_t) zSig0) {
+            shortShift128Left(zSig0, zSig1, 1, &zSig0, &zSig1);
+            --aExp;
+        }
+        return
+            roundAndPackFloatx80(80, aSign, aExp, zSig0, zSig1, status);
+    }
+
+    float_raise(float_flag_inexact, status);
+
+    if (aExp < 0x3FFF)
+    {
+        if (aExp < FLOATX80_EXP_BIAS-68)
+            goto tiny_argument;
+
+        /* ******************************** */
+        /* using float128 for approximation */
+        /* ******************************** */
+
+        float128 x = floatx80_to_float128(a, status);
+        x = float128_mul(x, float128_ln2, status);
+        x = poly_exp(x, status);
+        return float128_to_floatx80(x, status);
+    }
+    else
+    {
+        if (a.high == 0xBFFF && ! (aSig<<1))
+           return floatx80_neghalf;
+
+        return a;
+    }
 }

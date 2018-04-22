@@ -146,7 +146,7 @@ typedef struct {
     uint64_t low;
     uint16_t high;
 } floatx80;
-#define make_floatx80(exp, mant) ((floatx80) { mant, exp })
+#define make_floatx80(exp, mant) { mant, exp }
 #define make_floatx80_init(exp, mant) { .low = mant, .high = exp }
 typedef struct {
 #ifdef HOST_WORDS_BIGENDIAN
@@ -155,7 +155,7 @@ typedef struct {
     uint64_t low, high;
 #endif
 } float128;
-#define make_float128(high_, low_) ((float128) { .high = high_, .low = low_ })
+#define make_float128(high_, low_) { high_, low_ }
 #define make_float128_init(high_, low_) { .high = high_, .low = low_ }
 
 /*----------------------------------------------------------------------------
@@ -691,12 +691,12 @@ static inline bool floatx80_invalid_encoding(floatx80 a)
     return (a.low & (1ULL << 63)) == 0 && (a.high & 0x7FFF) != 0;
 }
 
-#define floatx80_zero make_floatx80(0x0000, 0x0000000000000000LL)
-#define floatx80_one make_floatx80(0x3fff, 0x8000000000000000LL)
-#define floatx80_ln2 make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL)
-#define floatx80_pi make_floatx80(0x4000, 0xc90fdaa22168c235LL)
-#define floatx80_half make_floatx80(0x3ffe, 0x8000000000000000LL)
-#define floatx80_infinity make_floatx80(0x7fff, 0x8000000000000000LL)
+extern const floatx80 floatx80_zero;
+extern const floatx80 floatx80_one;
+extern const floatx80 floatx80_ln2;
+extern const floatx80 floatx80_pi;
+extern const floatx80 floatx80_half;
+extern const floatx80 floatx80_infinity;
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated extended double-precision NaN.
@@ -780,11 +780,18 @@ static inline int float128_is_any_nan(float128 a)
         ((a.low != 0) || ((a.high & 0xffffffffffffLL) != 0));
 }
 
-#define float128_zero make_float128(0, 0)
+extern const float128 float128_zero;
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated quadruple-precision NaN.
 *----------------------------------------------------------------------------*/
 float128 float128_default_nan(float_status *status);
+
+int floatx80_ieee754_remainder(floatx80 a, floatx80 b, floatx80 *r, uint64_t *q, float_status *status);
+int floatx80_remainder(floatx80 a, floatx80 b, floatx80 *r, uint64_t *q, float_status *status);
+floatx80 fyl2x(floatx80 a, floatx80 b, float_status *status);
+floatx80 fyl2xp1(floatx80 a, floatx80 b, float_status *status);
+floatx80 fpatan(floatx80 a, floatx80 b, float_status *status);
+floatx80 f2xm1(floatx80 a, float_status *status);
 
 #endif /* SOFTFLOAT_H */

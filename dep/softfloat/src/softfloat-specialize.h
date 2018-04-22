@@ -156,6 +156,8 @@ float64 float64_default_nan(float_status *status)
 #endif
 }
 
+#define FLOATX80_EXP_BIAS 0x3FFF
+
 /*----------------------------------------------------------------------------
 | The pattern for a default generated extended double-precision NaN.
 *----------------------------------------------------------------------------*/
