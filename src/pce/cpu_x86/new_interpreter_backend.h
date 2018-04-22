@@ -20,9 +20,6 @@ public:
 
   void OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) override;
 
-  void OnLockedMemoryAccess(PhysicalMemoryAddress address, PhysicalMemoryAddress range_start,
-                            PhysicalMemoryAddress range_end, MemoryLockAccess access) override;
-
   void FlushCodeCache() override;
 
   // Instruction executer, can be used by other backends.

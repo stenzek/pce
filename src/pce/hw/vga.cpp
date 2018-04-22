@@ -19,9 +19,7 @@ VGA::~VGA()
 {
   if (m_bus)
   {
-    m_bus->UnregisterMMIO(m_bios_mmio);
     m_bios_mmio->Release();
-    m_bus->UnregisterMMIO(m_vram_mmio);
     m_vram_mmio->Release();
   }
 }

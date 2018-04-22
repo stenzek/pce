@@ -121,7 +121,7 @@ const JitX64Backend::Block* JitX64Backend::LookupBlock()
   if (lookup_iter != m_blocks.end())
   {
     Block* block = lookup_iter->second;
-    if (!block->invalidated || RevalidateCachedBlockForCurrentState(&key, block))
+    if (!block->invalidated || RevalidateCachedBlockForCurrentState(block))
     {
       // Block is valid again.
       return block;

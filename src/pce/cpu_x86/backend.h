@@ -16,9 +16,6 @@ public:
 
   virtual void OnControlRegisterLoaded(Reg32 reg, uint32 old_CR3, uint32 new_CR3) = 0;
 
-  virtual void OnLockedMemoryAccess(PhysicalMemoryAddress address, PhysicalMemoryAddress range_start,
-                                    PhysicalMemoryAddress range_end, MemoryLockAccess access) = 0;
-
   virtual void FlushCodeCache() = 0;
 };
 

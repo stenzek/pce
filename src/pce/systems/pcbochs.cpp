@@ -247,10 +247,8 @@ void PCBochs::SetCMOSVariables()
           case HW::FDC::DiskType_360K:
           case HW::FDC::DiskType_640K:
           case HW::FDC::DiskType_1220K:
-            cmos_type = 2;
-            break;
           default:
-            cmos_type = 0;
+            cmos_type = 2;
             break;
         }
       }
@@ -260,15 +258,13 @@ void PCBochs::SetCMOSVariables()
       {
         switch (disk_type)
         {
-          case HW::FDC::DiskType_720K:
-          case HW::FDC::DiskType_1440K:
-            cmos_type = 4;
-            break;
           case HW::FDC::DiskType_2880K:
             cmos_type = 5;
             break;
+          case HW::FDC::DiskType_720K:
+          case HW::FDC::DiskType_1440K:
           default:
-            cmos_type = 0;
+            cmos_type = 4;
             break;
         }
       }

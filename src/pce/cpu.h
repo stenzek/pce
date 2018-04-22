@@ -40,10 +40,6 @@ public:
   // Execute cycles
   virtual void ExecuteCycles(CycleCount cycles) = 0;
 
-  // Memory lock action
-  virtual void OnLockedMemoryAccess(PhysicalMemoryAddress address, PhysicalMemoryAddress range_start,
-                                    PhysicalMemoryAddress range_end, MemoryLockAccess access) = 0;
-
   // Code cache flushing - for recompiler backends
   virtual void FlushCodeCache() = 0;
 

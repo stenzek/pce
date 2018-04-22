@@ -91,11 +91,6 @@ void FastInterpreterBackend::BranchFromException(uint32 new_EIP) {}
 
 void FastInterpreterBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) {}
 
-void FastInterpreterBackend::OnLockedMemoryAccess(PhysicalMemoryAddress address, PhysicalMemoryAddress range_start,
-                                                  PhysicalMemoryAddress range_end, MemoryLockAccess access)
-{
-}
-
 void FastInterpreterBackend::FlushCodeCache() {}
 
 void FastInterpreterBackend::RaiseInvalidOpcode()

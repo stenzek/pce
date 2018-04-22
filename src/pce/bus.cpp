@@ -1,3 +1,5 @@
+#define XXH_STATIC_LINKING_ONLY
+
 #include "pce/bus.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/BinaryReader.h"
@@ -7,6 +9,8 @@
 #include "pce/cpu.h"
 #include "pce/mmio.h"
 #include "pce/system.h"
+#include "xxhash.h"
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <functional>
@@ -26,7 +30,6 @@ Bus::Bus(uint32 memory_address_bits)
 
 Bus::~Bus()
 {
-  delete[] m_ram_lookup;
   delete[] m_physical_memory_pages;
   delete[] m_ram_ptr;
 }
@@ -353,53 +356,6 @@ void Bus::ConnectIOPortWriteToPointer(uint32 port, void* owner, uint8* var)
   ConnectIOPortWrite(port, owner, std::move(write_handler));
 }
 
-void Bus::LockPhysicalMemory(PhysicalMemoryAddress address, uint32 size, MemoryLockAccess access)
-{
-  DebugAssert(size > 0);
-
-  uint32 start_page = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
-  uint32 end_page = ((address + (size - 1)) & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
-  DebugAssert(start_page < m_num_physical_memory_pages && end_page < m_num_physical_memory_pages);
-
-  for (uint32 page_number = start_page; page_number <= end_page; page_number++)
-  {
-    PhysicalMemoryPage* page = &m_physical_memory_pages[page_number];
-    if ((page->lock_type & access) != MemoryLockAccess::None)
-      continue;
-
-    page->lock_type |= access;
-    UpdatePageFastMemoryLookup(page_number, page);
-  }
-}
-
-void Bus::UnlockPhysicalMemory(PhysicalMemoryAddress address, uint32 size, MemoryLockAccess access)
-{
-  DebugAssert(size > 0);
-
-  uint32 start_page = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
-  uint32 end_page = ((address + (size - 1)) & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
-  DebugAssert(start_page < m_num_physical_memory_pages && end_page < m_num_physical_memory_pages);
-
-  for (uint32 page_number = start_page; page_number <= end_page; page_number++)
-  {
-    PhysicalMemoryPage* page = &m_physical_memory_pages[page_number];
-    if ((page->lock_type & access) == MemoryLockAccess::None)
-      continue;
-
-    page->lock_type &= ~access;
-    UpdatePageFastMemoryLookup(page_number, page);
-  }
-}
-
-static bool CrossesPage(PhysicalMemoryAddress address, uint32 size)
-{
-  DebugAssert(size > 0);
-  PhysicalMemoryAddress start_address = address;
-  PhysicalMemoryAddress end_address = address + size - 1;
-
-  return (start_address & ~(Bus::MEMORY_PAGE_SIZE - 1)) != (end_address & ~(Bus::MEMORY_PAGE_SIZE - 1));
-}
-
 #ifdef Y_COMPILER_MSVC
 #pragma warning(push)
 #pragma warning(disable : 4127) // warning C4127: conditional expression is constant
@@ -420,73 +376,38 @@ __attribute__((always_inline))
   {
     address &= m_physical_memory_address_mask;
 
+    // Since we allocate the page array based on the address mask, this should never overflow.
     uint32 page_number = address / MEMORY_PAGE_SIZE;
     uint32 page_offset = address % MEMORY_PAGE_SIZE;
+    DebugAssert(page_number < m_num_physical_memory_pages);
 
-    // Since we allocate the page array based on the address mask, this should never happen.
-    DebugAssert(page_number <= m_num_physical_memory_pages);
-
-    // Fast path.
-    if (m_ram_lookup[page_number])
+    // Fast path - page is RAM.
+    const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
+    if (page.type & PhysicalMemoryPage::kReadableMemory)
     {
-      std::memcpy(value, m_ram_lookup[page_number] + page_offset, sizeof(T));
+      std::memcpy(value, page.ram_ptr + page_offset, sizeof(*value));
       return true;
     }
 
-    // Check for memory locks
-    PhysicalMemoryPage* page = &m_physical_memory_pages[page_number];
-    if ((page->lock_type & MemoryLockAccess::Read) != MemoryLockAccess::None)
+    // Slow path - page is MMIO.
+    if (page.type & PhysicalMemoryPage::kMemoryMappedIO && address >= page.mmio_handler->GetStartAddress() &&
+        (address + sizeof(*value) - 1) <= page.mmio_handler->GetEndAddress())
     {
-      // Notify and remove the lock for this type.
-      m_system->GetCPU()->OnLockedMemoryAccess(address, address & MEMORY_PAGE_MASK,
-                                               (address & MEMORY_PAGE_MASK) + MEMORY_PAGE_SIZE, MemoryLockAccess::Read);
-      page->lock_type &= ~MemoryLockAccess::Read;
-      UpdatePageFastMemoryLookup(page_number, page);
-    }
+      // Pass to MMIO
+      if (std::is_same<T, uint8>::value)
+        page.mmio_handler->ReadByte(address, reinterpret_cast<uint8*>(value));
+      else if (std::is_same<T, uint16>::value)
+        page.mmio_handler->ReadWord(address, reinterpret_cast<uint16*>(value));
+      else if (std::is_same<T, uint32>::value)
+        page.mmio_handler->ReadDWord(address, reinterpret_cast<uint32*>(value));
+      else if (std::is_same<T, uint64>::value)
+        page.mmio_handler->ReadQWord(address, reinterpret_cast<uint64*>(value));
 
-    // Check if we're out of the MMIO range first, this lets us exit early
-    if (page_offset < page->mmio_start_offset || page_offset > page->mmio_end_offset)
-    {
-      // Check if we're within the RAM range.
-      if (page_offset >= page->ram_start_offset && page_offset <= page->ram_end_offset)
-      {
-        uint32 ram_offset = page_offset - page->ram_start_offset;
-        DebugAssert((ram_offset + sizeof(T)) <= page->ram_end_offset);
-        std::memcpy(value, page->ram_ptr + ram_offset, sizeof(*value));
-        return true;
-      }
-    }
-
-    // Check for MMIO handlers within the page
-    for (MMIO* mmio : page->mmio_handlers)
-    {
-      // The < here saves checking for partial writes on bytes.
-      if (address >= mmio->GetStartAddress() && address <= mmio->GetEndAddress())
-      {
-        // Check where the write is a partial MMIO write and partial RAM write
-        if (std::is_same<T, uint8>::value || (address + sizeof(T) - 1) <= mmio->GetEndAddress())
-        {
-          // Pass to MMIO
-          if (std::is_same<T, uint8>::value)
-            mmio->ReadByte(address, reinterpret_cast<uint8*>(value));
-          else if (std::is_same<T, uint16>::value)
-            mmio->ReadWord(address, reinterpret_cast<uint16*>(value));
-          else if (std::is_same<T, uint32>::value)
-            mmio->ReadDWord(address, reinterpret_cast<uint32*>(value));
-          else if (std::is_same<T, uint64>::value)
-            mmio->ReadQWord(address, reinterpret_cast<uint64*>(value));
-
-          return true;
-        }
-        else
-        {
-          AssertMsg(false, "Fix me");
-        }
-      }
+      return true;
     }
 
     *value = T(-1);
-    // Log_WarningPrintf("Failed physical memory read of address 0x%08X", address);
+    Log_WarningPrintf("Failed physical memory read of address 0x%08X", address);
     return false;
   }
 
@@ -550,69 +471,48 @@ __attribute__((always_inline))
   {
     address &= m_physical_memory_address_mask;
 
+    // Since we allocate the page array based on the address mask, this should never overflow.
     uint32 page_number = address / MEMORY_PAGE_SIZE;
     uint32 page_offset = address % MEMORY_PAGE_SIZE;
+    DebugAssert(page_number < m_num_physical_memory_pages);
 
-    // Since we allocate the page array based on the address mask, this should never happen.
-    DebugAssert(page_number <= m_num_physical_memory_pages);
-
-    // Fast path.
-    if (m_ram_lookup[page_number])
+    // Fast path - page is RAM.
+    PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
+    if (page.type & PhysicalMemoryPage::kWritableMemory)
     {
-      std::memcpy(m_ram_lookup[page_number] + page_offset, &value, sizeof(value));
+      if (!(page.type & PhysicalMemoryPage::kCodeMemory))
+      {
+        std::memcpy(page.ram_ptr + page_offset, &value, sizeof(value));
+        return true;
+      }
+
+      if (std::memcmp(page.ram_ptr + page_offset, &value, sizeof(value)) == 0)
+      {
+        // Not modified, so don't fire the callback.
+        return true;
+      }
+
+      // Copy value in and fire callback.
+      std::memcpy(page.ram_ptr + page_offset, &value, sizeof(value));
+      m_code_invalidate_callback(address & MEMORY_PAGE_MASK);
       return true;
     }
 
-    // Check for memory locks
-    PhysicalMemoryPage* page = &m_physical_memory_pages[page_number];
-    if ((page->lock_type & MemoryLockAccess::Write) != MemoryLockAccess::None)
+    // Slow path - page is MMIO.
+    if (page.type & PhysicalMemoryPage::kMemoryMappedIO && address >= page.mmio_handler->GetStartAddress() &&
+        (address + sizeof(value) - 1) <= page.mmio_handler->GetEndAddress())
     {
-      // Notify and remove the lock for this type.
-      m_system->GetCPU()->OnLockedMemoryAccess(
-        address, address & MEMORY_PAGE_MASK, (address & MEMORY_PAGE_MASK) + MEMORY_PAGE_SIZE, MemoryLockAccess::Write);
-      page->lock_type &= ~MemoryLockAccess::Write;
-      UpdatePageFastMemoryLookup(page_number, page);
-    }
+      // Pass to MMIO
+      if (std::is_same<T, uint8>::value)
+        page.mmio_handler->WriteByte(address, static_cast<uint8>(value));
+      else if (std::is_same<T, uint16>::value)
+        page.mmio_handler->WriteWord(address, static_cast<uint16>(value));
+      else if (std::is_same<T, uint32>::value)
+        page.mmio_handler->WriteDWord(address, static_cast<uint32>(value));
+      else if (std::is_same<T, uint64>::value)
+        page.mmio_handler->WriteQWord(address, static_cast<uint64>(value));
 
-    // Check if we're out of the MMIO range first, this lets us exit early
-    if (page_offset < page->mmio_start_offset || page_offset > page->mmio_end_offset)
-    {
-      // Check if we're within the RAM range.
-      if (page_offset >= page->ram_start_offset && page_offset <= page->ram_end_offset)
-      {
-        uint32 ram_offset = page_offset - page->ram_start_offset;
-        DebugAssert((ram_offset + sizeof(T)) <= page->ram_end_offset);
-        std::memcpy(page->ram_ptr + ram_offset, &value, sizeof(T));
-        return true;
-      }
-    }
-
-    // Check for MMIO handlers within the page
-    for (MMIO* mmio : page->mmio_handlers)
-    {
-      // The < here saves checking for partial writes on bytes.
-      if (address >= mmio->GetStartAddress() && address <= mmio->GetEndAddress())
-      {
-        // Check where the write is a partial MMIO write and partial RAM write
-        if (std::is_same<T, uint8>::value || (address + sizeof(T) - 1) <= mmio->GetEndAddress())
-        {
-          // Pass to MMIO
-          if (std::is_same<T, uint8>::value)
-            mmio->WriteByte(address, static_cast<uint8>(value));
-          else if (std::is_same<T, uint16>::value)
-            mmio->WriteWord(address, static_cast<uint16>(value));
-          else if (std::is_same<T, uint32>::value)
-            mmio->WriteDWord(address, static_cast<uint32>(value));
-          else if (std::is_same<T, uint64>::value)
-            mmio->WriteQWord(address, static_cast<uint64>(value));
-
-          return true;
-        }
-        else
-        {
-          AssertMsg(false, "Fix me");
-        }
-      }
+      return true;
     }
 
     Log_DevPrintf("Failed physical memory write of address 0x%08X", address);
@@ -730,31 +630,163 @@ bool Bus::CheckedWriteMemoryQWord(PhysicalMemoryAddress address, uint64 value)
   return WriteMemoryT<uint64, false>(address, value);
 }
 
-void* Bus::GetRAMPointer(PhysicalMemoryAddress address, uint32 size)
+void Bus::ReadMemoryBlock(PhysicalMemoryAddress address, uint32 length, void* destination)
 {
-  // Can't get a pointer when it crosses a page
-  if (CrossesPage(address, size))
-    return nullptr;
+  byte* destination_ptr = reinterpret_cast<byte*>(destination);
 
-  // Get the page
-  uint32 page_number = address / MEMORY_PAGE_SIZE;
-  uint32 page_offset = address % MEMORY_PAGE_SIZE;
-  if (page_number >= m_num_physical_memory_pages)
-    return nullptr;
+  while (length > 0)
+  {
+    uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+    uint32 page_offset = (address & m_physical_memory_address_mask) % MEMORY_PAGE_SIZE;
+    DebugAssert(page_number < m_num_physical_memory_pages);
 
-  // If it's range spans outside the ram region, can't get it
-  PhysicalMemoryPage* page = &m_physical_memory_pages[page_number];
-  if (page_offset < page->ram_start_offset || (page_offset + size) > page->ram_end_offset)
-    return nullptr;
+    // Fast path?
+    const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
+    const uint32 size_in_page = std::min(length, MEMORY_PAGE_SIZE);
+    if (page.type & PhysicalMemoryPage::kReadableMemory)
+    {
+      std::memcpy(destination_ptr, page.ram_ptr + page_offset, size_in_page);
+      destination_ptr += size_in_page;
+      address += size_in_page;
+      length -= size_in_page;
+      continue;
+    }
 
-  // Everything checks out
-  return page->ram_ptr + (page_offset - page->ram_start_offset);
+    if (page.type & PhysicalMemoryPage::kMemoryMappedIO)
+    {
+      // Slow path for MMIO.
+      MMIO* const handler = page.mmio_handler;
+      const uint32 page_base_address = page_number * MEMORY_PAGE_SIZE;
+      const uint32 start_address = handler->GetStartAddress();
+      const uint32 end_address = handler->GetEndAddress();
+      if (address >= start_address && (address + size_in_page) <= end_address)
+      {
+        handler->ReadBlock(address, size_in_page, destination_ptr);
+        destination_ptr += size_in_page;
+        address += size_in_page;
+        length -= size_in_page;
+        continue;
+      }
+
+      // Super slow path - when the MMIO doesn't cover the entire page.
+      const uint32 mmio_size_in_page = end_address - page_base_address;
+      const uint32 mmio_usable_size = mmio_size_in_page - page_offset;
+      const uint32 padding_before = (start_address >= address) ? (start_address - address) : 0;
+      const uint32 padding_after = (mmio_usable_size < size_in_page) ? (size_in_page - mmio_usable_size) : 0;
+      const uint32 copy_size = std::min(mmio_usable_size, size_in_page);
+      if (padding_before > 0)
+      {
+        std::memset(destination_ptr, 0xFF, padding_before);
+        destination_ptr += padding_before;
+        address += padding_before;
+        length -= padding_before;
+      }
+      if (copy_size > 0)
+      {
+        handler->ReadBlock(address, copy_size, destination_ptr);
+        destination_ptr += copy_size;
+        address += copy_size;
+        length -= copy_size;
+      }
+      if (padding_after > 0)
+      {
+        std::memset(destination_ptr, 0xFF, padding_after);
+        destination_ptr += padding_after;
+        address += padding_after;
+        length -= padding_after;
+      }
+    }
+    else
+    {
+      // Not valid memory.
+      std::memset(destination_ptr, 0xFF, size_in_page);
+      destination_ptr += size_in_page;
+      address += size_in_page;
+      length -= size_in_page;
+    }
+  }
 }
 
-byte* Bus::GetRAMPagePointer(PhysicalMemoryAddress address)
+void Bus::WriteMemoryBlock(PhysicalMemoryAddress address, uint32 length, const void* source)
 {
-  uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
-  return m_ram_lookup[page_number];
+  const byte* source_ptr = reinterpret_cast<const byte*>(source);
+
+  while (length > 0)
+  {
+    uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+    uint32 page_offset = (address & m_physical_memory_address_mask) % MEMORY_PAGE_SIZE;
+    DebugAssert(page_number < m_num_physical_memory_pages);
+
+    // Fast path?
+    const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
+    const uint32 size_in_page = std::min(length, MEMORY_PAGE_SIZE);
+    if (page.type & PhysicalMemoryPage::kWritableMemory)
+    {
+      std::memcpy(page.ram_ptr + page_offset, source_ptr, size_in_page);
+      source_ptr += size_in_page;
+      address += size_in_page;
+      length -= size_in_page;
+      continue;
+    }
+
+    if (page.type & PhysicalMemoryPage::kMemoryMappedIO)
+    {
+      // Slow path for MMIO.
+      MMIO* const handler = page.mmio_handler;
+      const uint32 page_base_address = page_number * MEMORY_PAGE_SIZE;
+      const uint32 start_address = handler->GetStartAddress();
+      const uint32 end_address = handler->GetEndAddress();
+      if (address >= start_address && (address + size_in_page) <= end_address)
+      {
+        handler->WriteBlock(address, size_in_page, source_ptr);
+        source_ptr += size_in_page;
+        address += size_in_page;
+        length -= size_in_page;
+        continue;
+      }
+
+      // Super slow path - when the MMIO doesn't cover the entire page.
+      const uint32 mmio_size_in_page = end_address - page_base_address;
+      const uint32 mmio_usable_size = mmio_size_in_page - page_offset;
+      const uint32 padding_before = (start_address >= address) ? (start_address - address) : 0;
+      const uint32 padding_after = (mmio_usable_size < size_in_page) ? (size_in_page - mmio_usable_size) : 0;
+      const uint32 copy_size = std::min(mmio_usable_size, size_in_page);
+      if (padding_before > 0)
+      {
+        source_ptr += padding_before;
+        address += padding_before;
+        length -= padding_before;
+      }
+      if (copy_size > 0)
+      {
+        handler->WriteBlock(address, copy_size, source_ptr);
+        source_ptr += copy_size;
+        address += copy_size;
+        length -= copy_size;
+      }
+      if (padding_after > 0)
+      {
+        source_ptr += padding_after;
+        address += padding_after;
+        length -= padding_after;
+      }
+    }
+    else
+    {
+      // Not valid memory.
+      source_ptr += size_in_page;
+      address += size_in_page;
+      length -= size_in_page;
+    }
+  }
+}
+
+byte* Bus::GetRAMPointer(PhysicalMemoryAddress address)
+{
+  const uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+  const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
+  return (page.type & PhysicalMemoryPage::kReadableMemory) ? (page.ram_ptr + (address & MEMORY_PAGE_OFFSET_MASK)) :
+                                                             nullptr;
 }
 
 void Bus::AllocateMemoryPages(uint32 memory_address_bits)
@@ -764,11 +796,9 @@ void Bus::AllocateMemoryPages(uint32 memory_address_bits)
   // Allocate physical pages
   DebugAssert(num_pages > 0);
   m_physical_memory_pages = new PhysicalMemoryPage[num_pages];
+  std::memset(m_physical_memory_pages, 0, sizeof(PhysicalMemoryPage) * num_pages);
   m_physical_memory_address_mask = uint32((uint64(1) << memory_address_bits) - 1);
   m_num_physical_memory_pages = num_pages;
-
-  m_ram_lookup = new byte*[num_pages];
-  std::fill_n(m_ram_lookup, num_pages, nullptr);
 }
 
 PhysicalMemoryAddress Bus::GetTotalRAMInPageRange(uint32 start_page, uint32 end_page) const
@@ -776,8 +806,9 @@ PhysicalMemoryAddress Bus::GetTotalRAMInPageRange(uint32 start_page, uint32 end_
   PhysicalMemoryAddress size = 0;
   for (uint32 i = start_page; i < end_page; i++)
   {
-    const PhysicalMemoryPage* page = &m_physical_memory_pages[i];
-    size += (page->ram_end_offset - page->ram_start_offset);
+    const PhysicalMemoryPage& page = m_physical_memory_pages[i];
+    if (page.type & PhysicalMemoryPage::kReadableMemory)
+      size += MEMORY_PAGE_SIZE;
   }
 
   return size;
@@ -786,6 +817,7 @@ PhysicalMemoryAddress Bus::GetTotalRAMInPageRange(uint32 start_page, uint32 end_
 void Bus::AllocateRAM(uint32 size)
 {
   DebugAssert(size > 0 && !m_ram_ptr);
+  Assert((size % MEMORY_PAGE_SIZE) == 0);
   m_ram_ptr = new byte[size];
   m_ram_size = size;
   m_ram_assigned = 0;
@@ -803,66 +835,15 @@ uint32 Bus::CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress e
   for (uint32 current_page = start_page; current_page < end_page && remaining_ram > 0; current_page++)
   {
     PhysicalMemoryPage* page = &m_physical_memory_pages[current_page];
-    uint32 ram_in_page = std::min(remaining_ram, MEMORY_PAGE_SIZE);
-    Assert(!page->ram_ptr);
+    Assert(!page->ram_ptr && remaining_ram >= MEMORY_PAGE_SIZE);
     page->ram_ptr = m_ram_ptr + m_ram_assigned;
-    page->ram_start_offset = 0;
-    page->ram_end_offset = ram_in_page;
-    m_ram_assigned += ram_in_page;
-    allocated_ram += ram_in_page;
-    remaining_ram -= ram_in_page;
-    UpdatePageFastMemoryLookup(current_page, page);
+    page->type = PhysicalMemoryPage::kReadableMemory | PhysicalMemoryPage::kWritableMemory;
+    m_ram_assigned += MEMORY_PAGE_SIZE;
+    allocated_ram += MEMORY_PAGE_SIZE;
+    remaining_ram -= MEMORY_PAGE_SIZE;
   }
 
   return allocated_ram;
-}
-
-void Bus::UpdatePageMMIORange(uint32 page_number, PhysicalMemoryPage* page)
-{
-  if (page->mmio_handlers.empty())
-  {
-    page->mmio_start_offset = ~0u;
-    page->mmio_end_offset = ~0u;
-    return;
-  }
-
-  // Sort in ascending order, this may enable optimizations when I'm not lazy later
-  // TODO: Check for overlapping entries
-  auto sort_callback = [](MMIO*& lhs, MMIO*& rhs) { return (lhs->GetStartAddress() > rhs->GetStartAddress()); };
-  std::sort(page->mmio_handlers.begin(), page->mmio_handlers.end(), sort_callback);
-
-  // Find min/max address, this could be replaced with first/last now it's sorted
-  PhysicalMemoryAddress start_address = ~PhysicalMemoryAddress(0);
-  PhysicalMemoryAddress end_address = 0;
-  for (MMIO* mmio : page->mmio_handlers)
-  {
-    start_address = std::min(start_address, mmio->GetStartAddress());
-    end_address = std::max(end_address, mmio->GetEndAddress());
-  }
-
-  PhysicalMemoryAddress page_start = PhysicalMemoryAddress(page_number * MEMORY_PAGE_SIZE);
-  if (start_address < page_start)
-    page->mmio_start_offset = 0;
-  else
-    page->mmio_start_offset = start_address - page_start;
-
-  if (end_address >= (page_start + (MEMORY_PAGE_SIZE - 1)))
-    page->mmio_end_offset = MEMORY_PAGE_SIZE - 1;
-  else
-    page->mmio_end_offset = end_address - page_start;
-}
-
-void Bus::UpdatePageFastMemoryLookup(uint32 page_number, PhysicalMemoryPage* page)
-{
-  if (!page->mmio_handlers.empty() || page->ram_start_offset != 0 || page->ram_end_offset != MEMORY_PAGE_SIZE ||
-      page->lock_type != MemoryLockAccess::None)
-  {
-    m_ram_lookup[page_number] = nullptr;
-  }
-  else
-  {
-    m_ram_lookup[page_number] = page->ram_ptr;
-  }
 }
 
 template<typename T>
@@ -880,33 +861,174 @@ void Bus::EnumeratePagesForRange(PhysicalMemoryAddress start_address, PhysicalMe
   }
 }
 
+static MMIO* CreateMMIOSplitter(MMIO* mmio1, MMIO* mmio2)
+{
+  Assert("implement me");
+  return nullptr;
+}
+
 void Bus::RegisterMMIO(MMIO* mmio)
 {
   // MMIO size should be 4 byte aligned, that way we don't have to split reads/writes.
   Assert((mmio->GetSize() & uint32(sizeof(uint32) - 1)) == 0);
 
   auto callback = [this, mmio](uint32 page_number, PhysicalMemoryPage* page) {
+    if (page->type == PhysicalMemoryPage::kMemoryMappedIO)
+    {
+      MMIO* splitter = CreateMMIOSplitter(page->mmio_handler, mmio);
+      page->mmio_handler->Release();
+      page->mmio_handler = splitter;
+      return;
+    }
+
+    if (page->type & PhysicalMemoryPage::kReadableMemory)
+      Log_WarningPrintf("Removing RAM page at address 0x%08X for MMIO page", unsigned(page_number * MEMORY_PAGE_SIZE));
+
+    page->type = PhysicalMemoryPage::kMemoryMappedIO;
+    page->mmio_handler = mmio;
     mmio->AddRef();
-    page->mmio_handlers.push_back(mmio);
-    UpdatePageMMIORange(page_number, page);
-    UpdatePageFastMemoryLookup(page_number, page);
   };
 
   EnumeratePagesForRange(mmio->GetStartAddress(), mmio->GetEndAddress(), callback);
 }
 
-void Bus::UnregisterMMIO(MMIO* mmio)
+bool Bus::IsCachablePage(const PhysicalMemoryPage& page)
 {
-  auto callback = [this, mmio](uint32 page_number, PhysicalMemoryPage* page) {
-    auto iter = std::find(page->mmio_handlers.begin(), page->mmio_handlers.end(), mmio);
-    if (iter != page->mmio_handlers.end())
-    {
-      page->mmio_handlers.erase(iter);
-      mmio->AddRef();
-    }
-    UpdatePageMMIORange(page_number, page);
-    UpdatePageFastMemoryLookup(page_number, page);
-  };
+  if (page.type & (PhysicalMemoryPage::kReadableMemory | PhysicalMemoryPage::kWritableMemory))
+    return true;
 
-  EnumeratePagesForRange(mmio->GetStartAddress(), mmio->GetEndAddress(), callback);
+  if (page.type & PhysicalMemoryPage::kMemoryMappedIO)
+    return page.mmio_handler->IsCachable();
+
+  return true;
+}
+
+bool Bus::IsCachablePage(PhysicalMemoryAddress address) const
+{
+  uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+  DebugAssert(page_number < m_num_physical_memory_pages);
+  return IsCachablePage(m_physical_memory_pages[page_number]);
+}
+
+bool Bus::IsWritablePage(const PhysicalMemoryPage& page)
+{
+  if (page.type & (PhysicalMemoryPage::kWritableMemory | PhysicalMemoryPage::kMemoryMappedIO))
+    return true;
+
+  return false;
+}
+
+bool Bus::IsWritablePage(PhysicalMemoryAddress address) const
+{
+  uint32 page_number = address / MEMORY_PAGE_SIZE;
+  DebugAssert(page_number < m_num_physical_memory_pages);
+  return IsWritablePage(m_physical_memory_pages[page_number]);
+}
+
+void Bus::MarkPageAsCode(PhysicalMemoryAddress address)
+{
+  uint32 page_number = address / MEMORY_PAGE_SIZE;
+  DebugAssert(page_number < m_num_physical_memory_pages);
+  m_physical_memory_pages[page_number].type |= PhysicalMemoryPage::kCodeMemory;
+}
+
+void Bus::UnmarkPageAsCode(PhysicalMemoryAddress address)
+{
+  uint32 page_number = address / MEMORY_PAGE_SIZE;
+  DebugAssert(page_number < m_num_physical_memory_pages);
+  m_physical_memory_pages[page_number].type &= ~PhysicalMemoryPage::kCodeMemory;
+}
+
+void Bus::ClearPageCodeFlags()
+{
+  for (uint32 i = 0; i < m_num_physical_memory_pages; i++)
+    m_physical_memory_pages[i].type &= ~PhysicalMemoryPage::kCodeMemory;
+}
+
+void Bus::SetCodeInvalidationCallback(CodeInvalidateCallback callback)
+{
+  m_code_invalidate_callback = std::move(callback);
+}
+
+void Bus::ClearCodeInvalidationCallback()
+{
+  m_code_invalidate_callback = [](PhysicalMemoryAddress) {};
+}
+
+Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)
+{
+  XXH64_state_t state;
+  XXH64_reset(&state, 0x42);
+
+  std::array<byte, MEMORY_PAGE_SIZE> buf;
+  while (length > 0)
+  {
+    uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+    uint32 page_offset = (address & m_physical_memory_address_mask) % MEMORY_PAGE_SIZE;
+    DebugAssert(page_number < m_num_physical_memory_pages);
+
+    // Fast path?
+    const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
+    const uint32 hash_size = std::min(length, MEMORY_PAGE_SIZE);
+    if (page.type & PhysicalMemoryPage::kReadableMemory)
+    {
+      XXH64_update(&state, page.ram_ptr + page_offset, hash_size);
+      address += hash_size;
+      length -= hash_size;
+      continue;
+    }
+
+    if (page.type & PhysicalMemoryPage::kMemoryMappedIO)
+    {
+      // Slow path for MMIO.
+      MMIO* const handler = page.mmio_handler;
+      const uint32 page_base_address = page_number * MEMORY_PAGE_SIZE;
+      const uint32 start_address = handler->GetStartAddress();
+      const uint32 end_address = handler->GetEndAddress();
+      if (address >= start_address && (address + hash_size) <= end_address)
+      {
+        handler->ReadBlock(address, hash_size, buf.data());
+        XXH64_update(&state, buf.data(), hash_size);
+        address += hash_size;
+        length -= hash_size;
+        continue;
+      }
+
+      // Super slow path - when the MMIO doesn't cover the entire page.
+      const uint32 mmio_size_in_page = end_address - page_base_address;
+      const uint32 mmio_usable_size = mmio_size_in_page - page_offset;
+      const uint32 padding_before = (start_address >= address) ? (start_address - address) : 0;
+      const uint32 padding_after = (mmio_usable_size < hash_size) ? (hash_size - mmio_usable_size) : 0;
+      const uint32 copy_size = std::min(mmio_usable_size, hash_size);
+      if (padding_before > 0)
+      {
+        std::memset(buf.data(), 0xFF, padding_before);
+        address += padding_before;
+        length -= padding_before;
+      }
+      if (copy_size > 0)
+      {
+        handler->ReadBlock(address, copy_size, buf.data() + padding_before);
+        address += copy_size;
+        length -= copy_size;
+      }
+      if (padding_after > 0)
+      {
+        std::memset(buf.data() + padding_before + copy_size, 0xFF, padding_after);
+        address += padding_after;
+        length -= padding_after;
+      }
+    }
+    else
+    {
+      // Not valid memory.
+      std::memset(buf.data(), 0xFF, hash_size);
+      address += hash_size;
+      length -= hash_size;
+    }
+
+    XXH64_update(&state, buf.data(), hash_size);
+  }
+
+  return XXH64_digest(&state);
 }

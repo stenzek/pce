@@ -189,12 +189,3 @@ constexpr bool ConvertToBoolUnchecked(TValue value)
                              static_cast<std::underlying_type<type_>::type>(rhs));                                     \
     return lhs;                                                                                                        \
   }
-
-enum class MemoryLockAccess : uint8
-{
-  None = 0,
-  Read = (1 << 0),
-  Write = (1 << 1),
-  All = Read | Write
-};
-IMPLEMENT_ENUM_CLASS_BITWISE_OPERATORS(MemoryLockAccess);

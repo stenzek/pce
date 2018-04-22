@@ -313,10 +313,6 @@ public:
   // Executes instructions/cycles.
   void ExecuteCycles(CycleCount cycles) override;
 
-  // Memory lock interface
-  void OnLockedMemoryAccess(PhysicalMemoryAddress address, PhysicalMemoryAddress range_start,
-                            PhysicalMemoryAddress range_end, MemoryLockAccess access) override;
-
   // Code cache flushing - for recompiler backends
   void FlushCodeCache() override;
 

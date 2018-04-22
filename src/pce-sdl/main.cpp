@@ -34,9 +34,84 @@
 #include "pce/systems/pcat.h"
 #include "pce/systems/pcbochs.h"
 #include "pce/systems/pcxt.h"
+#include "nfd.h"
 #include <SDL.h>
 #include <cstdio>
 Log_SetChannel(Main);
+
+static bool LoadBIOS(const char* filename, std::function<bool(ByteStream*)> callback)
+{
+  ByteStream* stream;
+  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
+  {
+    Log_ErrorPrintf("Failed to open code file %s", filename);
+    return false;
+  }
+
+  bool result = callback(stream);
+  stream->Release();
+  return result;
+}
+
+#if 0
+static bool LoadATBios(const char* u27_filename, const char* u47_filename,
+                       std::function<bool(ByteStream*, ByteStream*)> callback)
+{
+  ByteStream* u27_stream;
+  ByteStream* u47_stream;
+  if (!ByteStream_OpenFileStream(u27_filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &u27_stream))
+  {
+    Log_ErrorPrintf("Failed to open code file %s", u27_filename);
+    return false;
+  }
+  if (!ByteStream_OpenFileStream(u47_filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &u47_stream))
+  {
+    Log_ErrorPrintf("Failed to open code file %s", u47_filename);
+    u27_stream->Release();
+    return false;
+  }
+
+  bool result = callback(u27_stream, u47_stream);
+  u47_stream->Release();
+  u27_stream->Release();
+  return result;
+}
+#endif
+
+static bool LoadFloppy(HW::FDC* fdc, uint32 disk, const char* path)
+{
+  ByteStream* stream;
+  if (!ByteStream_OpenFileStream(path, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
+  {
+    Log_ErrorPrintf("Failed to load floppy at %s", path);
+    return false;
+  }
+
+  HW::FDC::DiskType disk_type = HW::FDC::DetectDiskType(stream);
+  if (disk_type == HW::FDC::DiskType_None)
+  {
+    stream->Release();
+    return false;
+  }
+
+  bool result = fdc->InsertDisk(disk, disk_type, stream);
+  stream->Release();
+  return result;
+}
+
+static bool LoadHDD(HW::HDC* hdc, uint32 drive, const char* path, uint32 cylinders, uint32 heads, uint32 sectors)
+{
+  ByteStream* stream;
+  if (!ByteStream_OpenFileStream(path, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
+  {
+    Log_ErrorPrintf("Failed to load floppy at %s", path);
+    return false;
+  }
+
+  bool result = hdc->AttachDrive(drive, stream, cylinders, heads, sectors);
+  stream->Release();
+  return result;
+}
 
 class SDLHostInterface : public HostInterface
 {
@@ -62,7 +137,15 @@ public:
 
   void Render();
 
+  void AddDeviceFileCallback(const char* title, std::function<void(const std::string&)>&& callback);
+
 protected:
+  struct DeviceFileEntry
+  {
+    String title;
+    std::function<void(const std::string&)> callback;
+  };
+
   // We only pass mouse input through if it's grabbed
   bool IsMouseGrabbed() const;
   void GrabMouse();
@@ -76,6 +159,10 @@ protected:
 
   String m_last_message;
   Timer m_last_message_time;
+
+  std::vector<DeviceFileEntry> m_device_files;
+  const DeviceFileEntry* m_current_device_file = nullptr;
+  String m_current_device_filename;
 };
 
 std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
@@ -95,6 +182,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
 
   std::unique_ptr<SDLHostInterface> hi = std::make_unique<SDLHostInterface>();
   hi->m_display = std::move(display);
+  hi->m_current_device_filename.Resize(512);
   return hi;
 }
 
@@ -305,6 +393,14 @@ void SDLHostInterface::Render()
   m_display->RenderFrame();
 }
 
+void SDLHostInterface::AddDeviceFileCallback(const char* title, std::function<void(const std::string &)>&& callback)
+{
+  DeviceFileEntry dfe;
+  dfe.title = title;
+  dfe.callback = callback;
+  m_device_files.push_back(dfe);
+}
+
 void SDLHostInterface::RenderImGui()
 {
   if (ImGui::BeginMainMenuBar())
@@ -339,8 +435,7 @@ void SDLHostInterface::RenderImGui()
         if (ImGui::InputFloat("Frequency", &frequency, 1000000.0f))
         {
           frequency = std::max(frequency, 1000000.0f);
-          m_system->QueueExternalEventAndWait(
-            [this, frequency]() { m_system->GetCPU()->SetFrequency(float(frequency)); });
+          m_system->QueueExternalEvent([this, frequency]() { m_system->GetCPU()->SetFrequency(float(frequency)); });
         }
         ImGui::EndMenu();
       }
@@ -389,10 +484,55 @@ void SDLHostInterface::RenderImGui()
 
     if (ImGui::BeginMenu("Devices"))
     {
+      for (const DeviceFileEntry& dfe : m_device_files)
+      {
+        if (ImGui::MenuItem(dfe.title))
+          m_current_device_file = &dfe;
+      }
       ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();
+  }
+
+  bool opened = false;
+  if (m_current_device_file)
+  {
+    ImGui::SetNextWindowSize(ImVec2(250, 100));
+    if (ImGui::Begin("Change Image", &opened))
+    {
+      ImGui::Text("Device: %s", m_current_device_file->title.GetCharArray());
+      if (ImGui::InputText("", m_current_device_filename.GetWriteableCharArray(),
+                           m_current_device_filename.GetBufferSize()))
+      {
+        m_current_device_filename.UpdateSize();
+      }
+
+      ImGui::SameLine();
+      if (ImGui::Button("..."))
+      {
+        nfdchar_t* path;
+        if (NFD_OpenDialog("", "", &path) == NFD_OKAY)
+          m_current_device_filename = path;
+      }
+
+      if (ImGui::Button("Mount"))
+      {
+        const DeviceFileEntry* dfe = m_current_device_file;
+        std::string str(m_current_device_filename);
+        m_system->QueueExternalEvent([str, dfe]() { dfe->callback(str); });
+        m_current_device_file = nullptr;
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel"))
+        m_current_device_file = nullptr;
+
+      ImGui::End();
+    }
+    else if (!opened)
+    {
+      m_current_device_file = nullptr;
+    }
   }
 }
 
@@ -418,7 +558,7 @@ void SDLHostInterface::DoSaveState(uint32 index)
   filename.Format("savestate_%u.bin", index);
 
   ByteStream* stream;
-  if (!ByteStream_OpenFileStream("savestate.bin",
+  if (!ByteStream_OpenFileStream(filename,
                                  BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_WRITE | BYTESTREAM_OPEN_TRUNCATE |
                                    BYTESTREAM_OPEN_SEEKABLE | BYTESTREAM_OPEN_ATOMIC_UPDATE,
                                  &stream))
@@ -429,80 +569,6 @@ void SDLHostInterface::DoSaveState(uint32 index)
 
   m_system->SaveState(stream);
   stream->Release();
-}
-
-static bool LoadBIOS(const char* filename, std::function<bool(ByteStream*)> callback)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
-  {
-    Log_ErrorPrintf("Failed to open code file %s", filename);
-    return false;
-  }
-
-  bool result = callback(stream);
-  stream->Release();
-  return result;
-}
-
-#if 0
-static bool LoadATBios(const char* u27_filename, const char* u47_filename,
-                       std::function<bool(ByteStream*, ByteStream*)> callback)
-{
-  ByteStream* u27_stream;
-  ByteStream* u47_stream;
-  if (!ByteStream_OpenFileStream(u27_filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &u27_stream))
-  {
-    Log_ErrorPrintf("Failed to open code file %s", u27_filename);
-    return false;
-  }
-  if (!ByteStream_OpenFileStream(u47_filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &u47_stream))
-  {
-    Log_ErrorPrintf("Failed to open code file %s", u47_filename);
-    u27_stream->Release();
-    return false;
-  }
-
-  bool result = callback(u27_stream, u47_stream);
-  u47_stream->Release();
-  u27_stream->Release();
-  return result;
-}
-#endif
-
-static bool LoadFloppy(HW::FDC* fdc, uint32 disk, const char* path)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(path, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
-  {
-    Log_ErrorPrintf("Failed to load floppy at %s", path);
-    return false;
-  }
-
-  HW::FDC::DiskType disk_type = HW::FDC::DetectDiskType(stream);
-  if (disk_type == HW::FDC::DiskType_None)
-  {
-    stream->Release();
-    return false;
-  }
-
-  bool result = fdc->InsertDisk(disk, disk_type, stream);
-  stream->Release();
-  return result;
-}
-
-static bool LoadHDD(HW::HDC* hdc, uint32 drive, const char* path, uint32 cylinders, uint32 heads, uint32 sectors)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(path, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
-  {
-    Log_ErrorPrintf("Failed to load floppy at %s", path);
-    return false;
-  }
-
-  bool result = hdc->AttachDrive(drive, stream, cylinders, heads, sectors);
-  stream->Release();
-  return result;
 }
 
 static void TestBIOS(SDLHostInterface* host_interface)
@@ -552,10 +618,14 @@ static void TestBIOS(SDLHostInterface* host_interface)
   system->AddComponent(new HW::SoundBlaster(system->GetDMAController(), HW::SoundBlaster::Type::SoundBlaster16));
 #endif
 
+  // system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_5_25);
+  system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_3_5);
   // LoadFloppy(system->GetFDDController(), 0, "images\\386bench.img");
   LoadFloppy(system->GetFDDController(), 0, "images\\DOS33-DISK01.IMG");
   // LoadFloppy(system->GetFDDController(), 1, "images\\8088mph.img");
   LoadFloppy(system->GetFDDController(), 1, "images\\checkit3a.img");
+  host_interface->AddDeviceFileCallback("Floppy A", [&system](const std::string& filename) { LoadFloppy(system->GetFDDController(), 0, filename.c_str()); });
+  host_interface->AddDeviceFileCallback("Floppy B", [&system](const std::string& filename) { LoadFloppy(system->GetFDDController(), 1, filename.c_str()); });
 
   LoadBIOS("romimages\\PCXTBIOS.BIN", [&system](ByteStream* s) { return system->AddROM(0xFE000, s); });
   // LoadBIOS("romimages\\386_ami.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });

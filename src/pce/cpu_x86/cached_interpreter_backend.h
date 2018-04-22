@@ -33,7 +33,7 @@ protected:
   // Compile block using current state.
   Block* LookupBlock();
   Block* LookupBlock(const BlockKey& key);
-  Block* CompileBlock();
+  Block* CompileBlock(const BlockKey& key);
   void DestroyBlock(Block* block);
 
 #ifdef Y_COMPILER_MSVC
