@@ -400,6 +400,8 @@ public:
   static inline void UpdateFloatTagRegister(CPU* cpu, uint8 index);
   static inline float_status GetFloatStatus(CPU* cpu);
   static inline void RaiseFloatExceptions(CPU* cpu, const float_status& fs);
+  static inline void UpdateC1Status(CPU* cpu, const float_status& fs);
+  static inline void SetStatusWordFromCompare(CPU* cpu, const float_status& fs, int res);
 
   static inline void Execute_Operation_F2XM1(CPU* cpu);
   static inline void Execute_Operation_FABS(CPU* cpu);
@@ -445,7 +447,7 @@ public:
            uint32 src_constant>
   static inline void Execute_Operation_FIADD(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-           uint32 src_constant>
+           uint32 src_constant, bool quiet = false>
   static inline void Execute_Operation_FICOM(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant>
@@ -462,7 +464,6 @@ public:
            uint32 src_constant>
   static inline void Execute_Operation_FIMUL(CPU* cpu);
   static inline void Execute_Operation_FINCSTP(CPU* cpu);
-  static inline void Execute_Operation_FINIT(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
   static inline void Execute_Operation_FIST(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
@@ -506,6 +507,7 @@ public:
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
   static inline void Execute_Operation_FNSTSW(CPU* cpu);
   static inline void Execute_Operation_FPATAN(CPU* cpu);
+  template<bool ieee754 = false>
   static inline void Execute_Operation_FPREM(CPU* cpu);
   static inline void Execute_Operation_FPTAN(CPU* cpu);
   static inline void Execute_Operation_FRNDINT(CPU* cpu);

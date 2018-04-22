@@ -108,6 +108,9 @@ this code that are retained.
 const floatx80 floatx80_zero = make_floatx80(0x0000, 0x0000000000000000LL);
 const floatx80 floatx80_one = make_floatx80(0x3fff, 0x8000000000000000LL);
 const floatx80 floatx80_ln2 = make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL);
+const floatx80 floatx80_lg2 = make_floatx80(0x3ffd, 0x9a209a84fbcff799);
+const floatx80 floatx80_l2t = make_floatx80(0x4000, 0xd49a784bcd1b8afe);
+const floatx80 floatx80_l2e = make_floatx80(0x3fff, 0xb8aa3b295c17f0bc);
 const floatx80 floatx80_pi = make_floatx80(0x4000, 0xc90fdaa22168c235LL);
 const floatx80 floatx80_half = make_floatx80(0x3ffe, 0x8000000000000000LL);
 const floatx80 floatx80_infinity = make_floatx80(0x7fff, 0x8000000000000000LL);
@@ -8920,4 +8923,398 @@ floatx80 f2xm1(floatx80 a, float_status *status)
 
         return a;
     }
+}
+
+/* reduce trigonometric function argument using 128-bit precision
+   M_PI approximation */
+static uint64_t argument_reduction_kernel(uint64_t aSig0, int Exp, uint64_t *zSig0, uint64_t *zSig1)
+{
+    uint64_t term0, term1, term2;
+    uint64_t aSig1 = 0;
+
+    shortShift128Left(aSig1, aSig0, Exp, &aSig1, &aSig0);
+    uint64_t q = estimateDiv128To64(aSig1, aSig0, FLOAT_PI_HI);
+    mul128By64To192(FLOAT_PI_HI, FLOAT_PI_LO, q, &term0, &term1, &term2);
+    sub128(aSig1, aSig0, term0, term1, zSig1, zSig0);
+    while ((int64_t)(*zSig1) < 0) {
+        --q;
+        add192(*zSig1, *zSig0, term2, 0, FLOAT_PI_HI, FLOAT_PI_LO, zSig1, zSig0, &term2);
+    }
+    *zSig1 = term2;
+    return q;
+}
+
+static int reduce_trig_arg(int expDiff, int *zSign, uint64_t *aSig0, uint64_t *aSig1)
+{
+    uint64_t term0, term1, q = 0;
+
+    if (expDiff < 0) {
+        shift128Right(*aSig0, 0, 1, aSig0, aSig1);
+        expDiff = 0;
+    }
+    if (expDiff > 0) {
+        q = argument_reduction_kernel(*aSig0, expDiff, aSig0, aSig1);
+    }
+    else {
+        if (FLOAT_PI_HI <= *aSig0) {
+            *aSig0 -= FLOAT_PI_HI;
+            q = 1;
+        }
+    }
+
+    shift128Right(FLOAT_PI_HI, FLOAT_PI_LO, 1, &term0, &term1);
+    if (! lt128(*aSig0, *aSig1, term0, term1))
+    {
+        int lt = lt128(term0, term1, *aSig0, *aSig1);
+        int eq = eq128(*aSig0, *aSig1, term0, term1);
+
+        if ((eq && (q & 1)) || lt) {
+            *zSign = !*zSign;
+            ++q;
+        }
+        if (lt) sub128(FLOAT_PI_HI, FLOAT_PI_LO, *aSig0, *aSig1, aSig0, aSig1);
+    }
+
+    return (int)(q & 3);
+}
+
+#define SIN_ARR_SIZE 11
+#define COS_ARR_SIZE 11
+
+static const float128 sin_arr[SIN_ARR_SIZE] =
+{
+    make_float128(0x3fff000000000000, 0x0000000000000000), /*  1 */
+    make_float128(0xbffc555555555555, 0x5555555555555555), /*  3 */
+    make_float128(0x3ff8111111111111, 0x1111111111111111), /*  5 */
+    make_float128(0xbff2a01a01a01a01, 0xa01a01a01a01a01a), /*  7 */
+    make_float128(0x3fec71de3a556c73, 0x38faac1c88e50017), /*  9 */
+    make_float128(0xbfe5ae64567f544e, 0x38fe747e4b837dc7), /* 11 */
+    make_float128(0x3fde6124613a86d0, 0x97ca38331d23af68), /* 13 */
+    make_float128(0xbfd6ae7f3e733b81, 0xf11d8656b0ee8cb0), /* 15 */
+    make_float128(0x3fce952c77030ad4, 0xa6b2605197771b00), /* 17 */
+    make_float128(0xbfc62f49b4681415, 0x724ca1ec3b7b9675), /* 19 */
+    make_float128(0x3fbd71b8ef6dcf57, 0x18bef146fcee6e45)  /* 21 */
+};
+
+static const float128 cos_arr[COS_ARR_SIZE] =
+{
+    make_float128(0x3fff000000000000, 0x0000000000000000), /*  0 */
+    make_float128(0xbffe000000000000, 0x0000000000000000), /*  2 */
+    make_float128(0x3ffa555555555555, 0x5555555555555555), /*  4 */
+    make_float128(0xbff56c16c16c16c1, 0x6c16c16c16c16c17), /*  6 */
+    make_float128(0x3fefa01a01a01a01, 0xa01a01a01a01a01a), /*  8 */
+    make_float128(0xbfe927e4fb7789f5, 0xc72ef016d3ea6679), /* 10 */
+    make_float128(0x3fe21eed8eff8d89, 0x7b544da987acfe85), /* 12 */
+    make_float128(0xbfda93974a8c07c9, 0xd20badf145dfa3e5), /* 14 */
+    make_float128(0x3fd2ae7f3e733b81, 0xf11d8656b0ee8cb0), /* 16 */
+    make_float128(0xbfca6827863b97d9, 0x77bb004886a2c2ab), /* 18 */
+    make_float128(0x3fc1e542ba402022, 0x507a9cad2bf8f0bb)  /* 20 */
+};
+
+/* 0 <= x <= pi/4 */
+float128 poly_sin(float128 x, float_status *status)
+{
+    //                 3     5     7     9     11     13     15
+    //                x     x     x     x     x      x      x
+    // sin (x) ~ x - --- + --- - --- + --- - ---- + ---- - ---- =
+    //                3!    5!    7!    9!    11!    13!    15!
+    //
+    //                 2     4     6     8     10     12     14
+    //                x     x     x     x     x      x      x
+    //   = x * [ 1 - --- + --- - --- + --- - ---- + ---- - ---- ] =
+    //                3!    5!    7!    9!    11!    13!    15!
+    //
+    //           3                          3
+    //          --       4k                --        4k+2
+    //   p(x) = >  C  * x   > 0     q(x) = >  C   * x     < 0
+    //          --  2k                     --  2k+1
+    //          k=0                        k=0
+    //
+    //                          2
+    //   sin(x) ~ x * [ p(x) + x * q(x) ]
+    //
+
+    return OddPoly(x, sin_arr, SIN_ARR_SIZE, status);
+}
+
+/* 0 <= x <= pi/4 */
+float128 poly_cos(float128 x, float_status *status)
+{
+    //                 2     4     6     8     10     12     14
+    //                x     x     x     x     x      x      x
+    // cos (x) ~ 1 - --- + --- - --- + --- - ---- + ---- - ----
+    //                2!    4!    6!    8!    10!    12!    14!
+    //
+    //           3                          3
+    //          --       4k                --        4k+2
+    //   p(x) = >  C  * x   > 0     q(x) = >  C   * x     < 0
+    //          --  2k                     --  2k+1
+    //          k=0                        k=0
+    //
+    //                      2
+    //   cos(x) ~ [ p(x) + x * q(x) ]
+    //
+
+    return EvenPoly(x, cos_arr, COS_ARR_SIZE, status);
+}
+
+void sincos_invalid(floatx80 *sin_a, floatx80 *cos_a, floatx80 a)
+{
+    if (sin_a) *sin_a = a;
+    if (cos_a) *cos_a = a;
+}
+
+void sincos_tiny_argument(floatx80 *sin_a, floatx80 *cos_a, floatx80 a)
+{
+    if (sin_a) *sin_a = a;
+    if (cos_a) *cos_a = floatx80_one;
+}
+
+static floatx80 sincos_approximation(int neg, float128 r, uint64_t quotient, float_status *status)
+{
+    if (quotient & 0x1) {
+        r = poly_cos(r, status);
+        neg = 0;
+    } else  {
+        r = poly_sin(r, status);
+    }
+
+    floatx80 result = float128_to_floatx80(r, status);
+    if (quotient & 0x2)
+        neg = ! neg;
+
+    if (neg)
+        floatx80_chs(result);
+
+    return result;
+}
+
+// =================================================
+// FSINCOS               Compute sin(x) and cos(x)
+// =================================================
+
+//
+// Uses the following identities:
+// ----------------------------------------------------------
+//
+//  sin(-x) = -sin(x)
+//  cos(-x) =  cos(x)
+//
+//  sin(x+y) = sin(x)*cos(y)+cos(x)*sin(y)
+//  cos(x+y) = sin(x)*sin(y)+cos(x)*cos(y)
+//
+//  sin(x+ pi/2)  =  cos(x)
+//  sin(x+ pi)    = -sin(x)
+//  sin(x+3pi/2)  = -cos(x)
+//  sin(x+2pi)    =  sin(x)
+//
+
+int fsincos(floatx80 a, floatx80 *sin_a, floatx80 *cos_a, float_status *status)
+{
+    uint64_t aSig0, aSig1 = 0;
+    int32_t aExp, zExp, expDiff;
+    int aSign, zSign;
+    int q = 0;
+
+    // handle unsupported extended double-precision floating encodings
+    if (floatx80_invalid_encoding(a)) {
+        goto invalid;
+    }
+
+    aSig0 = extractFloatx80Frac(a);
+    aExp = extractFloatx80Exp(a);
+    aSign = extractFloatx80Sign(a);
+
+    /* invalid argument */
+    if (aExp == 0x7FFF) {
+        if ((uint64_t) (aSig0<<1)) {
+            sincos_invalid(sin_a, cos_a, propagateFloatx80NaN(a, a, status));
+            return 0;
+        }
+
+    invalid:
+        float_raise(float_flag_invalid, status);
+        sincos_invalid(sin_a, cos_a, floatx80_default_nan(status));
+        return 0;
+    }
+
+    if (aExp == 0) {
+        if (aSig0 == 0) {
+            sincos_tiny_argument(sin_a, cos_a, a);
+            return 0;
+        }
+
+        float_raise(float_flag_input_denormal, status);
+
+        /* handle pseudo denormals */
+        if (! (aSig0 & UINT64_C(0x8000000000000000)))
+        {
+            float_raise(float_flag_inexact, status);
+            if (sin_a)
+                float_raise(float_flag_underflow, status);
+            sincos_tiny_argument(sin_a, cos_a, a);
+            return 0;
+        }
+
+        normalizeFloatx80Subnormal(aSig0, &aExp, &aSig0);
+    }
+
+    zSign = aSign;
+    zExp = FLOATX80_EXP_BIAS;
+    expDiff = aExp - zExp;
+
+    /* argument is out-of-range */
+    if (expDiff >= 63)
+        return -1;
+
+    float_raise(float_flag_inexact, status);
+
+    if (expDiff < -1) {    // doesn't require reduction
+        if (expDiff <= -68) {
+            a = packFloatx80(aSign, aExp, aSig0);
+            sincos_tiny_argument(sin_a, cos_a, a);
+            return 0;
+        }
+        zExp = aExp;
+    }
+    else {
+        q = reduce_trig_arg(expDiff, &zSign, &aSig0, &aSig1);
+    }
+
+    /* **************************** */
+    /* argument reduction completed */
+    /* **************************** */
+
+    /* using float128 for approximation */
+    float128 r = normalizeRoundAndPackFloat128(0, zExp-0x10, aSig0, aSig1, status);
+
+    if (aSign) q = -q;
+    if (sin_a) *sin_a = sincos_approximation(zSign, r,   q, status);
+    if (cos_a) *cos_a = sincos_approximation(zSign, r, q+1, status);
+
+    return 0;
+}
+
+int fsin(floatx80 *a, float_status *status)
+{
+    return fsincos(*a, a, 0, status);
+}
+
+int fcos(floatx80 *a, float_status *status)
+{
+    return fsincos(*a, 0, a, status);
+}
+
+// =================================================
+// FPTAN                 Compute tan(x)
+// =================================================
+
+//
+// Uses the following identities:
+//
+// 1. ----------------------------------------------------------
+//
+//  sin(-x) = -sin(x)
+//  cos(-x) =  cos(x)
+//
+//  sin(x+y) = sin(x)*cos(y)+cos(x)*sin(y)
+//  cos(x+y) = sin(x)*sin(y)+cos(x)*cos(y)
+//
+//  sin(x+ pi/2)  =  cos(x)
+//  sin(x+ pi)    = -sin(x)
+//  sin(x+3pi/2)  = -cos(x)
+//  sin(x+2pi)    =  sin(x)
+//
+// 2. ----------------------------------------------------------
+//
+//           sin(x)
+//  tan(x) = ------
+//           cos(x)
+//
+
+int ftan(floatx80* a, float_status *status)
+{
+    uint64_t aSig0, aSig1 = 0;
+    int32_t aExp, zExp, expDiff;
+    int aSign, zSign;
+    int q = 0;
+
+    // handle unsupported extended double-precision floating encodings
+    if (floatx80_invalid_encoding(*a)) {
+        goto invalid;
+    }
+
+    aSig0 = extractFloatx80Frac(*a);
+    aExp = extractFloatx80Exp(*a);
+    aSign = extractFloatx80Sign(*a);
+
+    /* invalid argument */
+    if (aExp == 0x7FFF) {
+        if ((uint64_t) (aSig0<<1))
+        {
+          *a = propagateFloatx80NaN(*a, *a, status);
+          return 0;
+        }
+
+    invalid:
+        float_raise(float_flag_invalid, status);
+        *a = floatx80_default_nan(status);
+        return 0;
+    }
+
+    if (aExp == 0) {
+        if (aSig0 == 0) return 0;
+        float_raise(float_flag_input_denormal, status);
+        /* handle pseudo denormals */
+        if (! (aSig0 & UINT64_C(0x8000000000000000)))
+        {
+            float_raise(float_flag_inexact | float_flag_underflow, status);
+            return 0;
+        }
+        normalizeFloatx80Subnormal(aSig0, &aExp, &aSig0);
+    }
+
+    zSign = aSign;
+    zExp = FLOATX80_EXP_BIAS;
+    expDiff = aExp - zExp;
+
+    /* argument is out-of-range */
+    if (expDiff >= 63)
+        return -1;
+
+    float_raise(float_flag_inexact, status);
+
+    if (expDiff < -1) {    // doesn't require reduction
+        if (expDiff <= -68) {
+            *a = packFloatx80(aSign, aExp, aSig0);
+            return 0;
+        }
+        zExp = aExp;
+    }
+    else {
+        q = reduce_trig_arg(expDiff, &zSign, &aSig0, &aSig1);
+    }
+
+    /* **************************** */
+    /* argument reduction completed */
+    /* **************************** */
+
+    /* using float128 for approximation */
+    float128 r = normalizeRoundAndPackFloat128(0, zExp-0x10, aSig0, aSig1, status);
+
+    float128 sin_r = poly_sin(r, status);
+    float128 cos_r = poly_cos(r, status);
+
+    if (q & 0x1) {
+        r = float128_div(cos_r, sin_r, status);
+        zSign = ! zSign;
+    } else {
+        r = float128_div(sin_r, cos_r, status);
+    }
+
+    *a = float128_to_floatx80(r, status);
+    if (zSign)
+        *a = floatx80_chs(*a);
+
+    return 0;
 }

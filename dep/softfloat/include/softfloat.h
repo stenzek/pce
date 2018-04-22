@@ -694,6 +694,9 @@ static inline bool floatx80_invalid_encoding(floatx80 a)
 extern const floatx80 floatx80_zero;
 extern const floatx80 floatx80_one;
 extern const floatx80 floatx80_ln2;
+extern const floatx80 floatx80_lg2;
+extern const floatx80 floatx80_l2t;
+extern const floatx80 floatx80_l2e;
 extern const floatx80 floatx80_pi;
 extern const floatx80 floatx80_half;
 extern const floatx80 floatx80_infinity;
@@ -793,5 +796,9 @@ floatx80 fyl2x(floatx80 a, floatx80 b, float_status *status);
 floatx80 fyl2xp1(floatx80 a, floatx80 b, float_status *status);
 floatx80 fpatan(floatx80 a, floatx80 b, float_status *status);
 floatx80 f2xm1(floatx80 a, float_status *status);
+int fsincos(floatx80 a, floatx80 *sin_a, floatx80 *cos_a, float_status *status);
+int fsin(floatx80 *a, float_status *status);
+int fcos(floatx80 *a, float_status *status);
+int ftan(floatx80* a, float_status *status);
 
 #endif /* SOFTFLOAT_H */
