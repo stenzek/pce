@@ -1,7 +1,6 @@
 #include "pce/cpu_x86/jitx64_backend.h"
 #include "YBaseLib/Log.h"
 #include "pce/cpu_x86/debugger_interface.h"
-#include "pce/cpu_x86/interpreter.h"
 #include "pce/cpu_x86/jitx64_code.h"
 #include "pce/cpu_x86/jitx64_codegen.h"
 #include "pce/system.h"

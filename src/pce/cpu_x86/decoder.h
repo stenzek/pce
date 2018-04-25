@@ -77,4 +77,4 @@ private:
 
 } // namespace CPU_X86
 
-#include "pce/cpu_x86/new_decoder.inl"
+#include "pce/cpu_x86/decoder.inl"

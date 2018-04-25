@@ -8,11 +8,9 @@
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cached_interpreter_backend.h"
 #include "pce/cpu_x86/debugger_interface.h"
-#include "pce/cpu_x86/fast_interpreter_backend.h"
-#include "pce/cpu_x86/interpreter.h"
-#include "pce/cpu_x86/interpreter_backend.h"
+#include "pce/cpu_x86/decoder.h"
 #include "pce/cpu_x86/jitx64_backend.h"
-#include "pce/cpu_x86/new_interpreter_backend.h"
+#include "pce/cpu_x86/interpreter_backend.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 #include <cctype>
@@ -365,9 +363,7 @@ void CPU::SignalNMI()
 
 bool CPU::SupportsBackend(CPUBackendType mode)
 {
-  return (mode == CPUBackendType::Interpreter || mode == CPUBackendType::FastInterpreter ||
-          mode == CPUBackendType::CachedInterpreter || mode == CPUBackendType::Recompiler ||
-          mode == CPUBackendType::NewInterpreter);
+  return (mode == CPUBackendType::Interpreter || mode == CPUBackendType::CachedInterpreter || mode == CPUBackendType::Recompiler);
 }
 
 void CPU::SetBackend(CPUBackendType mode)
@@ -429,16 +425,6 @@ void CPU::CreateBackend()
   {
     case CPUBackendType::Interpreter:
       Log_InfoPrintf("Switching to interpreter backend.");
-      m_backend = std::make_unique<InterpreterBackend>(this);
-      break;
-
-    case CPUBackendType::FastInterpreter:
-      Log_InfoPrintf("Switching to fast interpreter backend.");
-      m_backend = std::make_unique<FastInterpreterBackend>(this);
-      break;
-
-    case CPUBackendType::NewInterpreter:
-      Log_InfoPrintf("Switching to new interpreter backend.");
       m_backend = std::make_unique<NewInterpreterBackend>(this);
       break;
 
@@ -570,10 +556,11 @@ uint32 CPU::FetchInstructionDWord()
 uint8 CPU::FetchDirectInstructionByte(uint32 address, bool raise_exceptions)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, address);
-  CheckSegmentAccess<sizeof(uint8), AccessType::Execute>(Segment_CS, address, raise_exceptions);
+  if (raise_exceptions)
+    CheckSegmentAccess<sizeof(uint8), AccessType::Execute>(Segment_CS, address, raise_exceptions);
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, raise_exceptions);
+  TranslateLinearAddress(&physical_address, linear_address, raise_exceptions, AccessType::Execute, raise_exceptions);
 
   return m_bus->ReadMemoryByte(physical_address);
 }
@@ -591,10 +578,11 @@ uint16 CPU::FetchDirectInstructionWord(uint32 address, bool raise_exceptions)
     return ZeroExtend16(lsb) | (ZeroExtend16(msb) << 8);
   }
 
-  CheckSegmentAccess<sizeof(uint16), AccessType::Execute>(Segment_CS, address, raise_exceptions);
+  if (raise_exceptions)
+    CheckSegmentAccess<sizeof(uint16), AccessType::Execute>(Segment_CS, address, raise_exceptions);
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, raise_exceptions);
+  TranslateLinearAddress(&physical_address, linear_address, raise_exceptions, AccessType::Execute, raise_exceptions);
   return m_bus->ReadMemoryWord(physical_address);
 }
 
@@ -611,10 +599,11 @@ uint32 CPU::FetchDirectInstructionDWord(uint32 address, bool raise_exceptions)
     return ZeroExtend32(lsb) | (ZeroExtend32(msb) << 16);
   }
 
-  CheckSegmentAccess<sizeof(uint32), AccessType::Execute>(Segment_CS, address, raise_exceptions);
+  if (raise_exceptions)
+    CheckSegmentAccess<sizeof(uint32), AccessType::Execute>(Segment_CS, address, raise_exceptions);
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, raise_exceptions);
+  TranslateLinearAddress(&physical_address, linear_address, raise_exceptions, AccessType::Execute, raise_exceptions);
   return m_bus->ReadMemoryDWord(physical_address);
 }
 
@@ -1290,36 +1279,29 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
                ZeroExtend32(m_registers.FS), ZeroExtend32(m_registers.GS));
 #endif
 
-  struct Callback : public InstructionFetchCallback
-  {
-    Callback(CPU* cpu_) : cpu(cpu_), EIP(cpu_->m_current_EIP) {}
-
-    virtual uint8 FetchByte() override
-    {
-      LinearMemoryAddress linear_address = cpu->CalculateLinearAddress(Segment_CS, EIP);
-      PhysicalMemoryAddress physical_address;
-      if (!cpu->TranslateLinearAddress(&physical_address, linear_address, false, AccessType::Execute, false))
-        return 0;
-
-      uint8 value = cpu->m_bus->ReadMemoryByte(physical_address);
-      EIP = (EIP + 1) & cpu->m_EIP_mask;
-      return value;
-    }
-
-    CPU* cpu;
-    uint32 EIP;
+  uint32 fetch_EIP = m_registers.EIP;
+  auto fetchb = [this, &fetch_EIP]() {
+    uint8 value = FetchDirectInstructionByte(fetch_EIP, false);
+    fetch_EIP = (fetch_EIP + sizeof(value)) & m_EIP_mask;
+    return value;
+  };
+  auto fetchw = [this, &fetch_EIP]() {
+    uint16 value = FetchDirectInstructionWord(fetch_EIP, false);
+    fetch_EIP = (fetch_EIP + sizeof(value)) & m_EIP_mask;
+    return value;
+  };
+  auto fetchd = [this, &fetch_EIP]() {
+    uint32 value = FetchDirectInstructionDWord(fetch_EIP, false);
+    fetch_EIP = (fetch_EIP + sizeof(value)) & m_EIP_mask;
+    return value;
   };
 
-  SmallString hex_string;
-  SmallString instr_string;
-
   // Try to decode the instruction first.
-  Callback fetch_callback(this);
-  OldInstruction instruction;
-  bool instruction_valid =
-    DecodeInstruction(&instruction, m_current_address_size, m_current_operand_size, fetch_callback);
-
+  Instruction instruction;
+  bool instruction_valid = Decoder::DecodeInstruction(&instruction, m_current_address_size, m_current_operand_size, fetch_EIP, fetchb, fetchw, fetchd);
+  
   // TODO: Handle 16 vs 32-bit operating mode clamp on address
+  SmallString hex_string;
   uint32 instruction_length = instruction_valid ? instruction.length : 16;
   for (uint32 i = 0; i < instruction_length; i++)
   {
@@ -1332,8 +1314,8 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
 
   if (instruction_valid)
   {
-    if (!DisassembleToString(&instruction, m_current_EIP, &instr_string))
-      instr_string = "<disassembly failed>";
+    SmallString instr_string;
+    Decoder::DisassembleToString(&instruction, &instr_string);
 
     LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, m_current_EIP);
     std::fprintf(stdout, "%04X:%08Xh (0x%08X) | %s | %s\n", ZeroExtend32(m_registers.CS), m_current_EIP, linear_address,

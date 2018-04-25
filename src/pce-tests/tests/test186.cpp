@@ -88,14 +88,6 @@ static bool RunTest(CPUBackendType backend, const char* code_file, const char* e
 // Test on both Interpreter and FastInterpreter
 #define MAKE_TEST(name, code_file, results_file)                                                                       \
   TEST(Test186_Interpreter, name) { EXPECT_TRUE(RunTest(CPUBackendType::Interpreter, code_file, results_file)); }      \
-  TEST(Test186_FastInterpreter, name)                                                                                  \
-  {                                                                                                                    \
-    EXPECT_TRUE(RunTest(CPUBackendType::FastInterpreter, code_file, results_file));                                    \
-  }                                                                                                                    \
-  TEST(Test186_NewInterpreter, name)                                                                                   \
-  {                                                                                                                    \
-    EXPECT_TRUE(RunTest(CPUBackendType::NewInterpreter, code_file, results_file));                                     \
-  }                                                                                                                    \
   TEST(Test186_CachedInterpreter, name)                                                                                \
   {                                                                                                                    \
     EXPECT_TRUE(RunTest(CPUBackendType::CachedInterpreter, code_file, results_file));                                  \

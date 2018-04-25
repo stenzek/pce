@@ -22,9 +22,6 @@ class CPU : public CPUBase
 {
   friend class Backend;
   friend class DebuggerInterface;
-  friend class Interpreter;
-  friend class InterpreterBackend;
-  friend class FastInterpreterBackend;
   friend class CodeCacheBackend;
   friend class CachedInterpreterBackend;
   friend class NewInterpreter;

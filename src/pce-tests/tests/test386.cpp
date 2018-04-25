@@ -119,14 +119,6 @@ TEST(Test386, Interpreter)
 {
   RunTest386(CPUBackendType::Interpreter);
 }
-TEST(Test386, NewInterpreter)
-{
-  RunTest386(CPUBackendType::NewInterpreter);
-}
-TEST(Test386, FastInterpreter)
-{
-  RunTest386(CPUBackendType::FastInterpreter);
-}
 TEST(Test386, CachedInterpreter)
 {
   RunTest386(CPUBackendType::CachedInterpreter);

@@ -24,9 +24,7 @@ enum IOPortDataSize : uint32
 enum class CPUBackendType
 {
   Interpreter,
-  FastInterpreter,
   CachedInterpreter,
-  NewInterpreter,
   Recompiler
 };
 

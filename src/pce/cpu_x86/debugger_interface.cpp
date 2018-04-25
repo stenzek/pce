@@ -1,6 +1,6 @@
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/cpu.h"
-#include "pce/cpu_x86/decode.h"
+#include "pce/cpu_x86/decoder.h"
 #include "pce/system.h"
 
 namespace CPU_X86 {
@@ -163,44 +163,34 @@ LinearMemoryAddress DebuggerInterface::GetStackBottom() const
     return UINT32_C(0xFFFFFFFF);
 }
 
-struct DebuggerFetchInstructionByteCallback : InstructionFetchCallback
-{
-  DebuggerFetchInstructionByteCallback(CPU_X86::CPU* cpu_, uint32 address_) : cpu(cpu_), address(address_), fail(false)
-  {
-  }
-
-  virtual uint8 FetchByte() override
-  {
-    uint8 value;
-    if (!cpu->SafeReadMemoryByte(address++, &value, false, false))
-    {
-      fail = true;
-      return 0;
-    }
-    return value;
-  }
-
-  CPU_X86::CPU* cpu;
-  uint32 address;
-  bool fail;
-};
-
 bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out_line, uint32* out_size) const
 {
-  OldInstruction instruction;
+  uint32 fetch_EIP = m_cpu->m_registers.EIP;
+  auto fetchb = [this, &fetch_EIP]() {
+    uint8 value = m_cpu->FetchDirectInstructionByte(fetch_EIP, false);
+    fetch_EIP = (fetch_EIP + sizeof(value)) & m_cpu->m_EIP_mask;
+    return value;
+  };
+  auto fetchw = [this, &fetch_EIP]() {
+    uint16 value = m_cpu->FetchDirectInstructionWord(fetch_EIP, false);
+    fetch_EIP = (fetch_EIP + sizeof(value)) & m_cpu->m_EIP_mask;
+    return value;
+  };
+  auto fetchd = [this, &fetch_EIP]() {
+    uint32 value = m_cpu->FetchDirectInstructionDWord(fetch_EIP, false);
+    fetch_EIP = (fetch_EIP + sizeof(value)) & m_cpu->m_EIP_mask;
+    return value;
+  };
 
-  DebuggerFetchInstructionByteCallback fetch_callback(m_cpu, address);
-  if (!CPU_X86::DecodeInstruction(&instruction, m_cpu->GetCurrentAddressingSize(), m_cpu->GetCurrentOperandSize(),
-                                  fetch_callback) ||
-      fetch_callback.fail)
+  // Try to decode the instruction first.
+  Instruction instruction;
+  if (!Decoder::DecodeInstruction(&instruction, m_cpu->GetCurrentAddressingSize(), m_cpu->GetCurrentOperandSize(), fetch_EIP, fetchb, fetchw, fetchd))
   {
     return false;
   }
+
   if (out_line)
-  {
-    if (!CPU_X86::DisassembleToString(&instruction, address, out_line))
-      return false;
-  }
+    Decoder::DisassembleToString(&instruction, out_line);
   if (out_size)
     *out_size = instruction.length;
   return true;

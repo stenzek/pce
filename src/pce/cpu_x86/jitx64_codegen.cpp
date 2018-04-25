@@ -1,7 +1,6 @@
 #include "pce/cpu_x86/jitx64_codegen.h"
 #include "YBaseLib/Log.h"
 #include "pce/cpu_x86/debugger_interface.h"
-#include "pce/cpu_x86/interpreter.h"
 #include "pce/system.h"
 #include "xbyak.h"
 Log_SetChannel(CPUX86::Interpreter);

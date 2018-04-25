@@ -2,7 +2,6 @@
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/cpu_x86/debugger_interface.h"
-#include "pce/cpu_x86/interpreter.h"
 #include "pce/system.h"
 #include <array>
 #include <cstdint>

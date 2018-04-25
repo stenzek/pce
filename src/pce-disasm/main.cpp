@@ -1,3 +1,4 @@
+#include "YBaseLib/AutoReleasePtr.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Error.h"
 #include "YBaseLib/FileSystem.h"
@@ -6,30 +7,10 @@
 #include "YBaseLib/PODArray.h"
 #include "YBaseLib/String.h"
 #include "YBaseLib/StringConverter.h"
-#include "pce/cpu_x86/decode.h"
+#include "pce/cpu_x86/decoder.h"
 #include <cstdio>
 #include <cstring>
 Log_SetChannel(Main);
-
-struct ArrayFetchInstructionByteCallback : CPU_X86::InstructionFetchCallback
-{
-  ArrayFetchInstructionByteCallback(uint8* data, size_t offset, size_t length)
-    : m_data(data), m_offset(offset), m_length(length)
-  {
-  }
-
-  virtual uint8 FetchByte() override
-  {
-    if (m_offset < m_length)
-      return m_data[m_offset++];
-    else
-      return 0;
-  }
-
-  uint8* m_data;
-  size_t m_offset;
-  size_t m_length;
-};
 
 static bool ReadFileToArray(PODArray<byte>* dest_array, const char* filename)
 {
@@ -125,7 +106,7 @@ static bool ParseArguments(int argc, char* argv[])
   return true;
 }
 
-static void PrintInstruction(uint32 address, const CPU_X86::OldInstruction* instruction)
+static void PrintInstruction(uint32 address, const CPU_X86::Instruction* instruction)
 {
   SmallString hex_string;
   SmallString instr_string;
@@ -138,9 +119,7 @@ static void PrintInstruction(uint32 address, const CPU_X86::OldInstruction* inst
 
   if (instruction)
   {
-    if (!CPU_X86::DisassembleToString(instruction, address, &instr_string))
-      instr_string = "<disassembly failed>";
-
+    CPU_X86::Decoder::DisassembleToString(instruction, &instr_string);
     fprintf(stdout, "0x%08X | %s | %s\n", address, hex_string.GetCharArray(), instr_string.GetCharArray());
   }
   else
@@ -159,27 +138,25 @@ static bool RunDisassembler()
 
   Log_DevPrintf("Origin address: 0x%08X", origin_address);
 
-  uint32 offset = 0;
+  AutoReleasePtr<ByteStream> memory_stream = ByteStream_CreateReadOnlyMemoryStream(input_code.GetBasePointer(), input_code.GetSize());
   bool error = false;
-  while (offset < input_code.GetSize())
+
+  while (memory_stream->GetPosition() < memory_stream->GetSize() && !memory_stream->InErrorState())
   {
-    CPU_X86::OldInstruction instruction;
-    ArrayFetchInstructionByteCallback fetch_callback(input_code.GetBasePointer(), offset, input_code.GetSize());
-    if (CPU_X86::DecodeInstruction(&instruction, address_size, operand_size, fetch_callback))
+    CPU_X86::Instruction instruction;
+    if (CPU_X86::Decoder::DecodeInstruction(&instruction, address_size, operand_size, Truncate32(memory_stream->GetPosition()), memory_stream))
     {
-      PrintInstruction(offset, &instruction);
-      offset += instruction.length;
+      PrintInstruction(Truncate32(memory_stream->GetPosition()), &instruction);
     }
     else
     {
       // Skip one byte and try again
-      PrintInstruction(offset, nullptr);
-      offset++;
+      PrintInstruction(Truncate32(memory_stream->GetPosition()), nullptr);
       error = true;
     }
   }
 
-  error |= (offset > input_code.GetSize());
+  error |= memory_stream->InErrorState();
   return !error;
 }
 

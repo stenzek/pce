@@ -2,8 +2,8 @@
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/cpu_x86/debugger_interface.h"
-#include "pce/cpu_x86/new_decoder.h"
-#include "pce/cpu_x86/new_interpreter_backend.h"
+#include "pce/cpu_x86/decoder.h"
+#include "pce/cpu_x86/interpreter_backend.h"
 #include "pce/system.h"
 #include <array>
 #include <cstdint>
@@ -227,7 +227,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 {
   static constexpr uint32 BUFFER_SIZE = 64;
 
-  struct FetchCallback : public InstructionFetchCallback
+  struct FetchCallback
   {
     void FillBuffer()
     {
@@ -282,7 +282,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
       }
     }
 
-    uint8 FetchByte() override
+    uint8 FetchByte()
     {
       uint32 buffer_remaining = buffer_size - buffer_pos;
       if (buffer_remaining < sizeof(uint8))
@@ -300,7 +300,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
       return buffer[buffer_pos++];
     }
 
-    uint16 FetchWord() override
+    uint16 FetchWord()
     {
       uint32 buffer_remaining = buffer_size - buffer_pos;
       if (buffer_remaining < sizeof(uint16))
@@ -321,7 +321,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
       return value;
     }
 
-    uint32 FetchDWord() override
+    uint32 FetchDWord()
     {
       uint32 buffer_remaining = buffer_size - buffer_pos;
       if (buffer_remaining < sizeof(uint32))

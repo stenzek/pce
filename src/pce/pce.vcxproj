@@ -34,17 +34,11 @@
     <ClCompile Include="cpu_x86\code_cache_backend.cpp" />
     <ClCompile Include="cpu_x86\cpu.cpp" />
     <ClCompile Include="cpu_x86\debugger_interface.cpp" />
-    <ClCompile Include="cpu_x86\decode.cpp" />
-    <ClCompile Include="cpu_x86\fast_interpreter_backend.cpp" />
-    <ClCompile Include="cpu_x86\instprint.cpp" />
-    <ClCompile Include="cpu_x86\interpreter.cpp" />
-    <ClCompile Include="cpu_x86\interpreter_backend.cpp" />
-    <ClCompile Include="cpu_x86\interpreter_fpu.cpp" />
     <ClCompile Include="cpu_x86\jitx64_backend.cpp" />
     <ClCompile Include="cpu_x86\jitx64_code.cpp" />
     <ClCompile Include="cpu_x86\jitx64_codegen.cpp" />
-    <ClCompile Include="cpu_x86\new_decoder.cpp" />
-    <ClCompile Include="cpu_x86\new_interpreter_backend.cpp" />
+    <ClCompile Include="cpu_x86\decoder.cpp" />
+    <ClCompile Include="cpu_x86\interpreter_backend.cpp" />
     <ClCompile Include="hw\adlib.cpp" />
     <ClCompile Include="hw\ymf262.cpp" />
     <ClCompile Include="hw\keyboard_scancodes.cpp" />
@@ -86,17 +80,13 @@
     <ClInclude Include="cpu_x86\code_cache_backend.h" />
     <ClInclude Include="cpu_x86\cpu.h" />
     <ClInclude Include="cpu_x86\debugger_interface.h" />
-    <ClInclude Include="cpu_x86\decode.h" />
-    <ClInclude Include="cpu_x86\fast_interpreter_backend.h" />
-    <ClInclude Include="cpu_x86\interpreter.h" />
-    <ClInclude Include="cpu_x86\interpreter_backend.h" />
     <ClInclude Include="cpu_x86\jitx64_backend.h" />
     <ClInclude Include="cpu_x86\jitx64_code.h" />
     <ClInclude Include="cpu_x86\jitx64_codegen.h" />
-    <ClInclude Include="cpu_x86\new_decoder.h" />
-    <ClInclude Include="cpu_x86\new_interpreter.h" />
-    <ClInclude Include="cpu_x86\new_interpreter_backend.h" />
-    <ClInclude Include="cpu_x86\new_interpreter.inl" />
+    <ClInclude Include="cpu_x86\decoder.h" />
+    <ClInclude Include="cpu_x86\interpreter.h" />
+    <ClInclude Include="cpu_x86\interpreter_backend.h" />
+    <ClInclude Include="cpu_x86\interpreter.inl" />
     <ClInclude Include="cpu_x86\opcodes.h" />
     <ClInclude Include="cpu_x86\types.h" />
     <ClInclude Include="debugger_interface.h" />
@@ -149,8 +139,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="cpu_x86\new_decoder.inl" />
-    <None Include="cpu_x86\new_interpreter_x87.inl" />
+    <None Include="cpu_x86\decoder.inl" />
+    <None Include="cpu_x86\interpreter_x87.inl" />
     <None Include="hw\cga_font.inl" />
     <None Include="hw\cga_palette.inl" />
     <None Include="hw\soundblaster_adpcm.inl" />

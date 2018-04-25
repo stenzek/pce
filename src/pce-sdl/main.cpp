@@ -238,14 +238,8 @@ void SDLHostInterface::OnSimulationSpeedUpdate(float speed_percent)
     case CPUBackendType::Interpreter:
       cpu_backend = "Interpreter";
       break;
-    case CPUBackendType::FastInterpreter:
-      cpu_backend = "Fast Interpreter";
-      break;
     case CPUBackendType::CachedInterpreter:
       cpu_backend = "Cached Interpreter";
-      break;
-    case CPUBackendType::NewInterpreter:
-      cpu_backend = "New Interpreter";
       break;
     case CPUBackendType::Recompiler:
       cpu_backend = "Recompiler";
@@ -417,12 +411,8 @@ void SDLHostInterface::RenderImGui()
         CPUBackendType current_backend = m_system->GetCPU()->GetCurrentBackend();
         if (ImGui::MenuItem("Interpreter", nullptr, current_backend == CPUBackendType::Interpreter))
           m_system->SetCPUBackend(CPUBackendType::Interpreter);
-        if (ImGui::MenuItem("Fast Interpreter", nullptr, current_backend == CPUBackendType::FastInterpreter))
-          m_system->SetCPUBackend(CPUBackendType::FastInterpreter);
         if (ImGui::MenuItem("Cached Interpreter", nullptr, current_backend == CPUBackendType::CachedInterpreter))
           m_system->SetCPUBackend(CPUBackendType::CachedInterpreter);
-        if (ImGui::MenuItem("New Interpreter", nullptr, current_backend == CPUBackendType::NewInterpreter))
-          m_system->SetCPUBackend(CPUBackendType::NewInterpreter);
         if (ImGui::MenuItem("Recompiler", nullptr, current_backend == CPUBackendType::Recompiler))
           m_system->SetCPUBackend(CPUBackendType::Recompiler);
 
@@ -587,8 +577,6 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // 1024);
 
   system->GetCPU()->SetBackend(CPUBackendType::Interpreter);
-  system->GetCPU()->SetBackend(CPUBackendType::FastInterpreter);
-  system->GetCPU()->SetBackend(CPUBackendType::NewInterpreter);
   // system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
   // system->GetCPU()->SetBackend(CPUBackendType::Recompiler);
 

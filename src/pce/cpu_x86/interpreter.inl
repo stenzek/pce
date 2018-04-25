@@ -3,7 +3,6 @@
 #include "YBaseLib/String.h"
 #include "pce/bus.h"
 #include "pce/cpu_x86/interpreter.h"
-#include "pce/cpu_x86/new_interpreter.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 
@@ -5251,7 +5250,7 @@ void NewInterpreter::Execute_Operation_WBINVD(CPU* cpu)
     return;
   }
 
-  //Log_WarningPrintf("WBINVD instruction");
+  // Log_WarningPrintf("WBINVD instruction");
 }
 
 void NewInterpreter::Execute_Operation_WAIT(CPU* cpu)
@@ -5262,7 +5261,7 @@ void NewInterpreter::Execute_Operation_WAIT(CPU* cpu)
 void NewInterpreter::Execute_Operation_RDTSC(CPU* cpu)
 {
   // TSD flag in CR4 controls whether this is privileged or unprivileged
-  //Log_WarningPrintf("RDTSC instruction");
+  // Log_WarningPrintf("RDTSC instruction");
   cpu->m_registers.EDX = 0;
   cpu->m_registers.EAX = 0;
 }

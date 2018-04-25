@@ -3,7 +3,6 @@
 #include "YBaseLib/String.h"
 #include "pce/bus.h"
 #include "pce/cpu_x86/interpreter.h"
-#include "pce/cpu_x86/new_interpreter.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 
@@ -25,7 +24,7 @@ void NewInterpreter::StartX87Instruction(CPU* cpu)
   }
 
   // If no FPU
-  //cpu->AbortCurrentInstruction();
+  // cpu->AbortCurrentInstruction();
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
@@ -421,22 +420,22 @@ void NewInterpreter::Execute_Operation_FCOMPP(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-  uint32 src_constant>
-  void NewInterpreter::Execute_Operation_FUCOM(CPU* cpu)
+         uint32 src_constant>
+void NewInterpreter::Execute_Operation_FUCOM(CPU* cpu)
 {
   Execute_Operation_FCOM<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant, true>(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-  uint32 src_constant>
-  void NewInterpreter::Execute_Operation_FUCOMP(CPU* cpu)
+         uint32 src_constant>
+void NewInterpreter::Execute_Operation_FUCOMP(CPU* cpu)
 {
   Execute_Operation_FCOMP<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant, true>(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-  uint32 src_constant>
-  void NewInterpreter::Execute_Operation_FUCOMPP(CPU* cpu)
+         uint32 src_constant>
+void NewInterpreter::Execute_Operation_FUCOMPP(CPU* cpu)
 {
   Execute_Operation_FCOMPP<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant, true>(cpu);
 }
@@ -608,8 +607,8 @@ void NewInterpreter::Execute_Operation_FIDIVR(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-  uint32 src_constant, bool quiet>
-  void NewInterpreter::Execute_Operation_FICOM(CPU* cpu)
+         uint32 src_constant, bool quiet>
+void NewInterpreter::Execute_Operation_FICOM(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -630,8 +629,8 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-  uint32 src_constant>
-  void NewInterpreter::Execute_Operation_FICOMP(CPU* cpu)
+         uint32 src_constant>
+void NewInterpreter::Execute_Operation_FICOMP(CPU* cpu)
 {
   Execute_Operation_FICOM<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
   PopFloatStack(cpu);
@@ -1387,5 +1386,3 @@ void NewInterpreter::Execute_Operation_FSINCOS(CPU* cpu)
 #ifdef Y_COMPILER_MSVC
 #pragma warning(pop)
 #endif
-
-
