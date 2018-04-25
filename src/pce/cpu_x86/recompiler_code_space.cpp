@@ -1,4 +1,5 @@
-#include "pce/cpu_x86/jitx64_code.h"
+#include "pce/cpu_x86/recompiler_code_space.h"
+#include "YBaseLib/Assert.h"
 
 #if defined(Y_PLATFORM_WINDOWS)
 #include "YBaseLib/Windows/WindowsHeaders.h"
@@ -8,7 +9,7 @@
 
 namespace CPU_X86 {
 
-JitX64Code::JitX64Code(size_t size)
+RecompilerCodeSpace::RecompilerCodeSpace(size_t size)
 {
 #if defined(Y_PLATFORM_WINDOWS)
   m_code_ptr = VirtualAlloc(nullptr, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
@@ -25,7 +26,7 @@ JitX64Code::JitX64Code(size_t size)
     Panic("Failed to allocate code space.");
 }
 
-JitX64Code::~JitX64Code()
+RecompilerCodeSpace::~RecompilerCodeSpace()
 {
 #if defined(Y_PLATFORM_WINDOWS)
   VirtualFree(m_code_ptr, m_code_size, MEM_RELEASE);
@@ -34,7 +35,7 @@ JitX64Code::~JitX64Code()
 #endif
 }
 
-void JitX64Code::CommitCode(size_t length)
+void RecompilerCodeSpace::CommitCode(size_t length)
 {
   //     // Function alignment?
   //     size_t extra_bytes = ((length % 16) != 0) ? (16 - (length % 16)) : 0;
@@ -46,7 +47,7 @@ void JitX64Code::CommitCode(size_t length)
   m_code_used += length;
 }
 
-void JitX64Code::Reset()
+void RecompilerCodeSpace::Reset()
 {
 #if defined(Y_PLATFORM_WINDOWS)
   FlushInstructionCache(GetCurrentProcess(), m_code_ptr, m_code_size);

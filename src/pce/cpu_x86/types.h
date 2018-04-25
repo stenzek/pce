@@ -640,6 +640,7 @@ struct InstructionData
   bool HasSIBBase() const { return (GetSIBBaseRegister() != Reg32_EBP || modrm_mod != 0b00); }
   bool HasSIBIndex() const { return (GetSIBIndexRegister() != Reg32_ESP); }
   uint8 GetSIBScaling() const { return ((sib >> 6) & 0x03); }
+  bool IsRep() const { return ConvertToBoolUnchecked(has_rep | has_repne); }
 };
 
 enum class ModRMAddressingMode : uint8

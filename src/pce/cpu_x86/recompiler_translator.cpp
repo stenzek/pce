@@ -1,9 +1,8 @@
-#include "pce/cpu_x86/jitx64_codegen.h"
+#include "pce/cpu_x86/recompiler_translator.h"
 #include "YBaseLib/Log.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/system.h"
-#include "xbyak.h"
-Log_SetChannel(CPUX86::Interpreter);
+Log_SetChannel(CPU_X86::Recompiler);
 
 namespace CPU_X86 {
 
@@ -15,100 +14,32 @@ namespace CPU_X86 {
 // Only sync EIP on potentially-faulting instructions
 // Lazy flag calculation - store operands and opcode
 
-// void JitX64Backend::Block::AllocCode(size_t size)
-// {
-//     code_size = size;
-//     code_pointer = reinterpret_cast<CodePointer>(Xbyak::AlignedMalloc(code_size, 4096));
-//     if (!code_pointer)
-//         Panic("Failed to allocate code pointer");
-//
-//     if (!Xbyak::CodeArray::protect(reinterpret_cast<void*>(code_pointer), code_size, true))
-//         Panic("Failed to protect code pointer");
-// }
-
-JitX64Backend::Block::~Block()
+RecompilerTranslator::RecompilerTranslator(RecompilerBackend* backend, RecompilerBackend::Block* block,
+                                           llvm::Module* module, llvm::Function* function)
+  : m_backend(backend), m_block(block), m_module(module), m_function(function),
+    m_basic_block(llvm::BasicBlock::Create(backend->GetLLVMContext(), "entry", function)), m_builder(m_basic_block)
 {
-  //     if (code_pointer)
-  //         Xbyak::AlignedFree(reinterpret_cast<void*>(code_pointer));
 }
 
-#if 0
+RecompilerTranslator::~RecompilerTranslator() {}
 
-JitX64CodeGenerator::JitX64CodeGenerator(JitX64Backend* backend, void* code_ptr, size_t code_size)
-  : Xbyak::CodeGenerator(code_size, code_ptr), m_backend(backend), m_cpu(backend->m_cpu)
-#if ABI_WIN64
-    ,
-    RTEMP8A(al), RTEMP8B(cl), RTEMP8C(dl), RTEMP16A(ax), RTEMP16B(cx), RTEMP16C(dx), RTEMP32A(eax), RTEMP32B(ecx),
-    RTEMP32C(edx), RTEMP64A(rax), RTEMP64B(rcx), RTEMP64C(rdx), RTEMPADDR(r8), RSTORE8A(bl), RSTORE8B(r12b),
-    RSTORE8C(r13b), RSTORE16A(bx), RSTORE16B(r12w), RSTORE16C(r13w), RSTORE32A(ebx), RSTORE32B(r12d), RSTORE32C(r13d),
-    RSTORE64A(rbx), RSTORE64B(r12), RSTORE64C(r13), READDR16(r14w), READDR32(r14d), READDR64(r14), RCPUPTR(rsi),
-    RSCRATCH64(r11), RSCRATCH32(r11d), RSCRATCH16(r11w), RSCRATCH8(r11b), RPARAM1_8(cl), RPARAM2_8(dl), RPARAM3_8(r8b),
-    RPARAM4_8(r9b), RRET_8(al), RPARAM1_16(cx), RPARAM2_16(dx), RPARAM3_16(r8w), RPARAM4_16(r9w), RRET_16(ax),
-    RPARAM1_32(ecx), RPARAM2_32(edx), RPARAM3_32(r8d), RPARAM4_32(r9d), RRET_32(eax), RPARAM1_64(rcx), RPARAM2_64(rdx),
-    RPARAM3_64(r8), RPARAM4_64(r9), RRET_64(rax)
-#elif ABI_SYSV
-    ,
-    RTEMP8A(al), RTEMP8B(cl), RTEMP8C(dl), RTEMP16A(ax), RTEMP16B(cx), RTEMP16C(dx), RTEMP32A(eax), RTEMP32B(ecx),
-    RTEMP32C(edx), RTEMP64A(rax), RTEMP64B(rcx), RTEMP64C(rdx), RTEMPADDR(r8), RSTORE8A(bl), RSTORE8B(r12b),
-    RSTORE8C(r13b), RSTORE16A(bx), RSTORE16B(r12w), RSTORE16C(r13w), RSTORE32A(ebx), RSTORE32B(r12d), RSTORE32C(r13d),
-    RSTORE64A(rbx), RSTORE64B(r12), RSTORE64C(r13), READDR16(r14w), READDR32(r14d), READDR64(r14), RCPUPTR(rbp),
-    RSCRATCH64(r11), RSCRATCH32(r11d), RSCRATCH16(r11w), RSCRATCH8(r11b), RPARAM1_8(dil), RPARAM2_8(sil), RPARAM3_8(dl),
-    RPARAM4_8(cl), RRET_8(al), RPARAM1_16(di), RPARAM2_16(si), RPARAM3_16(dx), RPARAM4_16(cx), RRET_16(ax),
-    RPARAM1_32(edi), RPARAM2_32(esi), RPARAM3_32(edx), RPARAM4_32(ecx), RRET_32(eax), RPARAM1_64(rdi), RPARAM2_64(rsi),
-    RPARAM3_64(rdx), RPARAM4_64(rcx), RRET_64(rax)
-#endif
+bool RecompilerTranslator::TranslateBlock()
 {
-  // Save nonvolatile registers
-  // TODO: Stash nops and a forward code pointer, skip for unneeded registers.
-  // NOTE: Should be aligned so that rsp+8h % 16 = 0
-  // TODO: Use sil? shorter?
-  push(RSTORE64A);
-  push(RSTORE64B);
-  push(RSTORE64C);
-  push(READDR64);
-  push(RCPUPTR);
+  for (const Instruction& inst : m_block->instructions)
+  {
+    if (!CompileInstruction(&inst))
+      return false;
+  }
 
-#if ABI_WIN64
-  // Only on Windows
-  sub(rsp, 0x20);
-#endif
+  SyncInstructionPointers();
 
-  // Load CPU pointer.
-  mov(RCPUPTR, RPARAM1_64);
-
-  // Update current EIP/ESP for exceptions.
-  mov(RTEMP32A, dword[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
-  mov(RTEMP32B, dword[RCPUPTR + offsetof(CPU, m_registers.ESP)]);
-  mov(dword[RCPUPTR + offsetof(CPU, m_current_EIP)], RTEMP32A);
-  mov(dword[RCPUPTR + offsetof(CPU, m_current_ESP)], RTEMP32B);
+  // Add the final "ret".
+  // TODO: This is where we would do block linking.
+  m_builder.CreateRetVoid();
+  return true;
 }
 
-JitX64CodeGenerator::~JitX64CodeGenerator() {}
-
-std::pair<const void*, size_t> JitX64CodeGenerator::FinishBlock()
-{
-  Assert(m_delayed_eip_add == 0 && m_delayed_cycles_add == 0);
-
-#if ABI_WIN64
-  add(rsp, 0x20);
-#endif
-
-  // Restore nonvolatile registers
-  pop(RCPUPTR);
-  pop(READDR64);
-  pop(RSTORE64C);
-  pop(RSTORE64B);
-  pop(RSTORE64A);
-
-  // Exit to dispatcher
-  ret();
-
-  // Done
-  ready();
-  return std::make_pair(reinterpret_cast<const void*>(getCode()), getSize());
-}
-
-bool JitX64CodeGenerator::CompileInstruction(const OldInstruction* instruction, bool is_final)
+bool RecompilerTranslator::CompileInstruction(const Instruction* instruction)
 {
   bool result;
   switch (instruction->operation)
@@ -116,710 +47,87 @@ bool JitX64CodeGenerator::CompileInstruction(const OldInstruction* instruction, 
     case Operation_NOP:
       result = Compile_NOP(instruction);
       break;
-    case Operation_LEA:
-      result = Compile_LEA(instruction);
-      break;
-    case Operation_MOV:
-      result = Compile_MOV(instruction);
-      break;
-    case Operation_MOVSX:
-    case Operation_MOVZX:
-      result = Compile_MOV_Extended(instruction);
-      break;
-    case Operation_ADD:
-    case Operation_SUB:
-    case Operation_AND:
-    case Operation_OR:
-    case Operation_XOR:
-      result = Compile_ALU_Binary_Update(instruction);
-      break;
-    case Operation_CMP:
-    case Operation_TEST:
-      result = Compile_ALU_Binary_Test(instruction);
-      break;
-    case Operation_INC:
-    case Operation_DEC:
-    case Operation_NEG:
-    case Operation_NOT:
-      result = Compile_ALU_Unary_Update(instruction);
-      break;
-    case Operation_SHL:
-    case Operation_SHR:
-    case Operation_SAR:
-      result = Compile_ShiftRotate(instruction);
-      break;
-    case Operation_SHLD:
-    case Operation_SHRD:
-      result = Compile_DoublePrecisionShift(instruction);
-      break;
-    case Operation_Jcc:
-    case Operation_LOOP:
-      result = Compile_JumpConditional(instruction);
-      break;
-    case Operation_PUSH:
-    case Operation_POP:
-    case Operation_PUSHF:
-    case Operation_POPF:
-      result = Compile_Stack(instruction);
-      break;
-    case Operation_CALL_Far:
-    case Operation_RET_Far:
-    case Operation_CALL_Near:
-    case Operation_RET_Near:
-    case Operation_JMP_Near:
-    case Operation_JMP_Far:
-      result = Compile_JumpCallReturn(instruction);
-      break;
-    case Operation_CLC:
-    case Operation_CLD:
-    case Operation_STC:
-    case Operation_STD:
-      result = Compile_Flags(instruction);
-      break;
+      //     case Operation_LEA:
+      //       result = Compile_LEA(instruction);
+      //       break;
+      //     case Operation_MOV:
+      //       result = Compile_MOV(instruction);
+      //       break;
+      //     case Operation_MOVSX:
+      //     case Operation_MOVZX:
+      //       result = Compile_MOV_Extended(instruction);
+      //       break;
+      //     case Operation_ADD:
+      //     case Operation_SUB:
+      //     case Operation_AND:
+      //     case Operation_OR:
+      //     case Operation_XOR:
+      //       result = Compile_ALU_Binary_Update(instruction);
+      //       break;
+      //     case Operation_CMP:
+      //     case Operation_TEST:
+      //       result = Compile_ALU_Binary_Test(instruction);
+      //       break;
+      //     case Operation_INC:
+      //     case Operation_DEC:
+      //     case Operation_NEG:
+      //     case Operation_NOT:
+      //       result = Compile_ALU_Unary_Update(instruction);
+      //       break;
+      //     case Operation_SHL:
+      //     case Operation_SHR:
+      //     case Operation_SAR:
+      //       result = Compile_ShiftRotate(instruction);
+      //       break;
+      //     case Operation_SHLD:
+      //     case Operation_SHRD:
+      //       result = Compile_DoublePrecisionShift(instruction);
+      //       break;
+      //     case Operation_Jcc:
+      //     case Operation_LOOP:
+      //       result = Compile_JumpConditional(instruction);
+      //       break;
+      //     case Operation_PUSH:
+      //     case Operation_POP:
+      //     case Operation_PUSHF:
+      //     case Operation_POPF:
+      //       result = Compile_Stack(instruction);
+      //       break;
+      //     case Operation_CALL_Far:
+      //     case Operation_RET_Far:
+      //     case Operation_CALL_Near:
+      //     case Operation_RET_Near:
+      //     case Operation_JMP_Near:
+      //     case Operation_JMP_Far:
+      //       result = Compile_JumpCallReturn(instruction);
+      //       break;
+      //     case Operation_CLC:
+      //     case Operation_CLD:
+      //     case Operation_STC:
+      //     case Operation_STD:
+      //       result = Compile_Flags(instruction);
+      //       break;
     default:
       result = Compile_Fallback(instruction);
       break;
   }
 
-  if (is_final)
-    SyncInstructionPointers(instruction);
-
   return result;
 }
 
-uint32 JitX64CodeGenerator::CalculateRegisterOffset(Reg8 reg)
+llvm::Function* RecompilerTranslator::GetInterpretInstructionFunction()
 {
-  // Ugly but necessary due to the structure layout.
-  switch (reg)
-  {
-    case Reg8_AL:
-      return offsetof(CPU, m_registers.AL);
-    case Reg8_CL:
-      return offsetof(CPU, m_registers.CL);
-    case Reg8_DL:
-      return offsetof(CPU, m_registers.DL);
-    case Reg8_BL:
-      return offsetof(CPU, m_registers.BL);
-    case Reg8_AH:
-      return offsetof(CPU, m_registers.AH);
-    case Reg8_CH:
-      return offsetof(CPU, m_registers.CH);
-    case Reg8_DH:
-      return offsetof(CPU, m_registers.DH);
-    case Reg8_BH:
-      return offsetof(CPU, m_registers.BH);
-    default:
-      DebugUnreachableCode();
-      return 0;
-  }
+  // m_module->getOrInsertFunction()
+  return nullptr;
 }
 
-uint32 JitX64CodeGenerator::CalculateRegisterOffset(Reg16 reg)
-{
-  // Ugly but necessary due to the structure layout.
-  switch (reg)
-  {
-    case Reg16_AX:
-      return offsetof(CPU, m_registers.AX);
-    case Reg16_CX:
-      return offsetof(CPU, m_registers.CX);
-    case Reg16_DX:
-      return offsetof(CPU, m_registers.DX);
-    case Reg16_BX:
-      return offsetof(CPU, m_registers.BX);
-    case Reg16_SP:
-      return offsetof(CPU, m_registers.SP);
-    case Reg16_BP:
-      return offsetof(CPU, m_registers.BP);
-    case Reg16_SI:
-      return offsetof(CPU, m_registers.SI);
-    case Reg16_DI:
-      return offsetof(CPU, m_registers.DI);
-    default:
-      DebugUnreachableCode();
-      return 0;
-  }
-}
-
-uint32 JitX64CodeGenerator::CalculateRegisterOffset(Reg32 reg)
-{
-  return uint32(offsetof(CPU, m_registers.reg32[0]) + (reg * sizeof(uint32)));
-}
-
-uint32 JitX64CodeGenerator::CalculateSegmentRegisterOffset(Segment segment)
-{
-  return uint32(offsetof(CPU, m_registers.segment_selectors[0]) + (segment * sizeof(uint16)));
-}
-
-void JitX64CodeGenerator::CalculateEffectiveAddress(const OldInstruction* instruction)
-{
-  for (size_t i = 0; i < countof(instruction->operands); i++)
-  {
-    const OldInstruction::Operand* operand = &instruction->operands[i];
-    switch (operand->mode)
-    {
-      case AddressingMode_RegisterIndirect:
-      {
-        if (instruction->address_size == AddressSize_16)
-          movzx(READDR32, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-        else
-          mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)]);
-      }
-      break;
-      case AddressingMode_Indexed:
-      {
-        if (instruction->address_size == AddressSize_16)
-        {
-          mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->indexed.reg.reg16)]);
-          if (operand->indexed.displacement != 0)
-            add(READDR16, uint32(operand->indexed.displacement));
-          movzx(READDR32, READDR16);
-        }
-        else
-        {
-          mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->indexed.reg.reg32)]);
-          if (operand->indexed.displacement != 0)
-            add(READDR32, uint32(operand->indexed.displacement));
-        }
-      }
-      break;
-      case AddressingMode_BasedIndexed:
-      {
-        if (instruction->address_size == AddressSize_16)
-        {
-          mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.base.reg16)]);
-          add(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.index.reg16)]);
-          movzx(READDR32, READDR16);
-        }
-        else
-        {
-          mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.base.reg32)]);
-          add(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.index.reg32)]);
-        }
-      }
-      break;
-      case AddressingMode_BasedIndexedDisplacement:
-      {
-        if (instruction->address_size == AddressSize_16)
-        {
-          mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.base.reg16)]);
-          add(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.index.reg16)]);
-          if (operand->based_indexed_displacement.displacement != 0)
-            add(READDR16, uint32(operand->based_indexed_displacement.displacement));
-          movzx(READDR32, READDR16);
-        }
-        else
-        {
-          mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.base.reg32)]);
-          add(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.index.reg32)]);
-          if (operand->based_indexed_displacement.displacement != 0)
-            add(READDR32, uint32(operand->based_indexed_displacement.displacement));
-        }
-      }
-      break;
-      case AddressingMode_SIB:
-      {
-        Assert(instruction->address_size == AddressSize_32);
-        if (operand->sib.index.reg32 != Reg32_Count)
-        {
-          // This one is implemented in reverse, but should evaluate to the same results. This way we don't need a
-          // temporary.
-          mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->sib.index.reg32)]);
-          shl(READDR32, operand->sib.scale_shift);
-          if (operand->sib.base.reg32 != Reg32_Count)
-            add(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->sib.base.reg32)]);
-          if (operand->sib.displacement != 0)
-            add(READDR32, uint32(operand->sib.displacement));
-        }
-        else if (operand->sib.base.reg32 != Reg32_Count)
-        {
-          // No index.
-          mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->sib.base.reg32)]);
-          if (operand->sib.displacement != 0)
-            add(READDR32, uint32(operand->sib.displacement));
-        }
-        else
-        {
-          // No base.
-          if (operand->sib.displacement == 0)
-            xor(READDR32, READDR32);
-          else
-            mov(READDR32, uint32(operand->sib.displacement));
-        }
-      }
-      break;
-    }
-  }
-}
-
-bool JitX64CodeGenerator::IsConstantOperand(const OldInstruction* instruction, size_t index)
-{
-  const OldInstruction::Operand* operand = &instruction->operands[index];
-  return (operand->mode == AddressingMode_Immediate);
-}
-
-uint32 JitX64CodeGenerator::GetConstantOperand(const OldInstruction* instruction, size_t index, bool sign_extend)
-{
-  const OldInstruction::Operand* operand = &instruction->operands[index];
-  DebugAssert(operand->mode == AddressingMode_Immediate);
-
-  switch (operand->size)
-  {
-    case OperandSize_8:
-      return sign_extend ? SignExtend32(operand->immediate.value8) : ZeroExtend32(operand->immediate.value8);
-      break;
-    case OperandSize_16:
-      return sign_extend ? SignExtend32(operand->immediate.value16) : ZeroExtend32(operand->immediate.value16);
-    default:
-      return operand->immediate.value32;
-  }
-}
-
-static uint8 ReadMemoryByteTrampoline(CPU* cpu, uint32 segment, uint32 offset)
-{
-  return cpu->ReadMemoryByte(static_cast<Segment>(segment), offset);
-}
-
-static uint16 ReadMemoryWordTrampoline(CPU* cpu, uint32 segment, uint32 offset)
-{
-  return cpu->ReadMemoryWord(static_cast<Segment>(segment), offset);
-}
-
-static uint32 ReadMemoryDWordTrampoline(CPU* cpu, uint32 segment, uint32 offset)
-{
-  return cpu->ReadMemoryDWord(static_cast<Segment>(segment), offset);
-}
-
-static void WriteMemoryByteTrampoline(CPU* cpu, uint32 segment, uint32 offset, uint8 value)
-{
-  cpu->WriteMemoryByte(static_cast<Segment>(segment), offset, value);
-}
-
-static void WriteMemoryWordTrampoline(CPU* cpu, uint32 segment, uint32 offset, uint16 value)
-{
-  cpu->WriteMemoryWord(static_cast<Segment>(segment), offset, value);
-}
-
-static void WriteMemoryDWordTrampoline(CPU* cpu, uint32 segment, uint32 offset, uint32 value)
-{
-  cpu->WriteMemoryDWord(static_cast<Segment>(segment), offset, value);
-}
-
-void JitX64CodeGenerator::ReadOperand(const OldInstruction* instruction, size_t index, const Xbyak::Reg& dest,
-                                      bool sign_extend)
-{
-  const OldInstruction::Operand* operand = &instruction->operands[index];
-  OperandSize output_size;
-  if (dest.isBit(8))
-    output_size = OperandSize_8;
-  else if (dest.isBit(16))
-    output_size = OperandSize_16;
-  else
-    output_size = OperandSize_32;
-
-  switch (operand->mode)
-  {
-    case AddressingMode_Immediate:
-    {
-      switch (output_size)
-      {
-        case OperandSize_8:
-          mov(dest, ZeroExtend32(operand->immediate.value8));
-          break;
-        case OperandSize_16:
-        {
-          switch (operand->size)
-          {
-            case OperandSize_8:
-              mov(dest,
-                  sign_extend ? SignExtend32(operand->immediate.value8) : ZeroExtend32(operand->immediate.value8));
-              break;
-            default:
-              mov(dest, ZeroExtend32(operand->immediate.value16));
-              break;
-          }
-        }
-        break;
-        case OperandSize_32:
-        {
-          switch (operand->size)
-          {
-            case OperandSize_8:
-              mov(dest,
-                  sign_extend ? SignExtend32(operand->immediate.value8) : ZeroExtend32(operand->immediate.value8));
-              break;
-            case OperandSize_16:
-              mov(dest,
-                  sign_extend ? SignExtend32(operand->immediate.value16) : ZeroExtend32(operand->immediate.value16));
-              break;
-            default:
-              mov(dest, ZeroExtend32(operand->immediate.value32));
-              break;
-          }
-        }
-        break;
-      }
-    }
-    break;
-
-    case AddressingMode_Register:
-    {
-      switch (output_size)
-      {
-        case OperandSize_8:
-          mov(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-          break;
-
-        case OperandSize_16:
-        {
-          switch (operand->size)
-          {
-            case OperandSize_8:
-            {
-              if (sign_extend)
-                movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-              else
-                movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-            }
-            break;
-            case OperandSize_16:
-            case OperandSize_32:
-              mov(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-              break;
-          }
-        }
-        break;
-
-        case OperandSize_32:
-        {
-          switch (operand->size)
-          {
-            case OperandSize_8:
-            {
-              if (sign_extend)
-                movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-              else
-                movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-            }
-            break;
-            case OperandSize_16:
-            {
-              if (sign_extend)
-                movsx(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-              else
-                movzx(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-            }
-            break;
-            case OperandSize_32:
-              mov(dest, dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)]);
-              break;
-          }
-        }
-        break;
-      }
-    }
-    break;
-
-    case AddressingMode_SegmentRegister:
-    {
-      switch (output_size)
-      {
-        case OperandSize_16:
-          mov(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
-          break;
-        case OperandSize_32:
-          // Segment registers are sign-extended on push/pop.
-          movsx(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
-          break;
-      }
-    }
-    break;
-
-    case AddressingMode_Direct:
-    case AddressingMode_RegisterIndirect:
-    case AddressingMode_Indexed:
-    case AddressingMode_BasedIndexed:
-    case AddressingMode_BasedIndexedDisplacement:
-    case AddressingMode_SIB:
-    {
-      mov(RPARAM1_64, RCPUPTR);
-      mov(RPARAM2_32, uint32(instruction->segment));
-      if (operand->mode == AddressingMode_Direct)
-        mov(RPARAM3_32, operand->direct.address);
-      else
-        mov(RPARAM3_32, READDR32);
-
-      switch (operand->size)
-      {
-        case OperandSize_8:
-          CallModuleFunction(ReadMemoryByteTrampoline);
-          break;
-        case OperandSize_16:
-          CallModuleFunction(ReadMemoryWordTrampoline);
-          break;
-        case OperandSize_32:
-          CallModuleFunction(ReadMemoryDWordTrampoline);
-          break;
-      }
-
-      switch (output_size)
-      {
-        case OperandSize_8:
-          mov(dest, RRET_8);
-          break;
-        case OperandSize_16:
-        {
-          switch (operand->size)
-          {
-            case OperandSize_8:
-            {
-              if (sign_extend)
-                movsx(dest, RRET_8);
-              else
-                movzx(dest, RRET_8);
-            }
-            break;
-            case OperandSize_16:
-            case OperandSize_32:
-              mov(dest, RRET_16);
-              break;
-          }
-        }
-        break;
-        case OperandSize_32:
-        {
-          switch (operand->size)
-          {
-            case OperandSize_8:
-            {
-              if (sign_extend)
-                movsx(dest, RRET_8);
-              else
-                movzx(dest, RRET_8);
-            }
-            break;
-            case OperandSize_16:
-            {
-              if (sign_extend)
-                movsx(dest, RRET_16);
-              else
-                movzx(dest, RRET_16);
-            }
-            break;
-            case OperandSize_32:
-              mov(dest, RRET_32);
-              break;
-          }
-        }
-        break;
-      }
-    }
-    break;
-
-    default:
-      Panic("Unhandled address mode");
-      break;
-  }
-}
-
-void JitX64CodeGenerator::WriteOperand(const OldInstruction* instruction, size_t index, const Xbyak::Reg& src)
-{
-  const OldInstruction::Operand* operand = &instruction->operands[index];
-  switch (operand->mode)
-  {
-    case AddressingMode_Register:
-    {
-      switch (operand->size)
-      {
-        case OperandSize_8:
-          mov(byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)], src);
-          break;
-        case OperandSize_16:
-          mov(word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)], src);
-          break;
-        case OperandSize_32:
-          mov(dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)], src);
-          break;
-      }
-    }
-    break;
-
-    case AddressingMode_SegmentRegister:
-    {
-      // Truncate higher lengths to 16-bits.
-      mov(RPARAM1_64, RCPUPTR);
-      mov(RPARAM2_32, uint32(instruction->operands[0].reg.sreg));
-      movzx(RPARAM3_32, (src.isBit(16)) ? src : src.changeBit(16));
-      CallModuleFunction(LoadSegmentRegisterTrampoline);
-    }
-    break;
-
-    case AddressingMode_Direct:
-    case AddressingMode_RegisterIndirect:
-    case AddressingMode_Indexed:
-    case AddressingMode_BasedIndexed:
-    case AddressingMode_BasedIndexedDisplacement:
-    case AddressingMode_SIB:
-    {
-      mov(RPARAM1_64, RCPUPTR);
-      mov(RPARAM2_32, uint32(instruction->segment));
-      if (operand->mode == AddressingMode_Direct)
-        mov(RPARAM3_32, operand->direct.address);
-      else
-        mov(RPARAM3_32, READDR32);
-
-      switch (operand->size)
-      {
-        case OperandSize_8:
-          movzx(RPARAM4_32, src);
-          CallModuleFunction(WriteMemoryByteTrampoline);
-          break;
-        case OperandSize_16:
-          movzx(RPARAM4_32, src);
-          CallModuleFunction(WriteMemoryWordTrampoline);
-          break;
-        case OperandSize_32:
-          mov(RPARAM4_32, src);
-          CallModuleFunction(WriteMemoryDWordTrampoline);
-          break;
-      }
-    }
-    break;
-
-    default:
-      Panic("Unhandled address mode");
-      break;
-  }
-}
-
-void JitX64CodeGenerator::ReadFarAddressOperand(const OldInstruction* instruction, size_t index,
-                                                const Xbyak::Reg& dest_segment, const Xbyak::Reg& dest_offset)
-{
-  const OldInstruction::Operand* operand = &instruction->operands[index];
-  if (operand->mode == AddressingMode_FarAddress)
-  {
-    mov(dest_segment, ZeroExtend32(operand->far_address.segment_selector));
-    mov(dest_offset, operand->far_address.address);
-    return;
-  }
-
-  // TODO: Should READDR32+2 wrap at FFFF?
-  if (instruction->operand_size == OperandSize_16)
-  {
-    mov(RPARAM1_64, RCPUPTR);
-    mov(RPARAM2_32, uint32(instruction->segment));
-    if (operand->mode == AddressingMode_Direct)
-      mov(RPARAM3_32, operand->direct.address);
-    else
-      mov(RPARAM3_32, READDR32);
-    CallModuleFunction(ReadMemoryWordTrampoline);
-    movzx(dest_offset, RRET_16);
-
-    mov(RPARAM1_64, RCPUPTR);
-    mov(RPARAM2_32, uint32(instruction->segment));
-    if (operand->mode == AddressingMode_Direct)
-      mov(RPARAM3_32, operand->direct.address + 2);
-    else
-      lea(RPARAM3_32, word[READDR32 + 2]);
-    CallModuleFunction(ReadMemoryWordTrampoline);
-    mov(dest_segment, RRET_16);
-  }
-  else
-  {
-    mov(RPARAM1_64, RCPUPTR);
-    mov(RPARAM2_32, uint32(instruction->segment));
-    if (operand->mode == AddressingMode_Direct)
-      mov(RPARAM3_32, operand->direct.address);
-    else
-      mov(RPARAM3_32, READDR32);
-    CallModuleFunction(ReadMemoryDWordTrampoline);
-    mov(dest_offset, RRET_32);
-
-    mov(RPARAM1_64, RCPUPTR);
-    mov(RPARAM2_32, uint32(instruction->segment));
-    if (operand->mode == AddressingMode_Direct)
-      mov(RPARAM3_32, operand->direct.address + 4);
-    else
-      lea(RPARAM3_32, dword[READDR32 + 4]);
-    CallModuleFunction(ReadMemoryWordTrampoline);
-    mov(dest_segment, RRET_16);
-  }
-}
-
-void JitX64CodeGenerator::UpdateFlags(uint32 clear_mask, uint32 set_mask, uint32 host_mask)
-{
-  // Shouldn't be clearing/setting any bits we're also getting from the host.
-  DebugAssert((host_mask & clear_mask) == 0 && (host_mask & set_mask) == 0);
-
-  // Clear the bits from the host too, since we set them later.
-  clear_mask |= host_mask;
-
-  // We need to grab the flags from the host first, before we do anything that'll lose the contents.
-  // TODO: Check cpuid for LAHF support
-  uint32 supported_flags = Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF;
-  bool uses_high_flags = ((host_mask & ~supported_flags) != 0);
-  bool use_eflags = ((host_mask & UINT32_C(0xFFFF0000)) != 0);
-  bool use_lahf = !uses_high_flags;
-  if (host_mask != 0)
-  {
-    if (use_lahf)
-    {
-      // Fast path via LAHF
-      lahf();
-    }
-    else
-    {
-      pushf();
-      pop(rax);
-    }
-  }
-
-  // Clear bits.
-  if (clear_mask != 0)
-  {
-    if ((clear_mask & UINT32_C(0xFFFF0000)) != 0)
-      and(dword[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], ~clear_mask);
-    else
-      and(word[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], ~Truncate16(clear_mask));
-  }
-
-  // Set bits.
-  if (set_mask != 0)
-  {
-    if ((set_mask & UINT32_C(0xFFFF0000)) != 0)
-      or (dword[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], set_mask);
-    else
-      or (word[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], Truncate16(set_mask));
-  }
-
-  // Copy bits from host (cached in eax/ax/ah).
-  if (host_mask != 0)
-  {
-    if (use_lahf)
-    {
-      and(ah, Truncate8(host_mask));
-      or (byte[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], ah);
-    }
-    else if (use_eflags)
-    {
-      and(eax, host_mask);
-      or (dword[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], eax);
-    }
-    else
-    {
-      and(ax, Truncate16(host_mask));
-      or (word[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], ax);
-    }
-  }
-}
-
-inline bool OperandIsESP(const OldInstruction::Operand& operand)
+bool RecompilerTranslator::OperandIsESP(const Instruction::Operand& operand)
 {
   // If any instructions manipulate ESP, we need to update the shadow variable for the next instruction.
-  return operand.size > OperandSize_8 && operand.mode == AddressingMode_Register && operand.reg.reg32 == Reg32_ESP;
+  return operand.size > OperandSize_8 && operand.mode == AddressingMode_Register && operand.reg32 == Reg32_ESP;
 }
 
-inline bool CanInstructionFault(const OldInstruction* instruction)
+bool RecompilerTranslator::CanInstructionFault(const Instruction* instruction)
 {
   switch (instruction->operation)
   {
@@ -869,141 +177,761 @@ inline bool CanInstructionFault(const OldInstruction* instruction)
   }
 }
 
-void JitX64CodeGenerator::SyncInstructionPointers(const OldInstruction* next_instruction)
+uint32 RecompilerTranslator::CalculateRegisterOffset(Reg8 reg)
 {
-  if (next_instruction->address_size == AddressSize_16)
+  // Ugly but necessary due to the structure layout.
+  switch (reg)
   {
-    if (m_delayed_eip_add > 1)
-    {
-      add(word[RCPUPTR + offsetof(CPU, m_registers.EIP)], m_delayed_eip_add);
-      add(word[RCPUPTR + offsetof(CPU, m_current_EIP)], m_delayed_eip_add);
-    }
-    else if (m_delayed_eip_add == 1)
-    {
-      inc(word[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
-      inc(word[RCPUPTR + offsetof(CPU, m_current_EIP)]);
-    }
+    case Reg8_AL:
+      return offsetof(CPU, m_registers.AL);
+    case Reg8_CL:
+      return offsetof(CPU, m_registers.CL);
+    case Reg8_DL:
+      return offsetof(CPU, m_registers.DL);
+    case Reg8_BL:
+      return offsetof(CPU, m_registers.BL);
+    case Reg8_AH:
+      return offsetof(CPU, m_registers.AH);
+    case Reg8_CH:
+      return offsetof(CPU, m_registers.CH);
+    case Reg8_DH:
+      return offsetof(CPU, m_registers.DH);
+    case Reg8_BH:
+      return offsetof(CPU, m_registers.BH);
+    default:
+      DebugUnreachableCode();
+      return 0;
   }
-  else
-  {
-    if (m_delayed_eip_add > 1)
-    {
-      add(dword[RCPUPTR + offsetof(CPU, m_registers.EIP)], m_delayed_eip_add);
-      add(dword[RCPUPTR + offsetof(CPU, m_current_EIP)], m_delayed_eip_add);
-    }
-    else if (m_delayed_eip_add == 1)
-    {
-      inc(dword[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
-      inc(dword[RCPUPTR + offsetof(CPU, m_current_EIP)]);
-    }
-  }
-  m_delayed_eip_add = 0;
-
-  if (m_delayed_cycles_add > 1)
-    add(qword[RCPUPTR + offsetof(CPU, m_pending_cycles)], m_delayed_cycles_add);
-  else if (m_delayed_cycles_add == 1)
-    inc(qword[RCPUPTR + offsetof(CPU, m_pending_cycles)]);
-  m_delayed_cycles_add = 0;
 }
 
-void JitX64CodeGenerator::StartInstruction(const OldInstruction* instruction)
+uint32 RecompilerTranslator::CalculateRegisterOffset(Reg16 reg)
 {
-#ifndef Y_BUILD_CONFIG_RELEASE
-  nop();
-#endif
+  // Ugly but necessary due to the structure layout.
+  switch (reg)
+  {
+    case Reg16_AX:
+      return offsetof(CPU, m_registers.AX);
+    case Reg16_CX:
+      return offsetof(CPU, m_registers.CX);
+    case Reg16_DX:
+      return offsetof(CPU, m_registers.DX);
+    case Reg16_BX:
+      return offsetof(CPU, m_registers.BX);
+    case Reg16_SP:
+      return offsetof(CPU, m_registers.SP);
+    case Reg16_BP:
+      return offsetof(CPU, m_registers.BP);
+    case Reg16_SI:
+      return offsetof(CPU, m_registers.SI);
+    case Reg16_DI:
+      return offsetof(CPU, m_registers.DI);
+    default:
+      DebugUnreachableCode();
+      return 0;
+  }
+}
 
-  if (!CanInstructionFault(instruction))
+uint32 RecompilerTranslator::CalculateRegisterOffset(Reg32 reg)
+{
+  return uint32(offsetof(CPU, m_registers.reg32[0]) + (reg * sizeof(uint32)));
+}
+
+uint32 RecompilerTranslator::CalculateSegmentRegisterOffset(Segment segment)
+{
+  return uint32(offsetof(CPU, m_registers.segment_selectors[0]) + (segment * sizeof(uint16)));
+}
+
+llvm::Value* RecompilerTranslator::ReadRegister(Reg8 reg)
+{
+  return nullptr;
+}
+
+llvm::Value* RecompilerTranslator::ReadRegister(Reg16 reg)
+{
+  return nullptr;
+}
+
+llvm::Value* RecompilerTranslator::ReadRegister(Reg32 reg)
+{
+  return nullptr;
+}
+
+void RecompilerTranslator::WriteRegister(Reg8 reg, llvm::Value* value) {}
+
+void RecompilerTranslator::WriteRegister(Reg16 reg, llvm::Value* value) {}
+
+void RecompilerTranslator::WriteRegister(Reg32 reg, llvm::Value* value) {}
+
+// llvm::Value* RecompilerTranslator::CalculateEffectiveAddress(const Instruction* instruction)
+// {
+//   for (size_t i = 0; i < countof(instruction->operands); i++)
+//   {
+//     const Instruction::Operand* operand = &instruction->operands[i];
+//     switch (operand->mode)
+//     {
+//       case AddressingMode_RegisterIndirect:
+//       {
+//         if (instruction->address_size == AddressSize_16)
+//           movzx(READDR32, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
+//         else
+//           mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)]);
+//       }
+//       break;
+//       case AddressingMode_Indexed:
+//       {
+//         if (instruction->address_size == AddressSize_16)
+//         {
+//           mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->indexed.reg.reg16)]);
+//           if (operand->indexed.displacement != 0)
+//             add(READDR16, uint32(operand->indexed.displacement));
+//           movzx(READDR32, READDR16);
+//         }
+//         else
+//         {
+//           mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->indexed.reg.reg32)]);
+//           if (operand->indexed.displacement != 0)
+//             add(READDR32, uint32(operand->indexed.displacement));
+//         }
+//       }
+//       break;
+//       case AddressingMode_BasedIndexed:
+//       {
+//         if (instruction->address_size == AddressSize_16)
+//         {
+//           mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.base.reg16)]);
+//           add(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.index.reg16)]);
+//           movzx(READDR32, READDR16);
+//         }
+//         else
+//         {
+//           mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.base.reg32)]);
+//           add(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.index.reg32)]);
+//         }
+//       }
+//       break;
+//       case AddressingMode_BasedIndexedDisplacement:
+//       {
+//         if (instruction->address_size == AddressSize_16)
+//         {
+//           mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.base.reg16)]);
+//           add(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.index.reg16)]);
+//           if (operand->based_indexed_displacement.displacement != 0)
+//             add(READDR16, uint32(operand->based_indexed_displacement.displacement));
+//           movzx(READDR32, READDR16);
+//         }
+//         else
+//         {
+//           mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.base.reg32)]);
+//           add(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.index.reg32)]);
+//           if (operand->based_indexed_displacement.displacement != 0)
+//             add(READDR32, uint32(operand->based_indexed_displacement.displacement));
+//         }
+//       }
+//       break;
+//       case AddressingMode_SIB:
+//       {
+//         Assert(instruction->address_size == AddressSize_32);
+//         if (operand->sib.index.reg32 != Reg32_Count)
+//         {
+//           // This one is implemented in reverse, but should evaluate to the same results. This way we don't need a
+//           // temporary.
+//           mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->sib.index.reg32)]);
+//           shl(READDR32, operand->sib.scale_shift);
+//           if (operand->sib.base.reg32 != Reg32_Count)
+//             add(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->sib.base.reg32)]);
+//           if (operand->sib.displacement != 0)
+//             add(READDR32, uint32(operand->sib.displacement));
+//         }
+//         else if (operand->sib.base.reg32 != Reg32_Count)
+//         {
+//           // No index.
+//           mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->sib.base.reg32)]);
+//           if (operand->sib.displacement != 0)
+//             add(READDR32, uint32(operand->sib.displacement));
+//         }
+//         else
+//         {
+//           // No base.
+//           if (operand->sib.displacement == 0)
+//             xor(READDR32, READDR32);
+//           else
+//             mov(READDR32, uint32(operand->sib.displacement));
+//         }
+//       }
+//       break;
+//     }
+//   }
+// }
+
+bool RecompilerTranslator::IsConstantOperand(const Instruction* instruction, size_t index)
+{
+  const Instruction::Operand* operand = &instruction->operands[index];
+  return (operand->mode == AddressingMode_Immediate);
+}
+
+llvm::Constant* RecompilerTranslator::GetConstantOperand(const Instruction* instruction, size_t index, bool sign_extend)
+{
+  const Instruction::Operand* operand = &instruction->operands[index];
+  DebugAssert(operand->mode == AddressingMode_Immediate);
+
+  switch (operand->size)
+  {
+    case OperandSize_8:
+      return m_builder.getInt32(sign_extend ? SignExtend32(Truncate8(operand->constant)) :
+                                              ZeroExtend32(Truncate8(operand->constant)));
+    case OperandSize_16:
+      return m_builder.getInt32(sign_extend ? SignExtend32(Truncate16(operand->constant)) :
+                                              ZeroExtend32(Truncate16(operand->constant)));
+    default:
+      return m_builder.getInt32(operand->constant);
+  }
+}
+
+// llvm::Value* RecompilerTranslator::ReadOperand(const Instruction* instruction, size_t index, OperandSize size, bool
+// sign_extend)
+// {
+//   const Instruction::Operand* operand = &instruction->operands[index];
+//   switch (operand->mode)
+//   {
+//     case AddressingMode_Immediate:
+//     {
+//       switch (size)
+//       {
+//         case OperandSize_8:
+//           return llvm::ConstantInt::get(m_backend->GetLLVMUInt8Type(), ZeroExtend64(Truncate8(operand->constant)));
+//
+//         case OperandSize_16:
+//         {
+//           switch (operand->size)
+//           {
+//             case OperandSize_8:
+//               return llvm::ConstantInt::get(m_backend->GetLLVMUInt16Type(), ZeroExtend64(sign_extend ?
+//               SignExtend16(Truncate8(operand->constant)) : ZeroExtend16(Truncate8(operand->constant))));
+//             default:
+//               return llvm::ConstantInt::get(m_backend->GetLLVMUInt16Type(), ZeroExtend64(sign_extend ?
+//               SignExtend16(Truncate8(operand->constant)) : ZeroExtend16(operand->constant))); mov(dest,
+//               ZeroExtend32(operand->immediate.value16)); break;
+//           }
+//         }
+//         break;
+//         case OperandSize_32:
+//         {
+//           switch (operand->size)
+//           {
+//             case OperandSize_8:
+//               mov(dest,
+//                   sign_extend ? SignExtend32(operand->immediate.value8) : ZeroExtend32(operand->immediate.value8));
+//               break;
+//             case OperandSize_16:
+//               mov(dest,
+//                   sign_extend ? SignExtend32(operand->immediate.value16) : ZeroExtend32(operand->immediate.value16));
+//               break;
+//             default:
+//               mov(dest, ZeroExtend32(operand->immediate.value32));
+//               break;
+//           }
+//         }
+//         break;
+//       }
+//     }
+//     break;
+//
+//     case AddressingMode_Register:
+//     {
+//       switch (output_size)
+//       {
+//         case OperandSize_8:
+//           mov(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
+//           break;
+//
+//         case OperandSize_16:
+//         {
+//           switch (operand->size)
+//           {
+//             case OperandSize_8:
+//             {
+//               if (sign_extend)
+//                 movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
+//               else
+//                 movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
+//             }
+//             break;
+//             case OperandSize_16:
+//             case OperandSize_32:
+//               mov(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
+//               break;
+//           }
+//         }
+//         break;
+//
+//         case OperandSize_32:
+//         {
+//           switch (operand->size)
+//           {
+//             case OperandSize_8:
+//             {
+//               if (sign_extend)
+//                 movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
+//               else
+//                 movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
+//             }
+//             break;
+//             case OperandSize_16:
+//             {
+//               if (sign_extend)
+//                 movsx(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
+//               else
+//                 movzx(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
+//             }
+//             break;
+//             case OperandSize_32:
+//               mov(dest, dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)]);
+//               break;
+//           }
+//         }
+//         break;
+//       }
+//     }
+//     break;
+//
+//     case AddressingMode_SegmentRegister:
+//     {
+//       switch (output_size)
+//       {
+//         case OperandSize_16:
+//           mov(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
+//           break;
+//         case OperandSize_32:
+//           // Segment registers are sign-extended on push/pop.
+//           movsx(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
+//           break;
+//       }
+//     }
+//     break;
+//
+//     case AddressingMode_Direct:
+//     case AddressingMode_RegisterIndirect:
+//     case AddressingMode_Indexed:
+//     case AddressingMode_BasedIndexed:
+//     case AddressingMode_BasedIndexedDisplacement:
+//     case AddressingMode_SIB:
+//     {
+//       mov(RPARAM1_64, RCPUPTR);
+//       mov(RPARAM2_32, uint32(instruction->segment));
+//       if (operand->mode == AddressingMode_Direct)
+//         mov(RPARAM3_32, operand->direct.address);
+//       else
+//         mov(RPARAM3_32, READDR32);
+//
+//       switch (operand->size)
+//       {
+//         case OperandSize_8:
+//           CallModuleFunction(ReadMemoryByteTrampoline);
+//           break;
+//         case OperandSize_16:
+//           CallModuleFunction(ReadMemoryWordTrampoline);
+//           break;
+//         case OperandSize_32:
+//           CallModuleFunction(ReadMemoryDWordTrampoline);
+//           break;
+//       }
+//
+//       switch (output_size)
+//       {
+//         case OperandSize_8:
+//           mov(dest, RRET_8);
+//           break;
+//         case OperandSize_16:
+//         {
+//           switch (operand->size)
+//           {
+//             case OperandSize_8:
+//             {
+//               if (sign_extend)
+//                 movsx(dest, RRET_8);
+//               else
+//                 movzx(dest, RRET_8);
+//             }
+//             break;
+//             case OperandSize_16:
+//             case OperandSize_32:
+//               mov(dest, RRET_16);
+//               break;
+//           }
+//         }
+//         break;
+//         case OperandSize_32:
+//         {
+//           switch (operand->size)
+//           {
+//             case OperandSize_8:
+//             {
+//               if (sign_extend)
+//                 movsx(dest, RRET_8);
+//               else
+//                 movzx(dest, RRET_8);
+//             }
+//             break;
+//             case OperandSize_16:
+//             {
+//               if (sign_extend)
+//                 movsx(dest, RRET_16);
+//               else
+//                 movzx(dest, RRET_16);
+//             }
+//             break;
+//             case OperandSize_32:
+//               mov(dest, RRET_32);
+//               break;
+//           }
+//         }
+//         break;
+//       }
+//     }
+//     break;
+//
+//     default:
+//       Panic("Unhandled address mode");
+//       break;
+//   }
+// }
+//
+// void RecompilerTranslator::WriteOperand(const OldInstruction* instruction, size_t index, const Xbyak::Reg& src)
+// {
+//   const OldInstruction::Operand* operand = &instruction->operands[index];
+//   switch (operand->mode)
+//   {
+//     case AddressingMode_Register:
+//     {
+//       switch (operand->size)
+//       {
+//         case OperandSize_8:
+//           mov(byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)], src);
+//           break;
+//         case OperandSize_16:
+//           mov(word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)], src);
+//           break;
+//         case OperandSize_32:
+//           mov(dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)], src);
+//           break;
+//       }
+//     }
+//     break;
+//
+//     case AddressingMode_SegmentRegister:
+//     {
+//       // Truncate higher lengths to 16-bits.
+//       mov(RPARAM1_64, RCPUPTR);
+//       mov(RPARAM2_32, uint32(instruction->operands[0].reg.sreg));
+//       movzx(RPARAM3_32, (src.isBit(16)) ? src : src.changeBit(16));
+//       CallModuleFunction(LoadSegmentRegisterTrampoline);
+//     }
+//     break;
+//
+//     case AddressingMode_Direct:
+//     case AddressingMode_RegisterIndirect:
+//     case AddressingMode_Indexed:
+//     case AddressingMode_BasedIndexed:
+//     case AddressingMode_BasedIndexedDisplacement:
+//     case AddressingMode_SIB:
+//     {
+//       mov(RPARAM1_64, RCPUPTR);
+//       mov(RPARAM2_32, uint32(instruction->segment));
+//       if (operand->mode == AddressingMode_Direct)
+//         mov(RPARAM3_32, operand->direct.address);
+//       else
+//         mov(RPARAM3_32, READDR32);
+//
+//       switch (operand->size)
+//       {
+//         case OperandSize_8:
+//           movzx(RPARAM4_32, src);
+//           CallModuleFunction(WriteMemoryByteTrampoline);
+//           break;
+//         case OperandSize_16:
+//           movzx(RPARAM4_32, src);
+//           CallModuleFunction(WriteMemoryWordTrampoline);
+//           break;
+//         case OperandSize_32:
+//           mov(RPARAM4_32, src);
+//           CallModuleFunction(WriteMemoryDWordTrampoline);
+//           break;
+//       }
+//     }
+//     break;
+//
+//     default:
+//       Panic("Unhandled address mode");
+//       break;
+//   }
+// }
+//
+// void RecompilerTranslator::ReadFarAddressOperand(const OldInstruction* instruction, size_t index,
+//                                                 const Xbyak::Reg& dest_segment, const Xbyak::Reg& dest_offset)
+// {
+//   const OldInstruction::Operand* operand = &instruction->operands[index];
+//   if (operand->mode == AddressingMode_FarAddress)
+//   {
+//     mov(dest_segment, ZeroExtend32(operand->far_address.segment_selector));
+//     mov(dest_offset, operand->far_address.address);
+//     return;
+//   }
+//
+//   // TODO: Should READDR32+2 wrap at FFFF?
+//   if (instruction->operand_size == OperandSize_16)
+//   {
+//     mov(RPARAM1_64, RCPUPTR);
+//     mov(RPARAM2_32, uint32(instruction->segment));
+//     if (operand->mode == AddressingMode_Direct)
+//       mov(RPARAM3_32, operand->direct.address);
+//     else
+//       mov(RPARAM3_32, READDR32);
+//     CallModuleFunction(ReadMemoryWordTrampoline);
+//     movzx(dest_offset, RRET_16);
+//
+//     mov(RPARAM1_64, RCPUPTR);
+//     mov(RPARAM2_32, uint32(instruction->segment));
+//     if (operand->mode == AddressingMode_Direct)
+//       mov(RPARAM3_32, operand->direct.address + 2);
+//     else
+//       lea(RPARAM3_32, word[READDR32 + 2]);
+//     CallModuleFunction(ReadMemoryWordTrampoline);
+//     mov(dest_segment, RRET_16);
+//   }
+//   else
+//   {
+//     mov(RPARAM1_64, RCPUPTR);
+//     mov(RPARAM2_32, uint32(instruction->segment));
+//     if (operand->mode == AddressingMode_Direct)
+//       mov(RPARAM3_32, operand->direct.address);
+//     else
+//       mov(RPARAM3_32, READDR32);
+//     CallModuleFunction(ReadMemoryDWordTrampoline);
+//     mov(dest_offset, RRET_32);
+//
+//     mov(RPARAM1_64, RCPUPTR);
+//     mov(RPARAM2_32, uint32(instruction->segment));
+//     if (operand->mode == AddressingMode_Direct)
+//       mov(RPARAM3_32, operand->direct.address + 4);
+//     else
+//       lea(RPARAM3_32, dword[READDR32 + 4]);
+//     CallModuleFunction(ReadMemoryWordTrampoline);
+//     mov(dest_segment, RRET_16);
+//   }
+// }
+//
+// void RecompilerTranslator::UpdateFlags(uint32 clear_mask, uint32 set_mask, uint32 host_mask)
+// {
+//   // Shouldn't be clearing/setting any bits we're also getting from the host.
+//   DebugAssert((host_mask & clear_mask) == 0 && (host_mask & set_mask) == 0);
+//
+//   // Clear the bits from the host too, since we set them later.
+//   clear_mask |= host_mask;
+//
+//   // We need to grab the flags from the host first, before we do anything that'll lose the contents.
+//   // TODO: Check cpuid for LAHF support
+//   uint32 supported_flags = Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF;
+//   bool uses_high_flags = ((host_mask & ~supported_flags) != 0);
+//   bool use_eflags = ((host_mask & UINT32_C(0xFFFF0000)) != 0);
+//   bool use_lahf = !uses_high_flags;
+//   if (host_mask != 0)
+//   {
+//     if (use_lahf)
+//     {
+//       // Fast path via LAHF
+//       lahf();
+//     }
+//     else
+//     {
+//       pushf();
+//       pop(rax);
+//     }
+//   }
+//
+//   // Clear bits.
+//   if (clear_mask != 0)
+//   {
+//     if ((clear_mask & UINT32_C(0xFFFF0000)) != 0)
+//       and(dword[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], ~clear_mask);
+//     else
+//       and(word[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], ~Truncate16(clear_mask));
+//   }
+//
+//   // Set bits.
+//   if (set_mask != 0)
+//   {
+//     if ((set_mask & UINT32_C(0xFFFF0000)) != 0)
+//       or (dword[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], set_mask);
+//     else
+//       or (word[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], Truncate16(set_mask));
+//   }
+//
+//   // Copy bits from host (cached in eax/ax/ah).
+//   if (host_mask != 0)
+//   {
+//     if (use_lahf)
+//     {
+//       and(ah, Truncate8(host_mask));
+//       or (byte[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], ah);
+//     }
+//     else if (use_eflags)
+//     {
+//       and(eax, host_mask);
+//       or (dword[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], eax);
+//     }
+//     else
+//     {
+//       and(ax, Truncate16(host_mask));
+//       or (word[RCPUPTR + offsetof(CPU, m_registers.EFLAGS.bits)], ax);
+//     }
+//   }
+// }
+
+void RecompilerTranslator::SyncInstructionPointers()
+{
+  //   if (!m_block->key.cs_size)
+  //   {
+  //     if (m_delayed_eip_add > 1)
+  //     {
+  //       add(word[RCPUPTR + offsetof(CPU, m_registers.EIP)], m_delayed_eip_add);
+  //       add(word[RCPUPTR + offsetof(CPU, m_current_EIP)], m_delayed_eip_add);
+  //     }
+  //     else if (m_delayed_eip_add == 1)
+  //     {
+  //       inc(word[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
+  //       inc(word[RCPUPTR + offsetof(CPU, m_current_EIP)]);
+  //     }
+  //   }
+  //   else
+  //   {
+  //     if (m_delayed_eip_add > 1)
+  //     {
+  //       add(dword[RCPUPTR + offsetof(CPU, m_registers.EIP)], m_delayed_eip_add);
+  //       add(dword[RCPUPTR + offsetof(CPU, m_current_EIP)], m_delayed_eip_add);
+  //     }
+  //     else if (m_delayed_eip_add == 1)
+  //     {
+  //       inc(dword[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
+  //       inc(dword[RCPUPTR + offsetof(CPU, m_current_EIP)]);
+  //     }
+  //   }
+  //   m_delayed_eip_add = 0;
+  //
+  //   if (m_delayed_cycles_add > 1)
+  //     add(qword[RCPUPTR + offsetof(CPU, m_pending_cycles)], m_delayed_cycles_add);
+  //   else if (m_delayed_cycles_add == 1)
+  //     inc(qword[RCPUPTR + offsetof(CPU, m_pending_cycles)]);
+  //   m_delayed_cycles_add = 0;
+}
+
+void RecompilerTranslator::StartInstruction(const Instruction* instruction)
+{
+  // REP instructions are always annoying.
+  if (instruction->IsRep())
+  {
+    TinyString rep_start_block_name(TinyString::FromFormat("rep_start_%08X", instruction->address));
+    TinyString rep_body_block_name(TinyString::FromFormat("rep_body_%08X", instruction->address));
+    TinyString rep_end_block_name(TinyString::FromFormat("rep_end_%08X", instruction->address));
+    llvm::BasicBlock* rep_start_block =
+      llvm::BasicBlock::Create(m_backend->GetLLVMContext(), rep_start_block_name.GetCharArray(), m_function);
+    llvm::BasicBlock* rep_body_block =
+      llvm::BasicBlock::Create(m_backend->GetLLVMContext(), rep_body_block_name.GetCharArray(), m_function);
+    llvm::BasicBlock* rep_end_block =
+      llvm::BasicBlock::Create(m_backend->GetLLVMContext(), rep_end_block_name.GetCharArray(), m_function);
+
+    // Jump unconditionally to the REP instruction.
+    SyncInstructionPointers();
+    m_builder.CreateBr(rep_start_block);
+    m_builder.SetInsertPoint(rep_start_block);
+
+    // Start of instruction - compare CX/ECX to zero.
+    llvm::Value* compare_res;
+    if (instruction->data.address_size == AddressSize_16)
+      compare_res = m_builder.CreateICmpEQ(ReadRegister(Reg16_CX), m_builder.getInt16(0));
+    else
+      compare_res = m_builder.CreateICmpEQ(ReadRegister(Reg32_ECX), m_builder.getInt32(0));
+    m_builder.CreateCondBr(compare_res, rep_end_block, rep_body_block);
+
+    // Switch to the body to generate the instruction code.
+    m_basic_block = rep_body_block;
+    m_rep_start_block = rep_start_block;
+    m_rep_end_block = rep_end_block;
+  }
+  else if (CanInstructionFault(instruction))
   {
     // Defer updates for non-faulting instructions.
-    m_delayed_eip_add += instruction->length;
-    m_delayed_cycles_add++;
-    return;
+    SyncInstructionPointers();
   }
 
-  // Update EIP to point to the next instruction.
-  uint32 inst_len = instruction->length + m_delayed_eip_add;
-  if (m_cpu->m_current_address_size == AddressSize_16)
-  {
-    // Add pending EndInstruction(), since we clear delayed_eip_add
-    if (m_delayed_eip_add > 1)
-      add(word[RCPUPTR + offsetof(CPU, m_current_EIP)], m_delayed_eip_add);
-    else if (m_delayed_eip_add == 1)
-      inc(word[RCPUPTR + offsetof(CPU, m_current_EIP)]);
-
-    if (inst_len > 1)
-      add(word[RCPUPTR + offsetof(CPU, m_registers.EIP)], inst_len);
-    else
-      inc(word[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
-  }
-  else
-  {
-    // Add pending EndInstruction(), since we clear delayed_eip_add
-    if (m_delayed_eip_add > 1)
-      add(dword[RCPUPTR + offsetof(CPU, m_current_EIP)], m_delayed_eip_add);
-    else if (m_delayed_eip_add == 1)
-      inc(dword[RCPUPTR + offsetof(CPU, m_current_EIP)]);
-
-    if (inst_len > 1)
-      add(dword[RCPUPTR + offsetof(CPU, m_registers.EIP)], inst_len);
-    else
-      inc(dword[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
-  }
-  m_delayed_eip_add = 0;
-
-  // Add pending cycles for this instruction.
-  uint32 cycles = m_delayed_cycles_add + 1;
-  if (cycles > 1)
-    add(qword[RCPUPTR + offsetof(CPU, m_pending_cycles)], cycles);
-  else
-    inc(qword[RCPUPTR + offsetof(CPU, m_pending_cycles)]);
-  m_delayed_cycles_add = 0;
+  m_delayed_eip_add += instruction->length;
+  m_delayed_cycles_add++;
 }
 
-void JitX64CodeGenerator::EndInstruction(const OldInstruction* instruction, bool update_eip, bool update_esp)
+void RecompilerTranslator::EndInstruction(const Instruction* instruction, bool update_eip, bool update_esp)
 {
-  if (CanInstructionFault(instruction))
+  if (instruction->IsRep())
   {
-    // Update EIP after instruction completes, ready for the next.
-    // This way it points to the next instruction while it's executing.
-    if (update_eip)
+    // Decrement CX/ECX.
+    if (instruction->data.address_size == AddressSize_16)
+      WriteRegister(Reg16_CX, m_builder.CreateSub(ReadRegister(Reg16_CX), m_builder.getInt16(1)));
+    else
+      WriteRegister(Reg32_ECX, m_builder.CreateSub(ReadRegister(Reg32_ECX), m_builder.getInt32(1)));
+
+    // TODO: Increment the cycles variable.
+
+    // Do we need to check the equals flag?
+    if (instruction->IsRepConditional())
     {
-      if (m_cpu->m_current_address_size == AddressSize_16)
-      {
-        if (instruction->length > 1)
-          add(word[RCPUPTR + offsetof(CPU, m_current_EIP)], instruction->length);
-        else
-          inc(word[RCPUPTR + offsetof(CPU, m_current_EIP)]);
-      }
-      else
-      {
-        if (instruction->length > 1)
-          add(dword[RCPUPTR + offsetof(CPU, m_current_EIP)], instruction->length);
-        else
-          inc(dword[RCPUPTR + offsetof(CPU, m_current_EIP)]);
-      }
+      // branch((EFLAGS & Flag_ZF) != 0, start_of_instruction, end_of_instruction)
+      llvm::Value* masked_flags =
+        m_builder.CreateAnd(ReadRegister(Reg32_EFLAGS), m_builder.getInt32(Flag_ZF), "masked_flags");
+      llvm::Value* flags_compare_zf =
+        m_builder.CreateICmp(instruction->IsRepEqual() ? llvm::CmpInst::ICMP_EQ : llvm::CmpInst::ICMP_NE, masked_flags,
+                             m_builder.getInt32(0), "flags_compare_zf");
+      m_builder.CreateCondBr(flags_compare_zf, m_rep_start_block, m_rep_end_block);
     }
+    else
+    {
+      m_builder.CreateBr(m_rep_start_block);
+    }
+
+    // Switch to the next instruction's block.
+    m_builder.SetInsertPoint(m_rep_end_block);
+    m_basic_block = m_rep_end_block;
+    m_rep_start_block = nullptr;
+    m_rep_end_block = nullptr;
   }
 
-  // If this instruction uses the stack, we need to update m_current_ESP for the next instruction.
-  if (update_esp)
-  {
-    mov(RTEMP32A, dword[RCPUPTR + offsetof(CPU, m_registers.ESP)]);
-    mov(dword[RCPUPTR + offsetof(CPU, m_current_ESP)], RTEMP32A);
-  }
+  if (update_eip)
+    SyncInstructionPointers();
 
-#ifndef Y_BUILD_CONFIG_RELEASE
-  nop();
-#endif
+  //   // If this instruction uses the stack, we need to update m_current_ESP for the next instruction.
+  //   if (update_esp)
+  //   {
+  //     mov(RTEMP32A, dword[RCPUPTR + offsetof(CPU, m_registers.ESP)]);
+  //     mov(dword[RCPUPTR + offsetof(CPU, m_current_ESP)], RTEMP32A);
+  //   }
 }
 
-bool JitX64CodeGenerator::Compile_NOP(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_NOP(const Instruction* instruction)
 {
   StartInstruction(instruction);
   EndInstruction(instruction);
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_LEA(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_Fallback(const Instruction* instruction)
+{
+  StartInstruction(instruction);
+
+  // Assume any instruction can manipulate ESP.
+  EndInstruction(instruction, true, true);
+  return true;
+}
+
+#if 0
+
+bool RecompilerTranslator::Compile_LEA(const OldInstruction* instruction)
 {
   StartInstruction(instruction);
 
@@ -1046,7 +974,7 @@ bool JitX64CodeGenerator::Compile_LEA(const OldInstruction* instruction)
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_MOV(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_MOV(const OldInstruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1082,7 +1010,7 @@ bool JitX64CodeGenerator::Compile_MOV(const OldInstruction* instruction)
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_MOV_Extended(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_MOV_Extended(const OldInstruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1112,7 +1040,7 @@ bool JitX64CodeGenerator::Compile_MOV_Extended(const OldInstruction* instruction
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_ALU_Binary_Update(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_ALU_Binary_Update(const OldInstruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1226,7 +1154,7 @@ bool JitX64CodeGenerator::Compile_ALU_Binary_Update(const OldInstruction* instru
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_ALU_Binary_Test(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_ALU_Binary_Test(const OldInstruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1298,7 +1226,7 @@ bool JitX64CodeGenerator::Compile_ALU_Binary_Test(const OldInstruction* instruct
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_ALU_Unary_Update(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_ALU_Unary_Update(const OldInstruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1394,7 +1322,7 @@ bool JitX64CodeGenerator::Compile_ALU_Unary_Update(const OldInstruction* instruc
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_ShiftRotate(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_ShiftRotate(const OldInstruction* instruction)
 {
   // Fast path for {shl,shr} reg, 0.
   bool is_constant_shift = IsConstantOperand(instruction, 1);
@@ -1520,7 +1448,7 @@ bool JitX64CodeGenerator::Compile_ShiftRotate(const OldInstruction* instruction)
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_DoublePrecisionShift(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_DoublePrecisionShift(const OldInstruction* instruction)
 {
   // Fast path for {shld,shrd} reg, reg, 0.
   bool is_constant_shift = IsConstantOperand(instruction, 2);
@@ -1613,67 +1541,67 @@ bool JitX64CodeGenerator::Compile_DoublePrecisionShift(const OldInstruction* ins
 }
 
 // Necessary due to BranchTo being a member function.
-void JitX64CodeGenerator::BranchToTrampoline(CPU* cpu, uint32 address)
+void RecompilerTranslator::BranchToTrampoline(CPU* cpu, uint32 address)
 {
   cpu->BranchTo(address);
 }
 
-void JitX64CodeGenerator::PushWordTrampoline(CPU* cpu, uint16 value)
+void RecompilerTranslator::PushWordTrampoline(CPU* cpu, uint16 value)
 {
   cpu->PushWord(value);
 }
 
-void JitX64CodeGenerator::PushDWordTrampoline(CPU* cpu, uint32 value)
+void RecompilerTranslator::PushDWordTrampoline(CPU* cpu, uint32 value)
 {
   cpu->PushDWord(value);
 }
 
-uint16 JitX64CodeGenerator::PopWordTrampoline(CPU* cpu)
+uint16 RecompilerTranslator::PopWordTrampoline(CPU* cpu)
 {
   return cpu->PopWord();
 }
 
-uint32 JitX64CodeGenerator::PopDWordTrampoline(CPU* cpu)
+uint32 RecompilerTranslator::PopDWordTrampoline(CPU* cpu)
 {
   return cpu->PopDWord();
 }
 
-void JitX64CodeGenerator::LoadSegmentRegisterTrampoline(CPU* cpu, uint32 segment, uint16 value)
+void RecompilerTranslator::LoadSegmentRegisterTrampoline(CPU* cpu, uint32 segment, uint16 value)
 {
   cpu->LoadSegmentRegister(static_cast<Segment>(segment), value);
 }
 
-void JitX64CodeGenerator::RaiseExceptionTrampoline(CPU* cpu, uint32 interrupt, uint32 error_code)
+void RecompilerTranslator::RaiseExceptionTrampoline(CPU* cpu, uint32 interrupt, uint32 error_code)
 {
   cpu->RaiseException(interrupt, error_code);
 }
 
-void JitX64CodeGenerator::SetFlagsTrampoline(CPU* cpu, uint32 flags)
+void RecompilerTranslator::SetFlagsTrampoline(CPU* cpu, uint32 flags)
 {
   cpu->SetFlags(flags);
 }
 
-void JitX64CodeGenerator::SetFlags16Trampoline(CPU* cpu, uint16 flags)
+void RecompilerTranslator::SetFlags16Trampoline(CPU* cpu, uint16 flags)
 {
   cpu->SetFlags16(flags);
 }
 
-void JitX64CodeGenerator::FarJumpTrampoline(CPU* cpu, uint16 segment_selector, uint32 offset, uint32 op_size)
+void RecompilerTranslator::FarJumpTrampoline(CPU* cpu, uint16 segment_selector, uint32 offset, uint32 op_size)
 {
   cpu->FarJump(segment_selector, offset, static_cast<OperandSize>(op_size));
 }
 
-void JitX64CodeGenerator::FarCallTrampoline(CPU* cpu, uint16 segment_selector, uint32 offset, uint32 op_size)
+void RecompilerTranslator::FarCallTrampoline(CPU* cpu, uint16 segment_selector, uint32 offset, uint32 op_size)
 {
   cpu->FarCall(segment_selector, offset, static_cast<OperandSize>(op_size));
 }
 
-void JitX64CodeGenerator::FarReturnTrampoline(CPU* cpu, uint32 op_size, uint32 pop_count)
+void RecompilerTranslator::FarReturnTrampoline(CPU* cpu, uint32 op_size, uint32 pop_count)
 {
   cpu->FarReturn(static_cast<OperandSize>(op_size), pop_count);
 }
 
-bool JitX64CodeGenerator::Compile_JumpConditional(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_JumpConditional(const OldInstruction* instruction)
 {
   StartInstruction(instruction);
 
@@ -1867,7 +1795,7 @@ bool JitX64CodeGenerator::Compile_JumpConditional(const OldInstruction* instruct
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_JumpCallReturn(const OldInstruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -2022,7 +1950,7 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_Stack(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_Stack(const OldInstruction* instruction)
 {
   // if (instruction->operands[0].mode == AddressingMode_SegmentRegister && instruction->operation == Operation_POP)
   // return Compile_Fallback(instruction);
@@ -2136,7 +2064,7 @@ bool JitX64CodeGenerator::Compile_Stack(const OldInstruction* instruction)
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_Flags(const OldInstruction* instruction)
+bool RecompilerTranslator::Compile_Flags(const OldInstruction* instruction)
 {
   StartInstruction(instruction);
 
@@ -2157,44 +2085,6 @@ bool JitX64CodeGenerator::Compile_Flags(const OldInstruction* instruction)
   }
 
   EndInstruction(instruction);
-  return true;
-}
-
-bool JitX64CodeGenerator::Compile_Fallback(const OldInstruction* instruction)
-{
-  // REP instructions are always annoying.
-  std::unique_ptr<Xbyak::Label> rep_label;
-  if (instruction->flags & InstructionFlag_Rep)
-  {
-    SyncInstructionPointers(instruction);
-    rep_label = std::make_unique<Xbyak::Label>();
-    L(*rep_label);
-  }
-
-  StartInstruction(instruction);
-
-  // Xbyak::Label blah;
-  // mov(RTEMP32A, dword[RCPUPTR + offsetof(CPU, m_current_ESP)]);
-  // mov(RTEMP32B, dword[RCPUPTR + offsetof(CPU, m_registers.ESP)]);
-  // cmp(RTEMP32A, RTEMP32B);
-  // je(blah);
-  // db(0xcc);
-  // L(blah);
-
-  mov(RPARAM1_64, RCPUPTR);
-  mov(RPARAM2_64, reinterpret_cast<size_t>(instruction));
-  CallModuleFunction(&Interpreter::ExecuteInstruction);
-
-  if (instruction->flags & InstructionFlag_Rep)
-  {
-    mov(RTEMP32A, dword[RCPUPTR + offsetof(CPU, m_current_EIP)]);
-    mov(RTEMP32B, dword[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
-    cmp(RTEMP32A, RTEMP32B);
-    je(*rep_label);
-  }
-
-  // Assume any instruction can manipulate ESP.
-  EndInstruction(instruction, true, true);
   return true;
 }
 #endif

@@ -184,7 +184,8 @@ bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out
 
   // Try to decode the instruction first.
   Instruction instruction;
-  if (!Decoder::DecodeInstruction(&instruction, m_cpu->GetCurrentAddressingSize(), m_cpu->GetCurrentOperandSize(), fetch_EIP, fetchb, fetchw, fetchd))
+  if (!Decoder::DecodeInstruction(&instruction, m_cpu->GetCurrentAddressingSize(), m_cpu->GetCurrentOperandSize(),
+                                  fetch_EIP, fetchb, fetchw, fetchd))
   {
     return false;
   }

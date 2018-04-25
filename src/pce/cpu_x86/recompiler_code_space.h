@@ -1,13 +1,13 @@
 #pragma once
-#include "pce/cpu_x86/jitx64_backend.h"
+#include "YBaseLib/Common.h"
 
 namespace CPU_X86 {
 
-class JitX64Code
+class RecompilerCodeSpace
 {
 public:
-  JitX64Code(size_t size = 64 * 1024 * 1024);
-  ~JitX64Code();
+  RecompilerCodeSpace(size_t size = 64 * 1024 * 1024);
+  ~RecompilerCodeSpace();
 
   void* GetFreeCodePointer() const { return m_free_code_ptr; }
   size_t GetFreeCodeSpace() const { return (m_code_size - m_code_used); }

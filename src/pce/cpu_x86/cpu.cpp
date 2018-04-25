@@ -9,8 +9,8 @@
 #include "pce/cpu_x86/cached_interpreter_backend.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
-#include "pce/cpu_x86/jitx64_backend.h"
 #include "pce/cpu_x86/interpreter_backend.h"
+#include "pce/cpu_x86/recompiler_backend.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 #include <cctype>
@@ -363,7 +363,8 @@ void CPU::SignalNMI()
 
 bool CPU::SupportsBackend(CPUBackendType mode)
 {
-  return (mode == CPUBackendType::Interpreter || mode == CPUBackendType::CachedInterpreter || mode == CPUBackendType::Recompiler);
+  return (mode == CPUBackendType::Interpreter || mode == CPUBackendType::CachedInterpreter ||
+          mode == CPUBackendType::Recompiler);
 }
 
 void CPU::SetBackend(CPUBackendType mode)
@@ -435,7 +436,7 @@ void CPU::CreateBackend()
 
     case CPUBackendType::Recompiler:
       Log_InfoPrintf("Switching to recompiler backend.");
-      m_backend = std::make_unique<JitX64Backend>(this);
+      m_backend = std::make_unique<RecompilerBackend>(this);
       break;
 
     default:
@@ -1298,8 +1299,9 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
 
   // Try to decode the instruction first.
   Instruction instruction;
-  bool instruction_valid = Decoder::DecodeInstruction(&instruction, m_current_address_size, m_current_operand_size, fetch_EIP, fetchb, fetchw, fetchd);
-  
+  bool instruction_valid = Decoder::DecodeInstruction(&instruction, m_current_address_size, m_current_operand_size,
+                                                      fetch_EIP, fetchb, fetchw, fetchd);
+
   // TODO: Handle 16 vs 32-bit operating mode clamp on address
   SmallString hex_string;
   uint32 instruction_length = instruction_valid ? instruction.length : 16;
