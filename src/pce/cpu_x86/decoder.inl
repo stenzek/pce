@@ -80,11 +80,14 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
     instruction->interpreter_handler = te->interpreter_handler;
     for (uint32 i = 0; i < countof(te->operands); i++)
     {
-      const Instruction::Operand& operand = te->operands[i];
-      if (operand.mode == OperandMode_None)
+      const Instruction::Operand& table_operand = te->operands[i];
+      if (table_operand.mode == OperandMode_None)
         continue;
 
-      std::memcpy(&instruction->operands[i], &operand, sizeof(instruction->operands[i]));
+      Instruction::Operand& operand = instruction->operands[i];
+      std::memcpy(&operand, &table_operand, sizeof(Instruction::Operand));
+      if (table_operand.size == OperandSize_Count)
+        operand.size = instruction->data.operand_size;
 
       // Fetch modrm and immediates.
       switch (operand.mode)
@@ -160,8 +163,7 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
 
         case OperandMode_Immediate:
         {
-          OperandSize actual_size = (operand.size == OperandSize_Count) ? instruction->data.operand_size : operand.size;
-          switch (actual_size)
+          switch (operand.size)
           {
             case OperandSize_8:
               instruction->data.imm8 = fetchb();
@@ -181,8 +183,7 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
 
         case OperandMode_Immediate2:
         {
-          OperandSize actual_size = (operand.size == OperandSize_Count) ? instruction->data.operand_size : operand.size;
-          switch (actual_size)
+          switch (operand.size)
           {
             case OperandSize_8:
               instruction->data.imm2_8 = fetchb();
@@ -202,8 +203,7 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
 
         case OperandMode_Relative:
         {
-          OperandSize actual_size = (operand.size == OperandSize_Count) ? instruction->data.operand_size : operand.size;
-          switch (actual_size)
+          switch (operand.size)
           {
             case OperandSize_8:
               instruction->data.disp32 = SignExtend32(fetchb());

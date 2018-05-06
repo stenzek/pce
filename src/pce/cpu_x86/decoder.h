@@ -32,6 +32,13 @@ public:
   };
   static const ModRMAddress* DecodeModRMAddress(AddressSize address_size, uint8 modrm);
 
+  // Helpers
+  static const char* GetOperationName(Operation op);
+  static const char* GetRegisterName(Reg8 reg);
+  static const char* GetRegisterName(Reg16 reg);
+  static const char* GetRegisterName(Reg32 reg);
+  static const char* GetSegmentName(Segment reg);
+
 private:
   struct TableEntry
   {
