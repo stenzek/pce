@@ -96,9 +96,6 @@
     <ClCompile Include="cpu_x86\interpreter_backend.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
-    <ClCompile Include="cpu_x86\recompiler_code_space.cpp">
-      <Filter>cpu_x86</Filter>
-    </ClCompile>
     <ClCompile Include="cpu_x86\recompiler_backend.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
@@ -106,6 +103,9 @@
       <Filter>cpu_x86</Filter>
     </ClCompile>
     <ClCompile Include="cpu_x86\recompiler_trampolines.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\recompiler_memory_manager.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
   </ItemGroup>
@@ -240,6 +240,15 @@
       <Filter>cpu_x86</Filter>
     </ClInclude>
     <ClInclude Include="cpu_x86\recompiler_trampolines.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\instruction.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\recompiler_llvm_headers.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\recompiler_memory_manager.h">
       <Filter>cpu_x86</Filter>
     </ClInclude>
   </ItemGroup>

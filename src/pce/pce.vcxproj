@@ -35,7 +35,7 @@
     <ClCompile Include="cpu_x86\cpu.cpp" />
     <ClCompile Include="cpu_x86\debugger_interface.cpp" />
     <ClCompile Include="cpu_x86\recompiler_backend.cpp" />
-    <ClCompile Include="cpu_x86\recompiler_code_space.cpp" />
+    <ClCompile Include="cpu_x86\recompiler_memory_manager.cpp" />
     <ClCompile Include="cpu_x86\recompiler_trampolines.cpp" />
     <ClCompile Include="cpu_x86\recompiler_translator.cpp" />
     <ClCompile Include="cpu_x86\decoder.cpp" />
@@ -81,8 +81,10 @@
     <ClInclude Include="cpu_x86\code_cache_backend.h" />
     <ClInclude Include="cpu_x86\cpu.h" />
     <ClInclude Include="cpu_x86\debugger_interface.h" />
+    <ClInclude Include="cpu_x86\instruction.h" />
     <ClInclude Include="cpu_x86\recompiler_backend.h" />
-    <ClInclude Include="cpu_x86\recompiler_code_space.h" />
+    <ClInclude Include="cpu_x86\recompiler_llvm_headers.h" />
+    <ClInclude Include="cpu_x86\recompiler_memory_manager.h" />
     <ClInclude Include="cpu_x86\recompiler_trampolines.h" />
     <ClInclude Include="cpu_x86\recompiler_translator.h" />
     <ClInclude Include="cpu_x86\decoder.h" />
@@ -390,7 +392,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\msvc\llvm-x86-release\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\msvc\llvm-x64-release\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>

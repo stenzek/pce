@@ -1,21 +1,19 @@
 #pragma once
 #include "pce/cpu_x86/code_cache_backend.h"
 #include "pce/cpu_x86/cpu.h"
-#include <csetjmp>
+#include "pce/fastjmp.h"
 #include <unordered_map>
 #include <utility>
 
-namespace llvm {
-class ExecutionEngine;
-class Function;
-class FunctionType;
+namespace llvm
+{
 class LLVMContext;
-class Type;
-} // namespace llvm
+class ExecutionEngine;
+class FunctionType;
+}
 
 namespace CPU_X86 {
-
-class RecompilerCodeSpace;
+class RecompilerMemoryManager;
 
 class RecompilerBackend : public CodeCacheBackend
 {
@@ -25,7 +23,6 @@ public:
   RecompilerBackend(CPU* cpu);
   ~RecompilerBackend();
 
-  RecompilerCodeSpace* GetCodeSpace() const { return m_code_space.get(); }
   llvm::LLVMContext& GetLLVMContext() const { return *m_llvm_context.get(); }
 
   void Reset() override;
@@ -38,14 +35,13 @@ private:
   struct Block : public BlockBase
   {
     using CodePointer = void (*)(uint8*);
-
-    llvm::Function* function = nullptr;
     CodePointer code_pointer = nullptr;
     size_t code_size = 0;
   };
 
-  static TinyString GetBlockModuleName(const Block* block);
   void CreateExecutionEngine();
+
+  TinyString GetBlockModuleName(const Block* block);
 
   // Block flush handling.
   void FlushAllBlocks() override;
@@ -64,7 +60,7 @@ private:
 #pragma warning(push)
 #pragma warning(disable : 4324)
 #endif
-  std::jmp_buf m_jmp_buf = {};
+  fastjmp_buf m_jmp_buf = {};
 #ifdef Y_COMPILER_MSVC
 #pragma warning(pop)
 #endif
@@ -74,13 +70,13 @@ private:
   bool m_current_block_flushed = false;
   bool m_code_buffer_overflow = false;
 
-  std::unique_ptr<RecompilerCodeSpace> m_code_space;
-
   //////////////////////////////////////////////////////////////////////////
   // LLVM stuff
   //////////////////////////////////////////////////////////////////////////
   std::unique_ptr<llvm::LLVMContext> m_llvm_context;
-  llvm::FunctionType* m_translation_block_function_type;
   std::unique_ptr<llvm::ExecutionEngine> m_execution_engine;
+  llvm::FunctionType* m_translation_block_function_type;
+  RecompilerMemoryManager* m_memory_manager = nullptr;
+  uint32 m_module_counter = 0;
 };
 } // namespace CPU_X86

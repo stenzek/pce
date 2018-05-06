@@ -93,4 +93,10 @@ void RecompilerTrampolines::FarReturnTrampoline(CPU* cpu, uint32 op_size, uint32
   cpu->FarReturn(static_cast<OperandSize>(op_size), pop_count);
 }
 
+void RecompilerTrampolines::InterpretInstructionTrampoline(CPU* cpu, const Instruction* instruction)
+{
+  std::memcpy(&cpu->idata, &instruction->data, sizeof(cpu->idata));
+  instruction->interpreter_handler(cpu);
+}
+
 } // namespace CPU_X86

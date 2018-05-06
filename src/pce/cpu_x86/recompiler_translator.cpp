@@ -1,6 +1,7 @@
 #include "pce/cpu_x86/recompiler_translator.h"
 #include "YBaseLib/Log.h"
 #include "pce/cpu_x86/debugger_interface.h"
+#include "pce/cpu_x86/decoder.h"
 #include "pce/system.h"
 Log_SetChannel(CPU_X86::Recompiler);
 
@@ -17,20 +18,28 @@ namespace CPU_X86 {
 RecompilerTranslator::RecompilerTranslator(RecompilerBackend* backend, RecompilerBackend::Block* block,
                                            llvm::Module* module, llvm::Function* function)
   : m_backend(backend), m_block(block), m_module(module), m_function(function),
+    m_function_cpu_ptr(function->arg_begin()),
     m_basic_block(llvm::BasicBlock::Create(backend->GetLLVMContext(), "entry", function)), m_builder(m_basic_block)
 {
+  m_function_cpu_ptr->setName("cpu");
 }
 
 RecompilerTranslator::~RecompilerTranslator() {}
 
 bool RecompilerTranslator::TranslateBlock()
 {
+  // Synchronize m_current_EIP/ESP to register values.
+  m_builder.CreateStore(ReadRegister(Reg32_EIP), GetCPUInt32Ptr(offsetof(CPU, m_current_EIP)));
+  m_builder.CreateStore(ReadRegister(Reg32_ESP), GetCPUInt32Ptr(offsetof(CPU, m_current_ESP)));
+
+  // Compile instructions.
   for (const Instruction& inst : m_block->instructions)
   {
     if (!CompileInstruction(&inst))
       return false;
   }
 
+  // Synchronize EIP before exiting the block.
   SyncInstructionPointers();
 
   // Add the final "ret".
@@ -47,11 +56,11 @@ bool RecompilerTranslator::CompileInstruction(const Instruction* instruction)
     case Operation_NOP:
       result = Compile_NOP(instruction);
       break;
+    case Operation_MOV:
+      result = Compile_MOV(instruction);
+      break;
       //     case Operation_LEA:
       //       result = Compile_LEA(instruction);
-      //       break;
-      //     case Operation_MOV:
-      //       result = Compile_MOV(instruction);
       //       break;
       //     case Operation_MOVSX:
       //     case Operation_MOVZX:
@@ -115,10 +124,23 @@ bool RecompilerTranslator::CompileInstruction(const Instruction* instruction)
   return result;
 }
 
-llvm::Function* RecompilerTranslator::GetInterpretInstructionFunction()
+llvm::Value* RecompilerTranslator::GetPtrValue(const void* ptr)
 {
-  // m_module->getOrInsertFunction()
-  return nullptr;
+#ifdef Y_CPU_X64
+  return m_builder.CreateIntToPtr(m_builder.getInt64(reinterpret_cast<uint64_t>(ptr)), m_builder.getInt8PtrTy());
+#else
+  return m_builder.CreateIntToPtr(m_builder.getInt32(reinterpret_cast<uint32_t>(ptr)), m_builder.getInt8PtrTy());
+#endif
+}
+
+llvm::Constant* RecompilerTranslator::GetInterpretInstructionFunction()
+{
+  if (m_trampoline_functions.interpret_instruction)
+    return m_trampoline_functions.interpret_instruction;
+
+  m_trampoline_functions.interpret_instruction = m_module->getOrInsertFunction(
+    "InterpretInstructionTrampoline", m_builder.getVoidTy(), m_builder.getInt8PtrTy(), m_builder.getInt8PtrTy());
+  return m_trampoline_functions.interpret_instruction;
 }
 
 bool RecompilerTranslator::OperandIsESP(const Instruction::Operand& operand)
@@ -241,26 +263,253 @@ uint32 RecompilerTranslator::CalculateSegmentRegisterOffset(Segment segment)
   return uint32(offsetof(CPU, m_registers.segment_selectors[0]) + (segment * sizeof(uint16)));
 }
 
+llvm::Value* RecompilerTranslator::GetCPUInt8Ptr(uint32 offset)
+{
+  llvm::Value* ep = m_builder.CreateGEP(m_function_cpu_ptr, m_builder.getInt32(offset));
+  return m_builder.CreatePointerCast(ep, llvm::PointerType::getInt8PtrTy(GetLLVMContext()));
+}
+
+llvm::Value* RecompilerTranslator::GetCPUInt16Ptr(uint32 offset)
+{
+  llvm::Value* ep = m_builder.CreateGEP(m_function_cpu_ptr, m_builder.getInt32(offset));
+  return m_builder.CreatePointerCast(ep, llvm::PointerType::getInt16PtrTy(GetLLVMContext()));
+}
+
+llvm::Value* RecompilerTranslator::GetCPUInt32Ptr(uint32 offset)
+{
+  llvm::Value* ep = m_builder.CreateGEP(m_function_cpu_ptr, m_builder.getInt32(offset));
+  return m_builder.CreatePointerCast(ep, llvm::PointerType::getInt32PtrTy(GetLLVMContext()));
+}
+
+llvm::Value* RecompilerTranslator::GetCPUInt64Ptr(uint32 offset)
+{
+  llvm::Value* ep = m_builder.CreateGEP(m_function_cpu_ptr, m_builder.getInt32(offset));
+  return m_builder.CreatePointerCast(ep, llvm::PointerType::getInt64PtrTy(GetLLVMContext()));
+}
+
 llvm::Value* RecompilerTranslator::ReadRegister(Reg8 reg)
 {
-  return nullptr;
+  if (m_register_cache.reg8[reg])
+    return m_register_cache.reg8[reg];
+
+  FlushOverlappingRegisters(reg);
+  return (m_register_cache.reg8[reg] =
+            m_builder.CreateLoad(GetCPUInt8Ptr(CalculateRegisterOffset(reg)), Decoder::GetRegisterName(reg)));
 }
 
 llvm::Value* RecompilerTranslator::ReadRegister(Reg16 reg)
 {
-  return nullptr;
+  if (m_register_cache.reg16[reg])
+    return m_register_cache.reg16[reg];
+
+  FlushOverlappingRegisters(reg);
+  return (m_register_cache.reg16[reg] =
+            m_builder.CreateLoad(GetCPUInt16Ptr(CalculateRegisterOffset(reg)), Decoder::GetRegisterName(reg)));
 }
 
 llvm::Value* RecompilerTranslator::ReadRegister(Reg32 reg)
 {
-  return nullptr;
+  if (m_register_cache.reg32[reg])
+    return m_register_cache.reg32[reg];
+
+  FlushOverlappingRegisters(reg);
+  return (m_register_cache.reg32[reg] =
+            m_builder.CreateLoad(GetCPUInt32Ptr(CalculateRegisterOffset(reg)), Decoder::GetRegisterName(reg)));
 }
 
-void RecompilerTranslator::WriteRegister(Reg8 reg, llvm::Value* value) {}
+void RecompilerTranslator::WriteRegister(Reg8 reg, llvm::Value* value)
+{
+  FlushOverlappingRegisters(reg);
+  m_register_cache.reg8[reg] = value;
+  m_register_cache.reg8_dirty[reg] = true;
+}
 
-void RecompilerTranslator::WriteRegister(Reg16 reg, llvm::Value* value) {}
+void RecompilerTranslator::WriteRegister(Reg16 reg, llvm::Value* value)
+{
+  FlushOverlappingRegisters(reg);
+  m_register_cache.reg16[reg] = value;
+  m_register_cache.reg16_dirty[reg] = true;
+}
 
-void RecompilerTranslator::WriteRegister(Reg32 reg, llvm::Value* value) {}
+void RecompilerTranslator::WriteRegister(Reg32 reg, llvm::Value* value)
+{
+  FlushOverlappingRegisters(reg);
+  m_register_cache.reg32[reg] = value;
+  m_register_cache.reg32_dirty[reg] = true;
+}
+
+void RecompilerTranslator::FlushRegister(Reg8 reg)
+{
+  DebugAssert(m_register_cache.reg8[reg] != nullptr);
+  m_builder.CreateStore(m_register_cache.reg8[reg], GetCPUInt8Ptr(CalculateRegisterOffset(reg)));
+  m_register_cache.reg8_dirty[reg] = false;
+}
+
+void RecompilerTranslator::FlushRegister(Reg16 reg)
+{
+  DebugAssert(m_register_cache.reg16[reg] != nullptr);
+  m_builder.CreateStore(m_register_cache.reg16[reg], GetCPUInt16Ptr(CalculateRegisterOffset(reg)));
+  m_register_cache.reg16_dirty[reg] = false;
+}
+
+void RecompilerTranslator::FlushRegister(Reg32 reg)
+{
+  DebugAssert(m_register_cache.reg32[reg] != nullptr);
+  m_builder.CreateStore(m_register_cache.reg32[reg], GetCPUInt32Ptr(CalculateRegisterOffset(reg)));
+  m_register_cache.reg32_dirty[reg] = false;
+}
+
+// We might alter the upper/lower bits of a register, so clear any existing value.
+// TODO: Don't flush when we've already loaded a larger size. Instead, mask it.
+#define FLUSH8(a)                                                                                                      \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    if (m_register_cache.reg8_dirty[(a)])                                                                              \
+    {                                                                                                                  \
+      FlushRegister(static_cast<Reg8>((a)));                                                                           \
+      m_register_cache.reg8[(a)] = nullptr;                                                                            \
+    }                                                                                                                  \
+  \
+} while (0);
+#define FLUSH16(a)                                                                                                     \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    if (m_register_cache.reg16_dirty[(a)])                                                                             \
+    {                                                                                                                  \
+      FlushRegister(static_cast<Reg16>((a)));                                                                          \
+      m_register_cache.reg16[(a)] = nullptr;                                                                           \
+    }                                                                                                                  \
+  } while (0);
+#define FLUSH32(a)                                                                                                     \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    if (m_register_cache.reg32_dirty[(a)])                                                                             \
+    {                                                                                                                  \
+      FlushRegister(static_cast<Reg32>((a)));                                                                          \
+      m_register_cache.reg32[(a)] = nullptr;                                                                           \
+    }                                                                                                                  \
+  } while (0);
+
+void RecompilerTranslator::FlushOverlappingRegisters(Reg8 reg)
+{
+#define FLUSH16_32(a, b) FLUSH16(a) FLUSH32(b)
+  switch (reg)
+  {
+    case Reg8_AL:
+    case Reg8_AH:
+      FLUSH16_32(Reg16_AX, Reg32_EAX);
+      break;
+
+    case Reg8_BL:
+    case Reg8_BH:
+      FLUSH16_32(Reg16_BX, Reg32_EBX);
+      break;
+
+    case Reg8_CL:
+    case Reg8_CH:
+      FLUSH16_32(Reg16_CX, Reg32_ECX);
+      break;
+
+    case Reg8_DL:
+    case Reg8_DH:
+      FLUSH16_32(Reg16_DX, Reg32_EDX);
+      break;
+
+    default:
+      break;
+  }
+#undef FLUSH16_32
+}
+
+void RecompilerTranslator::FlushOverlappingRegisters(Reg16 reg)
+{
+#define FLUSH8_8_32(a, b, c) FLUSH8(a) FLUSH8(b) FLUSH32(c)
+  switch (reg)
+  {
+    case Reg16_AX:
+      FLUSH8_8_32(Reg8_AL, Reg8_AH, Reg32_EAX);
+      break;
+
+    case Reg16_BX:
+      FLUSH8_8_32(Reg8_BL, Reg8_BH, Reg32_EBX);
+      break;
+
+    case Reg16_CX:
+      FLUSH8_8_32(Reg8_CL, Reg8_CH, Reg32_ECX);
+      break;
+
+    case Reg16_DX:
+      FLUSH8_8_32(Reg8_DL, Reg8_DH, Reg32_EDX);
+      break;
+
+    case Reg16_BP:
+      FLUSH32(Reg32_EBP);
+      break;
+
+    case Reg16_SP:
+      FLUSH32(Reg32_ESP);
+      break;
+
+    case Reg16_SI:
+      FLUSH32(Reg32_ESI);
+      break;
+
+    case Reg16_DI:
+      FLUSH32(Reg32_EDI);
+      break;
+
+    default:
+      break;
+  }
+#undef FLUSH8_8_32
+}
+
+void RecompilerTranslator::FlushOverlappingRegisters(Reg32 reg)
+{
+#define FLUSH8_8_16(a, b, c) FLUSH8(a) FLUSH8(b) FLUSH16(c)
+  switch (reg)
+  {
+    case Reg32_EAX:
+      FLUSH8_8_16(Reg8_AL, Reg8_AH, Reg16_AX);
+      break;
+
+    case Reg32_EBX:
+      FLUSH8_8_16(Reg8_BL, Reg8_BH, Reg16_BX);
+      break;
+
+    case Reg32_ECX:
+      FLUSH8_8_16(Reg8_CL, Reg8_CH, Reg16_CX);
+      break;
+
+    case Reg32_EDX:
+      FLUSH8_8_16(Reg8_DL, Reg8_DH, Reg16_DX);
+      break;
+
+    case Reg32_EBP:
+      FLUSH16(Reg16_BP);
+      break;
+
+    case Reg32_ESP:
+      FLUSH16(Reg16_SP);
+      break;
+
+    case Reg32_ESI:
+      FLUSH16(Reg16_SI);
+      break;
+
+    case Reg32_EDI:
+      FLUSH16(Reg16_DI);
+      break;
+
+    default:
+      break;
+  }
+#undef FLUSH8_8_16
+}
+
+#undef FLUSH8
+#undef FLUSH16
+#undef FLUSH32
 
 // llvm::Value* RecompilerTranslator::CalculateEffectiveAddress(const Instruction* instruction)
 // {
@@ -387,284 +636,302 @@ llvm::Constant* RecompilerTranslator::GetConstantOperand(const Instruction* inst
   }
 }
 
-// llvm::Value* RecompilerTranslator::ReadOperand(const Instruction* instruction, size_t index, OperandSize size, bool
-// sign_extend)
-// {
-//   const Instruction::Operand* operand = &instruction->operands[index];
-//   switch (operand->mode)
-//   {
-//     case AddressingMode_Immediate:
-//     {
-//       switch (size)
-//       {
-//         case OperandSize_8:
-//           return llvm::ConstantInt::get(m_backend->GetLLVMUInt8Type(), ZeroExtend64(Truncate8(operand->constant)));
-//
-//         case OperandSize_16:
-//         {
-//           switch (operand->size)
-//           {
-//             case OperandSize_8:
-//               return llvm::ConstantInt::get(m_backend->GetLLVMUInt16Type(), ZeroExtend64(sign_extend ?
-//               SignExtend16(Truncate8(operand->constant)) : ZeroExtend16(Truncate8(operand->constant))));
-//             default:
-//               return llvm::ConstantInt::get(m_backend->GetLLVMUInt16Type(), ZeroExtend64(sign_extend ?
-//               SignExtend16(Truncate8(operand->constant)) : ZeroExtend16(operand->constant))); mov(dest,
-//               ZeroExtend32(operand->immediate.value16)); break;
-//           }
-//         }
-//         break;
-//         case OperandSize_32:
-//         {
-//           switch (operand->size)
-//           {
-//             case OperandSize_8:
-//               mov(dest,
-//                   sign_extend ? SignExtend32(operand->immediate.value8) : ZeroExtend32(operand->immediate.value8));
-//               break;
-//             case OperandSize_16:
-//               mov(dest,
-//                   sign_extend ? SignExtend32(operand->immediate.value16) : ZeroExtend32(operand->immediate.value16));
-//               break;
-//             default:
-//               mov(dest, ZeroExtend32(operand->immediate.value32));
-//               break;
-//           }
-//         }
-//         break;
-//       }
-//     }
-//     break;
-//
-//     case AddressingMode_Register:
-//     {
-//       switch (output_size)
-//       {
-//         case OperandSize_8:
-//           mov(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-//           break;
-//
-//         case OperandSize_16:
-//         {
-//           switch (operand->size)
-//           {
-//             case OperandSize_8:
-//             {
-//               if (sign_extend)
-//                 movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-//               else
-//                 movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-//             }
-//             break;
-//             case OperandSize_16:
-//             case OperandSize_32:
-//               mov(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-//               break;
-//           }
-//         }
-//         break;
-//
-//         case OperandSize_32:
-//         {
-//           switch (operand->size)
-//           {
-//             case OperandSize_8:
-//             {
-//               if (sign_extend)
-//                 movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-//               else
-//                 movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-//             }
-//             break;
-//             case OperandSize_16:
-//             {
-//               if (sign_extend)
-//                 movsx(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-//               else
-//                 movzx(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-//             }
-//             break;
-//             case OperandSize_32:
-//               mov(dest, dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)]);
-//               break;
-//           }
-//         }
-//         break;
-//       }
-//     }
-//     break;
-//
-//     case AddressingMode_SegmentRegister:
-//     {
-//       switch (output_size)
-//       {
-//         case OperandSize_16:
-//           mov(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
-//           break;
-//         case OperandSize_32:
-//           // Segment registers are sign-extended on push/pop.
-//           movsx(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
-//           break;
-//       }
-//     }
-//     break;
-//
-//     case AddressingMode_Direct:
-//     case AddressingMode_RegisterIndirect:
-//     case AddressingMode_Indexed:
-//     case AddressingMode_BasedIndexed:
-//     case AddressingMode_BasedIndexedDisplacement:
-//     case AddressingMode_SIB:
-//     {
-//       mov(RPARAM1_64, RCPUPTR);
-//       mov(RPARAM2_32, uint32(instruction->segment));
-//       if (operand->mode == AddressingMode_Direct)
-//         mov(RPARAM3_32, operand->direct.address);
-//       else
-//         mov(RPARAM3_32, READDR32);
-//
-//       switch (operand->size)
-//       {
-//         case OperandSize_8:
-//           CallModuleFunction(ReadMemoryByteTrampoline);
-//           break;
-//         case OperandSize_16:
-//           CallModuleFunction(ReadMemoryWordTrampoline);
-//           break;
-//         case OperandSize_32:
-//           CallModuleFunction(ReadMemoryDWordTrampoline);
-//           break;
-//       }
-//
-//       switch (output_size)
-//       {
-//         case OperandSize_8:
-//           mov(dest, RRET_8);
-//           break;
-//         case OperandSize_16:
-//         {
-//           switch (operand->size)
-//           {
-//             case OperandSize_8:
-//             {
-//               if (sign_extend)
-//                 movsx(dest, RRET_8);
-//               else
-//                 movzx(dest, RRET_8);
-//             }
-//             break;
-//             case OperandSize_16:
-//             case OperandSize_32:
-//               mov(dest, RRET_16);
-//               break;
-//           }
-//         }
-//         break;
-//         case OperandSize_32:
-//         {
-//           switch (operand->size)
-//           {
-//             case OperandSize_8:
-//             {
-//               if (sign_extend)
-//                 movsx(dest, RRET_8);
-//               else
-//                 movzx(dest, RRET_8);
-//             }
-//             break;
-//             case OperandSize_16:
-//             {
-//               if (sign_extend)
-//                 movsx(dest, RRET_16);
-//               else
-//                 movzx(dest, RRET_16);
-//             }
-//             break;
-//             case OperandSize_32:
-//               mov(dest, RRET_32);
-//               break;
-//           }
-//         }
-//         break;
-//       }
-//     }
-//     break;
-//
-//     default:
-//       Panic("Unhandled address mode");
-//       break;
-//   }
-// }
-//
-// void RecompilerTranslator::WriteOperand(const OldInstruction* instruction, size_t index, const Xbyak::Reg& src)
-// {
-//   const OldInstruction::Operand* operand = &instruction->operands[index];
-//   switch (operand->mode)
-//   {
-//     case AddressingMode_Register:
-//     {
-//       switch (operand->size)
-//       {
-//         case OperandSize_8:
-//           mov(byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)], src);
-//           break;
-//         case OperandSize_16:
-//           mov(word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)], src);
-//           break;
-//         case OperandSize_32:
-//           mov(dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)], src);
-//           break;
-//       }
-//     }
-//     break;
-//
-//     case AddressingMode_SegmentRegister:
-//     {
-//       // Truncate higher lengths to 16-bits.
-//       mov(RPARAM1_64, RCPUPTR);
-//       mov(RPARAM2_32, uint32(instruction->operands[0].reg.sreg));
-//       movzx(RPARAM3_32, (src.isBit(16)) ? src : src.changeBit(16));
-//       CallModuleFunction(LoadSegmentRegisterTrampoline);
-//     }
-//     break;
-//
-//     case AddressingMode_Direct:
-//     case AddressingMode_RegisterIndirect:
-//     case AddressingMode_Indexed:
-//     case AddressingMode_BasedIndexed:
-//     case AddressingMode_BasedIndexedDisplacement:
-//     case AddressingMode_SIB:
-//     {
-//       mov(RPARAM1_64, RCPUPTR);
-//       mov(RPARAM2_32, uint32(instruction->segment));
-//       if (operand->mode == AddressingMode_Direct)
-//         mov(RPARAM3_32, operand->direct.address);
-//       else
-//         mov(RPARAM3_32, READDR32);
-//
-//       switch (operand->size)
-//       {
-//         case OperandSize_8:
-//           movzx(RPARAM4_32, src);
-//           CallModuleFunction(WriteMemoryByteTrampoline);
-//           break;
-//         case OperandSize_16:
-//           movzx(RPARAM4_32, src);
-//           CallModuleFunction(WriteMemoryWordTrampoline);
-//           break;
-//         case OperandSize_32:
-//           mov(RPARAM4_32, src);
-//           CallModuleFunction(WriteMemoryDWordTrampoline);
-//           break;
-//       }
-//     }
-//     break;
-//
-//     default:
-//       Panic("Unhandled address mode");
-//       break;
-//   }
-// }
+llvm::Value* RecompilerTranslator::ReadOperand(const Instruction* instruction, size_t index, OperandSize output_size,
+                                               bool sign_extend)
+{
+  const Instruction::Operand* operand = &instruction->operands[index];
+  switch (operand->mode)
+  {
+    case OperandMode_Immediate:
+    {
+      switch (output_size)
+      {
+        case OperandSize_8:
+          return m_builder.getInt8(instruction->data.imm8);
+
+        case OperandSize_16:
+        {
+          switch (operand->size)
+          {
+            case OperandSize_8:
+              return m_builder.getInt16(sign_extend ? SignExtend16(instruction->data.imm8) :
+                                                      ZeroExtend16(instruction->data.imm8));
+            default:
+              return m_builder.getInt16(Truncate16(instruction->data.imm16));
+          }
+        }
+        break;
+        case OperandSize_32:
+        {
+          switch (operand->size)
+          {
+            case OperandSize_8:
+              return m_builder.getInt32(sign_extend ? SignExtend32(instruction->data.imm8) :
+                                                      ZeroExtend32(instruction->data.imm8));
+            case OperandSize_16:
+              return m_builder.getInt32(sign_extend ? SignExtend32(instruction->data.imm16) :
+                                                      ZeroExtend32(instruction->data.imm16));
+            default:
+              return m_builder.getInt32(instruction->data.imm32);
+          }
+        }
+        break;
+      }
+    }
+    break;
+
+    case AddressingMode_Register:
+    {
+      switch (output_size)
+      {
+        case OperandSize_8:
+        {
+          switch (operand->size)
+          {
+            case OperandSize_8:
+              return ReadRegister(operand->reg8);
+            case OperandSize_16:
+              return m_builder.CreateTrunc(ReadRegister(operand->reg16), m_builder.getInt8Ty());
+            case OperandSize_32:
+              return m_builder.CreateTrunc(ReadRegister(operand->reg32), m_builder.getInt8Ty());
+            default:
+              break;
+          }
+        }
+        break;
+
+        case OperandSize_16:
+        {
+          switch (operand->size)
+          {
+            case OperandSize_8:
+            {
+              if (sign_extend)
+                return m_builder.CreateSExt(ReadRegister(operand->reg8), m_builder.getInt16Ty());
+              else
+                return m_builder.CreateZExt(ReadRegister(operand->reg8), m_builder.getInt16Ty());
+            }
+
+            case OperandSize_16:
+              return ReadRegister(operand->reg16);
+
+            case OperandSize_32:
+              return m_builder.CreateTrunc(ReadRegister(operand->reg32), m_builder.getInt16Ty());
+
+            default:
+              break;
+          }
+        }
+        break;
+
+        case OperandSize_32:
+        {
+          switch (operand->size)
+          {
+            case OperandSize_8:
+            {
+              if (sign_extend)
+                return m_builder.CreateSExt(ReadRegister(operand->reg8), m_builder.getInt32Ty());
+              else
+                return m_builder.CreateZExt(ReadRegister(operand->reg8), m_builder.getInt32Ty());
+            }
+
+            case OperandSize_16:
+            {
+              if (sign_extend)
+                return m_builder.CreateSExt(ReadRegister(operand->reg16), m_builder.getInt32Ty());
+              else
+                return m_builder.CreateZExt(ReadRegister(operand->reg16), m_builder.getInt32Ty());
+            }
+
+            case OperandSize_32:
+              return ReadRegister(operand->reg32);
+
+            default:
+              break;
+          }
+        }
+        break;
+      }
+    }
+    break;
+
+#if 0    
+    case AddressingMode_SegmentRegister:
+    {
+      switch (output_size)
+      {
+        case OperandSize_16:
+          mov(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
+          break;
+        case OperandSize_32:
+          // Segment registers are sign-extended on push/pop.
+          movsx(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
+          break;
+      }
+    }
+    break;
+
+    case AddressingMode_Direct:
+    case AddressingMode_RegisterIndirect:
+    case AddressingMode_Indexed:
+    case AddressingMode_BasedIndexed:
+    case AddressingMode_BasedIndexedDisplacement:
+    case AddressingMode_SIB:
+    {
+      mov(RPARAM1_64, RCPUPTR);
+      mov(RPARAM2_32, uint32(instruction->segment));
+      if (operand->mode == AddressingMode_Direct)
+        mov(RPARAM3_32, operand->direct.address);
+      else
+        mov(RPARAM3_32, READDR32);
+
+      switch (operand->size)
+      {
+        case OperandSize_8:
+          CallModuleFunction(ReadMemoryByteTrampoline);
+          break;
+        case OperandSize_16:
+          CallModuleFunction(ReadMemoryWordTrampoline);
+          break;
+        case OperandSize_32:
+          CallModuleFunction(ReadMemoryDWordTrampoline);
+          break;
+      }
+
+      switch (output_size)
+      {
+        case OperandSize_8:
+          mov(dest, RRET_8);
+          break;
+        case OperandSize_16:
+        {
+          switch (operand->size)
+          {
+            case OperandSize_8:
+            {
+              if (sign_extend)
+                movsx(dest, RRET_8);
+              else
+                movzx(dest, RRET_8);
+            }
+            break;
+            case OperandSize_16:
+            case OperandSize_32:
+              mov(dest, RRET_16);
+              break;
+          }
+        }
+        break;
+        case OperandSize_32:
+        {
+          switch (operand->size)
+          {
+            case OperandSize_8:
+            {
+              if (sign_extend)
+                movsx(dest, RRET_8);
+              else
+                movzx(dest, RRET_8);
+            }
+            break;
+            case OperandSize_16:
+            {
+              if (sign_extend)
+                movsx(dest, RRET_16);
+              else
+                movzx(dest, RRET_16);
+            }
+            break;
+            case OperandSize_32:
+              mov(dest, RRET_32);
+              break;
+          }
+        }
+        break;
+      }
+    }
+    break;
+#endif
+    default:
+      break;
+  }
+
+  Panic("Unhandled operand mode");
+  return nullptr;
+}
+
+void RecompilerTranslator::WriteOperand(const Instruction* instruction, size_t index, llvm::Value* value)
+{
+  const Instruction::Operand* operand = &instruction->operands[index];
+  switch (operand->mode)
+  {
+    case OperandMode_Register:
+    {
+      switch (operand->size)
+      {
+        case OperandSize_8:
+          WriteRegister(operand->reg8, value);
+          return;
+        case OperandSize_16:
+          WriteRegister(operand->reg16, value);
+          return;
+        case OperandSize_32:
+          WriteRegister(operand->reg32, value);
+          return;
+        default:
+          break;
+      }
+    }
+    break;
+
+#if 0
+    case AddressingMode_SegmentRegister:
+      {
+        // Truncate higher lengths to 16-bits.
+        mov(RPARAM1_64, RCPUPTR);
+        mov(RPARAM2_32, uint32(instruction->operands[0].reg.sreg));
+        movzx(RPARAM3_32, (src.isBit(16)) ? src : src.changeBit(16));
+        CallModuleFunction(LoadSegmentRegisterTrampoline);
+      }
+      break;
+
+    case AddressingMode_Direct:
+    case AddressingMode_RegisterIndirect:
+    case AddressingMode_Indexed:
+    case AddressingMode_BasedIndexed:
+    case AddressingMode_BasedIndexedDisplacement:
+    case AddressingMode_SIB:
+      {
+        mov(RPARAM1_64, RCPUPTR);
+        mov(RPARAM2_32, uint32(instruction->segment));
+        if (operand->mode == AddressingMode_Direct)
+          mov(RPARAM3_32, operand->direct.address);
+        else
+          mov(RPARAM3_32, READDR32);
+
+        switch (operand->size)
+        {
+          case OperandSize_8:
+            movzx(RPARAM4_32, src);
+            CallModuleFunction(WriteMemoryByteTrampoline);
+            break;
+          case OperandSize_16:
+            movzx(RPARAM4_32, src);
+            CallModuleFunction(WriteMemoryWordTrampoline);
+            break;
+          case OperandSize_32:
+            mov(RPARAM4_32, src);
+            CallModuleFunction(WriteMemoryDWordTrampoline);
+            break;
+        }
+      }
+      break;
+#endif
+  }
+
+  Panic("Unhandled operand mode");
+}
 //
 // void RecompilerTranslator::ReadFarAddressOperand(const OldInstruction* instruction, size_t index,
 //                                                 const Xbyak::Reg& dest_segment, const Xbyak::Reg& dest_offset)
@@ -789,43 +1056,72 @@ llvm::Constant* RecompilerTranslator::GetConstantOperand(const Instruction* inst
 
 void RecompilerTranslator::SyncInstructionPointers()
 {
-  //   if (!m_block->key.cs_size)
-  //   {
-  //     if (m_delayed_eip_add > 1)
-  //     {
-  //       add(word[RCPUPTR + offsetof(CPU, m_registers.EIP)], m_delayed_eip_add);
-  //       add(word[RCPUPTR + offsetof(CPU, m_current_EIP)], m_delayed_eip_add);
-  //     }
-  //     else if (m_delayed_eip_add == 1)
-  //     {
-  //       inc(word[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
-  //       inc(word[RCPUPTR + offsetof(CPU, m_current_EIP)]);
-  //     }
-  //   }
-  //   else
-  //   {
-  //     if (m_delayed_eip_add > 1)
-  //     {
-  //       add(dword[RCPUPTR + offsetof(CPU, m_registers.EIP)], m_delayed_eip_add);
-  //       add(dword[RCPUPTR + offsetof(CPU, m_current_EIP)], m_delayed_eip_add);
-  //     }
-  //     else if (m_delayed_eip_add == 1)
-  //     {
-  //       inc(dword[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
-  //       inc(dword[RCPUPTR + offsetof(CPU, m_current_EIP)]);
-  //     }
-  //   }
-  //   m_delayed_eip_add = 0;
-  //
-  //   if (m_delayed_cycles_add > 1)
-  //     add(qword[RCPUPTR + offsetof(CPU, m_pending_cycles)], m_delayed_cycles_add);
-  //   else if (m_delayed_cycles_add == 1)
-  //     inc(qword[RCPUPTR + offsetof(CPU, m_pending_cycles)]);
-  //   m_delayed_cycles_add = 0;
+  if (m_delayed_eip_add > 0)
+  {
+    llvm::Value* new_eip_value = m_builder.CreateAdd(ReadRegister(Reg32_EIP), m_builder.getInt32(m_delayed_eip_add));
+    if (!m_block->key.cs_size)
+      new_eip_value = m_builder.CreateAnd(new_eip_value, 0xFFFF);
+
+    WriteRegister(Reg32_EIP, new_eip_value);
+    FlushRegister(Reg32_EIP);
+    m_delayed_eip_add = 0;
+  }
+
+  if (m_delayed_current_eip_add > 0)
+  {
+    llvm::Value* ptr = GetCPUInt32Ptr(offsetof(CPU, m_current_EIP));
+    llvm::Value* new_eip_value =
+      m_builder.CreateAdd(m_builder.CreateLoad(ptr, "current_EIP"), m_builder.getInt32(m_delayed_current_eip_add));
+    if (!m_block->key.cs_size)
+      new_eip_value = m_builder.CreateAnd(new_eip_value, 0xFFFF);
+    m_builder.CreateStore(new_eip_value, ptr);
+    m_delayed_current_eip_add = 0;
+  }
+
+  // If the previous instruction uses the stack, we need to update m_current_ESP for the next instruction.
+  if (m_update_current_esp)
+  {
+    m_builder.CreateStore(ReadRegister(Reg32_ESP), GetCPUInt32Ptr(offsetof(CPU, m_current_ESP)));
+    m_update_current_esp = false;
+  }
+
+  if (m_delayed_cycles_add > 0)
+  {
+    llvm::Value* ptr = GetCPUInt64Ptr(offsetof(CPU, m_pending_cycles));
+    llvm::Value* val = m_builder.CreateAdd(m_builder.CreateLoad(ptr, "pending_cycles"), m_builder.getInt64(m_delayed_cycles_add));
+    m_builder.CreateStore(val, ptr);
+  }
+}
+
+void RecompilerTranslator::FlushRegisterCache(bool clear_cache)
+{
+  for (uint32 reg = Reg8_AL; reg < Reg8_Count; reg++)
+  {
+    if (m_register_cache.reg8_dirty[reg])
+      FlushRegister(static_cast<Reg8>(reg));
+  }
+
+  for (uint32 reg = Reg16_AX; reg < Reg16_Count; reg++)
+  {
+    if (m_register_cache.reg16_dirty[reg])
+      FlushRegister(static_cast<Reg16>(reg));
+  }
+
+  for (uint32 reg = Reg32_EAX; reg < Reg32_Count; reg++)
+  {
+    if (m_register_cache.reg32_dirty[reg])
+      FlushRegister(static_cast<Reg32>(reg));
+  }
+
+  if (clear_cache)
+    std::memset(&m_register_cache, 0, sizeof(m_register_cache));
 }
 
 void RecompilerTranslator::StartInstruction(const Instruction* instruction)
 {
+  m_delayed_eip_add += instruction->length;
+  m_delayed_cycles_add++;
+
   // REP instructions are always annoying.
   if (instruction->IsRep())
   {
@@ -839,8 +1135,12 @@ void RecompilerTranslator::StartInstruction(const Instruction* instruction)
     llvm::BasicBlock* rep_end_block =
       llvm::BasicBlock::Create(m_backend->GetLLVMContext(), rep_end_block_name.GetCharArray(), m_function);
 
-    // Jump unconditionally to the REP instruction.
+    // Flush the register cache, and don't track any registers across the REP.
+    // In the future, we could optimize this with phis.
     SyncInstructionPointers();
+    FlushRegisterCache(true);
+
+    // Jump unconditionally to the REP instruction.
     m_builder.CreateBr(rep_start_block);
     m_builder.SetInsertPoint(rep_start_block);
 
@@ -853,6 +1153,7 @@ void RecompilerTranslator::StartInstruction(const Instruction* instruction)
     m_builder.CreateCondBr(compare_res, rep_end_block, rep_body_block);
 
     // Switch to the body to generate the instruction code.
+    m_builder.SetInsertPoint(rep_body_block);
     m_basic_block = rep_body_block;
     m_rep_start_block = rep_start_block;
     m_rep_end_block = rep_end_block;
@@ -861,13 +1162,11 @@ void RecompilerTranslator::StartInstruction(const Instruction* instruction)
   {
     // Defer updates for non-faulting instructions.
     SyncInstructionPointers();
+    FlushRegisterCache(false);
   }
-
-  m_delayed_eip_add += instruction->length;
-  m_delayed_cycles_add++;
 }
 
-void RecompilerTranslator::EndInstruction(const Instruction* instruction, bool update_eip, bool update_esp)
+void RecompilerTranslator::EndInstruction(const Instruction* instruction, bool update_esp /* = false */)
 {
   if (instruction->IsRep())
   {
@@ -877,14 +1176,14 @@ void RecompilerTranslator::EndInstruction(const Instruction* instruction, bool u
     else
       WriteRegister(Reg32_ECX, m_builder.CreateSub(ReadRegister(Reg32_ECX), m_builder.getInt32(1)));
 
-    // TODO: Increment the cycles variable.
-
     // Do we need to check the equals flag?
     if (instruction->IsRepConditional())
     {
       // branch((EFLAGS & Flag_ZF) != 0, start_of_instruction, end_of_instruction)
       llvm::Value* masked_flags =
         m_builder.CreateAnd(ReadRegister(Reg32_EFLAGS), m_builder.getInt32(Flag_ZF), "masked_flags");
+      FlushRegisterCache(true);
+
       llvm::Value* flags_compare_zf =
         m_builder.CreateICmp(instruction->IsRepEqual() ? llvm::CmpInst::ICMP_EQ : llvm::CmpInst::ICMP_NE, masked_flags,
                              m_builder.getInt32(0), "flags_compare_zf");
@@ -892,6 +1191,8 @@ void RecompilerTranslator::EndInstruction(const Instruction* instruction, bool u
     }
     else
     {
+      // Flush register cache before branching. This way we don't use values across blocks.
+      FlushRegisterCache(true);
       m_builder.CreateBr(m_rep_start_block);
     }
 
@@ -902,15 +1203,31 @@ void RecompilerTranslator::EndInstruction(const Instruction* instruction, bool u
     m_rep_end_block = nullptr;
   }
 
-  if (update_eip)
-    SyncInstructionPointers();
+  m_delayed_current_eip_add += instruction->length;
+  m_update_current_esp = update_esp;
+}
 
-  //   // If this instruction uses the stack, we need to update m_current_ESP for the next instruction.
-  //   if (update_esp)
-  //   {
-  //     mov(RTEMP32A, dword[RCPUPTR + offsetof(CPU, m_registers.ESP)]);
-  //     mov(dword[RCPUPTR + offsetof(CPU, m_current_ESP)], RTEMP32A);
-  //   }
+bool RecompilerTranslator::Compile_Fallback(const Instruction* instruction)
+{
+  m_delayed_eip_add += instruction->length;
+  m_delayed_cycles_add++;
+
+  // Sync if not already synced, due to jumps, etc.
+  SyncInstructionPointers();
+
+  // Assume any instruction can blow away any register.
+  // We should therefore flush everything out, and remove all cached values.
+  FlushRegisterCache(true);
+
+  // Call the interpret trampoline.
+  m_builder.CreateCall(GetInterpretInstructionFunction(), {m_function_cpu_ptr, GetPtrValue(instruction)});
+
+  // Defer the update to m_current_EIP until the next instruction.
+  m_delayed_current_eip_add += instruction->length;
+
+  // Assume any instruction can manipulate ESP. Therefore, we need to update m_current_ESP.
+  m_update_current_esp = true;
+  return true;
 }
 
 bool RecompilerTranslator::Compile_NOP(const Instruction* instruction)
@@ -920,12 +1237,18 @@ bool RecompilerTranslator::Compile_NOP(const Instruction* instruction)
   return true;
 }
 
-bool RecompilerTranslator::Compile_Fallback(const Instruction* instruction)
+bool RecompilerTranslator::Compile_MOV(const Instruction* instruction)
 {
+  if (instruction->operands[0].mode != OperandMode_Register ||
+      (instruction->operands[1].mode != OperandMode_Register && instruction->operands[1].mode != OperandMode_Immediate))
+    return Compile_Fallback(instruction);
+
   StartInstruction(instruction);
 
-  // Assume any instruction can manipulate ESP.
-  EndInstruction(instruction, true, true);
+  llvm::Value* src = ReadOperand(instruction, 1, instruction->operands[1].size, false);
+  WriteOperand(instruction, 0, src);
+
+  EndInstruction(instruction, OperandIsESP(instruction->operands[0]));
   return true;
 }
 

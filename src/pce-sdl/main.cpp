@@ -577,8 +577,8 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // 1024);
 
   system->GetCPU()->SetBackend(CPUBackendType::Interpreter);
-  // system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
-  // system->GetCPU()->SetBackend(CPUBackendType::Recompiler);
+  system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
+  //system->GetCPU()->SetBackend(CPUBackendType::Recompiler);
 
 #if 0
   HW::CGA* cga = new HW::CGA();
@@ -622,10 +622,10 @@ static void TestBIOS(SDLHostInterface* host_interface)
            [&system](ByteStream* s) { return system->AddROM(0xF0000, s) && system->AddROM(0xFFFF0000u, s); });
 
   // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS33.img", 41, 16, 63);
-  // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
+  LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\hd10meg.img", 306, 4, 17);
   // LoadHDD(system->GetHDDController(), 0, "images\\win95.img", 243, 16, 63);
-  LoadHDD(system->GetHDDController(), 0, "images\\win98.img", 609, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\win98.img", 609, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\c.img", 81, 16, 63);
   LoadHDD(system->GetHDDController(), 1, "images\\utils.img", 162, 16, 63);
 

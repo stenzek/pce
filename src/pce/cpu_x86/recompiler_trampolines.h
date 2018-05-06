@@ -6,6 +6,7 @@ namespace CPU_X86 {
 
 class RecompilerTrampolines
 {
+public:
   static uint8 ReadMemoryByteTrampoline(CPU* cpu, uint32 segment, uint32 offset);
   static uint16 ReadMemoryWordTrampoline(CPU* cpu, uint32 segment, uint32 offset);
   static uint32 ReadMemoryDWordTrampoline(CPU* cpu, uint32 segment, uint32 offset);
@@ -24,6 +25,7 @@ class RecompilerTrampolines
   static void FarJumpTrampoline(CPU* cpu, uint16 segment_selector, uint32 offset, uint32 op_size);
   static void FarCallTrampoline(CPU* cpu, uint16 segment_selector, uint32 offset, uint32 op_size);
   static void FarReturnTrampoline(CPU* cpu, uint32 op_size, uint32 pop_count);
+  static void InterpretInstructionTrampoline(CPU* cpu, const Instruction* instruction);
 };
 
 } // namespace CPU_X86

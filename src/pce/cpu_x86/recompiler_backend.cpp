@@ -1,11 +1,11 @@
-// Has to come first due to LLVM includes.
 // clang-format off
-#include "pce/cpu_x86/recompiler_translator.h"
+#include "pce/cpu_x86/recompiler_llvm_headers.h"
 // clang-format on
+#include "pce/cpu_x86/recompiler_translator.h"
 #include "pce/cpu_x86/recompiler_backend.h"
 #include "YBaseLib/Log.h"
 #include "pce/cpu_x86/debugger_interface.h"
-#include "pce/cpu_x86/recompiler_code_space.h"
+#include "pce/cpu_x86/recompiler_memory_manager.h"
 #include "pce/system.h"
 #include <array>
 #include <cstdint>
@@ -95,15 +95,18 @@ static void InitializeLLVM()
 
 RecompilerBackend::RecompilerBackend(CPU* cpu) : CodeCacheBackend(cpu)
 {
-  m_code_space = std::make_unique<RecompilerCodeSpace>();
   m_llvm_context = std::make_unique<llvm::LLVMContext>();
-  m_translation_block_function_type =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(GetLLVMContext()), {llvm::Type::getInt8Ty(GetLLVMContext())}, false);
+  m_translation_block_function_type = llvm::FunctionType::get(llvm::Type::getVoidTy(GetLLVMContext()), {llvm::Type::getInt8PtrTy(GetLLVMContext())}, false);
   InitializeLLVM();
   CreateExecutionEngine();
 }
 
-RecompilerBackend::~RecompilerBackend() {}
+RecompilerBackend::~RecompilerBackend()
+{
+  // All blocks must be removed before the LLVM context is deleted.
+  FlushAllBlocks();
+  m_execution_engine.reset();
+}
 
 void RecompilerBackend::Reset()
 {
@@ -116,7 +119,7 @@ void RecompilerBackend::Reset()
 void RecompilerBackend::Execute()
 {
   // We'll jump back here when an instruction is aborted.
-  setjmp(m_jmp_buf);
+  fastjmp_set(&m_jmp_buf);
   while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
   {
     // Check for external interrupts.
@@ -150,7 +153,7 @@ void RecompilerBackend::AbortCurrentInstruction()
 
   // Log_WarningPrintf("Executing longjmp()");
   m_cpu->CommitPendingCycles();
-  longjmp(m_jmp_buf, 1);
+  fastjmp_jmp(&m_jmp_buf);
 }
 
 void RecompilerBackend::BranchTo(uint32 new_EIP)
@@ -175,7 +178,6 @@ void RecompilerBackend::FlushAllBlocks()
 
   m_blocks.clear();
   ClearPhysicalPageBlockMapping();
-  m_code_space->Reset();
   CreateExecutionEngine();
 }
 
@@ -249,19 +251,38 @@ RecompilerBackend::Block* RecompilerBackend::LookupBlock(const BlockKey& key)
   return block;
 }
 
-TinyString RecompilerBackend::GetBlockModuleName(const Block* block)
-{
-  return TinyString::FromFormat("block_%08x", block->key.eip_physical_address, Truncate32(block->key.qword >> 32));
-}
-
 void RecompilerBackend::CreateExecutionEngine()
 {
   m_execution_engine.reset();
+  m_module_counter = 0;
 
-  llvm::EngineBuilder eb;
+  // New memory manager for new EE.
+  std::unique_ptr<RecompilerMemoryManager> memory_manager = std::make_unique<RecompilerMemoryManager>();
+  m_memory_manager = memory_manager.get();
+
+  // We need a module to create the execution engine...
+  // TODO: We could use this for the trampoline functions.
+  std::unique_ptr<llvm::Module> module = std::make_unique<llvm::Module>("DummyModule", GetLLVMContext());
+
+  // EE setup...
+  llvm::EngineBuilder eb(std::move(module));
+  eb.setMCJITMemoryManager(std::move(memory_manager));
+
+  // Actually create the EE.
   m_execution_engine = std::unique_ptr<llvm::ExecutionEngine>(eb.create());
   if (!m_execution_engine)
-    Panic("Failed to create LLVM execution engine.");
+  {
+    Panic("Failed to create execution engine.");
+    return;
+  }
+
+  // Options
+  m_execution_engine->DisableLazyCompilation();
+}
+
+TinyString RecompilerBackend::GetBlockModuleName(const Block* block)
+{
+  return TinyString::FromFormat("block_%u_%08x_%08x", m_module_counter++, block->key.eip_physical_address, Truncate32(block->key.qword >> 32));
 }
 
 RecompilerBackend::Block* RecompilerBackend::CompileBlock(const BlockKey& key)
@@ -274,8 +295,7 @@ RecompilerBackend::Block* RecompilerBackend::CompileBlock(const BlockKey& key)
     return nullptr;
   }
 
-  size_t code_size = 128 * block->instructions.size() + 64;
-  if (code_size > m_code_space->GetFreeCodeSpace())
+  if (m_memory_manager->IsNearlyOutOfSpace(128 * block->instructions.size() + 64))
   {
     m_code_buffer_overflow = true;
     delete block;
@@ -285,8 +305,7 @@ RecompilerBackend::Block* RecompilerBackend::CompileBlock(const BlockKey& key)
   // Create LLVM module and function.
   TinyString module_name(GetBlockModuleName(block));
   std::unique_ptr<llvm::Module> module = std::make_unique<llvm::Module>(module_name.GetCharArray(), GetLLVMContext());
-  llvm::Function* function = llvm::Function::Create(
-    m_translation_block_function_type, llvm::GlobalValue::ExternalLinkage, module_name.GetCharArray(), module.get());
+  llvm::Function* function = llvm::cast<llvm::Function>(module->getOrInsertFunction(module_name.GetCharArray(), m_translation_block_function_type));
   DebugAssert(function);
 
   // Translate the block to LLVM IR.
@@ -296,6 +315,15 @@ RecompilerBackend::Block* RecompilerBackend::CompileBlock(const BlockKey& key)
     Log_WarningPrintf("Failed to translate block 0x%08X to LLVM IR.", key.eip_physical_address);
     delete block;
     return nullptr;
+  }
+  
+  // Dump LLVM IR
+  if constexpr (false)
+  {
+    std::printf("LLVM IR:\n");
+    llvm::legacy::PassManager pm;
+    pm.add(llvm::createPrintModulePass(llvm::outs()));
+    pm.run(*module.get());
   }
 
   // Compile the LLVM IR to native code.
@@ -308,7 +336,6 @@ RecompilerBackend::Block* RecompilerBackend::CompileBlock(const BlockKey& key)
     return nullptr;
   }
 
-  block->function = function;
   block->code_pointer = reinterpret_cast<Block::CodePointer>(func_addr);
   return block;
 }
