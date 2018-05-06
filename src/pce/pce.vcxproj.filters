@@ -235,6 +235,7 @@
     <ClInclude Include="cpu_x86\interpreter_backend.h">
       <Filter>cpu_x86</Filter>
     </ClInclude>
+    <ClInclude Include="fastjmp.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="hw">
@@ -266,5 +267,8 @@
     <None Include="cpu_x86\interpreter_x87.inl">
       <Filter>cpu_x86</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="fastjmp.asm" />
   </ItemGroup>
 </Project>

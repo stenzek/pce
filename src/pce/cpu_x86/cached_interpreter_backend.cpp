@@ -30,7 +30,7 @@ void CachedInterpreterBackend::Reset()
 void CachedInterpreterBackend::Execute()
 {
   // We'll jump back here when an instruction is aborted.
-  setjmp(m_jmp_buf);
+  fastjmp_set(&m_jmp_buf);
   while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
   {
     // Check for external interrupts.
@@ -155,7 +155,7 @@ void CachedInterpreterBackend::AbortCurrentInstruction()
 
   // Log_WarningPrintf("Executing longjmp()");
   m_cpu->CommitPendingCycles();
-  longjmp(m_jmp_buf, 1);
+  fastjmp_jmp(&m_jmp_buf);
 }
 
 void CachedInterpreterBackend::BranchTo(uint32 new_EIP)

@@ -1,8 +1,7 @@
 #pragma once
-
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cpu.h"
-#include <csetjmp>
+#include "pce/fastjmp.h"
 
 namespace CPU_X86 {
 class NewInterpreterBackend : public Backend
@@ -28,12 +27,11 @@ private:
   CPU* m_cpu;
   Bus* m_bus;
   System* m_system;
-
 #ifdef Y_COMPILER_MSVC
 #pragma warning(push)
 #pragma warning(disable : 4324)
 #endif
-  std::jmp_buf m_jmp_buf = {};
+  fastjmp_buf m_jmp_buf = {};
 #ifdef Y_COMPILER_MSVC
 #pragma warning(pop)
 #endif

@@ -1,7 +1,7 @@
 #pragma once
 #include "pce/cpu_x86/code_cache_backend.h"
 #include "pce/cpu_x86/cpu.h"
-#include <csetjmp>
+#include "pce/fastjmp.h"
 #include <unordered_map>
 #include <utility>
 
@@ -39,7 +39,7 @@ protected:
 #pragma warning(push)
 #pragma warning(disable : 4324)
 #endif
-  std::jmp_buf m_jmp_buf = {};
+  fastjmp_buf m_jmp_buf = {};
 #ifdef Y_COMPILER_MSVC
 #pragma warning(pop)
 #endif

@@ -27,7 +27,7 @@ void NewInterpreterBackend::Reset() {}
 
 void NewInterpreterBackend::Execute()
 {
-  setjmp(m_jmp_buf);
+  fastjmp_set(&m_jmp_buf);
 
   while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
   {
@@ -46,7 +46,7 @@ void NewInterpreterBackend::AbortCurrentInstruction()
 {
   // Log_WarningPrintf("Executing longjmp()");
   m_cpu->CommitPendingCycles();
-  longjmp(m_jmp_buf, 1);
+  fastjmp_jmp(&m_jmp_buf);
 }
 
 void NewInterpreterBackend::BranchTo(uint32 new_EIP) {}

@@ -91,6 +91,7 @@
     <ClInclude Include="cpu_x86\types.h" />
     <ClInclude Include="debugger_interface.h" />
     <ClInclude Include="dma_controller.h" />
+    <ClInclude Include="fastjmp.h" />
     <ClInclude Include="hw\adlib.h" />
     <ClInclude Include="hw\ymf262.h" />
     <ClInclude Include="hw\keyboard_scancodes.h" />
@@ -145,6 +146,9 @@
     <None Include="hw\cga_palette.inl" />
     <None Include="hw\soundblaster_adpcm.inl" />
   </ItemGroup>
+  <ItemGroup>
+    <MASM Include="fastjmp.asm" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{476D56B2-D87F-405C-BB64-5B3B813F58B3}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -192,6 +196,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -384,5 +389,6 @@
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
   </ImportGroup>
 </Project>
