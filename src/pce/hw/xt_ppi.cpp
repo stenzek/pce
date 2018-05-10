@@ -83,7 +83,7 @@ void XT_PPI::RemoveKeyboardBufferBytes(uint32 count)
     return;
   }
 
-  Y_memmove(m_output_buffer, m_output_buffer + count, m_output_buffer_pos - count);
+  std::memmove(m_output_buffer, m_output_buffer + count, m_output_buffer_pos - count);
   m_output_buffer_pos -= count;
 
   Y_memzero(m_output_buffer + m_output_buffer_pos, countof(m_output_buffer) - m_output_buffer_pos);
