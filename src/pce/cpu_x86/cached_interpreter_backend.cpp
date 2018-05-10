@@ -12,7 +12,7 @@ namespace CPU_X86 {
 
 extern bool TRACE_EXECUTION;
 extern uint32 TRACE_EXECUTION_LAST_EIP;
-bool ENABLE_CI_BLOCK_CHAINING = true;
+bool ENABLE_CI_BLOCK_CHAINING = false;
 static void* last_killed;
 
 CachedInterpreterBackend::CachedInterpreterBackend(CPU* cpu) : CodeCacheBackend(cpu) {}

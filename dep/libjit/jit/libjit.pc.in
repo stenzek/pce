@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libjit
+Description: GNU Libjit - a just-in-time compiler library
+URL: https://www.gnu.org/software/libjit/
+Version: @VERSION@
+Libs: -L${libdir} -ljit
+Cflags: -I${includedir}

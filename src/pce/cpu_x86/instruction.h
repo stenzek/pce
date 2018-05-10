@@ -36,6 +36,10 @@ struct Instruction
   AddressSize GetAddressSize() const { return data.address_size; }
   uint8 GetModRM_Reg() const { return data.GetModRM_Reg(); }
   bool ModRM_RM_IsReg() const { return data.ModRM_RM_IsReg(); }
+  bool IsRep() const { return data.IsRep(); }
+  bool IsRepConditional() const { return data.IsRep() && (operation == Operation_SCAS || operation == Operation_CMPS); }
+  bool IsRepEqual() const { return IsRepConditional() && !data.has_repne; }
+  bool IsRepNotEqual() const { return IsRepConditional() && data.has_repne; }
 };
 
 } // namespace CPU_X86

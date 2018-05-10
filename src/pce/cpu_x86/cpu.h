@@ -26,8 +26,9 @@ class CPU : public CPUBase
   friend class CachedInterpreterBackend;
   friend class NewInterpreter;
   friend class NewInterpreterBackend;
-  friend class JitX64Backend;
-  friend class JitX64CodeGenerator;
+  friend class RecompilerBackend;
+  friend class RecompilerTrampolines;
+  friend class RecompilerTranslator;
 
 public:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
