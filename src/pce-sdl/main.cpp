@@ -563,7 +563,7 @@ void SDLHostInterface::DoSaveState(uint32 index)
 
 static void TestBIOS(SDLHostInterface* host_interface)
 {
-  Systems::PCXT* system = new Systems::PCXT(host_interface, 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
+  // Systems::PCXT* system = new Systems::PCXT(host_interface, 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
   // Systems::PCAT* system = new Systems::PCAT(host_interface, cpu, 1 * 1024 * 1024);
   // Systems::PCAT* system = new Systems::PCAT(host_interface, cpu, 4 * 1024 * 1024);
   // Systems::PCAT* system = new Systems::PCAT(host_interface, cpu, 8 * 1024 * 1024);
@@ -572,7 +572,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 16 * 1024 * 1024);
   // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 20 * 1024 * 1024);
   // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 1000000, 32 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 20000000, 32 * 1024 * 1024);
+  Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 40000000, 32 * 1024 * 1024);
   // Systems::PC_AMI_386* system = new Systems::PC_AMI_386(host_interface, CPU_X86::MODEL_386, 4000000, 4 * 1024 *
   // 1024);
 
@@ -580,7 +580,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
   // system->GetCPU()->SetBackend(CPUBackendType::Recompiler);
 
-#if 1
+#if 0
   HW::CGA* cga = new HW::CGA();
   system->AddComponent(cga);
 #else
@@ -589,7 +589,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
   system->AddComponent(vga);
 #endif
 
-#if 0
+#if 1
   // Adding a serial mouse to COM1, because why not
   HW::Serial* serial_port_COM1 = new HW::Serial(system->GetInterruptController(), HW::Serial::Model_16550);
   HW::SerialMouse* serial_mouse = new HW::SerialMouse(serial_port_COM1);
@@ -609,25 +609,24 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_5_25);
   system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_3_5);
   // LoadFloppy(system->GetFDDController(), 0, "images\\386bench.img");
-  LoadFloppy(system->GetFDDController(), 0, "images\\DOS33-DISK01.IMG");
+  // LoadFloppy(system->GetFDDController(), 0, "images\\DOS33-DISK01.IMG");
   // LoadFloppy(system->GetFDDController(), 1, "images\\8088mph.img");
-  LoadFloppy(system->GetFDDController(), 1, "images\\checkit3a.img");
+  // LoadFloppy(system->GetFDDController(), 1, "images\\checkit3a.img");
   host_interface->AddDeviceFileCallback("Floppy A", [&system](const std::string& filename) { LoadFloppy(system->GetFDDController(), 0, filename.c_str()); });
   host_interface->AddDeviceFileCallback("Floppy B", [&system](const std::string& filename) { LoadFloppy(system->GetFDDController(), 1, filename.c_str()); });
 
-  LoadBIOS("romimages\\PCXTBIOS.BIN", [&system](ByteStream* s) { return system->AddROM(0xFE000, s); });
+  // LoadBIOS("romimages\\PCXTBIOS.BIN", [&system](ByteStream* s) { return system->AddROM(0xFE000, s); });
   // LoadBIOS("romimages\\386_ami.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });
   // LoadBIOS("romimages\\ami386.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });
-  // LoadBIOS("romimages\\BIOS-bochs-legacy",
-  // [&system](ByteStream* s) { return system->AddROM(0xF0000, s) && system->AddROM(0xFFFF0000u, s); });
+  LoadBIOS("romimages\\BIOS-bochs-legacy", [&system](ByteStream* s) { return system->AddROM(0xF0000, s) && system->AddROM(0xFFFF0000u, s); });
 
   // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS33.img", 41, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\hd10meg.img", 306, 4, 17);
-  // LoadHDD(system->GetHDDController(), 0, "images\\win95.img", 243, 16, 63);
+  LoadHDD(system->GetHDDController(), 0, "images\\win95.img", 243, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\win98.img", 609, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\c.img", 81, 16, 63);
-  // LoadHDD(system->GetHDDController(), 1, "images\\utils.img", 162, 16, 63);
+  LoadHDD(system->GetHDDController(), 1, "images\\utils.img", 162, 16, 63);
 
 #if 0
   system->Start(true);

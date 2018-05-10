@@ -64,7 +64,7 @@
     <ProjectGuid>{585E7AD6-0E9B-4CA2-962F-09DF5803D6F3}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>pce-qt</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
