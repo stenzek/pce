@@ -19,6 +19,7 @@
 #include "pce/hw/adlib.h"
 #include "pce/hw/cga.h"
 #include "pce/hw/cmos.h"
+#include "pce/hw/et4000.h"
 #include "pce/hw/fdc.h"
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
@@ -583,9 +584,13 @@ static void TestBIOS(SDLHostInterface* host_interface)
 #if 0
   HW::CGA* cga = new HW::CGA();
   system->AddComponent(cga);
-#else
+#elif 0
   HW::VGA* vga = new HW::VGA();
   LoadBIOS("romimages\\VGABIOS-lgpl-latest", [vga](ByteStream* s) { return vga->SetBIOSROM(s); });
+  system->AddComponent(vga);
+#else
+  HW::ET4000* vga = new HW::ET4000();
+  LoadBIOS("romimages\\et4000-stb.bin", [vga](ByteStream* s) { return vga->SetBIOSROM(s); });
   system->AddComponent(vga);
 #endif
 
@@ -687,8 +692,8 @@ int main(int argc, char* argv[])
 {
   // set log flags
   // g_pLog->SetConsoleOutputParams(true);
-  // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_PROFILE);
-  g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_INFO);
+  g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_PROFILE);
+  // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_INFO);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_WARNING);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_ERROR);
   // g_pLog->SetFilterLevel(LOGLEVEL_PROFILE);

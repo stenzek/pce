@@ -1,4 +1,3 @@
-#include "pce/hw/vga.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
@@ -7,15 +6,16 @@
 #include "pce/bus.h"
 #include "pce/display.h"
 #include "pce/host_interface.h"
+#include "pce/hw/et4000.h"
 #include "pce/mmio.h"
 #include "pce/system.h"
-Log_SetChannel(HW::VGA);
+Log_SetChannel(HW::ET4000);
 
 namespace HW {
 
-VGA::VGA() : m_clock("VGA Retrace", 25175000) {}
+ET4000::ET4000() : m_clock("ET4000 Retrace", 25175000) {}
 
-VGA::~VGA()
+ET4000::~ET4000()
 {
   if (m_bus)
   {
@@ -24,7 +24,7 @@ VGA::~VGA()
   }
 }
 
-bool VGA::SetBIOSROM(ByteStream* stream)
+bool ET4000::SetBIOSROM(ByteStream* stream)
 {
   Assert(!m_bios);
   DebugAssert(!m_bus);
@@ -44,12 +44,12 @@ bool VGA::SetBIOSROM(ByteStream* stream)
     return false;
   }
 
-  Log_DevPrintf("Loaded VGA bios image (%u bytes)", size);
+  Log_DevPrintf("Loaded ET4000 bios image (%u bytes)", size);
   m_bios_size = size;
   return true;
 }
 
-void VGA::Initialize(System* system, Bus* bus)
+void ET4000::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_bus = bus;
@@ -57,14 +57,13 @@ void VGA::Initialize(System* system, Bus* bus)
   m_clock.SetManager(system->GetTimingManager());
 
   ConnectIOPorts();
-  RegisterBIOSMMIO();
   RegisterVRAMMMIO();
 
   // Retrace event will be scheduled after timing is calculated.
-  m_retrace_event = m_clock.NewEvent("Retrace", 1, std::bind(&VGA::Render, this), false);
+  m_retrace_event = m_clock.NewEvent("Retrace", 1, std::bind(&ET4000::Render, this), false);
 }
 
-void VGA::Reset()
+void ET4000::Reset()
 {
   m_st1.display_disabled = false;
   m_st1.vblank = false;
@@ -80,11 +79,14 @@ void VGA::Reset()
   m_attribute_registers.attribute_mode_control.line_graphics_enable = true;
   m_attribute_registers.attribute_mode_control.blink_enable = false;
   m_attribute_registers.attribute_mode_control.pixel_panning_mode = false;
-  m_attribute_registers.attribute_mode_control.eight_bit_mode = false;
+  m_attribute_registers.attribute_mode_control.pelclock_div2 = false;
   m_attribute_registers.attribute_mode_control.palette_bits_5_4_select = false;
 
   m_sequencer_registers.clocking_mode.dot_mode = false;
   m_sequencer_registers.clocking_mode.dot_clock_rate = false;
+  m_sequencer_registers.vga_mode = true;
+  m_sequencer_registers.bios_rom_address_map_0 = 1;
+  m_sequencer_registers.bios_rom_address_map_1 = 1;
 
   m_crtc_registers.horizontal_total = 95;
   m_crtc_registers.end_horizontal_display = 79;
@@ -112,6 +114,8 @@ void VGA::Reset()
   m_crtc_registers.crtc_mode_control = 163;
   m_crtc_registers.line_compare = 255;
 
+  m_crtc_registers.mc6845_compatibility_control.vse_register_port = true;
+
   for (size_t i = 0; i < m_dac_palette.size(); i++)
     m_dac_palette[i] = 0xFFFFFFFF;
 
@@ -132,7 +136,7 @@ void VGA::Reset()
   m_retrace_event->Reset();
 }
 
-bool VGA::LoadState(BinaryReader& reader)
+bool ET4000::LoadState(BinaryReader& reader)
 {
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
@@ -148,7 +152,7 @@ bool VGA::LoadState(BinaryReader& reader)
   reader.SafeReadUInt8(&m_vga_adapter_enable.bits);
   reader.SafeReadBytes(m_attribute_registers.index, sizeof(m_attribute_registers.index));
   reader.SafeReadUInt8(&m_attribute_address_register);
-  reader.SafeReadBool(&m_attribute_video_enabled);
+  reader.SafeReadBool(&m_atc_palette_access);
   reader.SafeReadBytes(m_sequencer_registers.index, sizeof(m_sequencer_registers.index));
   reader.SafeReadUInt8(&m_sequencer_address_register);
   reader.SafeReadBytes(m_dac_palette.data(), Truncate32(sizeof(uint32) * m_dac_palette.size()));
@@ -169,7 +173,7 @@ bool VGA::LoadState(BinaryReader& reader)
   return !reader.GetErrorState();
 }
 
-bool VGA::SaveState(BinaryWriter& writer)
+bool ET4000::SaveState(BinaryWriter& writer)
 {
   writer.WriteUInt32(SERIALIZATION_ID);
 
@@ -184,7 +188,7 @@ bool VGA::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(m_vga_adapter_enable.bits);
   writer.WriteBytes(m_attribute_registers.index, sizeof(m_attribute_registers.index));
   writer.WriteUInt8(m_attribute_address_register);
-  writer.WriteBool(m_attribute_video_enabled);
+  writer.WriteBool(m_atc_palette_access);
   writer.WriteBytes(m_sequencer_registers.index, sizeof(m_sequencer_registers.index));
   writer.WriteUInt8(m_sequencer_address_register);
   writer.WriteBytes(m_dac_palette.data(), Truncate32(sizeof(uint32) * m_dac_palette.size()));
@@ -201,7 +205,7 @@ bool VGA::SaveState(BinaryWriter& writer)
   return !writer.InErrorState();
 }
 
-void VGA::ConnectIOPorts()
+void ET4000::ConnectIOPorts()
 {
   m_bus->ConnectIOPortReadToPointer(0x03B0, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03B0, this, &m_crtc_index_register);
@@ -209,33 +213,35 @@ void VGA::ConnectIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x03B2, this, &m_crtc_index_register);
   m_bus->ConnectIOPortReadToPointer(0x03B4, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03B4, this, &m_crtc_index_register);
-  m_bus->ConnectIOPortRead(0x03B1, this, std::bind(&VGA::IOCRTCDataRegisterRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03B1, this, std::bind(&VGA::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03B3, this, std::bind(&VGA::IOCRTCDataRegisterRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03B3, this, std::bind(&VGA::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03B5, this, std::bind(&VGA::IOCRTCDataRegisterRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03B5, this, std::bind(&VGA::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03B1, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03B1, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03B3, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03B3, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03B5, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03B5, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
   m_bus->ConnectIOPortReadToPointer(0x03D0, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03D0, this, &m_crtc_index_register);
   m_bus->ConnectIOPortReadToPointer(0x03D2, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03D2, this, &m_crtc_index_register);
   m_bus->ConnectIOPortReadToPointer(0x03D4, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03D4, this, &m_crtc_index_register);
-  m_bus->ConnectIOPortRead(0x03D1, this, std::bind(&VGA::IOCRTCDataRegisterRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03D1, this, std::bind(&VGA::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03D3, this, std::bind(&VGA::IOCRTCDataRegisterRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03D3, this, std::bind(&VGA::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03D5, this, std::bind(&VGA::IOCRTCDataRegisterRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03D5, this, std::bind(&VGA::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03D1, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03D1, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03D3, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03D3, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03D5, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03D5, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
   m_bus->ConnectIOPortReadToPointer(0x03C2, this, &m_st0);
-  m_bus->ConnectIOPortRead(0x03BA, this, std::bind(&VGA::IOReadStatusRegister1, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03DA, this, std::bind(&VGA::IOReadStatusRegister1, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03BA, this, std::bind(&ET4000::IOReadStatusRegister1, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03DA, this, std::bind(&ET4000::IOReadStatusRegister1, this, std::placeholders::_2));
+  m_bus->ConnectIOPortReadToPointer(0x03CD, this, &m_segment_select_register.bits);
+  m_bus->ConnectIOPortWriteToPointer(0x03CD, this, &m_segment_select_register.bits);
   m_bus->ConnectIOPortReadToPointer(0x03CE, this, &m_graphics_address_register);
   m_bus->ConnectIOPortWriteToPointer(0x03CE, this, &m_graphics_address_register);
-  m_bus->ConnectIOPortRead(0x03CF, this, std::bind(&VGA::IOGraphicsDataRegisterRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03CF, this, std::bind(&VGA::IOGraphicsDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03CF, this, std::bind(&ET4000::IOGraphicsDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03CF, this, std::bind(&ET4000::IOGraphicsDataRegisterWrite, this, std::placeholders::_2));
   m_bus->ConnectIOPortReadToPointer(0x03CC, this, &m_misc_output_register.bits);
-  m_bus->ConnectIOPortWrite(0x03C2, this, std::bind(&VGA::IOMiscOutputRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03C2, this, std::bind(&ET4000::IOMiscOutputRegisterWrite, this, std::placeholders::_2));
   m_bus->ConnectIOPortReadToPointer(0x03CA, this, &m_feature_control_register);
   m_bus->ConnectIOPortWriteToPointer(0x03BA, this, &m_feature_control_register);
   m_bus->ConnectIOPortWriteToPointer(0x03DA, this, &m_feature_control_register);
@@ -243,35 +249,30 @@ void VGA::ConnectIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x46E8, this, &m_vga_adapter_enable.bits);
   m_bus->ConnectIOPortReadToPointer(0x03C3, this, &m_vga_adapter_enable.bits);
   m_bus->ConnectIOPortWriteToPointer(0x03C3, this, &m_vga_adapter_enable.bits);
-  m_bus->ConnectIOPortRead(0x03C0, this, std::bind(&VGA::IOAttributeAddressRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03C0, this, std::bind(&VGA::IOAttributeAddressDataWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03C1, this, std::bind(&VGA::IOAttributeDataRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C0, this, std::bind(&ET4000::IOAttributeAddressRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03C0, this, std::bind(&ET4000::IOAttributeAddressDataWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C1, this, std::bind(&ET4000::IOAttributeDataRead, this, std::placeholders::_2));
   m_bus->ConnectIOPortReadToPointer(0x03C4, this, &m_sequencer_address_register);
   m_bus->ConnectIOPortWriteToPointer(0x03C4, this, &m_sequencer_address_register);
-  m_bus->ConnectIOPortRead(0x03C5, this, std::bind(&VGA::IOSequencerDataRegisterRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03C5, this, std::bind(&VGA::IOSequencerDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C5, this, std::bind(&ET4000::IOSequencerDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03C5, this,
+                            std::bind(&ET4000::IOSequencerDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortReadToPointer(0x03C6, this, &m_dac_mask);
+  m_bus->ConnectIOPortWriteToPointer(0x03C6, this, &m_dac_mask);
   m_bus->ConnectIOPortReadToPointer(0x03C7, this, &m_dac_state_register);
-  m_bus->ConnectIOPortWrite(0x03C7, this, std::bind(&VGA::IODACReadAddressWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03C7, this, std::bind(&ET4000::IODACReadAddressWrite, this, std::placeholders::_2));
   m_bus->ConnectIOPortReadToPointer(0x03C8, this, &m_dac_write_address);
-  m_bus->ConnectIOPortWrite(0x03C8, this, std::bind(&VGA::IODACWriteAddressWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03C9, this, std::bind(&VGA::IODACDataRegisterRead, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x03C9, this, std::bind(&VGA::IODACDataRegisterWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03C8, this, std::bind(&ET4000::IODACWriteAddressWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C9, this, std::bind(&ET4000::IODACDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03C9, this, std::bind(&ET4000::IODACDataRegisterWrite, this, std::placeholders::_2));
 }
 
-void VGA::RegisterBIOSMMIO()
+void ET4000::Render()
 {
-  PhysicalMemoryAddress bios_load_location = 0xC0000;
-  m_bios_mmio = MMIO::CreateDirect(bios_load_location, m_bios_size, m_bios.get(), true, false);
-  m_bus->RegisterMMIO(m_bios_mmio);
-  Log_DevPrintf("Mapped VGA bios image at 0x%08X (%u bytes)", bios_load_location, m_bios_size);
-}
-
-void VGA::Render()
-{
-  // On the standard VGA, the blink rate is dependent on the vertical frame rate. The on/off state of the cursor changes
-  // every 16 vertical frames, which amounts to 1.875 blinks per second at 60 vertical frames per second. The cursor
-  // blink rate is thus fixed and cannot be software controlled on the standard VGA. Some SVGA chipsets provide
-  // non-standard means for changing the blink rate of the text-mode cursor.
+  // On the standard ET4000, the blink rate is dependent on the vertical frame rate. The on/off state of the cursor
+  // changes every 16 vertical frames, which amounts to 1.875 blinks per second at 60 vertical frames per second. The
+  // cursor blink rate is thus fixed and cannot be software controlled on the standard ET4000. Some SET4000 chipsets
+  // provide non-standard means for changing the blink rate of the text-mode cursor.
   // TODO: Should this tick in only text mode, and only when the cursor is enabled?
   if ((++m_cursor_counter) == 16)
   {
@@ -285,7 +286,7 @@ void VGA::Render()
     RenderTextMode();
 }
 
-void VGA::IOReadStatusRegister1(uint8* value)
+void ET4000::IOReadStatusRegister1(uint8* value)
 {
   ScanoutInfo si = GetScanoutInfo();
   m_st1.vblank = si.in_vertical_blank;
@@ -296,7 +297,7 @@ void VGA::IOReadStatusRegister1(uint8* value)
   m_crtc_registers.attribute_register_flipflop = false;
 }
 
-void VGA::IOCRTCDataRegisterRead(uint8* value)
+void ET4000::IOCRTCDataRegisterRead(uint8* value)
 {
   if (m_crtc_index_register >= countof(m_crtc_registers.index))
   {
@@ -319,7 +320,7 @@ void VGA::IOCRTCDataRegisterRead(uint8* value)
                   uint32(m_graphics_registers.index[register_index]));
 }
 
-void VGA::IOCRTCDataRegisterWrite(uint8 value)
+void ET4000::IOCRTCDataRegisterWrite(uint8 value)
 {
   if (m_crtc_index_register >= countof(m_crtc_registers.index))
   {
@@ -336,7 +337,7 @@ void VGA::IOCRTCDataRegisterWrite(uint8 value)
     RecalculateEventTiming();
 }
 
-void VGA::IOGraphicsDataRegisterRead(uint8* value)
+void ET4000::IOGraphicsDataRegisterRead(uint8* value)
 {
   if (m_graphics_address_register >= countof(m_graphics_registers.index))
   {
@@ -352,7 +353,7 @@ void VGA::IOGraphicsDataRegisterRead(uint8* value)
                   uint32(m_graphics_registers.index[register_index]));
 }
 
-void VGA::IOGraphicsDataRegisterWrite(uint8 value)
+void ET4000::IOGraphicsDataRegisterWrite(uint8 value)
 {
   static const uint8_t gr_mask[16] = {
     0x0f, /* 0x00 */
@@ -385,19 +386,19 @@ void VGA::IOGraphicsDataRegisterWrite(uint8 value)
   Log_TracePrintf("Graphics register write: %u <- 0x%02X", uint32(register_index), uint32(value));
 }
 
-void VGA::IOMiscOutputRegisterWrite(uint8 value)
+void ET4000::IOMiscOutputRegisterWrite(uint8 value)
 {
   Log_TracePrintf("Misc output register write: 0x%02X", uint32(value));
   m_misc_output_register.bits = value;
   RecalculateEventTiming();
 }
 
-void VGA::IOAttributeAddressRead(uint8* value)
+void ET4000::IOAttributeAddressRead(uint8* value)
 {
   *value = m_attribute_address_register;
 }
 
-void VGA::IOAttributeDataRead(uint8* value)
+void ET4000::IOAttributeDataRead(uint8* value)
 {
   if (m_attribute_address_register >= countof(m_attribute_registers.index))
   {
@@ -413,19 +414,16 @@ void VGA::IOAttributeDataRead(uint8* value)
                   uint32(m_attribute_registers.index[register_index]));
 }
 
-void VGA::IOAttributeAddressDataWrite(uint8 value)
+void ET4000::IOAttributeAddressDataWrite(uint8 value)
 {
   if (!m_crtc_registers.attribute_register_flipflop)
   {
-    bool video_enable = !!(value & 0x20);
-    if (video_enable != m_attribute_video_enabled)
+    // bit 5/0x20 - disable ATC palette ram access, replace palette with overscan register
+    bool atc_palette_access = !!(value & 0x20);
+    if (atc_palette_access != m_atc_palette_access)
     {
-      if (m_attribute_video_enabled)
-        Log_WarningPrintf("Video disable - we should clear the displayed framebuffer");
-      else
-        Log_WarningPrintf("Video enable - we should set a full dirty region");
-
-      m_attribute_video_enabled = video_enable;
+      m_retrace_event->InvokeEarly();
+      m_atc_palette_access = atc_palette_access;
     }
 
     // This write is the address
@@ -453,7 +451,7 @@ void VGA::IOAttributeAddressDataWrite(uint8 value)
     m_attribute_registers.index[register_index] &= 0x3F;
 }
 
-void VGA::IOSequencerDataRegisterRead(uint8* value)
+void ET4000::IOSequencerDataRegisterRead(uint8* value)
 {
   if (m_sequencer_address_register >= countof(m_sequencer_registers.index))
   {
@@ -469,7 +467,7 @@ void VGA::IOSequencerDataRegisterRead(uint8* value)
                   uint32(m_sequencer_registers.index[register_index]));
 }
 
-void VGA::IOSequencerDataRegisterWrite(uint8 value)
+void ET4000::IOSequencerDataRegisterWrite(uint8 value)
 {
   /* force some bits to zero */
   const uint8_t sr_mask[8] = {
@@ -489,21 +487,21 @@ void VGA::IOSequencerDataRegisterWrite(uint8 value)
     RecalculateEventTiming();
 }
 
-void VGA::IODACReadAddressWrite(uint8 value)
+void ET4000::IODACReadAddressWrite(uint8 value)
 {
   Log_DevPrintf("DAC read address write: %u", value);
   m_dac_read_address = value;
   m_dac_state_register &= 0b00;
 }
 
-void VGA::IODACWriteAddressWrite(uint8 value)
+void ET4000::IODACWriteAddressWrite(uint8 value)
 {
   Log_DevPrintf("DAC write address write: %u", value);
   m_dac_write_address = value;
   m_dac_state_register |= 0b11;
 }
 
-void VGA::IODACDataRegisterRead(uint8* value)
+void ET4000::IODACDataRegisterRead(uint8* value)
 {
   uint32 color_value = m_dac_palette[m_dac_read_address];
   uint8 shift = m_dac_color_index * 8;
@@ -519,7 +517,7 @@ void VGA::IODACDataRegisterRead(uint8* value)
   }
 }
 
-void VGA::IODACDataRegisterWrite(uint8 value)
+void ET4000::IODACDataRegisterWrite(uint8 value)
 {
   Log_TracePrintf("DAC palette write %u/%u: %u", uint32(m_dac_write_address), uint32(m_dac_color_index), uint32(value));
 
@@ -546,7 +544,7 @@ static constexpr std::array<uint32, 16> mask16 = {
   0xff000000, 0xff0000ff, 0xff00ff00, 0xff00ffff, 0xffff0000, 0xffff00ff, 0xffffff00, 0xffffffff,
 };
 
-bool VGA::MapToVRAMOffset(uint32* offset)
+bool ET4000::MapToVRAMOffset(uint32* offset)
 {
   uint32 value = *offset;
   switch (m_graphics_registers.misc.memory_map_select)
@@ -585,7 +583,7 @@ bool VGA::MapToVRAMOffset(uint32* offset)
   }
 }
 
-void VGA::HandleVRAMRead(uint32 offset, uint8* value)
+void ET4000::HandleVRAMRead(uint32 offset, uint8* value)
 {
   if (!MapToVRAMOffset(&offset))
   {
@@ -639,7 +637,7 @@ void VGA::HandleVRAMRead(uint32 offset, uint8* value)
   }
 }
 
-inline uint32 VGALogicOp(uint8 logic_op, uint32 latch, uint32 value)
+inline uint32 ET4000LogicOp(uint8 logic_op, uint32 latch, uint32 value)
 {
   switch (logic_op)
   {
@@ -656,12 +654,12 @@ inline uint32 VGALogicOp(uint8 logic_op, uint32 latch, uint32 value)
   }
 }
 
-constexpr uint32 VGAExpandMask(uint8 mask)
+constexpr uint32 ET4000ExpandMask(uint8 mask)
 {
   return ZeroExtend32(mask) | (ZeroExtend32(mask) << 8) | (ZeroExtend32(mask) << 16) | (ZeroExtend32(mask) << 24);
 }
 
-void VGA::HandleVRAMWrite(uint32 offset, uint8 value)
+void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
 {
   if (!MapToVRAMOffset(&offset))
   {
@@ -707,33 +705,34 @@ void VGA::HandleVRAMWrite(uint32 offset, uint8 value)
     {
       case 0:
       {
-        // The input byte is rotated right by the amount specified in Rotate Count, with all bits shifted off being fed
-        // into bit 7
+        // The input byte is rotated right by the amount specified in Rotate Count, with all bits shifted off being
+        // fed into bit 7
         uint8 rotated =
           (value >> m_graphics_registers.rotate_count) | (value << (8 - m_graphics_registers.rotate_count));
 
         // The resulting byte is distributed over 4 separate paths, one for each plane of memory
-        all_planes_value = VGAExpandMask(rotated);
+        all_planes_value = ET4000ExpandMask(rotated);
 
-        // If a bit in the Enable Set/Reset register is clear, the corresponding byte is left unmodified. Otherwise the
-        // byte is replaced by all 0s if the corresponding bit in Set/Reset Value is clear, or all 1s if the bit is one.
+        // If a bit in the Enable Set/Reset register is clear, the corresponding byte is left unmodified. Otherwise
+        // the byte is replaced by all 0s if the corresponding bit in Set/Reset Value is clear, or all 1s if the bit
+        // is one.
         all_planes_value = (all_planes_value & ~mask16[m_graphics_registers.enable_set_reset]) |
                            (mask16[m_graphics_registers.set_reset] & mask16[m_graphics_registers.enable_set_reset]);
 
         // The resulting value and the latch value are passed to the ALU
-        all_planes_value = VGALogicOp(m_graphics_registers.logic_op, m_latch, all_planes_value);
+        all_planes_value = ET4000LogicOp(m_graphics_registers.logic_op, m_latch, all_planes_value);
 
         // The Bit Mask Register is checked, for each set bit the corresponding bit from the ALU is forwarded. If the
         // bit is clear the bit is taken directly from the Latch.
-        uint32 bit_mask = VGAExpandMask(m_graphics_registers.bit_mask);
+        uint32 bit_mask = ET4000ExpandMask(m_graphics_registers.bit_mask);
         all_planes_value = (all_planes_value & bit_mask) | (m_latch & ~bit_mask);
       }
       break;
 
       case 1:
       {
-        // In this mode, data is transferred directly from the 32 bit latch register to display memory, affected only by
-        // the Memory Plane Write Enable field. The host data is not used in this mode.
+        // In this mode, data is transferred directly from the 32 bit latch register to display memory, affected only
+        // by the Memory Plane Write Enable field. The host data is not used in this mode.
         all_planes_value = m_latch;
       }
       break;
@@ -744,11 +743,11 @@ void VGA::HandleVRAMWrite(uint32 offset, uint8 value)
         all_planes_value = mask16[value & 0x0F];
 
         // Then the selected Logical Operation is performed on the resulting data and the data in the latch register.
-        all_planes_value = VGALogicOp(m_graphics_registers.logic_op, m_latch, all_planes_value);
+        all_planes_value = ET4000LogicOp(m_graphics_registers.logic_op, m_latch, all_planes_value);
 
         // Then the Bit Mask field is used to select which bits come from the resulting data and which come from the
         // latch register.
-        uint32 bit_mask = VGAExpandMask(m_graphics_registers.bit_mask);
+        uint32 bit_mask = ET4000ExpandMask(m_graphics_registers.bit_mask);
         all_planes_value = (all_planes_value & bit_mask) | (m_latch & ~bit_mask);
       }
       break;
@@ -765,12 +764,12 @@ void VGA::HandleVRAMWrite(uint32 offset, uint8 value)
         uint8 temp_bit_mask = m_graphics_registers.bit_mask & rotated;
 
         // Apply logical operation.
-        all_planes_value = VGALogicOp(m_graphics_registers.logic_op, m_latch, set_reset_data);
+        all_planes_value = ET4000LogicOp(m_graphics_registers.logic_op, m_latch, set_reset_data);
 
         // The resulting value is used on the data obtained from the Set/Reset field in the same way that the Bit Mask
-        // field would ordinarily be used to select which bits come from the expansion of the Set/Reset field and which
-        // come from the latch register.
-        uint32 bit_mask = VGAExpandMask(temp_bit_mask);
+        // field would ordinarily be used to select which bits come from the expansion of the Set/Reset field and
+        // which come from the latch register.
+        uint32 bit_mask = ET4000ExpandMask(temp_bit_mask);
         all_planes_value = (all_planes_value & bit_mask) | (m_latch & ~bit_mask);
       }
       break;
@@ -785,7 +784,38 @@ void VGA::HandleVRAMWrite(uint32 offset, uint8 value)
   }
 }
 
-void VGA::RegisterVRAMMMIO()
+void ET4000::HandleBIOSRead(uint32 offset, uint8* value) {}
+
+void ET4000::HandleBIOSWrite(uint32 offset, uint8 value) {}
+
+bool ET4000::IsBIOSAddressMapped(uint32 offset, uint32 size)
+{
+  uint32 last_byte = (offset + size - 1);
+  if (last_byte >= m_bios_size)
+    return false;
+
+  // The ET4000 is designed to decode COOOO-CSFFF; C6800-C7FFF (hexl as the EROM address space on power-up, providing
+  // 30KB code size for the ET4000 BIOS ROM modules. This address space can be redefined to a full 32KB by programming
+  // TS Index Register 7 ITS Auxiliary Registerl bits 5 and 3.
+  const uint8 rmap = m_sequencer_registers.bios_rom_address_map_0 | (m_sequencer_registers.bios_rom_address_map_1 << 1);
+  switch (rmap & 3)
+  {
+    case 0: // C0000-C3FFF
+      return (last_byte <= 0x3FFF);
+
+    case 1: // Disabled
+      return false;
+
+    case 2: // C0000-C5FFF+C6800-C7FFF
+      return (last_byte <= 0x5FFF || last_byte >= 0x6800);
+
+    case 3: // C0000-C7FFF
+    default:
+      return true;
+  }
+}
+
+void ET4000::RegisterVRAMMMIO()
 {
   auto read_byte_handler = [this](uint32 base, uint32 offset, uint8* value) { HandleVRAMRead(base + offset, value); };
   auto read_word_handler = [this](uint32 base, uint32 offset, uint16* value) {
@@ -826,7 +856,13 @@ void VGA::RegisterVRAMMMIO()
   m_vram_mmio = MMIO::CreateComplex(0xA0000, 0x20000, std::move(handlers));
   m_bus->RegisterMMIO(m_vram_mmio);
 
-  // Log_DevPrintf("Mapped %u bytes of VRAM at 0x%08X-0x%08X", size, base, base + size - 1);
+  // BIOS region
+  handlers = {};
+  handlers.read_byte = [this](uint32 offset, uint8* value) { *value = IsBIOSAddressMapped(offset, 1) ? m_bios[offset] : 0xFF; };
+  handlers.read_word = [this](uint32 offset, uint16* value) { if (IsBIOSAddressMapped(offset, 2)) { std::memcpy(value, &m_bios[offset], 2); } };
+  handlers.read_dword = [this](uint32 offset, uint32* value) { if (IsBIOSAddressMapped(offset, 4)) { std::memcpy(value, &m_bios[offset], 4); } };
+  m_bios_mmio = MMIO::CreateComplex(0xC0000, 0x8000, std::move(handlers), true);
+  m_bus->RegisterMMIO(m_bios_mmio);
 }
 
 inline uint32 Convert6BitColorTo8Bit(uint32 color)
@@ -843,7 +879,7 @@ inline uint32 Convert6BitColorTo8Bit(uint32 color)
   return (color & 0xFF000000) | ZeroExtend32(r) | (ZeroExtend32(g) << 8) | (ZeroExtend32(b) << 16);
 }
 
-void VGA::SetOutputPalette16()
+void ET4000::SetOutputPalette16()
 {
   for (uint32 i = 0; i < 16; i++)
   {
@@ -859,7 +895,7 @@ void VGA::SetOutputPalette16()
   }
 }
 
-void VGA::SetOutputPalette256()
+void ET4000::SetOutputPalette256()
 {
   for (uint32 i = 0; i < 256; i++)
   {
@@ -867,17 +903,19 @@ void VGA::SetOutputPalette256()
   }
 }
 
-void VGA::RecalculateEventTiming()
+void ET4000::RecalculateEventTiming()
 {
   // Pixels clocks. 0 - 25MHz, 1 - 28Mhz, 2/3 - undefined
-  static constexpr std::array<uint32, 4> pixel_clocks = {{25175000, 28322000, 25175000, 25175000}};
-  uint32 pixel_clock = pixel_clocks[m_misc_output_register.clock_select];
+  static constexpr std::array<uint32, 4> pixel_clocks = {{25175000, 28322000, 32514000, 40000000}};
+  const uint32 clock_select =
+    m_misc_output_register.clock_select | (m_crtc_registers.mc6845_compatibility_control.clock_select_2 << 2);
+  uint32 pixel_clock = pixel_clocks[clock_select & 3];
 
   // Character width depending on dot clock - is this correct for graphics modes? What about dot clock rate?
   uint32 character_width = m_sequencer_registers.clocking_mode.dot_mode ? 8 : 9;
 
-  // Due to timing factors of the VGA hardware (which, for compatibility purposes has been emulated by VGA compatible
-  // chipsets), the actual horizontal total is 5 character clocks more than the value stored in this field.
+  // Due to timing factors of the ET4000 hardware (which, for compatibility purposes has been emulated by ET4000
+  // compatible chipsets), the actual horizontal total is 5 character clocks more than the value stored in this field.
   uint32 horizontal_total_pixels = (ZeroExtend32(m_crtc_registers.horizontal_total) + 5) * character_width;
   if (m_sequencer_registers.clocking_mode.dot_clock_rate)
     horizontal_total_pixels *= 2;
@@ -885,7 +923,8 @@ void VGA::RecalculateEventTiming()
   // If we need hblank timing, use start_horizontal_blanking
   double horizontal_frequency = double(pixel_clock) / double(horizontal_total_pixels);
 
-  // This field contains the value of the scanline counter at the beginning of the last scanline in the vertical period.
+  // This field contains the value of the scanline counter at the beginning of the last scanline in the vertical
+  // period.
   uint32 vertical_total_lines =
     (ZeroExtend32(m_crtc_registers.vertical_total) | (ZeroExtend32(m_crtc_registers.overflow_register & 0x01) << 8) |
      ZeroExtend32(m_crtc_registers.overflow_register & 0x20) << 4) +
@@ -896,7 +935,7 @@ void VGA::RecalculateEventTiming()
     vertical_total_lines *= 2;
 
   double vertical_frequency = horizontal_frequency / double(vertical_total_lines);
-  Log_DevPrintf("VGA: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz", horizontal_frequency / 1000.0,
+  Log_DevPrintf("ET4000: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz", horizontal_frequency / 1000.0,
                 vertical_frequency);
 
   m_timing.horizontal_frequency = std::max(float(horizontal_frequency), 1.0f);
@@ -926,9 +965,9 @@ void VGA::RecalculateEventTiming()
   m_timing.vertical_total_duration = std::max(SimulationTime(vertical_total_duration), SimulationTime(1));
 
   // Vertical frequency must be between 35-75hz?
-  if (vertical_frequency < 35.0 || vertical_frequency > 75.0)
+  if (vertical_frequency < 50.0 || vertical_frequency > 75.0)
   {
-    Log_DevPrintf("VGA: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz out of range.",
+    Log_DevPrintf("ET4000: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz out of range.",
                   horizontal_frequency / 1000.0, vertical_frequency);
 
     // Clear the screen
@@ -949,7 +988,7 @@ void VGA::RecalculateEventTiming()
     m_retrace_event->Activate();
 }
 
-VGA::ScanoutInfo VGA::GetScanoutInfo()
+ET4000::ScanoutInfo ET4000::GetScanoutInfo()
 {
   ScanoutInfo si;
   if (!m_retrace_event->IsActive())
@@ -983,7 +1022,7 @@ VGA::ScanoutInfo VGA::GetScanoutInfo()
   return si;
 }
 
-uint32 VGA::CRTCReadVRAMPlanes(uint32 address_counter, uint32 row_scan_counter) const
+uint32 ET4000::CRTCReadVRAMPlanes(uint32 address_counter, uint32 row_scan_counter) const
 {
   uint32 address = CRTCWrapAddress(address_counter, row_scan_counter);
   uint32 vram_offset = address * 4;
@@ -995,7 +1034,7 @@ uint32 VGA::CRTCReadVRAMPlanes(uint32 address_counter, uint32 row_scan_counter) 
   return all_planes & plane_mask;
 }
 
-uint32 VGA::CRTCWrapAddress(uint32 address_counter, uint32 row_scan_counter) const
+uint32 ET4000::CRTCWrapAddress(uint32 address_counter, uint32 row_scan_counter) const
 {
   uint32 address;
   if (m_crtc_registers.underline_location & 0x40)
@@ -1030,7 +1069,7 @@ uint32 VGA::CRTCWrapAddress(uint32 address_counter, uint32 row_scan_counter) con
   return address;
 }
 
-void VGA::RenderTextMode()
+void ET4000::RenderTextMode()
 {
   uint32 character_height = (m_crtc_registers.maximum_scan_lines & 0x1F) + 1;
   uint32 character_width = 8;
@@ -1051,7 +1090,8 @@ void VGA::RenderTextMode()
     return;
 
   // uint32 screen_width = (uint32(m_crtc_registers.end_horizontal_display) + 1) * 8;
-  // uint32 screen_height = (m_crtc_registers.vertical_display_end | (uint32(m_crtc_registers.overflow_register & 0x02)
+  // uint32 screen_height = (m_crtc_registers.vertical_display_end | (uint32(m_crtc_registers.overflow_register &
+  // 0x02)
   // << 7) | (uint32(m_crtc_registers.overflow_register & 0x40) << 3)) + 1;
   uint32 screen_width = character_columns * character_width;
   uint32 screen_height = character_rows * character_height;
@@ -1187,8 +1227,8 @@ void VGA::RenderTextMode()
       // To draw the cursor, we simply overwrite the pixels. Easier than branching in the character draw routine.
       if (current_address == cursor_address)
       {
-        // On the standard VGA, the cursor color is obtained from the foreground color of the character that the cursor
-        // is superimposing. On the standard VGA there is no way to modify this behavior.
+        // On the standard ET4000, the cursor color is obtained from the foreground color of the character that the
+        // cursor is superimposing. On the standard ET4000 there is no way to modify this behavior.
         // TODO: How is dup9 handled here?
         cursor_start_line = std::min(cursor_start_line, character_height);
         cursor_end_line = std::min(cursor_end_line, character_height);
@@ -1204,8 +1244,8 @@ void VGA::RenderTextMode()
   m_display->DisplayFramebuffer();
 }
 
-void VGA::DrawTextGlyph8(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32 rows, uint32 fg_color, uint32 bg_color,
-                         int32 dup9)
+void ET4000::DrawTextGlyph8(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32 rows, uint32 fg_color, uint32 bg_color,
+                            int32 dup9)
 {
   const uint32 colors[2] = {bg_color, fg_color};
 
@@ -1231,7 +1271,8 @@ void VGA::DrawTextGlyph8(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32 ro
   }
 }
 
-void VGA::DrawTextGlyph16(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32 rows, uint32 fg_color, uint32 bg_color)
+void ET4000::DrawTextGlyph16(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32 rows, uint32 fg_color,
+                             uint32 bg_color)
 {
   const uint32 colors[2] = {bg_color, fg_color};
 
@@ -1260,11 +1301,11 @@ void VGA::DrawTextGlyph16(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32 r
   }
 }
 
-//#define FAST_VGA_RENDER 1
+//#define FAST_ET4000_RENDER 1
 
-// https://ia801809.us.archive.org/11/items/bitsavers_ibmpccardseferenceManualMay92_1756350/IBM_VGA_XGA_Technical_Reference_Manual_May92.pdf
+// https://ia801809.us.archive.org/11/items/bitsavers_ibmpccardseferenceManualMay92_1756350/IBM_ET4000_XGA_Technical_Reference_Manual_May92.pdf
 
-void VGA::RenderGraphicsMode()
+void ET4000::RenderGraphicsMode()
 {
   uint32 screen_width = (uint32(m_crtc_registers.end_horizontal_display) + 1) * 8;
   uint32 screen_height =
@@ -1285,7 +1326,7 @@ void VGA::RenderGraphicsMode()
   // address counter is always divided by two as well (for CGA modes).
   bool double_scan = !!(m_crtc_registers.maximum_scan_lines & 0x80);
 
-#ifdef FAST_VGA_RENDER
+#ifdef FAST_ET4000_RENDER
   // We can skip rendering the doubled scanlines by dividing the height by 2.
   if (double_scan)
     screen_height /= 2;
@@ -1300,7 +1341,6 @@ void VGA::RenderGraphicsMode()
     pixels_per_col = 2;
     screen_width *= 2;
   }
-  // attribute register used here too
 
   // Update framebuffer size before drawing to it
   if (m_display->GetFramebufferWidth() != screen_width || m_display->GetFramebufferHeight() != screen_height ||
@@ -1482,7 +1522,7 @@ void VGA::RenderGraphicsMode()
       uint32 pan_pixels = (horizontal_pan & 7) / 2;
 
       // Slow loop with panning part
-#ifdef FAST_VGA_RENDER
+#ifdef FAST_ET4000_RENDER
       int32 col = -int32(pan_pixels * 2);
       int32 screen_width_div2 = int32(screen_width);
 #else
@@ -1502,7 +1542,7 @@ void VGA::RenderGraphicsMode()
 
           if (col >= 0)
           {
-#ifdef FAST_VGA_RENDER
+#ifdef FAST_ET4000_RENDER
             m_display->SetPixel(col, scanline, color);
 #else
             m_display->SetPixel(col * 2 + 0, scanline, color);
@@ -1522,7 +1562,7 @@ void VGA::RenderGraphicsMode()
         uint32 indices = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
         address_counter++;
 
-#ifdef FAST_VGA_RENDER
+#ifdef FAST_ET4000_RENDER
         m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 0) & 0xFF]);
         m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 8) & 0xFF]);
         m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 16) & 0xFF]);
@@ -1560,7 +1600,7 @@ void VGA::RenderGraphicsMode()
 
           if (col < screen_width_div2)
           {
-#ifdef FAST_VGA_RENDER
+#ifdef FAST_ET4000_RENDER
             m_display->SetPixel(col, scanline, color);
 #else
             m_display->SetPixel(col * 2 + 0, scanline, color);
@@ -1577,7 +1617,7 @@ void VGA::RenderGraphicsMode()
       }
     }
 
-#ifndef FAST_VGA_RENDER
+#ifndef FAST_ET4000_RENDER
     if (!double_scan || (scanline & 1) != 0)
 #endif
     {

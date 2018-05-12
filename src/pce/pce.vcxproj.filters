@@ -105,6 +105,9 @@
     <ClCompile Include="cpu_x86\interpreter_backend.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
+    <ClCompile Include="hw\et4000.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -236,6 +239,9 @@
       <Filter>cpu_x86</Filter>
     </ClInclude>
     <ClInclude Include="fastjmp.h" />
+    <ClInclude Include="hw\et4000.h">
+      <Filter>hw</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="hw">
