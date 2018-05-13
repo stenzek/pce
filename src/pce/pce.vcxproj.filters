@@ -271,4 +271,7 @@
   <ItemGroup>
     <MASM Include="fastjmp.asm" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="bitfield.natvis" />
+  </ItemGroup>
 </Project>

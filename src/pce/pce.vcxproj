@@ -149,6 +149,9 @@
   <ItemGroup>
     <MASM Include="fastjmp.asm" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="bitfield.natvis" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{476D56B2-D87F-405C-BB64-5B3B813F58B3}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
