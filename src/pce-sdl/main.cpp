@@ -7,6 +7,7 @@
 #include "YBaseLib/Thread.h"
 #include "YBaseLib/Timer.h"
 #include "imgui.h"
+#include "nfd.h"
 #include "pce-sdl/audio_sdl.h"
 #include "pce-sdl/display_d3d.h"
 #include "pce-sdl/display_gl.h"
@@ -35,7 +36,6 @@
 #include "pce/systems/pcat.h"
 #include "pce/systems/pcbochs.h"
 #include "pce/systems/pcxt.h"
-#include "nfd.h"
 #include <SDL.h>
 #include <cstdio>
 Log_SetChannel(Main);
@@ -388,7 +388,7 @@ void SDLHostInterface::Render()
   m_display->RenderFrame();
 }
 
-void SDLHostInterface::AddDeviceFileCallback(const char* title, std::function<void(const std::string &)>&& callback)
+void SDLHostInterface::AddDeviceFileCallback(const char* title, std::function<void(const std::string&)>&& callback)
 {
   DeviceFileEntry dfe;
   dfe.title = title;
@@ -590,7 +590,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
   system->AddComponent(vga);
 #else
   HW::ET4000* vga = new HW::ET4000();
-  LoadBIOS("romimages\\et4000-stb.bin", [vga](ByteStream* s) { return vga->SetBIOSROM(s); });
+  LoadBIOS("romimages\\et4000.bin", [vga](ByteStream* s) { return vga->SetBIOSROM(s); });
   system->AddComponent(vga);
 #endif
 
@@ -617,18 +617,23 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // LoadFloppy(system->GetFDDController(), 0, "images\\DOS33-DISK01.IMG");
   // LoadFloppy(system->GetFDDController(), 1, "images\\8088mph.img");
   // LoadFloppy(system->GetFDDController(), 1, "images\\checkit3a.img");
-  host_interface->AddDeviceFileCallback("Floppy A", [&system](const std::string& filename) { LoadFloppy(system->GetFDDController(), 0, filename.c_str()); });
-  host_interface->AddDeviceFileCallback("Floppy B", [&system](const std::string& filename) { LoadFloppy(system->GetFDDController(), 1, filename.c_str()); });
+  host_interface->AddDeviceFileCallback("Floppy A", [&system](const std::string& filename) {
+    LoadFloppy(system->GetFDDController(), 0, filename.c_str());
+  });
+  host_interface->AddDeviceFileCallback("Floppy B", [&system](const std::string& filename) {
+    LoadFloppy(system->GetFDDController(), 1, filename.c_str());
+  });
 
   // LoadBIOS("romimages\\PCXTBIOS.BIN", [&system](ByteStream* s) { return system->AddROM(0xFE000, s); });
   // LoadBIOS("romimages\\386_ami.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });
   // LoadBIOS("romimages\\ami386.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });
-  LoadBIOS("romimages\\BIOS-bochs-legacy", [&system](ByteStream* s) { return system->AddROM(0xF0000, s) && system->AddROM(0xFFFF0000u, s); });
+  LoadBIOS("romimages\\BIOS-bochs-legacy",
+           [&system](ByteStream* s) { return system->AddROM(0xF0000, s) && system->AddROM(0xFFFF0000u, s); });
 
   // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS33.img", 41, 16, 63);
-  // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
+  LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\hd10meg.img", 306, 4, 17);
-  LoadHDD(system->GetHDDController(), 0, "images\\win95.img", 243, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\win95.img", 243, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\win98.img", 609, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\c.img", 81, 16, 63);
   LoadHDD(system->GetHDDController(), 1, "images\\utils.img", 162, 16, 63);
@@ -693,6 +698,7 @@ int main(int argc, char* argv[])
   // set log flags
   // g_pLog->SetConsoleOutputParams(true);
   g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_PROFILE);
+  g_pLog->SetConsoleOutputParams(true, "CPU_X86::CPU Bus HW::Serial", LOGLEVEL_PROFILE);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_INFO);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_WARNING);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_ERROR);
@@ -701,6 +707,8 @@ int main(int argc, char* argv[])
 
 #ifdef Y_BUILD_CONFIG_RELEASE
   g_pLog->SetFilterLevel(LOGLEVEL_ERROR);
+#else
+  g_pLog->SetFilterLevel(LOGLEVEL_PROFILE);
 #endif
 
 #if defined(__WIN32__)

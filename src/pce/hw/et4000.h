@@ -58,13 +58,14 @@ private:
   uint8 m_st0 = 0;
 
   // 03DAh: Status register 1
-  union
+  union StatusRegister1
   {
+    BitField<uint8, bool, 0, 1> display_enable_n;
+    BitField<uint8, bool, 3, 1> vertical_blank;
+    BitField<uint8, uint8, 4, 2> display_feedback_test;
+    BitField<uint8, bool, 7, 1> vertical_blank_n;
     uint8 bits = 0;
-    BitField<uint8, bool, 0, 1> display_disabled;
-    BitField<uint8, bool, 3, 1> vblank;
-  } m_st1;
-
+  };
   void IOReadStatusRegister1(uint8* value);
 
   // CRTC registers
@@ -95,19 +96,30 @@ private:
       uint8 underline_location;        // 20 0x14
       uint8 start_vertical_blanking;   // 21 0x15
       uint8 end_vertical_blanking;     // 22 0x16
-      uint8 crtc_mode_control;         // 23 0x17
-      uint8 line_compare;              // 24 0x18
-      uint8 unk1;                      // 25 0x19
-      uint8 unk2;                      // 26 0x1A
-      uint8 unk3;                      // 27 0x1B
-      uint8 unk4;                      // 28 0x1C
-      uint8 unk5;                      // 29 0x1D
-      uint8 unk6;                      // 30 0x1E
-      uint8 unk7;                      // 31 0x1F
-      uint8 unk8;                      // 32 0x20
-      uint8 unk9;                      // 33 0x21
-      uint8 unk10;                     // 34 0x22
-      uint8 unk11;                     // 35 0x23
+      union
+      {
+        BitField<uint8, bool, 0, 1> alternate_la13;
+        BitField<uint8, bool, 1, 1> alternate_la14;
+        BitField<uint8, bool, 2, 1> line_counter_mul2;
+        BitField<uint8, bool, 3, 1> linear_counter_mul2;
+        BitField<uint8, bool, 4, 1> memory_address_output_control;
+        BitField<uint8, bool, 5, 1> alternate_ma00_output;
+        BitField<uint8, bool, 6, 1> byte_mode;
+        BitField<uint8, bool, 7, 1> hold_mode;
+        uint8 bits;
+      } crtc_mode_control; // 23 0x17
+      uint8 line_compare;  // 24 0x18
+      uint8 unk1;          // 25 0x19
+      uint8 unk2;          // 26 0x1A
+      uint8 unk3;          // 27 0x1B
+      uint8 unk4;          // 28 0x1C
+      uint8 unk5;          // 29 0x1D
+      uint8 unk6;          // 30 0x1E
+      uint8 unk7;          // 31 0x1F
+      uint8 unk8;          // 32 0x20
+      uint8 unk9;          // 33 0x21
+      uint8 unk10;         // 34 0x22
+      uint8 unk11;         // 35 0x23
       union
       {
         uint8 unk12; // 36 0x24
@@ -190,14 +202,45 @@ private:
       uint8 unk39; // 63 0x3F
     };
     uint8 index[64] = {};
+
+    // In characters, not pixels.
+    uint32 GetHorizontalDisplayed() const { return uint32(end_horizontal_display) + 1; }
+
+    uint32 GetHorizontalTotal() const { return uint32(horizontal_total) + 5; }
+
+    uint32 GetVerticalDisplayed() const
+    {
+      return (vertical_display_end | (uint32(overflow_register & 0x02) << 7) | (uint32(overflow_register & 0x40) << 3) |
+              (uint32(vertical_display_end_10) << 10)) +
+             1;
+    }
+
+    uint32 GetVerticalTotal() const
+    {
+      return (uint32(vertical_total) | (uint32(overflow_register & 0x01) << 8) |
+              (uint32(overflow_register & 0x20) << 4) | (uint32(vertical_total_10) << 10)) +
+             1;
+    }
+
+    uint32 GetStartAddress() const
+    {
+      return (ZeroExtend32(extended_start_address.GetValue()) << 16) | (ZeroExtend32(start_address_high) << 8) |
+             (ZeroExtend32(start_address_low));
+    }
+
+    uint32 GetCursorAddress() const
+    {
+      return (ZeroExtend32(extended_cursor_address.GetValue()) << 16) | (ZeroExtend32(cursor_location_high) << 8) |
+             (ZeroExtend32(cursor_location_low));
+    }
   } m_crtc_registers;
 
   // 03D0/2/4: CRT (6845) index register
   uint8 m_crtc_index_register = 0;
   union
   {
-    BitField<uint8, uint8, 0, 4> write_segment_pointer;
-    BitField<uint8, uint8, 4, 4> read_segment_pointer;
+    BitField<uint8, uint8, 0, 4> write_segment;
+    BitField<uint8, uint8, 4, 4> read_segment;
     uint8 bits = 0;
   } m_segment_select_register;
 
@@ -310,8 +353,8 @@ private:
         BitField<uint8, bool, 1, 1> mono_emulation;
         BitField<uint8, bool, 2, 1> line_graphics_enable;
         BitField<uint8, bool, 3, 1> blink_enable;
-        BitField<uint8, bool, 5, 1> pixel_panning_mode;     // disable panning while in split screen
-        BitField<uint8, bool, 6, 1> pelclock_div2;          // halves pixel clock, reducing horizontal resolution
+        BitField<uint8, bool, 5, 1> pixel_panning_mode; // disable panning while in split screen
+        BitField<uint8, bool, 6, 1> pelclock_div2;      // halves pixel clock, reducing horizontal resolution
         BitField<uint8, bool, 7, 1> palette_bits_5_4_select;
       } attribute_mode_control;
       uint8 overscan_color;
@@ -378,14 +421,14 @@ private:
         BitField<uint8, bool, 3, 1> chain_4_enable;
       } sequencer_memory_mode; // 04
 
-      uint8 reserved;   // 05
+      uint8 reserved; // 05
 
       union
       {
         BitField<uint8, uint8, 1, 2> timing_sequencer_state;
         // affects dots per character in text mode plus dot_mode
         // 111 - 16, 100 - 12, 011 - 11, 010 - 10, 001 - 8, 000 - 9
-      };    // 06
+      }; // 06
 
       union
       {
@@ -395,7 +438,7 @@ private:
         BitField<uint8, uint8, 5, 1> bios_rom_address_map_1;
         BitField<uint8, bool, 6, 1> mclk_div2;
         BitField<uint8, bool, 7, 1> vga_mode;
-      };    // 07
+      }; // 07
     };
   } m_sequencer_registers;
   uint8 m_sequencer_address_register = 0;
@@ -416,9 +459,8 @@ private:
   void IODACDataRegisterWrite(uint8 value);
 
   // 03D8/03B8: 6845 compatibility registers
-  //uint8 m_mc6845_compat_reg_mode_control = 0;
-  //uint8 m_mc6845_compat_reg_mono_mode_control = 0;
-  
+  // uint8 m_mc6845_compat_reg_mode_control = 0;
+  // uint8 m_mc6845_compat_reg_mono_mode_control = 0;
 
   Clock m_clock;
 
