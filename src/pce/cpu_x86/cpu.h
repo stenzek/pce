@@ -373,6 +373,10 @@ protected:
   // Checks code segment is valid for far jump/call/iret.
   bool CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 check_cpl, bool raise_exceptions);
 
+  // Load descriptor tables.
+  void LoadGlobalDescriptorTable(LinearMemoryAddress table_base_address, uint32 table_limit);
+  void LoadInterruptDescriptorTable(LinearMemoryAddress table_base_address, uint32 table_limit);
+
   // Loads the visible portion of a segment register, updating the cached information
   void LoadSegmentRegister(Segment segment, uint16 value);
   void LoadLocalDescriptorTable(uint16 value);

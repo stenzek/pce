@@ -1421,6 +1421,22 @@ bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 che
   return true;
 }
 
+void CPU::LoadGlobalDescriptorTable(LinearMemoryAddress table_base_address, uint32 table_limit)
+{
+  m_gdt_location.base_address = table_base_address;
+  m_gdt_location.limit = table_limit;
+
+  Log_DevPrintf("Load GDT: Base 0x%08X limit 0x%04X", table_base_address, table_limit);
+}
+
+void CPU::LoadInterruptDescriptorTable(LinearMemoryAddress table_base_address, uint32 table_limit)
+{
+  m_idt_location.base_address = table_base_address;
+  m_idt_location.limit = table_limit;
+
+  Log_DevPrintf("Load IDT: Base 0x%08X limit 0x%04X", table_base_address, table_limit);
+}
+
 void CPU::LoadSegmentRegister(Segment segment, uint16 value)
 {
   static const char* segment_names[Segment_Count] = {"ES", "CS", "SS", "DS", "FS", "GS"};

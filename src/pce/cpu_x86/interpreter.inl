@@ -3832,20 +3832,14 @@ void NewInterpreter::Execute_Operation_LIDT(CPU* cpu)
 
   CalculateEffectiveAddress<src_mode>(cpu);
   const VirtualMemoryAddress base_address = cpu->m_effective_address;
-  uint16 table_limit = cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0);
+  uint32 table_limit = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0));
   uint32 table_base_address = cpu->ReadMemoryDWord(cpu->idata.segment, base_address + 2);
-
-  cpu->m_idt_location.limit = ZeroExtend32(table_limit);
-  cpu->m_idt_location.base_address = table_base_address;
 
   // 16-bit operand drops higher order bits
   if (cpu->idata.operand_size == OperandSize_16)
-    cpu->m_idt_location.base_address &= 0xFFFFFF;
+    table_base_address &= 0xFFFFFF;
 
-  Log::GetInstance().Writef("CPU_X86::Interpreter", __FUNCTION__, LOGLEVEL_DEV,
-                            "Load IDT from %04X:%04X: Base 0x%08X limit 0x%04X",
-                            cpu->m_registers.segment_selectors[cpu->idata.segment], base_address,
-                            cpu->m_idt_location.base_address, cpu->m_idt_location.limit);
+  cpu->LoadInterruptDescriptorTable(table_base_address, table_limit);
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
@@ -3859,19 +3853,14 @@ void NewInterpreter::Execute_Operation_LGDT(CPU* cpu)
 
   CalculateEffectiveAddress<src_mode>(cpu);
   const VirtualMemoryAddress base_address = cpu->m_effective_address;
-  uint16 table_limit = cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0);
+  uint32 table_limit = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0));
   uint32 table_base_address = cpu->ReadMemoryDWord(cpu->idata.segment, base_address + 2);
-  cpu->m_gdt_location.limit = ZeroExtend32(table_limit);
-  cpu->m_gdt_location.base_address = table_base_address;
 
   // 16-bit operand drops higher order bits
   if (cpu->idata.operand_size == OperandSize_16)
-    cpu->m_gdt_location.base_address &= 0xFFFFFF;
+    table_base_address &= 0xFFFFFF;
 
-  Log::GetInstance().Writef("CPU_X86::Interpreter", __FUNCTION__, LOGLEVEL_DEV,
-                            "Load GDT from %04X:%04X: Base 0x%08X limit 0x%04X",
-                            cpu->m_registers.segment_selectors[cpu->idata.segment], base_address,
-                            cpu->m_gdt_location.base_address, cpu->m_gdt_location.limit);
+  cpu->LoadGlobalDescriptorTable(table_base_address, table_limit);
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
