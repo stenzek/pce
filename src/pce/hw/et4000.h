@@ -19,6 +19,9 @@ public:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('E', 'T', '4', 'K');
   static const uint32 MAX_BIOS_SIZE = 32768;
   static const uint32 VRAM_SIZE = 1048576;
+  static const uint32 VRAM_MASK = 1048576 - 1;
+  static const uint32 VRAM_SIZE_PER_PLANE = VRAM_SIZE / 4;
+  static const uint32 VRAM_MASK_PER_PLANE = (VRAM_SIZE / 4) - 1;
 
 public:
   ET4000();
@@ -80,22 +83,42 @@ private:
       uint8 start_horizontal_retrace;  // 4  0x04
       uint8 end_horizontal_retrace;    // 5  0x05
       uint8 vertical_total;            // 6  0x06
-      uint8 overflow_register;         // 7  0x07
-      uint8 preset_row_scan;           // 8  0x08
-      uint8 maximum_scan_lines;        // 9  0x09
-      uint8 cursor_start;              // 10 0x0A
-      uint8 cursor_end;                // 11 0x0B
-      uint8 start_address_high;        // 12 0x0C
-      uint8 start_address_low;         // 13 0x0D
-      uint8 cursor_location_high;      // 14 0x0E
-      uint8 cursor_location_low;       // 15 0x0F
-      uint8 vertical_retrace_start;    // 16 0x10
-      uint8 vertical_retrace_end;      // 17 0x11
-      uint8 vertical_display_end;      // 18 0x12
-      uint8 offset;                    // 19 0x13
-      uint8 underline_location;        // 20 0x14
-      uint8 start_vertical_blanking;   // 21 0x15
-      uint8 end_vertical_blanking;     // 22 0x16
+      union
+      {
+        BitField<uint8, uint8, 0, 1> vertical_total_8;
+        BitField<uint8, uint8, 1, 1> vertical_display_end_8;
+        BitField<uint8, uint8, 2, 1> vertical_retrace_start_8;
+        BitField<uint8, uint8, 3, 1> start_vertical_blanking_8;
+        BitField<uint8, uint8, 4, 1> line_compare_8;
+        BitField<uint8, uint8, 5, 1> vertical_total_9;
+        BitField<uint8, uint8, 6, 1> vertical_display_end_9;
+        BitField<uint8, uint8, 7, 1> vertical_retrace_start_9;
+      }; // 7  0x07
+      union
+      {
+        BitField<uint8, uint8, 0, 5> preset_row_scan;
+        BitField<uint8, uint8, 5, 2> byte_panning;
+      }; // 8  0x08
+      union
+      {
+        BitField<uint8, uint8, 0, 5> maximum_scan_line;
+        BitField<uint8, uint8, 5, 1> start_vertical_blanking_9;
+        BitField<uint8, uint8, 6, 1> line_compare_9;
+        BitField<uint8, bool, 7, 1> scan_doubling;
+      };                             // 9  0x09
+      uint8 cursor_start;            // 10 0x0A
+      uint8 cursor_end;              // 11 0x0B
+      uint8 start_address_high;      // 12 0x0C
+      uint8 start_address_low;       // 13 0x0D
+      uint8 cursor_location_high;    // 14 0x0E
+      uint8 cursor_location_low;     // 15 0x0F
+      uint8 vertical_retrace_start;  // 16 0x10
+      uint8 vertical_retrace_end;    // 17 0x11
+      uint8 vertical_display_end;    // 18 0x12
+      uint8 offset;                  // 19 0x13
+      uint8 underline_location;      // 20 0x14
+      uint8 start_vertical_blanking; // 21 0x15
+      uint8 end_vertical_blanking;   // 22 0x16
       union
       {
         BitField<uint8, bool, 0, 1> alternate_la13;
@@ -205,20 +228,19 @@ private:
 
     // In characters, not pixels.
     uint32 GetHorizontalDisplayed() const { return uint32(end_horizontal_display) + 1; }
-
     uint32 GetHorizontalTotal() const { return uint32(horizontal_total) + 5; }
 
     uint32 GetVerticalDisplayed() const
     {
-      return (vertical_display_end | (uint32(overflow_register & 0x02) << 7) | (uint32(overflow_register & 0x40) << 3) |
-              (uint32(vertical_display_end_10) << 10)) +
+      return (uint32(vertical_display_end) | (uint32(vertical_display_end_8) << 8) |
+              (uint32(vertical_display_end_9) << 9) | (uint32(vertical_display_end_10) << 10)) +
              1;
     }
 
     uint32 GetVerticalTotal() const
     {
-      return (uint32(vertical_total) | (uint32(overflow_register & 0x01) << 8) |
-              (uint32(overflow_register & 0x20) << 4) | (uint32(vertical_total_10) << 10)) +
+      return (uint32(vertical_total) | (uint32(vertical_total_8) << 8) | (uint32(vertical_total_9) << 9) |
+              (uint32(vertical_total_10) << 10)) +
              1;
     }
 
@@ -232,6 +254,14 @@ private:
     {
       return (ZeroExtend32(extended_cursor_address.GetValue()) << 16) | (ZeroExtend32(cursor_location_high) << 8) |
              (ZeroExtend32(cursor_location_low));
+    }
+
+    uint32 GetScanlinesPerRow() const { return uint32(maximum_scan_line) + 1; }
+
+    uint32 GetLineCompare() const
+    {
+      return (uint32(line_compare) | (uint32(line_compare_8) << 8) | (uint32(line_compare_9) << 9) |
+              (uint32(line_compare_10) << 10));
     }
   } m_crtc_registers;
 
@@ -440,6 +470,8 @@ private:
         BitField<uint8, bool, 7, 1> vga_mode;
       }; // 07
     };
+
+    uint32 GetCharacterWidth() const { return clocking_mode.dot_mode ? 8 : 9; }
   } m_sequencer_registers;
   uint8 m_sequencer_address_register = 0;
   void IOSequencerDataRegisterRead(uint8* value);
@@ -482,7 +514,12 @@ private:
   //            5 |     1 |      1
   //            6 |     2 |      1
   //            7 |     3 |      1
-  uint8 m_vram[VRAM_SIZE];
+  union
+  {
+    uint8 m_vram[VRAM_SIZE];
+    uint8 m_vram_planes[VRAM_SIZE / 4][4];
+    uint32 m_vram_plane_dwords[VRAM_SIZE / 4];
+  };
   MMIO* m_vram_mmio = nullptr;
   MMIO* m_bios_mmio = nullptr;
   bool MapToVRAMOffset(uint32* offset);

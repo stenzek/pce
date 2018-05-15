@@ -85,32 +85,7 @@ void ET4000::Reset()
   m_sequencer_registers.bios_rom_address_map_0 = 1;
   m_sequencer_registers.bios_rom_address_map_1 = 1;
 
-  m_crtc_registers.horizontal_total = 95;
-  m_crtc_registers.end_horizontal_display = 79;
-  m_crtc_registers.start_horizontal_blanking = 80;
-  m_crtc_registers.end_horizontal_blanking = 130;
-  m_crtc_registers.start_horizontal_retrace = 85;
-  m_crtc_registers.end_horizontal_retrace = 129;
-  m_crtc_registers.vertical_total = 191;
-  m_crtc_registers.overflow_register = 31;
-  m_crtc_registers.preset_row_scan = 0;
-  m_crtc_registers.maximum_scan_lines = 79;
-  m_crtc_registers.cursor_start = 0;
-  m_crtc_registers.cursor_end = 0;
-  m_crtc_registers.start_address_low = 0;
-  m_crtc_registers.start_address_high = 0;
-  m_crtc_registers.cursor_location_low = 0;
-  m_crtc_registers.cursor_location_high = 0;
-  m_crtc_registers.vertical_retrace_start = 156;
-  m_crtc_registers.vertical_retrace_end = 142;
-  m_crtc_registers.vertical_display_end = 143;
-  m_crtc_registers.offset = 40;
-  m_crtc_registers.underline_location = 31;
-  m_crtc_registers.start_vertical_blanking = 150;
-  m_crtc_registers.end_vertical_blanking = 185;
-  m_crtc_registers.crtc_mode_control.bits = 163;
-  m_crtc_registers.line_compare = 255;
-
+  std::fill_n(m_crtc_registers.index, countof(m_crtc_registers.index), uint8(0));
   m_crtc_registers.mc6845_compatibility_control.vse_register_port = true;
 
   for (size_t i = 0; i < m_dac_palette.size(); i++)
@@ -558,6 +533,7 @@ bool ET4000::MapToVRAMOffset(uint32* offset)
       if (value >= 0x10000)
         return false;
 
+      *offset = value;
       return true;
     }
 
@@ -566,7 +542,7 @@ bool ET4000::MapToVRAMOffset(uint32* offset)
       if (value < 0x10000 || value >= 0x18000)
         return false;
 
-      *offset = value - 0x10000;
+      *offset = (value - 0x10000);
       return true;
     }
 
@@ -576,7 +552,7 @@ bool ET4000::MapToVRAMOffset(uint32* offset)
       if (value < 0x18000)
         return false;
 
-      *offset = value - 0x18000;
+      *offset = (value - 0x18000);
       return true;
     }
   }
@@ -592,35 +568,35 @@ void ET4000::HandleVRAMRead(uint32 offset, uint8* value)
   }
 
   // 64K segment/bank select.
-  uint32 segment = ZeroExtend32(m_segment_select_register.write_segment.GetValue()) * 0x10000;
-
-  uint8 read_plane;
+  const uint32 segment = ZeroExtend32(m_segment_select_register.read_segment.GetValue()) * 65536;
   uint32 latch_linear_address;
+  uint8 read_plane;
 
   if (m_sequencer_registers.sequencer_memory_mode.chain_4_enable)
   {
     // Chain4 mode - access all four planes as a series of linear bytes
     read_plane = Truncate8(offset & 3);
-    latch_linear_address = segment + ((offset & ~uint32(3)) << 2) & (VRAM_SIZE - 1);
-    DebugAssert(latch_linear_address < VRAM_SIZE);
-    std::memcpy(&m_latch, &m_vram[latch_linear_address], sizeof(m_latch));
+    latch_linear_address = segment + offset;
+    m_latch = m_vram_plane_dwords[latch_linear_address / 4];
     *value = Truncate8(m_latch >> (8 * read_plane));
     return;
   }
 
-  // Use the offset to load the latches with all 4 planes.
-  latch_linear_address = (segment + (offset << 2)) & (VRAM_SIZE - 1);
-  std::memcpy(&m_latch, &m_vram[latch_linear_address], sizeof(m_latch));
-
-  // By default we use the read map select register for the plane to return.
-  read_plane = m_graphics_registers.read_map_select;
-  uint32 read_linear_address = (segment + (offset << 2)) & (VRAM_SIZE - 1);
-  if (m_graphics_registers.mode.host_odd_even)
+  if (!m_graphics_registers.mode.host_odd_even)
+  {
+    // By default we use the read map select register for the plane to return.
+    read_plane = m_graphics_registers.read_map_select;
+    latch_linear_address = segment + offset;
+  }
+  else
   {
     // Except for odd/even addressing, only access planes 0/1.
     read_plane = (m_graphics_registers.read_map_select & 0x02) | Truncate8(offset & 0x01);
-    read_linear_address = (offset & ~uint32(1)) * 4;
+    latch_linear_address = segment + (offset & ~uint32(1));
   }
+
+  // Use the offset to load the latches with all 4 planes.
+  m_latch = m_vram_plane_dwords[latch_linear_address];
 
   // Compare value/mask mode?
   if (m_graphics_registers.mode.read_mode != 0)
@@ -635,7 +611,7 @@ void ET4000::HandleVRAMRead(uint32 offset, uint8* value)
   else
   {
     // Read mode 0 - return specified plane
-    *value = m_vram[read_linear_address | read_plane];
+    *value = Truncate8(m_latch >> (8 * read_plane));
   }
 }
 
@@ -670,38 +646,20 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
   }
 
   // 64K segment/bank select.
-  uint32 segment = ZeroExtend32(m_segment_select_register.read_segment.GetValue()) * 0x10000;
+  const uint32 segment = ZeroExtend32(m_segment_select_register.read_segment.GetValue()) * 65536;
 
   if (m_sequencer_registers.sequencer_memory_mode.chain_4_enable)
   {
+    // ET4000 differs from other SVGA hardware - chained write addresses go direct to memory addresses.
     uint8 plane = Truncate8(offset & 3);
     if (m_sequencer_registers.memory_plane_write_enable & (1 << plane))
-    {
-      // Offset | Plane | Byte within plane | VRAM Address
-      // -------------------------------------------------
-      //      0 |     0 |                 0 |            0
-      //      1 |     1 |                 0 |            1
-      //      2 |     2 |                 0 |            2
-      //      3 |     3 |                 0 |            3
-      //      4 |     0 |                 4 |           16
-      //      5 |     1 |                 4 |           17
-      //      6 |     2 |                 4 |           18
-      //      7 |     3 |                 4 |           19
-      offset = segment + (((offset & ~uint32(3)) * 4) | ZeroExtend32(plane));
-      DebugAssert(offset < VRAM_SIZE);
-      m_vram[offset] = value;
-    }
+      m_vram[segment + offset] = value;
   }
   else if (!m_sequencer_registers.sequencer_memory_mode.odd_even_host_memory)
   {
     uint8 plane = Truncate8(offset & 1);
     if (m_sequencer_registers.memory_plane_write_enable & (1 << plane))
-    {
-      // Similar to chain4, write to planes 0/1, but keep offset.
-      offset = segment + (((offset & ~uint32(1)) * 4) | ZeroExtend32(plane));
-      DebugAssert(offset < VRAM_SIZE);
-      m_vram[offset] = value;
-    }
+      m_vram_planes[segment + (offset & ~uint32(1))][plane] = value;
   }
   else
   {
@@ -783,9 +741,9 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
     // Finally, only the bit planes enabled by the Memory Plane Write Enable field are written to memory.
     uint32 write_mask = mask16[m_sequencer_registers.memory_plane_write_enable & 0xF];
     uint32 current_value;
-    std::memcpy(&current_value, &m_vram[segment + offset * 4], sizeof(current_value));
+    std::memcpy(&current_value, &m_vram_plane_dwords[segment + offset], sizeof(current_value));
     all_planes_value = (all_planes_value & write_mask) | (current_value & ~write_mask);
-    std::memcpy(&m_vram[segment + offset * 4], &all_planes_value, sizeof(current_value));
+    std::memcpy(&m_vram_plane_dwords[segment + offset], &all_planes_value, sizeof(current_value));
   }
 }
 
@@ -923,32 +881,20 @@ void ET4000::SetOutputPalette256()
 void ET4000::RecalculateEventTiming()
 {
   // Pixels clocks. 0 - 25MHz, 1 - 28Mhz, 2/3 - undefined
-  static constexpr std::array<uint32, 4> pixel_clocks = {{25175000, 28322000, 32514000, 40000000}};
+  static constexpr std::array<uint32, 8> pixel_clocks = {
+    {25175000, 28322000, 36000000, 40000000, 36000000, 65000000, 36000000, 36000000}};
   const uint32 clock_select =
     m_misc_output_register.clock_select | (m_crtc_registers.mc6845_compatibility_control.clock_select_2 << 2);
-  uint32 pixel_clock = pixel_clocks[clock_select & 3];
 
-  // Character width depending on dot clock - is this correct for graphics modes? What about dot clock rate?
-  uint32 character_width = m_sequencer_registers.clocking_mode.dot_mode ? 8 : 9;
-
-  // Due to timing factors of the ET4000 hardware (which, for compatibility purposes has been emulated by ET4000
-  // compatible chipsets), the actual horizontal total is 5 character clocks more than the value stored in this field.
-  uint32 horizontal_total_pixels = m_crtc_registers.GetHorizontalTotal() * character_width;
-  if (m_sequencer_registers.clocking_mode.dot_clock_rate)
-    horizontal_total_pixels *= 2;
-
-  // If we need hblank timing, use start_horizontal_blanking
-  double horizontal_frequency = double(pixel_clock) / double(horizontal_total_pixels);
-
-  // This field contains the value of the scanline counter at the beginning of the last scanline in the vertical
-  // period.
-  uint32 vertical_total_lines = m_crtc_registers.GetVerticalTotal();
-
-  // Doublescanning - should we have line repeat here too?
-  if (m_crtc_registers.maximum_scan_lines & 0x80)
-    vertical_total_lines *= 2;
-
+  // Dot clock and character width are the only modifications which influences timings.
+  const uint32 pixel_clock = (m_sequencer_registers.clocking_mode.dot_clock_rate) ? (pixel_clocks[clock_select] / 2) :
+                                                                                    (pixel_clocks[clock_select]);
+  const uint32 horizontal_total_pixels =
+    m_crtc_registers.GetHorizontalTotal() * m_sequencer_registers.GetCharacterWidth();
+  const double horizontal_frequency = double(pixel_clock) / double(horizontal_total_pixels);
+  const uint32 vertical_total_lines = m_crtc_registers.GetVerticalTotal();
   double vertical_frequency = horizontal_frequency / double(vertical_total_lines);
+
   Log_DevPrintf("ET4000: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz", horizontal_frequency / 1000.0,
                 vertical_frequency);
 
@@ -956,8 +902,9 @@ void ET4000::RecalculateEventTiming()
   m_timing.vertical_frequency = std::max(float(vertical_frequency), 1.0f);
 
   // This register should be programmed with the number of character clocks in the active display - 1.
-  double horizontal_active_duration =
-    (1000000000.0 * (ZeroExtend64(m_crtc_registers.GetHorizontalDisplayed()) * character_width)) / double(pixel_clock);
+  double horizontal_active_duration = (1000000000.0 * (ZeroExtend64(m_crtc_registers.GetHorizontalDisplayed()) *
+                                                       m_sequencer_registers.GetCharacterWidth())) /
+                                      double(pixel_clock);
   double horizontal_total_duration = double(1000000000.0) / horizontal_frequency;
 
   // The field contains the value of the vertical scanline counter at the beggining of the scanline immediately after
@@ -977,12 +924,8 @@ void ET4000::RecalculateEventTiming()
   // Vertical frequency must be between 35-75hz?
   if (vertical_frequency < 50.0 || vertical_frequency > 75.0)
   {
-    Log_DevPrintf("ET4000: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz out of range.",
-                  horizontal_frequency / 1000.0, vertical_frequency);
-
-    // Clear the screen
-    m_display->ClearFramebuffer();
-    m_display->DisplayFramebuffer();
+    Log_ErrorPrintf("ET4000: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz out of range.",
+                    horizontal_frequency / 1000.0, vertical_frequency);
 
     // And prevent it from refreshing
     if (m_retrace_event->IsActive())
@@ -1050,20 +993,21 @@ uint32 ET4000::CRTCWrapAddress(uint32 address_counter, uint32 row_scan_counter) 
   if (m_crtc_registers.underline_location & 0x40)
   {
     // Double-word mode
-    address = ((address_counter << 2) | ((address_counter >> 14) & 0x3)) & (VRAM_SIZE - 1);
+    // address = ((address_counter << 2) | ((address_counter >> 14) & 0x3)) & (VRAM_SIZE - 1);
+    address = address_counter;
   }
   else if (!m_crtc_registers.crtc_mode_control.byte_mode)
   {
     // Word mode
     if (m_crtc_registers.crtc_mode_control.alternate_ma00_output)
-      address = ((address_counter << 1) | ((address_counter >> 15) & 0x1)) & 0xFFFF;
+      address = ((address_counter << 1) | ((address_counter >> 15) & 0x1)) & VRAM_MASK_PER_PLANE;
     else
-      address = ((address_counter << 1) | ((address_counter >> 13) & 0x1)) & 0xFFFF;
+      address = ((address_counter << 1) | ((address_counter >> 13) & 0x1)) & VRAM_MASK_PER_PLANE;
   }
   else
   {
     // Byte mode
-    address = address_counter & 0xFFFF;
+    address = address_counter & VRAM_MASK_PER_PLANE;
   }
 
   // This bit selects the source of bit 13 of the output multiplexer. When this bit is set to 0, bit 0 of the row scan
@@ -1081,17 +1025,11 @@ uint32 ET4000::CRTCWrapAddress(uint32 address_counter, uint32 row_scan_counter) 
 
 void ET4000::RenderTextMode()
 {
-  uint32 character_height = (m_crtc_registers.maximum_scan_lines & 0x1F) + 1;
-  uint32 character_width = 8;
-  if (!m_sequencer_registers.clocking_mode.dot_mode)
-    character_width = 9;
-  if (m_sequencer_registers.clocking_mode.dot_clock_rate)
-    character_width = 16;
+  const uint32 character_height = m_crtc_registers.GetScanlinesPerRow();
+  const uint32 character_width = m_sequencer_registers.GetCharacterWidth();
 
-  uint32 character_columns = (uint32(m_crtc_registers.end_horizontal_display) + 1);
-  uint32 character_rows =
-    (m_crtc_registers.vertical_display_end | (uint32(m_crtc_registers.overflow_register & 0x02) << 7) |
-     (uint32(m_crtc_registers.overflow_register & 0x40) << 3));
+  uint32 character_columns = m_crtc_registers.GetHorizontalDisplayed();
+  uint32 character_rows = m_crtc_registers.GetVerticalDisplayed();
   character_rows = (character_rows + 1) / character_height;
   if (m_crtc_registers.vertical_total == 100)
     character_rows = 100;
@@ -1099,10 +1037,6 @@ void ET4000::RenderTextMode()
   if (character_columns == 0 || character_rows == 0)
     return;
 
-  // uint32 screen_width = (uint32(m_crtc_registers.end_horizontal_display) + 1) * 8;
-  // uint32 screen_height = (m_crtc_registers.vertical_display_end | (uint32(m_crtc_registers.overflow_register &
-  // 0x02)
-  // << 7) | (uint32(m_crtc_registers.overflow_register & 0x40) << 3)) + 1;
   uint32 screen_width = character_columns * character_width;
   uint32 screen_height = character_rows * character_height;
   if (screen_width == 0 || screen_height == 0)
@@ -1311,34 +1245,35 @@ void ET4000::DrawTextGlyph16(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint3
   }
 }
 
-//#define FAST_ET4000_RENDER 1
-
-// https://ia801809.us.archive.org/11/items/bitsavers_ibmpccardseferenceManualMay92_1756350/IBM_ET4000_XGA_Technical_Reference_Manual_May92.pdf
-
 void ET4000::RenderGraphicsMode()
 {
-  // TODO: This should be character clocks.
-  uint32 screen_width = m_crtc_registers.GetHorizontalDisplayed() * 8;
+  uint32 screen_width = m_crtc_registers.GetHorizontalDisplayed() * m_sequencer_registers.GetCharacterWidth();
   uint32 screen_height = m_crtc_registers.GetVerticalDisplayed();
+  uint32 scanlines_per_row = m_crtc_registers.GetScanlinesPerRow();
+  uint32 line_compare = m_crtc_registers.GetLineCompare();
   if (screen_width == 0 || screen_height == 0)
     return;
 
-  // Maximum scan line determines the number of scanlines per row of bytes
-  uint32 scanlines_per_row = ZeroExtend32(m_crtc_registers.maximum_scan_lines & 0x1F) + 1;
+  // 200-line EGA/VGA modes set scanlines_per_row to 2, creating an effective 400 lines.
+  // We can speed things up by only rendering one of these lines, if the only muxes which
+  // use the scanline counter are enabled (alternative LA13/14).
+  if (scanlines_per_row == 2 && (line_compare > screen_height || (line_compare & 1) == 0) &&
+      m_crtc_registers.preset_row_scan == 0 && m_crtc_registers.crtc_mode_control.alternate_la13 &&
+      m_crtc_registers.crtc_mode_control.alternate_la14)
+  {
+    scanlines_per_row = 1;
+    screen_height /= 2;
+    line_compare /= 2;
+  }
 
   // Scan doubling, used for CGA modes
   // This causes the row scan counter to increment at half the rate, so when scanlines_per_row = 1,
   // address counter is always divided by two as well (for CGA modes).
-  bool double_scan = !!(m_crtc_registers.maximum_scan_lines & 0x80);
-
-#ifdef FAST_ET4000_RENDER
-  // We can skip rendering the doubled scanlines by dividing the height by 2.
-  if (double_scan)
+  if (m_crtc_registers.scan_doubling)
     screen_height /= 2;
-#endif
 
-  // Non-divided clock multiplies by 2
-  if (m_sequencer_registers.clocking_mode.dot_clock_rate)
+  // Halving the pixel clock halves the effective resolution. This is used by mode 13h.
+  if (m_attribute_registers.attribute_mode_control.pelclock_div2)
     screen_width /= 2;
 
   // Update framebuffer size before drawing to it
@@ -1368,19 +1303,10 @@ void ET4000::RenderGraphicsMode()
   // Determine the starting address in VRAM of the data from the CRTC registers
   // This should be multiplied by 4 when accessing because we store interleave all planes.
   uint32 data_base_address = m_crtc_registers.GetStartAddress();
-  data_base_address += (m_crtc_registers.preset_row_scan >> 5) & 0x03;
-
-  // Line compare, address resets to zero at this line
-  uint32 line_compare = (ZeroExtend32(m_crtc_registers.line_compare)) |
-                        (ZeroExtend32(m_crtc_registers.overflow_register & 0x10) << 4) |
-                        (ZeroExtend32(m_crtc_registers.maximum_scan_lines & 0x40) << 3);
+  data_base_address += m_crtc_registers.byte_panning;
 
   // Determine the pitch of each line
   uint32 row_pitch = ZeroExtend32(m_crtc_registers.offset) * 2;
-
-  // Divide memory address clock by 2 - not sure if this is correct, should it increase the horizontal resolution?
-  // if (m_crtc_registers.crtc_mode_control & 0x08)
-  // data_width /= 2;
 
   uint32 horizontal_pan = m_attribute_registers.horizontal_pixel_panning;
   if (horizontal_pan >= 8)
@@ -1388,7 +1314,7 @@ void ET4000::RenderGraphicsMode()
 
   // preset_row_scan[4:0] contains the starting row scan number, cleared when it hits max.
   uint32 row_counter = 0;
-  uint32 row_scan_counter = ZeroExtend32(m_crtc_registers.preset_row_scan & 0x1F);
+  uint32 row_scan_counter = m_crtc_registers.preset_row_scan;
 
   // Draw lines
   for (uint32 scanline = 0; scanline < screen_height; scanline++)
@@ -1421,57 +1347,24 @@ void ET4000::RenderGraphicsMode()
           uint8 pl3 = Truncate8((all_planes >> 24) & 0xFF);
           uint8 index;
 
-          // Low-resolution graphics, 2 bits per pixel
-          if (!m_sequencer_registers.clocking_mode.dot_clock_rate)
-          {
-            // One pixel per input pixel
-            index = ((pl0 >> 6) & 3) | (((pl2 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl0 >> 4) & 3) | (((pl2 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl0 >> 2) & 3) | (((pl2 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl0 >> 0) & 3) | (((pl2 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          // One pixel per input pixel
+          index = ((pl0 >> 6) & 3) | (((pl2 >> 6) & 3) << 2);
+          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          index = ((pl0 >> 4) & 3) | (((pl2 >> 6) & 3) << 2);
+          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          index = ((pl0 >> 2) & 3) | (((pl2 >> 6) & 3) << 2);
+          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          index = ((pl0 >> 0) & 3) | (((pl2 >> 6) & 3) << 2);
+          m_display->SetPixel(col++, scanline, m_output_palette[index]);
 
-            index = ((pl1 >> 6) & 3) | (((pl3 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl1 >> 4) & 3) | (((pl3 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl1 >> 2) & 3) | (((pl3 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl1 >> 0) & 3) | (((pl3 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          }
-          else
-          {
-            // Two pixels per input pixel
-            index = ((pl0 >> 6) & 3) | (((pl2 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl0 >> 4) & 3) | (((pl2 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl0 >> 2) & 3) | (((pl2 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl0 >> 0) & 3) | (((pl2 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-
-            index = ((pl1 >> 6) & 3) | (((pl3 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl1 >> 4) & 3) | (((pl3 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl1 >> 2) & 3) | (((pl3 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            index = ((pl1 >> 0) & 3) | (((pl3 >> 6) & 3) << 2);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-            m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          }
+          index = ((pl1 >> 6) & 3) | (((pl3 >> 6) & 3) << 2);
+          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          index = ((pl1 >> 4) & 3) | (((pl3 >> 6) & 3) << 2);
+          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          index = ((pl1 >> 2) & 3) | (((pl3 >> 6) & 3) << 2);
+          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          index = ((pl1 >> 0) & 3) | (((pl3 >> 6) & 3) << 2);
+          m_display->SetPixel(col++, scanline, m_output_palette[index]);
         }
       }
       else
@@ -1570,16 +1463,11 @@ void ET4000::RenderGraphicsMode()
       }
     }
 
-#ifndef FAST_ET4000_RENDER
-    if (!double_scan || (scanline & 1) != 0)
-#endif
+    row_scan_counter++;
+    if (row_scan_counter == scanlines_per_row)
     {
-      row_scan_counter++;
-      if (row_scan_counter == scanlines_per_row)
-      {
-        row_scan_counter = 0;
-        row_counter++;
-      }
+      row_scan_counter = 0;
+      row_counter++;
     }
   }
 
