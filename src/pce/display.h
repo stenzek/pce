@@ -36,6 +36,8 @@ public:
   void CopyFrame(const void* pixels, uint32 stride);
 
 protected:
+  static const uint32 MAIN_MENU_BAR_HEIGHT = 20;
+
   void AddFrameRendered();
 
   uint32 m_framebuffer_width = 640;

@@ -90,9 +90,9 @@ bool DisplayD3D::Initialize()
   desc.OutputWindow = info.info.win.window;
 
   D3D_FEATURE_LEVEL feature_level;
-  HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_DEBUG,
-                                             nullptr, 0, D3D11_SDK_VERSION, &desc, m_swap_chain.GetAddressOf(),
-                                             m_device.GetAddressOf(), &feature_level, m_context.GetAddressOf());
+  HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, nullptr, 0, D3D11_SDK_VERSION,
+                                             &desc, m_swap_chain.GetAddressOf(), m_device.GetAddressOf(),
+                                             &feature_level, m_context.GetAddressOf());
   if (FAILED(hr) || feature_level < D3D_FEATURE_LEVEL_10_0)
     return false;
 
@@ -137,7 +137,7 @@ bool DisplayD3D::Initialize()
 
   D3D11_SAMPLER_DESC ss_desc = CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
   ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-  //ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+  // ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
   hr = m_device->CreateSamplerState(&ss_desc, m_sampler_state.GetAddressOf());
   if (FAILED(hr))
     return false;
@@ -223,23 +223,25 @@ void DisplayD3D::RenderImpl()
   if (!UpdateFramebufferTexture())
     return;
 
+  int window_width = int(m_window_width);
+  int window_height = std::max(1, int(m_window_height) - int(MAIN_MENU_BAR_HEIGHT));
   float display_ratio = float(m_display_width) / float(m_display_height);
-  float window_ratio = float(m_window_width) / float(m_window_height);
+  float window_ratio = float(window_width) / float(window_height);
   int viewport_width = 1;
   int viewport_height = 1;
   if (window_ratio >= display_ratio)
   {
-    viewport_width = int(float(m_window_height) * display_ratio);
-    viewport_height = int(m_window_height);
+    viewport_width = int(float(window_height) * display_ratio);
+    viewport_height = int(window_height);
   }
   else
   {
-    viewport_width = int(m_window_width);
-    viewport_height = int(float(m_window_width) / display_ratio);
+    viewport_width = int(window_width);
+    viewport_height = int(float(window_width) / display_ratio);
   }
 
-  int viewport_x = (int(m_window_width) - viewport_width) / 2;
-  int viewport_y = (int(m_window_height) - viewport_height) / 2;
+  int viewport_x = (window_width - viewport_width) / 2;
+  int viewport_y = ((window_height - viewport_height) / 2) + MAIN_MENU_BAR_HEIGHT;
 
   std::array<float, 4> clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   m_context->ClearRenderTargetView(m_swap_chain_rtv.Get(), clear_color.data());
