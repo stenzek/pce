@@ -23,6 +23,7 @@ PC emulator targeting a range of systems from 8086 through to Pentium
  - Sound Blaster 1.0 through Sound Blaster 16 (Partial)
  - CGA Graphics Card
  - VGA Graphics Card
+ - Tseng Labs ET4000 SVGA Graphics Card
  - Generic Hard Disk Controller (Fast Timing)
  - Generic Floppy Disk Controller (Fast Timing)
  - Serial Mouse

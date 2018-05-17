@@ -74,6 +74,57 @@ void PCBochs::ConnectSystemIOPorts()
     IOReadSystemControlPortA(&value);
     m_keyboard_controller->SetOutputPort(value);
   });
+
+  // PCI stuff
+  m_bus->ConnectIOPortReadDWord(0x0CF8, this, [](uint32 port, uint32* value) { *value = 0xFFFFFFFF; });
+  m_bus->ConnectIOPortReadDWord(0x0CFA, this, [](uint32 port, uint32* value) { *value = 0xFFFFFFFF; });
+  m_bus->ConnectIOPortReadWord(0x0CFC, this, [](uint32 port, uint16* value) { *value = 0xFFFF; });
+  m_bus->ConnectIOPortReadWord(0x0CFD, this, [](uint32 port, uint16* value) { *value = 0xFFFF; });
+  m_bus->ConnectIOPortWriteDWord(0x0CF8, this, [](uint32 port, uint32 value) { });
+  m_bus->ConnectIOPortWriteDWord(0x0CFA, this, [](uint32 port, uint32 value) {});
+  m_bus->ConnectIOPortWriteWord(0x0CFC, this, [](uint32 port, uint16 value) {});
+  m_bus->ConnectIOPortWriteWord(0x0CFD, this, [](uint32 port, uint16 value) {});
+
+  String* blah = new String();
+  m_bus->ConnectIOPortWrite(0x0500, this, [blah](uint32 port, uint8 value) {
+    // Log_DevPrintf("Debug port: %u: %c", uint32(value), value);
+    if (value == '\n')
+    {
+      Log_DevPrintf("Debug message 0500: %s", blah->GetCharArray());
+      blah->Clear();
+    }
+    else
+    {
+      blah->AppendCharacter(char(value));
+    }
+  });
+
+  String* blah2 = new String();
+  m_bus->ConnectIOPortWrite(0x0402, this, [blah2](uint32 port, uint8 value) {
+    // Log_DevPrintf("Debug port: %u: %c", uint32(value), value);
+    if (value == '\n')
+    {
+      Log_DevPrintf("Debug message 0402: %s", blah2->GetCharArray());
+      blah2->Clear();
+    }
+    else
+    {
+      blah2->AppendCharacter(char(value));
+    }
+  });
+  String* blah3 = new String();
+  m_bus->ConnectIOPortWrite(0x0403, this, [blah3](uint32 port, uint8 value) {
+    // Log_DevPrintf("Debug port: %u: %c", uint32(value), value);
+    if (value == '\n')
+    {
+      Log_DevPrintf("Debug message 0403: %s", blah3->GetCharArray());
+      blah3->Clear();
+    }
+    else
+    {
+      blah3->AppendCharacter(char(value));
+    }
+  });
 }
 
 void PCBochs::IOReadSystemControlPortA(uint8* value)
