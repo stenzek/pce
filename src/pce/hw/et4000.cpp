@@ -88,6 +88,13 @@ void ET4000::Reset()
   std::fill_n(m_crtc_registers.index, countof(m_crtc_registers.index), uint8(0));
   m_crtc_registers.mc6845_compatibility_control.vse_register_port = true;
 
+  m_dac_ctrl = 0;
+  m_dac_mask = 0xFF;
+  m_dac_status_register = 0;
+  m_dac_state_register = 0;
+  m_dac_read_address = 0;
+  m_dac_write_address = 0;
+  m_dac_color_index = 0;
   for (size_t i = 0; i < m_dac_palette.size(); i++)
     m_dac_palette[i] = 0xFFFFFFFF;
 
@@ -127,6 +134,9 @@ bool ET4000::LoadState(BinaryReader& reader)
   reader.SafeReadBytes(m_sequencer_registers.index, sizeof(m_sequencer_registers.index));
   reader.SafeReadUInt8(&m_sequencer_address_register);
   reader.SafeReadBytes(m_dac_palette.data(), Truncate32(sizeof(uint32) * m_dac_palette.size()));
+  reader.SafeReadUInt8(&m_dac_ctrl);
+  reader.SafeReadUInt8(&m_dac_mask);
+  reader.SafeReadUInt8(&m_dac_status_register);
   reader.SafeReadUInt8(&m_dac_state_register);
   reader.SafeReadUInt8(&m_dac_write_address);
   reader.SafeReadUInt8(&m_dac_read_address);
@@ -162,6 +172,9 @@ bool ET4000::SaveState(BinaryWriter& writer)
   writer.WriteBytes(m_sequencer_registers.index, sizeof(m_sequencer_registers.index));
   writer.WriteUInt8(m_sequencer_address_register);
   writer.WriteBytes(m_dac_palette.data(), Truncate32(sizeof(uint32) * m_dac_palette.size()));
+  writer.WriteUInt8(m_dac_ctrl);
+  writer.WriteUInt8(m_dac_mask);
+  writer.WriteUInt8(m_dac_status_register);
   writer.WriteUInt8(m_dac_state_register);
   writer.WriteUInt8(m_dac_write_address);
   writer.WriteUInt8(m_dac_read_address);
@@ -227,11 +240,11 @@ void ET4000::ConnectIOPorts()
   m_bus->ConnectIOPortRead(0x03C5, this, std::bind(&ET4000::IOSequencerDataRegisterRead, this, std::placeholders::_2));
   m_bus->ConnectIOPortWrite(0x03C5, this,
                             std::bind(&ET4000::IOSequencerDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortReadToPointer(0x03C6, this, &m_dac_mask);
-  m_bus->ConnectIOPortWriteToPointer(0x03C6, this, &m_dac_mask);
-  m_bus->ConnectIOPortReadToPointer(0x03C7, this, &m_dac_state_register);
+  m_bus->ConnectIOPortRead(0x03C6, this, std::bind(&ET4000::IODACMaskRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x03C6, this, std::bind(&ET4000::IODACMaskWrite, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C7, this, std::bind(&ET4000::IODACStateRegisterRead, this, std::placeholders::_2));
   m_bus->ConnectIOPortWrite(0x03C7, this, std::bind(&ET4000::IODACReadAddressWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortReadToPointer(0x03C8, this, &m_dac_write_address);
+  m_bus->ConnectIOPortRead(0x03C8, this, std::bind(&ET4000::IODACWriteAddressRead, this, std::placeholders::_2));
   m_bus->ConnectIOPortWrite(0x03C8, this, std::bind(&ET4000::IODACWriteAddressWrite, this, std::placeholders::_2));
   m_bus->ConnectIOPortRead(0x03C9, this, std::bind(&ET4000::IODACDataRegisterRead, this, std::placeholders::_2));
   m_bus->ConnectIOPortWrite(0x03C9, this, std::bind(&ET4000::IODACDataRegisterWrite, this, std::placeholders::_2));
@@ -461,21 +474,60 @@ void ET4000::IOSequencerDataRegisterWrite(uint8 value)
     RecalculateEventTiming();
 }
 
-void ET4000::IODACReadAddressWrite(uint8 value)
+void ET4000::IODACMaskRead(uint8* value) // 3c6
+{
+  if (m_dac_state_register == 4)
+  {
+    *value = m_dac_ctrl;
+    m_dac_state_register = 0;
+    return;
+  }
+
+  *value = m_dac_mask;
+  m_dac_state_register++;
+}
+
+void ET4000::IODACMaskWrite(uint8 value) // 3c6
+{
+  if (m_dac_state_register == 4)
+  {
+    m_dac_state_register = 0;
+    m_dac_ctrl = value;
+    return;
+  }
+
+  m_dac_mask = value;
+  m_dac_state_register = 0;
+}
+
+void ET4000::IODACStateRegisterRead(uint8* value) // 3c7
+{
+  *value = m_dac_status_register;
+  m_dac_state_register = 0;
+}
+
+void ET4000::IODACReadAddressWrite(uint8 value) // 3c7
 {
   Log_DevPrintf("DAC read address write: %u", value);
   m_dac_read_address = value;
-  m_dac_state_register &= 0b00;
+  m_dac_state_register = 0;
 }
 
-void ET4000::IODACWriteAddressWrite(uint8 value)
+void ET4000::IODACWriteAddressRead(uint8* value) // 3c8
+{
+  *value = m_dac_write_address;
+  m_dac_state_register = 0;
+}
+
+void ET4000::IODACWriteAddressWrite(uint8 value) // 3c8
 {
   Log_DevPrintf("DAC write address write: %u", value);
   m_dac_write_address = value;
-  m_dac_state_register |= 0b11;
+  m_dac_color_index = 0;
+  m_dac_state_register = 0;
 }
 
-void ET4000::IODACDataRegisterRead(uint8* value)
+void ET4000::IODACDataRegisterRead(uint8* value) // 3c9
 {
   uint32 color_value = m_dac_palette[m_dac_read_address];
   uint8 shift = m_dac_color_index * 8;
@@ -489,9 +541,12 @@ void ET4000::IODACDataRegisterRead(uint8* value)
     m_dac_color_index = 0;
     m_dac_read_address = (m_dac_read_address + 1) % m_dac_palette.size();
   }
+
+  m_dac_status_register = 3;
+  m_dac_state_register = 0;
 }
 
-void ET4000::IODACDataRegisterWrite(uint8 value)
+void ET4000::IODACDataRegisterWrite(uint8 value) // 3c9
 {
   Log_TracePrintf("DAC palette write %u/%u: %u", uint32(m_dac_write_address), uint32(m_dac_color_index), uint32(value));
 
@@ -510,6 +565,8 @@ void ET4000::IODACDataRegisterWrite(uint8 value)
     m_dac_color_index = 0;
     m_dac_write_address = (m_dac_write_address + 1) % m_dac_palette.size();
   }
+
+  m_dac_state_register = 0;
 }
 
 // Values of 4-bit registers containing the plane mask expanded to 8 bits per plane.
@@ -853,6 +910,34 @@ inline uint32 Convert6BitColorTo8Bit(uint32 color)
   return (color & 0xFF000000) | ZeroExtend32(r) | (ZeroExtend32(g) << 8) | (ZeroExtend32(b) << 16);
 }
 
+inline uint32 ConvertBGR555ToRGB24(uint16 color)
+{
+  uint8 b = Truncate8(color & 31);
+  uint8 g = Truncate8((color >> 5) & 31);
+  uint8 r = Truncate8((color >> 10) & 31);
+
+  // 00012345 -> 1234545
+  b = (b << 3) | (b >> 3);
+  g = (g << 3) | (g >> 3);
+  r = (r << 3) | (r >> 3);
+
+  return (color & 0xFF000000) | ZeroExtend32(r) | (ZeroExtend32(g) << 8) | (ZeroExtend32(b) << 16);
+}
+
+inline uint32 ConvertBGR565ToRGB24(uint16 color)
+{
+  uint8 b = Truncate8(color & 31);
+  uint8 g = Truncate8((color >> 5) & 63);
+  uint8 r = Truncate8((color >> 11) & 31);
+
+  // 00012345 -> 1234545 / 00123456 -> 12345656
+  b = (b << 3) | (b >> 3);
+  g = (g << 2) | (g >> 4);
+  r = (r << 3) | (r >> 3);
+
+  return (color & 0xFF000000) | ZeroExtend32(r) | (ZeroExtend32(g) << 8) | (ZeroExtend32(b) << 16);
+}
+
 void ET4000::SetOutputPalette16()
 {
   for (uint32 i = 0; i < 16; i++)
@@ -886,8 +971,12 @@ void ET4000::RecalculateEventTiming()
     m_misc_output_register.clock_select | (m_crtc_registers.mc6845_compatibility_control.clock_select_2 << 2);
 
   // Dot clock and character width are the only modifications which influences timings.
-  const uint32 pixel_clock = (m_sequencer_registers.clocking_mode.dot_clock_rate) ? (pixel_clocks[clock_select] / 2) :
-                                                                                    (pixel_clocks[clock_select]);
+  uint32 pixel_clock = pixel_clocks[clock_select];
+  if (m_sequencer_registers.clocking_mode.dot_clock_rate)
+    pixel_clock /= 2;
+  if (!m_sequencer_registers.mclk_div2)
+    pixel_clock *= 2;
+
   const uint32 horizontal_total_pixels =
     m_crtc_registers.GetHorizontalTotal() * m_sequencer_registers.GetCharacterWidth();
   const double horizontal_frequency = double(pixel_clock) / double(horizontal_total_pixels);
@@ -1275,6 +1364,10 @@ void ET4000::RenderGraphicsMode()
   if (m_attribute_registers.attribute_mode_control.pelclock_div2)
     screen_width /= 2;
 
+  // To get VGA modes, we divide the main clock by 2. To get hicolor mode, it runs full speed.
+  if (!m_sequencer_registers.mclk_div2)
+    screen_width /= 2;
+
   // Update framebuffer size before drawing to it
   if (m_display->GetFramebufferWidth() != screen_width || m_display->GetFramebufferHeight() != screen_height ||
       m_last_rendered_vertical_frequency != m_timing.vertical_frequency)
@@ -1329,8 +1422,33 @@ void ET4000::RenderGraphicsMode()
 
     uint32 address_counter = (data_base_address + (row_pitch * row_counter));
 
+    // High colour modes
+    // This is a hack. The palette should be disabled, and we should read like shift mode?
+    if ((m_dac_ctrl & 0xc0) != 0)
+    {
+      const bool is_16bpp = !!(m_dac_ctrl & 0x40);
+      for (uint32 col = 0; col < screen_width;)
+      {
+        // Two pixels per dword
+        uint32 all_planes = CRTCReadVRAMPlanes(address_counter++, row_scan_counter);
+        uint32 color1, color2;
+        if (is_16bpp)
+        {
+          color1 = ConvertBGR565ToRGB24(Truncate16(all_planes));
+          color2 = ConvertBGR565ToRGB24(Truncate16(all_planes >> 16));
+        }
+        else
+        {
+          color1 = ConvertBGR555ToRGB24(Truncate16(all_planes));
+          color2 = ConvertBGR555ToRGB24(Truncate16(all_planes >> 16));
+        }
+
+        m_display->SetPixel(col++, scanline, color1);
+        m_display->SetPixel(col++, scanline, color2);
+      }
+    }
     // 4 or 16 color mode?
-    if (!m_graphics_registers.mode.shift_256)
+    else if (!m_graphics_registers.mode.shift_256)
     {
       if (m_graphics_registers.mode.shift_reg)
       {

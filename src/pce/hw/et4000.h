@@ -480,12 +480,18 @@ private:
   // 03C7/03C8/03C9: DAC/color registers
   // Colors are organized as RGBA values
   std::array<uint32, 256> m_dac_palette;
-  uint8 m_dac_mask = 0;           // TODO Handling
-  uint8 m_dac_state_register = 0; // TODO Handling
+  uint8 m_dac_ctrl = 0;
+  uint8 m_dac_mask = 0xFF;
+  uint8 m_dac_status_register = 0;
+  uint8 m_dac_state_register = 0;
   uint8 m_dac_write_address = 0;
   uint8 m_dac_read_address = 0;
   uint8 m_dac_color_index = 0;
+  void IODACMaskRead(uint8* value);
+  void IODACMaskWrite(uint8 value);
+  void IODACStateRegisterRead(uint8* value);
   void IODACReadAddressWrite(uint8 value);
+  void IODACWriteAddressRead(uint8* value);
   void IODACWriteAddressWrite(uint8 value);
   void IODACDataRegisterRead(uint8* value);
   void IODACDataRegisterWrite(uint8 value);
