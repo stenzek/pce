@@ -136,8 +136,8 @@ bool DisplayD3D::Initialize()
     return false;
 
   D3D11_SAMPLER_DESC ss_desc = CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
-  // ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-  ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+  ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+  //ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
   hr = m_device->CreateSamplerState(&ss_desc, m_sampler_state.GetAddressOf());
   if (FAILED(hr))
     return false;
