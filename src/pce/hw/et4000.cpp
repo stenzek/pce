@@ -569,34 +569,33 @@ void ET4000::HandleVRAMRead(uint32 offset, uint8* value)
 
   // 64K segment/bank select.
   const uint32 segment = ZeroExtend32(m_segment_select_register.read_segment.GetValue()) * 65536;
-  uint32 latch_linear_address;
   uint8 read_plane;
 
   if (m_sequencer_registers.sequencer_memory_mode.chain_4_enable)
   {
     // Chain4 mode - access all four planes as a series of linear bytes
     read_plane = Truncate8(offset & 3);
-    latch_linear_address = segment + offset;
-    m_latch = m_vram_plane_dwords[latch_linear_address / 4];
-    *value = Truncate8(m_latch >> (8 * read_plane));
-    return;
-  }
-
-  if (!m_graphics_registers.mode.host_odd_even)
-  {
-    // By default we use the read map select register for the plane to return.
-    read_plane = m_graphics_registers.read_map_select;
-    latch_linear_address = segment + offset;
+    std::memcpy(&m_latch, &m_vram[(segment + offset) & ~uint32(3)], sizeof(m_latch));
   }
   else
   {
-    // Except for odd/even addressing, only access planes 0/1.
-    read_plane = (m_graphics_registers.read_map_select & 0x02) | Truncate8(offset & 0x01);
-    latch_linear_address = segment + (offset & ~uint32(1));
-  }
+    uint32 latch_planar_address;
+    if (!m_graphics_registers.mode.host_odd_even)
+    {
+      // By default we use the read map select register for the plane to return.
+      read_plane = m_graphics_registers.read_map_select;
+      latch_planar_address = segment + offset;
+    }
+    else
+    {
+      // Except for odd/even addressing, only access planes 0/1.
+      read_plane = (m_graphics_registers.read_map_select & 0x02) | Truncate8(offset & 0x01);
+      latch_planar_address = segment + (offset & ~uint32(1));
+    }
 
-  // Use the offset to load the latches with all 4 planes.
-  m_latch = m_vram_plane_dwords[latch_linear_address];
+    // Use the offset to load the latches with all 4 planes.
+    std::memcpy(&m_latch, &m_vram[latch_planar_address * 4], sizeof(m_latch));
+  }
 
   // Compare value/mask mode?
   if (m_graphics_registers.mode.read_mode != 0)
@@ -646,7 +645,7 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
   }
 
   // 64K segment/bank select.
-  const uint32 segment = ZeroExtend32(m_segment_select_register.read_segment.GetValue()) * 65536;
+  const uint32 segment = ZeroExtend32(m_segment_select_register.write_segment.GetValue()) * 65536;
 
   if (m_sequencer_registers.sequencer_memory_mode.chain_4_enable)
   {
@@ -659,7 +658,7 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
   {
     uint8 plane = Truncate8(offset & 1);
     if (m_sequencer_registers.memory_plane_write_enable & (1 << plane))
-      m_vram_planes[segment + (offset & ~uint32(1))][plane] = value;
+      m_vram[((segment + (offset & ~uint32(1))) * 4) | plane] = value;
   }
   else
   {
@@ -741,9 +740,9 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
     // Finally, only the bit planes enabled by the Memory Plane Write Enable field are written to memory.
     uint32 write_mask = mask16[m_sequencer_registers.memory_plane_write_enable & 0xF];
     uint32 current_value;
-    std::memcpy(&current_value, &m_vram_plane_dwords[segment + offset], sizeof(current_value));
+    std::memcpy(&current_value, &m_vram[(segment + offset) * 4], sizeof(current_value));
     all_planes_value = (all_planes_value & write_mask) | (current_value & ~write_mask);
-    std::memcpy(&m_vram_plane_dwords[segment + offset], &all_planes_value, sizeof(current_value));
+    std::memcpy(&m_vram[(segment + offset) * 4], &all_planes_value, sizeof(current_value));
   }
 }
 

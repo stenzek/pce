@@ -499,27 +499,7 @@ private:
   std::unique_ptr<byte[]> m_bios;
   uint32 m_bios_size = 0;
 
-  // MMIO* m_mmio_B8000 = nullptr;
-  // MMIO* m_mmio_BC000 = nullptr;
-  // MMIO* m_mmio_A0000 = nullptr;
-
-  // The 4 planes of 64KB (256KB) VRAM is interleaved here.
-  // Array Offset | Plane | Offset
-  // -----------------------------
-  //            0 |     0 |      0
-  //            1 |     1 |      0
-  //            2 |     2 |      0
-  //            3 |     3 |      0
-  //            4 |     0 |      1
-  //            5 |     1 |      1
-  //            6 |     2 |      1
-  //            7 |     3 |      1
-  union
-  {
-    uint8 m_vram[VRAM_SIZE];
-    uint8 m_vram_planes[VRAM_SIZE / 4][4];
-    uint32 m_vram_plane_dwords[VRAM_SIZE / 4];
-  };
+  uint8 m_vram[VRAM_SIZE];
   MMIO* m_vram_mmio = nullptr;
   MMIO* m_bios_mmio = nullptr;
   bool MapToVRAMOffset(uint32* offset);
