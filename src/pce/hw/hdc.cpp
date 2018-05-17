@@ -699,8 +699,8 @@ bool HDC::FillReadBuffer(uint32 drive_index, uint32 sector_count)
   {
     DebugAssert(m_drives[drive_index] && m_drives[drive_index]->current_lba < m_drives[drive_index]->num_lbas);
     ReadCurrentSector(drive_index, &m_current_transfer.buffer[i * SECTOR_SIZE]);
-    if (!SeekToNextSector(drive_index))
-      Panic("Fix me");
+    if (!SeekToNextSector(drive_index) && (i != (sector_count - 1)))
+      return false;
   }
 
   return true;
@@ -719,8 +719,8 @@ bool HDC::FlushWriteBuffer(uint32 drive_index, uint32 sector_count)
   {
     DebugAssert(m_drives[drive_index] && m_drives[drive_index]->current_lba < m_drives[drive_index]->num_lbas);
     WriteCurrentSector(drive_index, &m_current_transfer.buffer[i * SECTOR_SIZE]);
-    if (!SeekToNextSector(drive_index))
-      Panic("Fix me");
+    if (!SeekToNextSector(drive_index) && (i != (sector_count - 1)))
+      return false;
   }
 
   return true;
