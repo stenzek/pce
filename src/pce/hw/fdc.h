@@ -34,6 +34,7 @@ public:
     DiskType_1220K, // 5.25-inch, double-sided, 80 tracks, 15 sectors per track
     DiskType_720K,  // 3.5-inch, double-sided, 80 tracks, 9 sectors per track
     DiskType_1440K, // 3.5-inch, double-sided, 80 tracks, 18 sectors per track
+    DiskType_1680K, // 3.5-inch, double-sided, 80 tracks, 21 sectors per track, "DMF"
     DiskType_2880K, // 3.5-inch, double-sided, 80 tracks, 36 sectors per track
 
     DiskType_AutoDetect
@@ -42,6 +43,9 @@ public:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('F', 'D', 'C');
   static const uint32 SECTOR_SIZE = 512;
   static const uint32 MAX_DRIVES = 4;
+
+  // We use 1MHz as the clock frequency for the FDC, so we can specify "cycles" as microseconds.
+  static constexpr float CLOCK_FREQUENCY = 1000000;
 
   static DiskType DetectDiskType(ByteStream* pStream);
   static DriveType GetDriveTypeForDiskType(DiskType type);
@@ -133,8 +137,8 @@ protected:
     BitField<uint8, bool, 3, 1> drive_3_activity;
     BitField<uint8, bool, 4, 1> command_busy;
     BitField<uint8, bool, 5, 1> pio_mode;
-    BitField<uint8, bool, 6, 1> data_direction; // 1 = FDC->CPU, 0=CPU->FDC
-    BitField<uint8, bool, 7, 1> request_for_master;
+    BitField<uint8, bool, 6, 1> data_direction;     // 1 = FDC->CPU, 0=CPU->FDC
+    BitField<uint8, bool, 7, 1> request_for_master; // data register ready
 
     void ClearActivity()
     {
@@ -151,14 +155,13 @@ protected:
   } m_main_status_register;
 
   // 03F4h: Data-rate select register
-  uint8 m_data_rate_select_register = 0;
-
-  // 03F7h: Configuration control register
-  uint8 m_configuration_control_register = 0;
+  uint8 m_data_rate_index = 0;
 
   // 03F5h: FIFO
   std::array<uint8, FIFO_SIZE> m_fifo = {};
-  uint32 m_fifo_position = 0;
+  uint32 m_fifo_command_position = 0;
+  uint32 m_fifo_result_size = 0;
+  uint32 m_fifo_result_position = 0;
   std::unique_ptr<TimingEvent> m_command_event;
 
   // Status registers
@@ -190,17 +193,20 @@ protected:
     uint8 sector_buffer[SECTOR_SIZE];
   } m_current_transfer;
 
+  // Status registers
+  uint8 m_st0 = 0;
+  uint8 m_st1 = 0;
+  uint8 m_st2 = 0;
+
   void SoftReset();
   void RemoveDisk(uint32 drive);
 
-  bool WriteToFIFO(uint8 data);
-  bool WriteToFIFO(const void* data, uint32 length);
-  bool ReadFromFIFO(void* data, uint32 length);
-  void RemoveFIFOBytes(uint32 length);
   void ClearFIFO();
+  void WriteToFIFO(uint8 value);
 
   uint8 GetCurrentCommandLength();
-  void HandleCommand();
+  void BeginCommand();
+  void EndCommand();
 
   void HangController();
   void TransitionToCommandPhase(); // command - host->fdc
@@ -217,6 +223,7 @@ protected:
   void IOReadDigitalOutputRegister(uint8* value);
   void IOWriteDigitalOutputRegister(uint8 value);
   void IOWriteDataRateSelectRegister(uint8 value);
+  void IOWriteConfigurationControlRegister(uint8 value);
   void IOReadFIFO(uint8* value);
   void IOWriteFIFO(uint8 value);
 
@@ -260,6 +267,11 @@ protected:
   uint8 GetST1(uint32 drive, uint8 bits) const;
   uint8 GetST2(uint32 drive, uint8 bits) const;
   uint8 GetST3(uint32 drive, uint8 bits) const;
+
+  // Returns the number of microseconds to move the head one or more tracks.
+  CycleCount CalculateHeadSeekTime(uint32 current_track, uint32 destination_track) const;
+  CycleCount CalculateHeadSeekTime() const;
+  CycleCount CalculateSectorReadTime() const;
 };
 
 } // namespace HW

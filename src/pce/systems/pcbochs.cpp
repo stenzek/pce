@@ -80,7 +80,7 @@ void PCBochs::ConnectSystemIOPorts()
   m_bus->ConnectIOPortReadDWord(0x0CFA, this, [](uint32 port, uint32* value) { *value = 0xFFFFFFFF; });
   m_bus->ConnectIOPortReadWord(0x0CFC, this, [](uint32 port, uint16* value) { *value = 0xFFFF; });
   m_bus->ConnectIOPortReadWord(0x0CFD, this, [](uint32 port, uint16* value) { *value = 0xFFFF; });
-  m_bus->ConnectIOPortWriteDWord(0x0CF8, this, [](uint32 port, uint32 value) { });
+  m_bus->ConnectIOPortWriteDWord(0x0CF8, this, [](uint32 port, uint32 value) {});
   m_bus->ConnectIOPortWriteDWord(0x0CFA, this, [](uint32 port, uint32 value) {});
   m_bus->ConnectIOPortWriteWord(0x0CFC, this, [](uint32 port, uint16 value) {});
   m_bus->ConnectIOPortWriteWord(0x0CFD, this, [](uint32 port, uint16 value) {});

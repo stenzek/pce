@@ -51,8 +51,12 @@ static const DiskTypeInfo disk_types[] = {
   {HW::FDC::DriveType_3_5, HW::FDC::DiskType_720K, 737280, 80, 2, 9, 0xF9},     // DiskType_720K
   {HW::FDC::DriveType_5_25, HW::FDC::DiskType_1220K, 1310720, 80, 2, 15, 0xF9}, // DiskType_1220K
   {HW::FDC::DriveType_3_5, HW::FDC::DiskType_1440K, 1474560, 80, 2, 18, 0xF0},  // DiskType_1440K
-  {HW::FDC::DriveType_3_5, HW::FDC::DiskType_2880K, 2949120, 80, 2, 36, 0xF0},  // DiskType_1440K
+  {HW::FDC::DriveType_3_5, HW::FDC::DiskType_1680K, 1720320, 80, 2, 21, 0xF0},  // DiskType_1680K
+  {HW::FDC::DriveType_3_5, HW::FDC::DiskType_2880K, 2949120, 80, 2, 36, 0xF0},  // DiskType_2880K
 };
+
+// Data rates in kb/s.
+static const uint32 data_rates[4] = {500, 300, 250, 1000};
 
 namespace HW {
 
@@ -105,9 +109,7 @@ FDC::DriveType FDC::GetDriveTypeForDiskType(DiskType type)
   return DriveType_None;
 }
 
-FDC::FDC(DMAController* dma) : m_dma(dma), m_clock("Floppy Controller", 500) // 2ms for commands, reasonable?
-{
-}
+FDC::FDC(DMAController* dma) : m_dma(dma), m_clock("Floppy Controller", CLOCK_FREQUENCY) {}
 
 FDC::~FDC() {}
 
@@ -117,7 +119,7 @@ void FDC::Initialize(System* system, Bus* bus)
   m_clock.SetManager(system->GetTimingManager());
   ConnectIOPorts(bus);
 
-  m_command_event = m_clock.NewEvent("Floppy Command", 1, std::bind(&FDC::HandleCommand, this), false);
+  m_command_event = m_clock.NewEvent("Floppy Command", 1, std::bind(&FDC::EndCommand, this), false);
 }
 
 void FDC::Reset()
@@ -141,8 +143,7 @@ void FDC::Reset()
   m_head_unload_time = 0;
   m_pio_mode = false;
 
-  m_data_rate_select_register = 0;
-  m_configuration_control_register = 0;
+  m_data_rate_index = 0;
 
   // Abort any transfers
   if (m_current_transfer.active)
@@ -196,10 +197,11 @@ bool FDC::LoadState(BinaryReader& reader)
   reader.SafeReadBool(&m_nreset);
 
   reader.SafeReadUInt8(&m_main_status_register.bits);
-  reader.SafeReadUInt8(&m_data_rate_select_register);
-  reader.SafeReadUInt8(&m_configuration_control_register);
+  reader.SafeReadUInt8(&m_data_rate_index);
   reader.SafeReadBytes(m_fifo.data(), Truncate32(m_fifo.size()));
-  reader.SafeReadUInt32(&m_fifo_position);
+  reader.SafeReadUInt32(&m_fifo_command_position);
+  reader.SafeReadUInt32(&m_fifo_result_size);
+  reader.SafeReadUInt32(&m_fifo_result_position);
   reader.SafeReadUInt8(&m_reset_sense_interrupt_count);
   reader.SafeReadUInt8(&m_current_drive);
   reader.SafeReadBool(&m_interrupt_pending);
@@ -215,6 +217,9 @@ bool FDC::LoadState(BinaryReader& reader)
   reader.SafeReadUInt32(&m_current_transfer.sectors_per_track);
   reader.SafeReadUInt32(&m_current_transfer.sector_offset);
   reader.SafeReadBytes(m_current_transfer.sector_buffer, sizeof(m_current_transfer.sector_buffer));
+  reader.SafeReadUInt8(&m_st0);
+  reader.SafeReadUInt8(&m_st1);
+  reader.SafeReadUInt8(&m_st2);
 
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
@@ -261,10 +266,11 @@ bool FDC::SaveState(BinaryWriter& writer)
   writer.SafeWriteBool(m_nreset);
 
   writer.SafeWriteUInt8(m_main_status_register.bits);
-  writer.SafeWriteUInt8(m_data_rate_select_register);
-  writer.SafeWriteUInt8(m_configuration_control_register);
+  writer.SafeWriteUInt8(m_data_rate_index);
   writer.SafeWriteBytes(m_fifo.data(), Truncate32(m_fifo.size()));
-  writer.SafeWriteUInt32(m_fifo_position);
+  writer.SafeWriteUInt32(m_fifo_command_position);
+  writer.SafeWriteUInt32(m_fifo_result_size);
+  writer.SafeWriteUInt32(m_fifo_result_position);
   writer.SafeWriteUInt8(m_reset_sense_interrupt_count);
   writer.SafeWriteUInt8(m_current_drive);
   writer.SafeWriteBool(m_interrupt_pending);
@@ -280,6 +286,9 @@ bool FDC::SaveState(BinaryWriter& writer)
   writer.SafeWriteUInt32(m_current_transfer.sectors_per_track);
   writer.SafeWriteUInt32(m_current_transfer.sector_offset);
   writer.SafeWriteBytes(m_current_transfer.sector_buffer, sizeof(m_current_transfer.sector_buffer));
+  writer.SafeWriteUInt8(m_st0);
+  writer.SafeWriteUInt8(m_st1);
+  writer.SafeWriteUInt8(m_st2);
 
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
@@ -381,6 +390,19 @@ void FDC::RemoveDisk(uint32 drive)
   state->data.Obliterate();
 }
 
+void FDC::ClearFIFO()
+{
+  m_fifo_command_position = 0;
+  m_fifo_result_position = 0;
+  m_fifo_result_size = 0;
+}
+
+void FDC::WriteToFIFO(uint8 value)
+{
+  Assert(m_fifo_result_size < FIFO_SIZE);
+  m_fifo[m_fifo_result_size++] = value;
+}
+
 bool FDC::SeekDrive(uint32 drive, uint32 cylinder, uint32 head, uint32 sector)
 {
   DriveState* state = &m_drives[drive];
@@ -473,6 +495,7 @@ void FDC::SoftReset()
   ClearFIFO();
 
   // Reset status register
+  m_main_status_register.command_busy = false;
   m_main_status_register.ClearActivity();
   if (m_command_event->IsActive())
     m_command_event->Deactivate();
@@ -501,55 +524,6 @@ void FDC::SoftReset()
   // m_reset_sense_interrupt_count = 0;
 }
 
-bool FDC::WriteToFIFO(uint8 data)
-{
-  return WriteToFIFO(&data, sizeof(data));
-}
-
-bool FDC::WriteToFIFO(const void* data, uint32 length)
-{
-  if ((m_fifo_position + length) >= FIFO_SIZE)
-    return false;
-
-  std::memcpy(m_fifo.data() + m_fifo_position, data, length);
-  m_fifo_position += length;
-  return true;
-}
-
-bool FDC::ReadFromFIFO(void* data, uint32 length)
-{
-  if (m_fifo_position < length)
-    return false;
-
-  std::memcpy(data, m_fifo.data(), length);
-  RemoveFIFOBytes(length);
-  return true;
-}
-
-void FDC::RemoveFIFOBytes(uint32 length)
-{
-  if (length == m_fifo_position)
-  {
-    std::fill(m_fifo.begin(), m_fifo.end(), uint8(0));
-    m_fifo_position = 0;
-  }
-  else
-  {
-    m_fifo_position -= length;
-    std::memmove(m_fifo.data(), m_fifo.data() + length, m_fifo_position);
-    Y_memzero(m_fifo.data() + m_fifo_position, FIFO_SIZE - m_fifo_position);
-  }
-}
-
-void FDC::ClearFIFO()
-{
-  if (m_fifo_position > 0)
-  {
-    std::fill(m_fifo.begin(), m_fifo.end(), uint8(0));
-    m_fifo_position = 0;
-  }
-}
-
 uint8 FDC::GetCurrentCommandLength()
 {
   uint8 command = m_fifo[0] & 0x1F;
@@ -574,7 +548,19 @@ uint8 FDC::GetCurrentCommandLength()
   }
 }
 
-void FDC::HandleCommand()
+enum Command : uint8
+{
+  CMD_SPECIFY = 0x03,
+  CMD_SENSE_STATUS = 0x04,
+  CMD_WRITE_DATA = 0x05,
+  CMD_READ_DATA = 0x06,
+  CMD_RECALIBRATE = 0x07,
+  CMD_SENSE_INTERRUPT = 0x08,
+  CMD_READ_ID = 0x0A,
+  CMD_SEEK = 0x0F
+};
+
+void FDC::BeginCommand()
 {
   uint8 command = m_fifo[0] & 0x1F;
   bool sk = !!((m_fifo[0] >> 5) & 0x01);
@@ -582,17 +568,11 @@ void FDC::HandleCommand()
   bool mt = !!((m_fifo[0] >> 7) & 0x01);
   Log_DevPrintf("Floppy command 0x%02X MT=%u,MF=%u,SK=%u", uint32(command), uint32(mt), uint32(mf), uint32(sk));
 
-  // Command no longer busy
-  m_main_status_register.command_busy = false;
-  m_main_status_register.ClearActivity();
-  if (m_command_event->IsActive())
-    m_command_event->Deactivate();
-
   switch (command)
   {
-    case 0x03: // Specify
+    case CMD_SPECIFY: // Specify
     {
-      DebugAssert(m_fifo_position >= 3);
+      DebugAssert(m_fifo_command_position >= 3);
 
       m_step_rate_time = (m_fifo[1] >> 4) & 0b1111;
       m_head_unload_time = (m_fifo[1]) & 0b1111;
@@ -604,13 +584,19 @@ void FDC::HandleCommand()
     }
     break;
 
-    case 0x05: // Write Data
-    case 0x06: // Read Data
+    case CMD_WRITE_DATA: // Write Data
+    case CMD_READ_DATA:  // Read Data
     {
-      DebugAssert(m_fifo_position >= 9);
+      DebugAssert(m_fifo_command_position >= 9);
 
       // Update drive number
       m_current_drive = m_fifo[1] & 0x03;
+      if (!IsDrivePresent(m_current_drive) || !IsDiskPresent(m_current_drive))
+      {
+        Log_DevPrintf("Write: drive/disk not present");
+        HangController();
+        return;
+      }
 
       bool is_write = (command == 0x05);
       uint8 head_number2 = (m_fifo[1] >> 2);
@@ -621,13 +607,6 @@ void FDC::HandleCommand()
       uint8 end_of_track = (m_fifo[6]);
       // uint8 gap1_size = (m_fifo[7]);
       uint8 sector_type2 = (m_fifo[8]);
-
-      if (!IsDrivePresent(m_current_drive) || !IsDiskPresent(m_current_drive))
-      {
-        Log_DevPrintf("Write: drive/disk not present");
-        HangController();
-        return;
-      }
 
       // Header number in bit2 should equal head_number
       if (head_number2 != head_number)
@@ -662,42 +641,58 @@ void FDC::HandleCommand()
 
       Log_DevPrintf("Floppy start %s %u/%u/%u", is_write ? "write" : "read", cylinder_number, head_number,
                     sector_number);
-      SeekDrive(m_current_drive, cylinder_number, head_number, sector_number);
 
       // Clear RFM bit and wait for transfer to finish
       m_main_status_register.request_for_master = false;
       m_main_status_register.data_direction = !is_write;
       m_main_status_register.command_busy = true;
-      m_dma->SetDMAState(2, true);
+
+      // Already on the correct track?
+      if (m_drives[m_current_drive].current_cylinder != cylinder_number)
+      {
+        // We need to seek to the correct sector.
+        CycleCount seek_time = CalculateHeadSeekTime(m_drives[m_current_drive].current_cylinder, cylinder_number);
+        SeekDrive(m_current_drive, cylinder_number, head_number, sector_number);
+        m_command_event->Queue(seek_time);
+      }
+      else
+      {
+        // Start reading sectors. Still need to seek to the starting sector.
+        SeekDrive(m_current_drive, cylinder_number, head_number, sector_number);
+        m_command_event->Queue(CalculateSectorReadTime());
+      }
     }
     break;
 
-    case 0x07: // Recalibrate
+    case CMD_RECALIBRATE: // Recalibrate
     {
-      DebugAssert(m_fifo_position >= 2);
+      DebugAssert(m_fifo_command_position >= 2);
 
-      m_current_drive = m_fifo[1] & 0x03;
-      Log_DevPrintf("Recalibrate drive %u", ZeroExtend32(m_current_drive));
+      uint8 drive = m_fifo[1] & 0x03;
+      Log_DevPrintf("Recalibrate drive %u", ZeroExtend32(drive));
 
       // TODO: Set errors
-      if (IsDrivePresent(m_current_drive))
-        SeekDrive(m_current_drive, 0, 0, 1);
+      if (!IsDrivePresent(drive))
+      {
+        HangController();
+        return;
+      }
 
-      // No result bytes, but sends interrupt
-      TransitionToCommandPhase();
-      RaiseInterrupt();
+      // Calculate time to seek.
+      CycleCount seek_time = CalculateHeadSeekTime(m_drives[drive].current_cylinder, 0);
+      m_main_status_register.command_busy = true;
+      m_main_status_register.SetActivity(drive);
+      m_command_event->Queue(seek_time);
     }
     break;
 
-    case 0x08: // Sense interrupt
+    case CMD_SENSE_INTERRUPT: // Sense interrupt
     {
       ClearFIFO();
 
       if (m_reset_sense_interrupt_count > 0)
       {
         WriteToFIFO(0xC0 | (4 - m_reset_sense_interrupt_count));
-
-        // The XT bios chokes if this is present. Difference between models?
         WriteToFIFO(Truncate8(m_drives[m_current_drive].current_cylinder));
 
         TransitionToResultPhase();
@@ -705,9 +700,7 @@ void FDC::HandleCommand()
       }
       else
       {
-        WriteToFIFO(GetST0(m_current_drive, m_interrupt_pending ? ST0_IC_NT : ST0_IC_IC));
-
-        // The XT bios chokes if this is present. Difference between models?
+        WriteToFIFO(m_st0 | (m_interrupt_pending ? ST0_IC_NT : ST0_IC_IC));
         WriteToFIFO(Truncate8(m_drives[m_current_drive].current_cylinder));
 
         TransitionToResultPhase();
@@ -715,9 +708,22 @@ void FDC::HandleCommand()
     }
     break;
 
-    case 0x0A: // Read ID
+    case CMD_SENSE_STATUS: // Get Status
     {
-      DebugAssert(m_fifo_position >= 2);
+      uint8 drive_number = m_fifo[1] & 0x03;
+      uint8 head = (m_fifo[1] >> 2) & 0x01;
+      SeekDrive(drive_number, m_drives[drive_number].current_cylinder, head, m_drives[drive_number].current_sector);
+
+      // Writes ST3 to the result, but does not raise an interrupt.
+      ClearFIFO();
+      WriteToFIFO(GetST3(drive_number, 0));
+      TransitionToResultPhase();
+    }
+    break;
+
+    case CMD_READ_ID: // Read ID
+    {
+      DebugAssert(m_fifo_command_position >= 2);
 
       m_current_drive = m_fifo[1] & 0x03;
       uint8 head = (m_fifo[1] >> 2) & 0x01;
@@ -750,29 +756,33 @@ void FDC::HandleCommand()
         return;
       }
 
-      // TODO: Timer here
-      EndTransfer(m_current_drive, ST0_IC_NT, 0, 0);
+      m_main_status_register.command_busy = true;
+      m_main_status_register.SetActivity(m_current_drive);
+      m_command_event->Queue(CalculateSectorReadTime());
     }
     break;
 
-    case 0x0F: // Seek
+    case CMD_SEEK: // Seek
     {
-      DebugAssert(m_fifo_position >= 3);
+      DebugAssert(m_fifo_command_position >= 3);
 
-      uint32 drive_number = (m_fifo[1] & 0b11);
-      uint32 head_number = (m_fifo[1] >> 2);
-      uint32 cylinder_number = (m_fifo[2]);
+      uint8 drive_number = (m_fifo[1] & 0b11);
+      uint8 head_number = (m_fifo[1] >> 2);
+      uint8 cylinder_number = (m_fifo[2]);
       Log_DevPrintf("Floppy seek drive %u head %u cylinder %u", drive_number, head_number, cylinder_number);
 
-      // TODO: Handle errors
-      if (IsDrivePresent(drive_number))
+      m_current_drive = drive_number;
+      if (!IsDrivePresent(drive_number) || !IsDiskPresent(drive_number))
       {
-        SeekDrive(drive_number, cylinder_number, head_number, 1);
+        HangController();
+        return;
       }
 
-      // No result bytes, but sends interrupt
-      TransitionToCommandPhase();
-      RaiseInterrupt();
+      // Calculate time to seek.
+      CycleCount seek_time = CalculateHeadSeekTime(m_drives[drive_number].current_cylinder, cylinder_number);
+      m_main_status_register.command_busy = true;
+      m_main_status_register.SetActivity(drive_number);
+      m_command_event->Queue(seek_time);
     }
     break;
 
@@ -780,6 +790,60 @@ void FDC::HandleCommand()
       Log_WarningPrintf("Unknown floppy command 0x%02X, MT=%u, MF=%u, SK=%u", uint32(command), uint32(mt), uint32(mf),
                         uint32(sk));
       break;
+  }
+}
+
+void FDC::EndCommand()
+{
+  const uint8 command = m_fifo[0] & 0x1F;
+  switch (command)
+  {
+    case CMD_RECALIBRATE:
+    {
+      const uint8 drive_number = m_fifo[1] & 0x03;
+      SeekDrive(drive_number, 0, 0, 1);
+      m_st0 = ST0_SE;
+
+      // No result bytes, but sends interrupt
+      m_command_event->Deactivate();
+      TransitionToCommandPhase();
+      RaiseInterrupt();
+    }
+    break;
+
+    case CMD_SEEK: // Seek
+    {
+      DebugAssert(m_fifo_command_position >= 3);
+
+      uint8 drive_number = (m_fifo[1] & 0b11);
+      uint8 head_number = (m_fifo[1] >> 2);
+      uint8 cylinder_number = (m_fifo[2]);
+      SeekDrive(drive_number, cylinder_number, head_number, 1);
+      m_st0 = ST0_SE;
+
+      // No result bytes, but sends interrupt
+      m_command_event->Deactivate();
+      TransitionToCommandPhase();
+      RaiseInterrupt();
+    }
+    break;
+
+    case CMD_READ_ID:
+    {
+      // EndTransfer will cancel the event.
+      EndTransfer(m_current_drive, ST0_IC_NT, 0, 0);
+    }
+    break;
+
+    case CMD_READ_DATA:
+    case CMD_WRITE_DATA:
+    {
+      // Everything is already set up, we just need to kick the DMA transfer.
+      // We leave the event active for the next sector.
+      m_dma->SetDMAState(DMA_CHANNEL, true);
+      m_command_event->Reschedule(CalculateSectorReadTime());
+    }
+    break;
   }
 }
 
@@ -808,6 +872,7 @@ void FDC::TransitionToCommandPhase()
   m_main_status_register.command_busy = false;
   m_main_status_register.data_direction = false;
   m_main_status_register.request_for_master = true;
+  m_main_status_register.ClearActivity();
 }
 
 void FDC::TransitionToResultPhase()
@@ -815,6 +880,7 @@ void FDC::TransitionToResultPhase()
   m_main_status_register.command_busy = false;
   m_main_status_register.data_direction = true;
   m_main_status_register.request_for_master = true;
+  m_main_status_register.ClearActivity();
 }
 
 void FDC::ConnectIOPorts(Bus* bus)
@@ -828,7 +894,8 @@ void FDC::ConnectIOPorts(Bus* bus)
   bus->ConnectIOPortRead(0x03F5, this, std::bind(&FDC::IOReadFIFO, this, std::placeholders::_2));
   bus->ConnectIOPortWrite(0x03F5, this, std::bind(&FDC::IOWriteFIFO, this, std::placeholders::_2));
   bus->ConnectIOPortRead(0x03F7, this, std::bind(&FDC::IOReadDigitalInputRegister, this, std::placeholders::_2));
-  bus->ConnectIOPortWriteToPointer(0x03F7, this, &m_configuration_control_register);
+  bus->ConnectIOPortWrite(0x03F7, this,
+                          std::bind(&FDC::IOWriteConfigurationControlRegister, this, std::placeholders::_2));
 
   // connect DMA channel
   if (m_dma)
@@ -897,8 +964,7 @@ void FDC::IOReadDigitalInputRegister(uint8* value)
   // Bit 2 - CCR?
   // Bit 1-0 - Data rate select
   Log_WarningPrintf("Read digital input register - stubbed");
-  *value =
-    uint8(0 << 7) | (BoolToUInt8(m_interrupt_enable) << 3) | uint8(0 << 2) | (m_data_rate_select_register & 0x03);
+  *value = uint8(0 << 7) | (BoolToUInt8(m_interrupt_enable) << 3) | uint8(0 << 2) | (m_data_rate_index & 0x03);
 
   // Clear step bit of current drive
   m_drives[m_current_drive].step_latch = false;
@@ -920,7 +986,7 @@ void FDC::IOReadDigitalOutputRegister(uint8* value)
 
 void FDC::IOWriteDigitalOutputRegister(uint8 value)
 {
-  Log_DevPrintf("FDC write DOR=0x%02X", value);
+  Log_TracePrintf("FDC write DOR=0x%02X", value);
 
   uint8 drive_select = value & 0x03;
   bool reset = !!(value & (1 << 2));
@@ -960,16 +1026,21 @@ void FDC::IOWriteDigitalOutputRegister(uint8 value)
 
 void FDC::IOWriteDataRateSelectRegister(uint8 value)
 {
-  Log_DevPrintf("FDC write DSR=0x%02X", value);
-  m_data_rate_select_register = value;
+  // TODO: Handle upper bits (software reset, etc).
+  m_data_rate_index = value & 0x03;
+}
+
+void FDC::IOWriteConfigurationControlRegister(uint8 value)
+{
+  m_data_rate_index = value & 0x03;
 }
 
 void FDC::IOReadFIFO(uint8* value)
 {
   DebugAssert(m_main_status_register.data_direction && m_main_status_register.request_for_master);
 
-  Log_DevPrintf("FDC read fifo pos=%u", m_fifo_position);
-  if (m_fifo_position == 0)
+  Log_TracePrintf("FDC read fifo pos=%u", m_fifo_result_position);
+  if (m_fifo_result_position == m_fifo_result_size)
   {
     // Bad read
     Log_WarningPrintf("Bad floppy data read");
@@ -977,36 +1048,29 @@ void FDC::IOReadFIFO(uint8* value)
     return;
   }
 
-  uint8 data = 0;
-  ReadFromFIFO(&data, 1);
-  *value = data;
+  *value = m_fifo[m_fifo_result_position++];
 
-  // TODO: Handle when transferring
-  if (m_fifo_position == 0)
+  // XT bios requires that this bit is cleared.
+  // m_main_status_register.data_direction = false;
+
+  // Interrupt is lowered after the first byte is read.
+  LowerInterrupt();
+
+  // Flags are cleared after result is read in its entirety.
+  if (m_fifo_result_position == m_fifo_result_size)
     TransitionToCommandPhase();
 }
 
 void FDC::IOWriteFIFO(uint8 value)
 {
   DebugAssert(!m_main_status_register.data_direction && m_main_status_register.request_for_master);
+  Assert(m_fifo_command_position < FIFO_SIZE);
 
-  Log_DevPrintf("FDC write fifo pos=%u,value=0x%02X", m_fifo_position, value);
+  Log_TracePrintf("FDC write fifo pos=%u,value=0x%02X", m_fifo_command_position, value);
 
-  WriteToFIFO(&value, 1);
-
-#if 0
-    // TODO: Do we always set command busy or only once the whole thing has been written?
-    if (m_fifo_position == GetCurrentCommandLength())
-    {
-        m_main_status_register.command_busy = true;
-        m_main_status_register.SetActivity(m_current_drive);
-        if (!m_command_event->IsActive())
-            m_command_event->Queue(1);
-    }
-#else
-  if (m_fifo_position == GetCurrentCommandLength())
-    HandleCommand();
-#endif
+  m_fifo[m_fifo_command_position++] = value;
+  if (m_fifo_command_position == GetCurrentCommandLength())
+    BeginCommand();
 }
 
 void FDC::EndTransfer(uint32 drive, uint8 st0_bits, uint8 st1_bits, uint8 st2_bits)
@@ -1016,18 +1080,20 @@ void FDC::EndTransfer(uint32 drive, uint8 st0_bits, uint8 st1_bits, uint8 st2_bi
     m_current_transfer.active = false;
     m_dma->SetDMAState(DMA_CHANNEL, false);
   }
+  if (m_command_event->IsActive())
+    m_command_event->Deactivate();
 
-  uint8 st0 = GetST0(drive, st0_bits);
-  uint8 st1 = GetST1(drive, st1_bits);
-  uint8 st2 = GetST2(drive, st2_bits);
+  m_st0 = GetST0(drive, st0_bits);
+  m_st1 = GetST1(drive, st1_bits);
+  m_st2 = GetST2(drive, st2_bits);
 
-  Log_DevPrintf("End transfer, Drive=%u ST0=0x%02X ST1=0x%02X ST2=0x%02X", drive, ZeroExtend32(st0), ZeroExtend32(st1),
-                ZeroExtend32(st2));
+  Log_DevPrintf("End transfer, Drive=%u ST0=0x%02X ST1=0x%02X ST2=0x%02X", drive, ZeroExtend32(m_st0),
+                ZeroExtend32(m_st1), ZeroExtend32(m_st2));
 
   ClearFIFO();
-  WriteToFIFO(st0);
-  WriteToFIFO(st1);
-  WriteToFIFO(st2);
+  WriteToFIFO(m_st0);
+  WriteToFIFO(m_st1);
+  WriteToFIFO(m_st2);
   WriteToFIFO(Truncate8(m_drives[drive].current_cylinder));
   WriteToFIFO(Truncate8(m_drives[drive].current_head));
   WriteToFIFO(Truncate8(m_drives[drive].current_sector));
@@ -1089,8 +1155,16 @@ void FDC::DMAReadCallback(IOPortDataSize size, uint32* value, uint32 remaining_b
   if (m_current_transfer.sector_offset >= m_current_transfer.bytes_per_sector)
   {
     m_current_transfer.sector_offset = 0;
+
+    // TODO: Timing for seeking to next cylinder.
     if (!MoveToNextTransferSector())
+    {
       EndTransfer(m_current_drive, ST0_IC_AT, ST1_EN, 0);
+      return;
+    }
+
+    // Clear the request flag, while we're reading the next sector. EndCommand() will re-enable it.
+    m_dma->SetDMAState(DMA_CHANNEL, false);
   }
 }
 
@@ -1131,7 +1205,13 @@ void FDC::DMAWriteCallback(IOPortDataSize size, uint32 value, uint32 remaining_b
   if (m_current_transfer.sector_offset == 0)
   {
     if (!MoveToNextTransferSector())
+    {
       EndTransfer(m_current_drive, ST0_IC_AT, ST1_EN, 0);
+      return;
+    }
+
+    // Clear the request flag, while we're writing the next sector. EndCommand() will re-enable it.
+    m_dma->SetDMAState(DMA_CHANNEL, false);
   }
 }
 
@@ -1155,6 +1235,26 @@ uint8 FDC::GetST3(uint32 drive, uint8 bits) const
   return (BoolToUInt8(m_drives[drive].write_protect) << 6) | uint8(1 << 5) |
          (BoolToUInt8(m_drives[drive].current_cylinder == 0) << 4) | uint8(1 << 3) |
          (Truncate8(m_drives[drive].current_head & 0x01) << 2) | (Truncate8(drive) << 0);
+}
+
+CycleCount FDC::CalculateHeadSeekTime(uint32 current_track, uint32 destination_track) const
+{
+  uint32 move_count =
+    (current_track >= destination_track) ? (current_track - destination_track) : (destination_track - current_track);
+  return CalculateHeadSeekTime() * CycleCount(std::max(move_count, 1u));
+}
+
+CycleCount FDC::CalculateHeadSeekTime() const
+{
+  // SRT value = 16 - (milliseconds * data_rate / 500000) (https://wiki.osdev.org/Floppy_Disk_Controller)
+  uint32 val = uint32(m_step_rate_time ^ 0x0F) + 1;
+  return (val * 500000) / data_rates[m_data_rate_index];
+}
+
+CycleCount FDC::CalculateSectorReadTime() const
+{
+  // to-microseconds, bits-per-sector / (data-rate-in-kbs*1000)
+  return 1000000u * (512u * 8u) / (data_rates[m_data_rate_index] * 1000);
 }
 
 } // namespace HW
