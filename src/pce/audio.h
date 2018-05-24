@@ -71,14 +71,8 @@ public:
   // Looks up channel by name. Shouldn't really be needed.
   Channel* GetChannelByName(const char* name);
 
-  // Render samples to the output buffer.
-  void Render(SimulationTime time);
-
 protected:
-  virtual void RenderSamples(size_t num_samples) = 0;
   void CheckRenderBufferSize(size_t num_samples);
-  void CheckMixBufferSize(size_t num_samples);
-  void RenderTimeImpl(SimulationTime time);
 
   float m_output_sample_rate;
   float m_output_sample_carry = 0.0f;
@@ -89,7 +83,6 @@ protected:
 
   // Output buffer.
   std::vector<OutputFormatType> m_render_buffer;
-  std::vector<OutputFormatType> m_mix_buffer;
   std::unique_ptr<CircularBuffer> m_output_buffer;
 
   TaskQueue m_worker_queue;
@@ -180,7 +173,7 @@ public:
   static std::unique_ptr<Mixer> Create();
 
 protected:
-  virtual void RenderSamples(size_t output_samples) override;
+  void RenderSamples(size_t output_samples);
 };
 
 } // namespace Audio

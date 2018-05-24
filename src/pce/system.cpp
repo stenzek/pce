@@ -137,8 +137,8 @@ void System::Initialize()
     component->Initialize(this, m_bus);
 
   // Add audio mix event, render audio every 40ms (25hz).
-  m_audio_render_event = m_timing_manager.CreateFrequencyEvent("Audio Mix/Render Event", float(Audio::MixFrequency),
-                                                               std::bind(&System::AudioRenderEventCallback, this));
+  /*m_audio_render_event = m_timing_manager.CreateFrequencyEvent("Audio Mix/Render Event", float(Audio::MixFrequency),
+                                                               std::bind(&System::AudioRenderEventCallback, this));*/
 
   // Add throttle event. Try to throttle every 100ms.
   m_throttle_event =
@@ -379,7 +379,7 @@ void System::ThrottleEventCallback()
         Log_ErrorPrintf("System too slow, lost %d ms", int32(-diff / 1000000));
 
         // Audio buffers have to emptied.
-        m_audio_render_event->InvokeEarly(true);
+        // m_audio_render_event->InvokeEarly(true);
         m_last_audio_render_time = 0;
 
         m_elapsed_real_time.Reset();
@@ -394,8 +394,6 @@ void System::AudioRenderEventCallback()
 {
   SimulationTime render_time = m_timing_manager.GetTotalEmulatedTime() - m_last_audio_render_time;
   m_last_audio_render_time = m_timing_manager.GetTotalEmulatedTime();
-  if (render_time > 0)
-    m_host_interface->GetAudioMixer()->Render(render_time);
 
   //     static SimulationTime total_audio_time;
   //     total_audio_time += render_time;

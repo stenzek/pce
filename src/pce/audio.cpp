@@ -75,52 +75,11 @@ Channel* Mixer::GetChannelByName(const char* name)
   return nullptr;
 }
 
-void Mixer::Render(SimulationTime time)
-{
-  m_worker_queue.QueueLambdaTask([this, time]() { RenderTimeImpl(time); });
-  // RenderTimeImpl(time);
-}
-
-void Mixer::RenderTimeImpl(SimulationTime time)
-{
-  // Work in ms to get better precision
-  float output_samples_to_render =
-    float((double(time) / 1000000000.0) * double(m_output_sample_rate)) + m_output_sample_carry;
-  float floored_output_samples_to_render = std::floor(output_samples_to_render);
-  m_output_sample_carry = output_samples_to_render - floored_output_samples_to_render;
-
-  size_t num_samples = size_t(output_samples_to_render);
-  Log_TracePrintf("Mixer render %u samples for %.2f ms", Truncate32(num_samples), double(time) / 1000000.0);
-  if (num_samples > 0)
-    RenderSamples(num_samples);
-
-#if 0
-    Log_DevPrintf("Simtime = %u ms, samples = %u", Truncate32(time), Truncate32(num_samples));
-    static SimulationTime time_acc = 0;
-    static size_t sc = 0;
-    time_acc += time;
-    sc += num_samples;
-    if (time_acc >= 1000000000)
-    {
-        Log_WarningPrintf("Samples per second: %.4f", float(sc) / float(time_acc) * 1000000000.0f);
-        sc = 0;
-        time_acc = 0;
-    }
-#endif
-}
-
 void Mixer::CheckRenderBufferSize(size_t num_samples)
 {
   size_t buffer_size = num_samples * NumOutputChannels * sizeof(OutputFormatType);
   if (m_render_buffer.size() < buffer_size)
     m_render_buffer.resize(buffer_size);
-}
-
-void Mixer::CheckMixBufferSize(size_t num_samples)
-{
-  size_t buffer_size = num_samples * NumOutputChannels * sizeof(OutputFormatType);
-  if (m_mix_buffer.size() < buffer_size)
-    m_mix_buffer.resize(buffer_size);
 }
 
 AudioBuffer::AudioBuffer(size_t size) : m_buffer(size) {}

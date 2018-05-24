@@ -11,7 +11,8 @@ public:
   static std::unique_ptr<Mixer> Create();
 
 protected:
-  virtual void RenderSamples(size_t output_samples) override;
+  void RenderSamples(Audio::OutputFormatType* buf, size_t num_samples);
+  static void RenderCallback(void* userdata, Uint8* stream, int len);
 
 private:
   SDL_AudioDeviceID m_device_id;

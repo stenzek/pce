@@ -565,20 +565,14 @@ void SDLHostInterface::DoSaveState(uint32 index)
 static void TestBIOS(SDLHostInterface* host_interface)
 {
   // Systems::PCXT* system = new Systems::PCXT(host_interface, 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
-  // Systems::PCAT* system = new Systems::PCAT(host_interface, cpu, 1 * 1024 * 1024);
-  // Systems::PCAT* system = new Systems::PCAT(host_interface, cpu, 4 * 1024 * 1024);
-  // Systems::PCAT* system = new Systems::PCAT(host_interface, cpu, 8 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 4 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 8 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 16 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, cpu, 20 * 1024 * 1024);
   // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 1000000, 32 * 1024 * 1024);
-  Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 40000000, 32 * 1024 * 1024);
+  Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 20000000, 32 * 1024 * 1024);
+  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 40000000, 32 * 1024 * 1024);
   // Systems::PC_AMI_386* system = new Systems::PC_AMI_386(host_interface, CPU_X86::MODEL_386, 4000000, 4 * 1024 *
   // 1024);
 
   system->GetCPU()->SetBackend(CPUBackendType::Interpreter);
-  // system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
+  system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
   // system->GetCPU()->SetBackend(CPUBackendType::Recompiler);
 
 #if 0
@@ -606,7 +600,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // Adlib synth card
   system->AddComponent(new HW::AdLib());
 #endif
-#if 0
+#if 1
   // Sound blaster card
   system->AddComponent(new HW::SoundBlaster(system->GetDMAController(), HW::SoundBlaster::Type::SoundBlaster16));
 #endif
