@@ -108,6 +108,9 @@
     <ClCompile Include="hw\et4000.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="hw\cdrom.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -240,6 +243,9 @@
     </ClInclude>
     <ClInclude Include="fastjmp.h" />
     <ClInclude Include="hw\et4000.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\cdrom.h">
       <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>

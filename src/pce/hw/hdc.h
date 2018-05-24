@@ -11,6 +11,8 @@ class ByteStream;
 
 namespace HW {
 
+class CDROM;
+
 class HDC : public Component
 {
 public:
@@ -24,6 +26,13 @@ public:
     CHANNEL_PRIMARY,
     CHANNEL_SECONDARY,
     ATA_CHANNELS
+  };
+  enum DRIVE_TYPE
+  {
+    DRIVE_TYPE_NONE,
+    DRIVE_TYPE_HDD,
+    DRIVE_TYPE_ATAPI,
+    NUM_DRIVE_TYPES
   };
   enum ATA_SR
   {
@@ -134,6 +143,7 @@ public:
   }
 
   bool AttachDrive(uint32 number, ByteStream* stream, uint32 cylinders = 0, uint32 heads = 0, uint32 sectors = 0);
+  bool AttachATAPIDevice(uint32 number, CDROM* cdrom);
 
   // For HLE bios
   bool SeekDrive(uint32 drive, uint64 lba);
@@ -151,6 +161,7 @@ protected:
 
   struct DriveState
   {
+    DRIVE_TYPE type = DRIVE_TYPE_NONE;
     uint32 num_cylinders = 0;
     uint32 num_heads = 0;
     uint32 num_sectors = 0;
@@ -177,6 +188,7 @@ protected:
 
     // TODO: Replace with file IO
     std::vector<byte> data;
+    CDROM* atapi_device = nullptr;
   };
   std::array<std::unique_ptr<DriveState>, MAX_DRIVES> m_drives;
 
@@ -185,6 +197,7 @@ protected:
 
   uint8 GetCurrentDriveIndex() const { return m_drive_select.drive; }
   DriveState* GetCurrentDrive() { return m_drives[m_drive_select.drive].get(); }
+  void SetSignature(DriveState* drive);
 
   uint8 m_status_register = 0;
   uint8 m_busy_hold = 0;
@@ -243,12 +256,16 @@ protected:
   void HandleATAInitializeDriveParameters();
   void HandleATASetFeatures();
 
+  void HandleATAPIIdentify();
   void HandleATAPIDeviceReset();
+  void HandleATAPIPacket();
+  void HandleATAPICommandCompleted(uint32 drive_index);
 
   void AbortCommand(uint8 error = ATA_ERR_ABRT);
   void CompleteCommand();
 
   void BeginTransfer(uint32 drive_index, uint32 sectors_per_block, uint32 num_sectors, bool is_write);
+  void UpdatePacketCommand(const void* data, size_t data_size);
   void UpdateTransferBuffer();
 
   void RaiseInterrupt();
@@ -264,6 +281,8 @@ protected:
     uint32 sectors_per_block = 0;
     uint32 remaining_sectors = 0;
     bool is_write = false;
+    bool is_packet_command = false;
+    bool is_packet_data = false;
   } m_current_transfer;
 };
 

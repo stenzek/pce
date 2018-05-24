@@ -344,14 +344,19 @@ void PCBochs::SetCMOSVariables()
   }
   m_cmos->SetVariable(0x14, equipment_byte);
 
+#if 0
   // Boot from HDD first
   // Legacy - 0 - C: -> A:, 1 - A: -> C:
-  m_cmos->SetVariable(0x2D, (0 << 5));
+  // m_cmos->SetVariable(0x2D, (0 << 5));
   // 0x00 - undefined, 0x01 - first floppy, 0x02 - first HDD, 0x03 - first cdrom
   if (m_hdd_controller->GetDriveCount() > 0)
     m_cmos->SetVariable(0x3D, 0x02);
   else
     m_cmos->SetVariable(0x3D, 0x01);
+#else
+  m_cmos->SetVariable(0x2D, (1 << 5));
+  m_cmos->SetVariable(0x3D, 0x01);
+#endif
 
   // HDD information
   m_cmos->SetVariable(0x12, 0);
