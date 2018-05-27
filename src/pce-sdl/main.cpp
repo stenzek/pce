@@ -18,6 +18,7 @@
 #include "pce/cpu_x86/cpu.h"
 #include "pce/host_interface.h"
 #include "pce/hw/adlib.h"
+#include "pce/hw/cdrom.h"
 #include "pce/hw/cga.h"
 #include "pce/hw/cmos.h"
 #include "pce/hw/et4000.h"
@@ -566,13 +567,14 @@ static void TestBIOS(SDLHostInterface* host_interface)
 {
   // Systems::PCXT* system = new Systems::PCXT(host_interface, 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
   // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 1000000, 32 * 1024 * 1024);
-  Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 20000000, 32 * 1024 * 1024);
+  Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 10000000, 32 * 1024 * 1024);
+  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 20000000, 32 * 1024 * 1024);
   // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 40000000, 32 * 1024 * 1024);
   // Systems::PC_AMI_386* system = new Systems::PC_AMI_386(host_interface, CPU_X86::MODEL_386, 4000000, 4 * 1024 *
   // 1024);
 
   system->GetCPU()->SetBackend(CPUBackendType::Interpreter);
-  system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
+  // system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
   // system->GetCPU()->SetBackend(CPUBackendType::Recompiler);
 
 #if 0
@@ -600,7 +602,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // Adlib synth card
   system->AddComponent(new HW::AdLib());
 #endif
-#if 1
+#if 0
   // Sound blaster card
   system->AddComponent(new HW::SoundBlaster(system->GetDMAController(), HW::SoundBlaster::Type::SoundBlaster16));
 #endif
@@ -609,6 +611,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
   system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_3_5);
   // LoadFloppy(system->GetFDDController(), 0, "images\\386bench.img");
   // LoadFloppy(system->GetFDDController(), 0, "images\\DOS33-DISK01.IMG");
+  LoadFloppy(system->GetFDDController(), 0, "images\\win95boot.img");
   // LoadFloppy(system->GetFDDController(), 1, "images\\8088mph.img");
   // LoadFloppy(system->GetFDDController(), 1, "images\\checkit3a.img");
   host_interface->AddDeviceFileCallback("Floppy A", [&system](const std::string& filename) {
@@ -627,10 +630,18 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS33.img", 41, 16, 63);
   LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\hd10meg.img", 306, 4, 17);
+  // LoadHDD(system->GetHDDController(), 0, "images\\blank.img", 243, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\win95.img", 243, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\win98.img", 609, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\c.img", 81, 16, 63);
-  LoadHDD(system->GetHDDController(), 1, "images\\utils.img", 162, 16, 63);
+  // LoadHDD(system->GetHDDController(), 1, "images\\utils.img", 162, 16, 63);
+
+#if 1
+  // cdrom
+  HW::CDROM* cdrom = new HW::CDROM();
+  system->AddComponent(cdrom);
+  system->GetHDDController()->AttachATAPIDevice(1, cdrom);
+#endif
 
 #if 0
   system->Start(true);
