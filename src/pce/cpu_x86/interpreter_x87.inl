@@ -952,6 +952,95 @@ void NewInterpreter::Execute_Operation_FNSAVE(CPU* cpu)
   cpu->m_fpu_exception = false;
 }
 
+template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
+void NewInterpreter::Execute_Operation_FRSTOR(CPU* cpu)
+{
+  // this seems buggy.
+  CalculateEffectiveAddress<src_mode>(cpu);
+  StartX87Instruction(cpu);
+
+  // Save environment.
+  // TODO: Mask addr with current address size
+  // TODO: Refactor to its own method
+  uint16 cw = cpu->m_fpu_registers.CW.bits;
+  uint16 sw = cpu->m_fpu_registers.SW.bits;
+  uint16 tw = cpu->m_fpu_registers.TW.bits;
+  uint32 fip = 0;
+  uint16 fcs = 0;
+  uint32 fdp = 0;
+  uint16 fds = 0;
+  uint32 fop = 0;
+
+  const Segment seg = cpu->idata.segment;
+  const uint32 addr_mask = cpu->m_current_address_size == AddressSize_16 ? 0xFFFF : 0xFFFFFFFF;
+  VirtualMemoryAddress addr = cpu->m_effective_address;
+  if (cpu->idata.operand_size == OperandSize_32)
+  {
+    cw = cpu->ReadMemoryWord(seg, (addr + 0) & addr_mask);
+    sw = cpu->ReadMemoryWord(seg, (addr + 4) & addr_mask);
+    tw = cpu->ReadMemoryWord(seg, (addr + 8) & addr_mask);
+    if (cpu->InProtectedMode())
+    {
+      fip = cpu->ReadMemoryDWord(seg, (addr + 12) & addr_mask);
+      uint32 temp = cpu->ReadMemoryDWord(seg, (addr + 16) & addr_mask);
+      fop = (temp >> 16) & 0x7FF;
+      fcs = Truncate16(temp & 0xFFFF);
+      fdp = cpu->ReadMemoryDWord(seg, (addr + 20) & addr_mask);
+      fds = cpu->ReadMemoryWord(seg, (addr + 24) & addr_mask);
+    }
+    else
+    {
+      fip = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 12) & addr_mask));
+      uint32 temp = cpu->ReadMemoryDWord(seg, (addr + 16) & addr_mask);
+      fop = Truncate16(temp) & 0x7FF;
+      fip |= ZeroExtend32(Truncate16(temp >> 11)) << 16;
+      fdp = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 20) & addr_mask));
+      fdp |= ZeroExtend32(Truncate16(cpu->ReadMemoryWord(seg, (addr + 24) & addr_mask) >> 11)) << 16;
+    }
+    addr += 28;
+  }
+  else
+  {
+    cw = cpu->ReadMemoryWord(seg, (addr + 0) & addr_mask);
+    sw = cpu->ReadMemoryWord(seg, (addr + 2) & addr_mask);
+    tw = cpu->ReadMemoryWord(seg, (addr + 4) & addr_mask);
+    if (cpu->InProtectedMode() && !cpu->InVirtual8086Mode())
+    {
+      fip = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 6) & addr_mask));
+      fcs = cpu->ReadMemoryWord(seg, (addr + 8) & addr_mask);
+      fdp = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 10) & addr_mask));
+      fds = cpu->ReadMemoryWord(seg, (addr + 12) & addr_mask);
+    }
+    else
+    {
+      fip = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 6) & addr_mask));
+      uint16 temp = cpu->ReadMemoryWord(seg, (addr + 8) & addr_mask);
+      fop = temp & 0x7FF;
+      fip |= (ZeroExtend32(temp >> 12) & 0xF) << 16;
+      fdp = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 10) & addr_mask));
+      fdp |= (ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 12) & addr_mask) >> 12) & 0xF) << 16;
+    }
+    addr += 14;
+  }
+
+  // Save each of the registers out
+  for (uint32 i = 0; i < 8; i++)
+  {
+    cpu->m_fpu_registers.ST[i].low = ZeroExtend64(cpu->ReadMemoryDWord(seg, (addr + 0) & addr_mask));
+    cpu->m_fpu_registers.ST[i].low |= ZeroExtend64(cpu->ReadMemoryDWord(seg, (addr + 4) & addr_mask)) << 32;
+    cpu->m_fpu_registers.ST[i].high = cpu->ReadMemoryWord(seg, (addr + 8) & addr_mask);
+    addr += 10;
+  }
+
+  cpu->m_fpu_exception = (cpu->m_fpu_registers.SW.I | cpu->m_fpu_registers.SW.Z | cpu->m_fpu_registers.SW.O |
+                          cpu->m_fpu_registers.SW.U | cpu->m_fpu_registers.SW.P | cpu->m_fpu_registers.SW.D);
+  if (cpu->m_fpu_exception)
+  {
+    // New environment has an exception set.
+    cpu->AbortCurrentInstruction();
+  }
+}
+
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void NewInterpreter::Execute_Operation_FNSTCW(CPU* cpu)
 {
@@ -1046,12 +1135,6 @@ void NewInterpreter::Execute_Operation_FRNDINT(CPU* cpu)
   RaiseFloatExceptions(cpu, fs);
   UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 0, res);
-}
-
-template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_FRSTOR(CPU* cpu)
-{
-  Panic("Not Implemented");
 }
 
 void NewInterpreter::Execute_Operation_FSCALE(CPU* cpu)
