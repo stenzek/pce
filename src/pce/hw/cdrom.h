@@ -1,11 +1,12 @@
 #pragma once
-#include "pce/clock.h"
 #include "pce/bitfield.h"
+#include "pce/clock.h"
 #include "pce/component.h"
 #include <vector>
 
-namespace HW
-{
+class ByteStream;
+
+namespace HW {
 // TODO: "SCSI Device" base class
 class CDROM final : public Component
 {
@@ -20,10 +21,16 @@ public:
 
   bool IsBusy() const { return m_busy; }
   bool HasError() const { return m_error; }
+  bool HasMedia() const { return (m_media.stream != nullptr); }
+  uint8 GetSenseKey() const { return static_cast<uint8>(m_sense.key); }
 
   const byte* GetDataBuffer() const { return m_data_buffer.data(); }
-  size_t GetDataSize() const { return m_data_buffer.size(); }
-  void ClearDataBuffer() { m_data_buffer.clear(); }
+  size_t GetDataResponseSize() const { return m_data_response_size; }
+  void ClearDataBuffer()
+  {
+    m_data_buffer.clear();
+    m_data_response_size = 0;
+  }
   void ClearErrorFlag() { m_error = false; }
 
   using CommandCompletedCallback = std::function<void()>;
@@ -32,7 +39,13 @@ public:
   // Returns true if the command is completed.
   bool WriteCommandBuffer(const void* data, size_t data_len);
 
+  // Media changing.
+  bool InsertMedia(const char* filename);
+
 private:
+  static const uint32 SECTOR_SIZE = 2048;
+  static const uint32 AUDIO_SECTOR_SIZE = 2352;
+
   using CommandBuffer = std::vector<byte>;
   using DataBuffer = std::vector<byte>;
 
@@ -54,6 +67,7 @@ private:
     SCSI_CMD_SYNCHRONIZE_CACHE = 0x35,
     SCSI_CMD_WRITE_BUFFER = 0x3B,
     SCSI_CMD_READ_BUFFER = 0x3C,
+    SCSI_CMD_READ_SUB_CHANNEL = 0x42,
     SCSI_CMD_READ_TOC = 0x43,
     SCSI_CMD_GET_CONFIGURATION = 0x46,
     SCSI_CMD_GET_EVENT_STATUS_NOTIFICATION = 0x4A,
@@ -63,6 +77,7 @@ private:
     SCSI_CMD_SEND_OPC_INFORMATION = 0x54,
     SCSI_CMD_MODE_SELECT_10 = 0x55,
     SCSI_CMD_REPAIR_TRACK = 0x58,
+    SCSI_CMD_MODE_SENSE_6 = 0x1A,
     SCSI_CMD_MODE_SENSE_10 = 0x5A,
     SCSI_CMD_CLOSE_TRACK_SESSION = 0x5B,
     SCSI_CMD_READ_BUFFER_CAPACITY = 0x5C,
@@ -89,19 +104,89 @@ private:
     SCSI_CMD_SEND_DISC_STRUCTURE = 0xBF
   };
 
+  enum SENSE_KEY : uint8
+  {
+    SENSE_NO_STATUS = 0x00,
+    SENSE_NOT_READY = 0x02,
+    SENSE_ILLEGAL_REQUEST = 0x03,
+    SENSE_UNIT_ATTENTION = 0x06
+  };
+
+  enum ADDITIONAL_SENSE_CODE
+  {
+    ASC_ILLEGAL_OPCODE = 0x20,
+    ASC_LOGICAL_BLOCK_OUT_OF_RANGE = 0x21,
+    ASC_INVALID_FIELD_IN_CMD_PACKET = 0x24,
+    ASC_MEDIUM_MAY_HAVE_CHANGED = 0x28,
+    ASC_SAVING_PARAMETERS_NOT_SUPPORTED = 0x39,
+    ASC_MEDIUM_NOT_PRESENT = 0x3A
+  };
+
+  void EjectMedia();
+  void UpdateSenseInfo(SENSE_KEY key, uint8 asc);
+  void AllocateData(uint32 reserve_length, uint32 response_length);
+
+  uint8 ReadCommandBufferByte(uint32 offset) const;
+  uint16 ReadCommandBufferWord(uint32 offset) const;
+  uint32 ReadCommandBufferDWord(uint32 offset) const;
+  uint64 ReadCommandBufferLBA(uint32 offset) const;
+
+  void WriteDataBufferByte(uint32 offset, uint8 value);
+  void WriteDataBufferWord(uint32 offset, uint16 value);
+  void WriteDataBufferDWord(uint32 offset, uint32 value);
+  void WriteDataBufferLBA(uint32 offset, uint64 value);
+
   bool BeginCommand();
-  void QueueCommand(uint32 time_in_microseconds);
+  void QueueCommand(CycleCount time_in_microseconds);
+  void ExecuteCommand();
   void CompleteCommand();
+  void AbortCommand(SENSE_KEY key, uint8 asc);
+
+  // Returns the time in microseconds to move the head/laser to the specified LBA.
+  CycleCount CalculateSeekTime(uint64 current_lba, uint64 destination_lba) const;
+  CycleCount CalculateReadTime(uint64 lba, uint32 sector_count) const;
+
+  void HandleTestUnitReadyCommand();
+  void HandleRequestSenseCommand();
+  void HandleReadCapacityCommand();
+  void HandleReadTOCCommand();
+  void HandleReadSubChannelCommand();
+  void HandleModeSenseCommand();
+  void HandleReadCommand();
 
   Clock m_clock;
 
   CommandBuffer m_command_buffer;
   DataBuffer m_data_buffer;
+  uint32 m_data_response_size = 0;
 
   std::unique_ptr<TimingEvent> m_command_event;
   CommandCompletedCallback m_command_completed_callback;
 
   bool m_busy = false;
   bool m_error = false;
+
+  // Sense information
+  struct
+  {
+    SENSE_KEY key = SENSE_NO_STATUS;
+    uint8 information[4] = {};
+    uint8 specific_information[4] = {};
+    uint8 key_spec[3] = {};
+    uint8 fruc = 0;
+    uint8 asc = 0;
+    uint8 ascq = 0;
+  } m_sense;
+
+  // Media information
+  struct
+  {
+    String filename;
+    ByteStream* stream = nullptr;
+    uint64 total_sectors = 0;
+  } m_media;
+
+  // Current head position
+  uint64 m_current_lba = 0;
 };
-}
+} // namespace HW

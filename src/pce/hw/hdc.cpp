@@ -238,8 +238,8 @@ bool HDC::AttachATAPIDevice(uint32 number, CDROM* cdrom)
 
   std::unique_ptr<DriveState> drive_state = std::make_unique<DriveState>();
   drive_state->type = DRIVE_TYPE_ATAPI;
-  drive_state->atapi_device = cdrom;
   m_drives[number] = std::move(drive_state);
+  m_atapi_devices[number] = cdrom;
 
   cdrom->SetCommandCompletedCallback(std::bind(&HDC::HandleATAPICommandCompleted, this, number));
   return true;
@@ -449,6 +449,11 @@ void HDC::SoftReset()
   // TODO: Stop any ATAPI commands.
 }
 
+HW::CDROM* HDC::GetCurrentATAPIDevice()
+{
+  return (m_drives[m_drive_select.drive]->type == DRIVE_TYPE_ATAPI) ? m_atapi_devices[m_drive_select.drive] : nullptr;
+}
+
 void HDC::SetSignature(DriveState* drive)
 {
   if (drive->type == DRIVE_TYPE_HDD)
@@ -464,6 +469,14 @@ void HDC::SetSignature(DriveState* drive)
     drive->ata_sector_number = 1;
     drive->ata_cylinder_low = 0x14;
     drive->ata_cylinder_high = 0xEB;
+  }
+  else
+  {
+    // None
+    drive->ata_sector_count = 1;
+    drive->ata_sector_number = 1;
+    drive->ata_cylinder_low = 0xFF;
+    drive->ata_cylinder_high = 0xFF;
   }
 }
 
@@ -891,6 +904,10 @@ void HDC::HandleATACommand(uint8 command)
           HandleATAPIDeviceReset();
           break;
 
+        case ATAPI_CMD_PACKET:
+          HandleATAPIPacket();
+          break;
+
         default:
         {
           // Unknown command - abort is correct?
@@ -1024,15 +1041,22 @@ void HDC::HandleATAPIIdentify()
   DebugAssert(drive);
 
   ATA_IDENTIFY_RESPONSE response = {};
-  response.flags |= (1 << 10); // >10mbit/sec transfer speed
+  for (int i = 0; i < 512; i++)
+    response.flags |= (2 << 5);
+  response.flags |= (1 << 7);  // removable
+  response.flags |= (5 << 8);  // cdrom
+  response.flags |= (2 << 14); // atapi device
   PutIdentifyString(response.serial_number, sizeof(response.serial_number), "DERP123");
   PutIdentifyString(response.firmware_revision, sizeof(response.firmware_revision), "HURR101");
+  response.dword_io_supported = 0;
+  response.support = (1 << 9);
   response.pio_timing_mode = 0x200;
-  PutIdentifyString(response.model, sizeof(response.model), "DERP ATAPI CDROM");
+  PutIdentifyString(response.model, sizeof(response.model), "POTATOROM");
   for (size_t i = 0; i < countof(response.pio_cycle_time); i++)
     response.pio_cycle_time[i] = 120;
-  response.word_80 = 0x7E;
-  response.word_82 = (1 << 14);
+  response.word_80 = (1 << 4);
+  response.minor_version_number = 0x0017;
+  response.word_82 = (1 << 14) | (1 << 9) | (1 << 4);
 
   // 512 bytes total
   BeginTransfer(MAX_DRIVES, 1, 1, false);
@@ -1346,8 +1370,12 @@ void HDC::HandleATAPIDeviceReset()
 
 void HDC::HandleATAPIPacket()
 {
+  // uint32 max_packet_size = ZeroExtend32(drive->ata_cylinder_low & 0xFF) | (ZeroExtend32(drive->ata_cylinder_high &
+  // 0xFF) << 8);
+  Log_DevPrintf("ATAPI packet drive %u", GetCurrentDriveIndex());
   DriveState* drive = GetCurrentDrive();
-  DebugAssert(drive);
+  auto* device = GetCurrentATAPIDevice();
+  DebugAssert(drive && device);
 
   // Must be in PIO mode now
   if (m_feature_select != 0)
@@ -1356,23 +1384,21 @@ void HDC::HandleATAPIPacket()
     AbortCommand();
     return;
   }
-
-  uint32 max_packet_size = ZeroExtend32(drive->ata_cylinder_low) | (ZeroExtend32(drive->ata_cylinder_high) << 8);
-  Log_DevPrintf("ATAPI packet drive %u, packet size = %u", ZeroExtend32(GetCurrentDriveIndex()), max_packet_size);
-
-  if (max_packet_size == 0 || drive->atapi_device->IsBusy())
+  else if (device->IsBusy())
   {
+    Log_ErrorPrintf("ATAPI device busy");
     AbortCommand();
     return;
   }
 
   StopTransfer();
+  drive->SetATAPIInterruptReason(true, false, false);
 
   // The interrupt isn't raised here.
-  m_status_register &= ~(ATA_SR_BSY);
+  m_status_register &= ~(ATA_SR_BSY | ATA_SR_ERR);
   m_status_register |= ATA_SR_DRQ | ATA_SR_DRDY;
   m_error_register = 0;
-  m_current_transfer.buffer.resize(max_packet_size);
+  m_current_transfer.buffer.resize(SECTOR_SIZE);
   m_current_transfer.buffer_position = 0;
   m_current_transfer.drive_index = GetCurrentDriveIndex();
   m_current_transfer.sectors_per_block = 0;
@@ -1384,25 +1410,35 @@ void HDC::HandleATAPIPacket()
 
 void HDC::HandleATAPICommandCompleted(uint32 drive_index)
 {
-  auto* device = m_drives[drive_index]->atapi_device;
+  DriveState* drive = m_drives[drive_index].get();
+  auto* device = m_atapi_devices[drive_index];
+  DebugAssert(drive && device);
+
   StopTransfer();
 
   // Was there an error?
-  if (device->HasError() || device->GetDataSize() > m_current_transfer.buffer.size())
+  if (device->HasError())
   {
-    AbortCommand();
+    drive->SetATAPIInterruptReason(true, true, false);
+    AbortCommand(device->GetSenseKey() << 4);
     return;
   }
 
   // No response?
-  if (device->GetDataSize() == 0)
+  if (device->GetDataResponseSize() == 0)
   {
+    drive->SetATAPIInterruptReason(true, true, false);
     CompleteCommand();
     return;
   }
 
+  // Update the last cylinder with the transfer size.
+  drive->ata_cylinder_low = Truncate8(device->GetDataResponseSize());
+  drive->ata_cylinder_high = Truncate8(device->GetDataResponseSize() >> 8);
+  drive->SetATAPIInterruptReason(false, true, false);
+
   // Set up the transfer.
-  m_current_transfer.buffer.resize(device->GetDataSize());
+  m_current_transfer.buffer.resize(device->GetDataResponseSize());
   m_current_transfer.buffer_position = 0;
   m_current_transfer.drive_index = drive_index;
   m_current_transfer.sectors_per_block = 1;
@@ -1412,12 +1448,13 @@ void HDC::HandleATAPICommandCompleted(uint32 drive_index)
   m_current_transfer.is_packet_data = true;
 
   // Copy data in.
-  std::memcpy(m_current_transfer.buffer.data(), device->GetDataBuffer(), device->GetDataSize());
+  std::memcpy(m_current_transfer.buffer.data(), device->GetDataBuffer(), device->GetDataResponseSize());
   device->ClearDataBuffer();
 
   // Clear the busy flag, and raise interrupt.
-  m_status_register &= ~(ATA_SR_BSY);
-  m_status_register |= ATA_SR_DRDY | ATA_SR_BSY;
+  m_status_register &= ~(ATA_SR_BSY | ATA_SR_ERR);
+  m_status_register |= ATA_SR_DRDY | ATA_SR_DRQ;
+  m_error_register = 0;
   RaiseInterrupt();
 }
 
@@ -1427,8 +1464,7 @@ void HDC::AbortCommand(uint8 error /* = ATA_ERR_ABRT */)
   StopTransfer();
 
   m_status_register &= ~(ATA_SR_BSY | ATA_SR_DRQ);
-  m_status_register |= ATA_SR_DRDY;
-  m_status_register |= ATA_SR_ERR;
+  m_status_register |= ATA_SR_DRDY | ATA_SR_ERR;
   m_error_register = error;
   RaiseInterrupt();
 }
@@ -1436,9 +1472,9 @@ void HDC::AbortCommand(uint8 error /* = ATA_ERR_ABRT */)
 void HDC::CompleteCommand()
 {
   StopTransfer();
-  m_status_register &= ~(ATA_SR_BSY | ATA_SR_DRQ);
+  m_status_register &= ~(ATA_SR_BSY | ATA_SR_DRQ | ATA_SR_ERR);
   m_status_register |= ATA_SR_DRDY;
-  m_status_register &= ~ATA_SR_ERR;
+  m_error_register = 0;
   RaiseInterrupt();
 }
 
@@ -1448,8 +1484,7 @@ void HDC::BeginTransfer(uint32 drive_index, uint32 sectors_per_block, uint32 num
   Assert(drive_index < MAX_DRIVES || num_sectors == 1);
 
   m_status_register &= ~ATA_SR_ERR;
-  m_status_register |= ATA_SR_DRDY;
-  m_status_register |= ATA_SR_DRQ;
+  m_status_register |= ATA_SR_DRDY | ATA_SR_DRQ;
   m_current_transfer.buffer.resize(SECTOR_SIZE * std::min(sectors_per_block, num_sectors));
   m_current_transfer.buffer_position = 0;
   m_current_transfer.drive_index = drive_index;
@@ -1472,8 +1507,7 @@ void HDC::UpdatePacketCommand(const void* data, size_t data_size)
   DebugAssert(m_current_transfer.is_packet_command && m_current_transfer.drive_index < MAX_DRIVES &&
               m_drives[m_current_transfer.drive_index]->type == DRIVE_TYPE_ATAPI);
 
-  DriveState* drive = m_drives[m_current_transfer.drive_index].get();
-  auto device = drive->atapi_device;
+  auto* device = m_atapi_devices[m_current_transfer.drive_index];
   if (!device->WriteCommandBuffer(data, data_size))
   {
     // Command still incomplete.
@@ -1515,6 +1549,9 @@ void HDC::UpdateTransferBuffer()
   m_current_transfer.remaining_sectors -= sectors_transferred;
   if (m_current_transfer.remaining_sectors == 0)
   {
+    if (m_current_transfer.is_packet_data)
+      m_drives[m_current_transfer.drive_index]->SetATAPIInterruptReason(true, true, false);
+
     CompleteCommand();
     return;
   }
@@ -1563,6 +1600,12 @@ void HDC::StopTransfer()
   m_current_transfer.remaining_sectors = 0;
   m_current_transfer.is_packet_command = false;
   m_current_transfer.is_packet_data = false;
+}
+
+void HDC::DriveState::SetATAPIInterruptReason(bool is_command, bool data_from_device, bool release)
+{
+  // Bit 0 - CoD, Bit 1 - I/O, Bit 2- RELEASE
+  ata_sector_count = BoolToUInt8(is_command) | (BoolToUInt8(data_from_device) << 1) | (BoolToUInt8(release) << 2);
 }
 
 } // namespace HW

@@ -75,7 +75,6 @@ public:
     ATA_CMD_WRITE_DMA_EXT = 0x35,
     ATA_CMD_CACHE_FLUSH = 0xE7,
     ATA_CMD_CACHE_FLUSH_EXT = 0xEA,
-    ATA_CMD_PACKET = 0xA0,
     ATA_CMD_IDENTIFY_PACKET = 0xA1,
     ATA_CMD_IDENTIFY = 0xEC,
     ATA_CMD_SET_MULTIPLE_MODE = 0xC6,
@@ -85,7 +84,8 @@ public:
 
     ATAPI_CMD_DEVICE_RESET = 0x08,
     ATAPI_CMD_READ = 0xA8,
-    ATAPI_CMD_EJECT = 0x1B
+    ATAPI_CMD_EJECT = 0x1B,
+    ATAPI_CMD_PACKET = 0xA0
   };
 
   static void CalculateCHSForSize(uint32* cylinders, uint32* heads, uint32* sectors, uint64 disk_size);
@@ -180,6 +180,7 @@ protected:
     uint64 current_lba = 0;
 
     // visible to the guest
+    // TODO: These should be shared between drives.
     uint16 ata_sector_count = 0;
     uint16 ata_sector_number = 0;
     uint16 ata_cylinder_low = 0;
@@ -188,15 +189,18 @@ protected:
 
     // TODO: Replace with file IO
     std::vector<byte> data;
-    CDROM* atapi_device = nullptr;
+
+    void SetATAPIInterruptReason(bool is_command, bool data_from_device, bool release);
   };
   std::array<std::unique_ptr<DriveState>, MAX_DRIVES> m_drives;
+  std::array<CDROM*, MAX_DRIVES> m_atapi_devices;
 
   void ConnectIOPorts(Bus* bus);
   void SoftReset();
 
   uint8 GetCurrentDriveIndex() const { return m_drive_select.drive; }
   DriveState* GetCurrentDrive() { return m_drives[m_drive_select.drive].get(); }
+  CDROM* GetCurrentATAPIDevice();
   void SetSignature(DriveState* drive);
 
   uint8 m_status_register = 0;
