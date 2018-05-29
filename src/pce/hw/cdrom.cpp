@@ -85,9 +85,7 @@ void CDROM::UpdateSenseInfo(SENSE_KEY key, uint8 asc)
 void CDROM::AllocateData(uint32 reserve_length, uint32 response_length)
 {
   m_data_buffer.resize(std::max(reserve_length, response_length));
-  m_data_response_size = response_length;
-  if (response_length > reserve_length)
-    std::fill_n(m_data_buffer.data() + reserve_length, response_length - reserve_length, uint8(0));
+  m_data_response_size = std::min(reserve_length, response_length);
 }
 
 uint8 CDROM::ReadCommandBufferByte(uint32 offset) const
@@ -187,6 +185,7 @@ bool CDROM::BeginCommand()
   switch (opcode)
   {
     case SCSI_CMD_TEST_UNIT_READY:
+    case SCSI_CMD_PREVENT_ALLOW_MEDIUM_REMOVAL:
     {
       if (m_command_buffer.size() < 12)
         return false;
@@ -289,6 +288,10 @@ void CDROM::ExecuteCommand()
       HandleTestUnitReadyCommand();
       break;
 
+    case SCSI_CMD_PREVENT_ALLOW_MEDIUM_REMOVAL:
+      HandlePreventMediumRemovalCommand();
+      break;
+
     case SCSI_CMD_REQUEST_SENSE:
       HandleRequestSenseCommand();
       break;
@@ -363,6 +366,14 @@ void CDROM::HandleTestUnitReadyCommand()
   CompleteCommand();
 }
 
+void CDROM::HandlePreventMediumRemovalCommand()
+{
+  const bool locked = ConvertToBool(ReadCommandBufferByte(4) & 1);
+  Log_DevPrintf("CDROM %s tray", locked ? "lock" : "unlock");
+  UpdateSenseInfo(SENSE_NO_STATUS, 0);
+  CompleteCommand();
+}
+
 void CDROM::HandleRequestSenseCommand()
 {
   Log_DevPrintf("CDROM sense interrupt length %u", ZeroExtend32(m_command_buffer[4]));
@@ -399,7 +410,7 @@ void CDROM::HandleReadCapacityCommand()
 
 void CDROM::HandleReadTOCCommand()
 {
-  bool msf = ConvertToBool(ReadCommandBufferByte(1) & 1);
+  bool msf = ConvertToBool((ReadCommandBufferByte(1) >> 1) & 1);
   uint8 start_track = ReadCommandBufferByte(6);
   uint8 format = ReadCommandBufferByte(9) >> 6;
   uint16 max_length = ReadCommandBufferWord(7);
@@ -418,7 +429,7 @@ void CDROM::HandleReadTOCCommand()
   {
     case 0:
     {
-      if (start_track > 1 || start_track != 0xAA)
+      if (start_track > 1 && start_track != 0xAA)
       {
         AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_INVALID_FIELD_IN_CMD_PACKET);
         return;
@@ -670,8 +681,6 @@ void CDROM::HandleModeSenseCommand()
 
         case 0x2a: // capabilities/mech status
         {
-          const bool locked = false;
-
           InitResponse(20);
           m_data_buffer[8] = 0x2a;
           m_data_buffer[9] = 0x12;
@@ -680,7 +689,7 @@ void CDROM::HandleModeSenseCommand()
           // Multisession, Mode 2 Form 2, Mode 2 Form 1, Audio
           m_data_buffer[12] = 0x71;
           m_data_buffer[13] = (3 << 5);
-          m_data_buffer[14] = uint8(1 | (locked ? (1 << 1) : 0) | (1 << 3) | (1 << 5));
+          m_data_buffer[14] = uint8(1 | (m_tray_locked ? (1 << 1) : 0) | (1 << 3) | (1 << 5));
           m_data_buffer[15] = 0x00;
           m_data_buffer[16] = ((16 * 176) >> 8) & 0xff;
           m_data_buffer[17] = (16 * 176) & 0xff;
@@ -740,6 +749,7 @@ void CDROM::HandleReadCommand()
     return;
   }
 
+  m_current_lba = lba + sector_count;
   UpdateSenseInfo(SENSE_NO_STATUS, 0);
   CompleteCommand();
 }

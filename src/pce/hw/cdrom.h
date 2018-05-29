@@ -147,6 +147,7 @@ private:
   CycleCount CalculateReadTime(uint64 lba, uint32 sector_count) const;
 
   void HandleTestUnitReadyCommand();
+  void HandlePreventMediumRemovalCommand();
   void HandleRequestSenseCommand();
   void HandleReadCapacityCommand();
   void HandleReadTOCCommand();
@@ -188,5 +189,6 @@ private:
 
   // Current head position
   uint64 m_current_lba = 0;
+  bool m_tray_locked = false;
 };
 } // namespace HW
