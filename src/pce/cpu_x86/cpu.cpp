@@ -9,8 +9,8 @@
 #include "pce/cpu_x86/cached_interpreter_backend.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
-#include "pce/cpu_x86/jitx64_backend.h"
 #include "pce/cpu_x86/interpreter_backend.h"
+#include "pce/cpu_x86/jitx64_backend.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 #include <cctype>
@@ -363,7 +363,8 @@ void CPU::SignalNMI()
 
 bool CPU::SupportsBackend(CPUBackendType mode)
 {
-  return (mode == CPUBackendType::Interpreter || mode == CPUBackendType::CachedInterpreter || mode == CPUBackendType::Recompiler);
+  return (mode == CPUBackendType::Interpreter || mode == CPUBackendType::CachedInterpreter ||
+          mode == CPUBackendType::Recompiler);
 }
 
 void CPU::SetBackend(CPUBackendType mode)
@@ -1298,8 +1299,9 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
 
   // Try to decode the instruction first.
   Instruction instruction;
-  bool instruction_valid = Decoder::DecodeInstruction(&instruction, m_current_address_size, m_current_operand_size, fetch_EIP, fetchb, fetchw, fetchd);
-  
+  bool instruction_valid = Decoder::DecodeInstruction(&instruction, m_current_address_size, m_current_operand_size,
+                                                      fetch_EIP, fetchb, fetchw, fetchd);
+
   // TODO: Handle 16 vs 32-bit operating mode clamp on address
   SmallString hex_string;
   uint32 instruction_length = instruction_valid ? instruction.length : 16;
@@ -1493,7 +1495,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
 
   // Handle null descriptor separately.
   SEGMENT_SELECTOR_VALUE reg_value = {value};
-  if (reg_value.index == 0)
+  if (reg_value.index == 0 && !reg_value.ti)
   {
     // SS can't be a null selector.
     if (segment == Segment_SS)
