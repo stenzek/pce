@@ -892,6 +892,7 @@ void ET4000::RegisterVRAMMMIO()
       std::memcpy(value, &m_bios[offset], 4);
     }
   };
+  handlers.IgnoreWrites();
   m_bios_mmio = MMIO::CreateComplex(0xC0000, 0x8000, std::move(handlers), true);
   m_bus->RegisterMMIO(m_bios_mmio);
 }
