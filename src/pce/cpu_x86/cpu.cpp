@@ -114,10 +114,14 @@ void CPU::Reset()
 
   // Start at privilege level 0
   m_cpl = 0;
+  m_tlb_user_supervisor_bit = 0;
 
   m_current_EIP = m_registers.EIP;
   m_current_ESP = m_registers.ESP;
   m_current_exception = Interrupt_Count;
+  m_nmi_state = false;
+  m_fpu_exception = false;
+  m_halted = false;
 
   // x87 state
   m_fpu_registers.CW.bits = 0x0040;

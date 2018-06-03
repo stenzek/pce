@@ -33,6 +33,7 @@ void i8259_PIC::Reset()
   // For HLE bios, remove later..
   m_state[0].vector_offset = 0x08;
   m_state[1].vector_offset = 0x70;
+  UpdateCPUInterruptLineState();
 }
 
 bool i8259_PIC::LoadState(BinaryReader& reader)
