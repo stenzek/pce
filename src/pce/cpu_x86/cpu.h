@@ -530,8 +530,8 @@ protected:
 #endif
 
   // Current execution state.
-  VirtualMemoryAddress m_effective_address;
-  InstructionData idata;
+  VirtualMemoryAddress m_effective_address = 0;
+  InstructionData idata = {};
 };
 
 template<uint32 size, AccessType access>

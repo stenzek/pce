@@ -46,8 +46,10 @@ void CPU::Initialize(System* system, Bus* bus)
 void CPU::Reset()
 {
   m_pending_cycles = 0;
+  m_execution_downcount = 0;
 
   Y_memzero(&m_registers, sizeof(m_registers));
+  Y_memzero(&m_fpu_registers, sizeof(m_fpu_registers));
 
   // IOPL NT, reserved are 1 on 8086
   m_registers.EFLAGS.bits = 0;
@@ -131,6 +133,9 @@ void CPU::Reset()
   InvalidateAllTLBEntries();
   FlushPrefetchQueue();
 
+  m_effective_address = 0;
+  std::memset(&idata, 0, sizeof(idata));
+
   m_backend->Reset();
 }
 
@@ -147,6 +152,7 @@ bool CPU::LoadState(BinaryReader& reader)
   }
 
   reader.SafeReadInt64(&m_pending_cycles);
+  reader.SafeReadInt64(&m_execution_downcount);
   reader.SafeReadUInt32(&m_current_EIP);
   reader.SafeReadUInt32(&m_current_ESP);
 
@@ -238,6 +244,9 @@ bool CPU::LoadState(BinaryReader& reader)
   reader.SafeReadUInt32(&m_prefetch_queue_size);
 #endif
 
+  reader.SafeReadUInt32(&m_effective_address);
+  std::memset(&idata, 0, sizeof(idata));
+
   return !reader.GetErrorState();
 }
 
@@ -247,6 +256,7 @@ bool CPU::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(static_cast<uint8>(m_model));
 
   writer.WriteInt64(m_pending_cycles);
+  writer.WriteInt64(m_execution_downcount);
   writer.WriteUInt32(m_current_EIP);
   writer.WriteUInt32(m_current_ESP);
 
@@ -325,6 +335,9 @@ bool CPU::SaveState(BinaryWriter& writer)
   writer.WriteUInt32(m_prefetch_queue_position);
   writer.WriteUInt32(m_prefetch_queue_size);
 #endif
+
+  writer.WriteUInt32(m_effective_address);
+  std::memset(&idata, 0, sizeof(idata));
 
   return !writer.InErrorState();
 }
