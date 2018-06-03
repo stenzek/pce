@@ -498,7 +498,7 @@ void CDROM::HandleReadTOCCommand()
     case 1:
     {
       // emulate a single session
-      AllocateData(8, max_length);
+      AllocateData(12, max_length);
       m_data_buffer[0] = 0;
       m_data_buffer[1] = 0x0A;
       m_data_buffer[2] = 1;
