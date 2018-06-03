@@ -424,7 +424,7 @@ protected:
   // Switches to the task segment selected by the parameter.
   // Optionally sets nested task flag and backlink field.
   // This assumes that new_task is a valid descriptor and is not busy.
-  void SwitchToTask(uint16 new_task, bool nested_task, bool from_iret);
+  void SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool push_error_code, uint32 error_code);
 
   // Checks permissions for the specified IO port against the IO permission bitmap
   bool HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exceptions);

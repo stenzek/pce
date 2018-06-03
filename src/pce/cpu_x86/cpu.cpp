@@ -1970,14 +1970,14 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
            descriptor.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_32)
   {
     // Jumping straight to a task segment without a task gate
-    SwitchToTask(segment_selector, false, false);
+    SwitchToTask(segment_selector, false, false, false, 0);
   }
   else if (descriptor.type == DESCRIPTOR_TYPE_TASK_GATE)
   {
     // Switch to new task with nesting
     DebugAssert(!m_registers.EFLAGS.VM);
     Log_DevPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
-    SwitchToTask(descriptor.task_gate.selector, false, false);
+    SwitchToTask(descriptor.task_gate.selector, false, false, false, 0);
   }
   else
   {
@@ -2217,14 +2217,14 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
            descriptor.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_32)
   {
     // Jumping straight to a task segment without a task gate
-    SwitchToTask(segment_selector, true, false);
+    SwitchToTask(segment_selector, true, false, false, 0);
   }
   else if (descriptor.type == DESCRIPTOR_TYPE_TASK_GATE)
   {
     // Switch to new task with nesting
     DebugAssert(!m_registers.EFLAGS.VM);
     Log_DevPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
-    SwitchToTask(descriptor.task_gate.selector, true, false);
+    SwitchToTask(descriptor.task_gate.selector, true, false, false, 0);
   }
   else
   {
@@ -2443,7 +2443,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
     SafeReadMemoryWord(m_tss_location.base_address, &link_field, false, true);
 
     // Switch tasks without nesting
-    SwitchToTask(link_field, false, true);
+    SwitchToTask(link_field, false, true, false, 0);
   }
   else
   {
@@ -2923,7 +2923,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
     // Switch to new task with nesting
     DebugAssert(!m_registers.EFLAGS.VM);
     Log_DevPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
-    SwitchToTask(descriptor.task_gate.selector, true, false);
+    SwitchToTask(descriptor.task_gate.selector, true, false, push_error_code, error_code);
   }
   else
   {
@@ -2958,7 +2958,7 @@ inline constexpr bool IsBusyTaskDescriptorType(uint8 type)
   return (type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_16 || type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_32);
 }
 
-void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret)
+void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool push_error_code, uint32 error_code)
 {
   Log_DevPrintf("Switching to task %02X%s", ZeroExtend32(new_task), nested_task ? " (nested)" : "");
 
@@ -3215,6 +3215,21 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret)
 
   // TS flag in CR0 should always be set.
   m_registers.CR0 |= CR0Bit_TS;
+
+  // Update the previous EIP/ESP values.
+  // If the push below results in an exception, it should use the register values from the incoming
+  // task, as the outgoing task's registers are meaningless now.
+  m_current_EIP = new_EIP;
+  m_current_ESP = m_registers.ESP;
+
+  // Push error codes for task switches on exceptions.
+  if (push_error_code)
+  {
+    if (new_task_is_32bit)
+      PushDWord(error_code);
+    else
+      PushWord(Truncate16(error_code));
+  }
 
   // A task switch can result from an interrupt/exception.
   BranchFromException(new_EIP);
