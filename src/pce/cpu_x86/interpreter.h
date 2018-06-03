@@ -4,9 +4,8 @@
 #include "pce/cpu_x86/cpu.h"
 #include <csetjmp>
 
-extern "C" {
 #include <softfloat.h>
-}
+#include <softfloatx80.h>
 
 namespace CPU_X86 {
 class NewInterpreter
@@ -349,11 +348,11 @@ public:
   // x87/FPU
   static inline void StartX87Instruction(CPU* cpu);
   template<OperandSize size, OperandMode mode, uint32 constant>
-  static inline floatx80 ReadFloatOperand(CPU* cpu, float_status* fs);
+  static inline floatx80 ReadFloatOperand(CPU* cpu, float_status_t& fs);
   template<OperandSize size, OperandMode mode, uint32 constant>
-  static inline floatx80 ReadIntegerOperandAsFloat(CPU* cpu, float_status* fs);
+  static inline floatx80 ReadIntegerOperandAsFloat(CPU* cpu, float_status_t& fs);
   template<OperandSize size, OperandMode mode, uint32 constant>
-  static inline void WriteFloatOperand(CPU* cpu, float_status* fs, const floatx80& value);
+  static inline void WriteFloatOperand(CPU* cpu, float_status_t& fs, const floatx80& value);
   static inline void CheckFloatStackOverflow(CPU* cpu);
   static inline void CheckFloatStackUnderflow(CPU* cpu, uint8 relative_index);
   static inline void PushFloatStack(CPU* cpu);
@@ -361,10 +360,10 @@ public:
   static inline floatx80 ReadFloatRegister(CPU* cpu, uint8 relative_index);
   static inline void WriteFloatRegister(CPU* cpu, uint8 relative_index, const floatx80& value, bool update_tag = true);
   static inline void UpdateFloatTagRegister(CPU* cpu, uint8 index);
-  static inline float_status GetFloatStatus(CPU* cpu);
-  static inline void RaiseFloatExceptions(CPU* cpu, const float_status& fs);
-  static inline void UpdateC1Status(CPU* cpu, const float_status& fs);
-  static inline void SetStatusWordFromCompare(CPU* cpu, const float_status& fs, int res);
+  static inline float_status_t GetFloatStatus(CPU* cpu);
+  static inline void RaiseFloatExceptions(CPU* cpu, const float_status_t& fs);
+  static inline void UpdateC1Status(CPU* cpu, const float_status_t& fs);
+  static inline void SetStatusWordFromCompare(CPU* cpu, const float_status_t& fs, int res);
 
   static inline void Execute_Operation_F2XM1(CPU* cpu);
   static inline void Execute_Operation_FABS(CPU* cpu);
@@ -379,7 +378,6 @@ public:
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
   static inline void Execute_Operation_FBSTP(CPU* cpu);
   static inline void Execute_Operation_FCHS(CPU* cpu);
-  static inline void Execute_Operation_FCLEX(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant, bool quiet = false>
   static inline void Execute_Operation_FCOM(CPU* cpu);
@@ -390,7 +388,6 @@ public:
            uint32 src_constant, bool quiet = false>
   static inline void Execute_Operation_FCOMPP(CPU* cpu);
   static inline void Execute_Operation_FDECSTP(CPU* cpu);
-  static inline void Execute_Operation_FDISI(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant>
   static inline void Execute_Operation_FDIV(CPU* cpu);
@@ -403,7 +400,6 @@ public:
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant>
   static inline void Execute_Operation_FDIVRP(CPU* cpu);
-  static inline void Execute_Operation_FENI(CPU* cpu);
   template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
   static inline void Execute_Operation_FFREE(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,

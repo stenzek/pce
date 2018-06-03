@@ -32,12 +32,27 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\softfloat.h" />
-    <ClInclude Include="src\softfloat-macros.h" />
-    <ClInclude Include="src\softfloat-specialize.h" />
+    <ClCompile Include="src\f2xm1.cc" />
+    <ClCompile Include="src\fpatan.cc" />
+    <ClCompile Include="src\fprem.cc" />
+    <ClCompile Include="src\fsincos.cc" />
+    <ClCompile Include="src\fyl2x.cc" />
+    <ClCompile Include="src\poly.cc" />
+    <ClCompile Include="src\softfloat-muladd.cc" />
+    <ClCompile Include="src\softfloat-round-pack.cc" />
+    <ClCompile Include="src\softfloat-specialize.cc" />
+    <ClCompile Include="src\softfloat.cc" />
+    <ClCompile Include="src\softfloat16.cc" />
+    <ClCompile Include="src\softfloatx80.cc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\softfloat.c" />
+    <ClInclude Include="include\softfloat-specialize.h" />
+    <ClInclude Include="include\softfloat.h" />
+    <ClInclude Include="include\softfloatx80.h" />
+    <ClInclude Include="src\fpu_constant.h" />
+    <ClInclude Include="src\softfloat-compare.h" />
+    <ClInclude Include="src\softfloat-macros.h" />
+    <ClInclude Include="src\softfloat-round-pack.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{C7E25E10-4660-4E1D-B249-A05E64A32FD0}</ProjectGuid>

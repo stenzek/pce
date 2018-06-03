@@ -812,8 +812,8 @@ MakeTwoOperands(0x07, Operation_BTC, op1, op2)
   MakeInvalidOpcode(0x26) \
   MakeInvalidOpcode(0x27) \
   MakeNoOperands(0x28, Operation_FLD1) \
-  MakeNoOperands(0x29, Operation_FLDL2E) \
-  MakeNoOperands(0x2A, Operation_FLDL2T) \
+  MakeNoOperands(0x29, Operation_FLDL2T) \
+  MakeNoOperands(0x2A, Operation_FLDL2E) \
   MakeNoOperands(0x2B, Operation_FLDPI) \
   MakeNoOperands(0x2C, Operation_FLDLG2) \
   MakeNoOperands(0x2D, Operation_FLDLN2) \
@@ -955,8 +955,8 @@ MakeInvalidOpcode(0x00) \
   MakeInvalidOpcode(0x1D) \
   MakeInvalidOpcode(0x1E) \
   MakeInvalidOpcode(0x1F) \
-  MakeNoOperands(0x20, Operation_FENI) \
-  MakeNoOperands(0x21, Operation_FDISI) \
+  MakeNoOperands(0x20, Operation_FNENI) \
+  MakeNoOperands(0x21, Operation_FNDISI) \
   MakeNoOperands(0x22, Operation_FNCLEX) \
   MakeNoOperands(0x23, Operation_FNINIT) \
   MakeNoOperands(0x24, Operation_FSETPM) \
@@ -1031,38 +1031,38 @@ MakeInvalidOpcode(0x00) \
   MakeTwoOperands(0x1D, Operation_FCOMP, ST(5), ST(0)) \
   MakeTwoOperands(0x1E, Operation_FCOMP, ST(6), ST(0)) \
   MakeTwoOperands(0x1F, Operation_FCOMP, ST(7), ST(0)) \
-  MakeTwoOperands(0x20, Operation_FSUB, ST(0), ST(0)) \
-  MakeTwoOperands(0x21, Operation_FSUB, ST(1), ST(0)) \
-  MakeTwoOperands(0x22, Operation_FSUB, ST(2), ST(0)) \
-  MakeTwoOperands(0x23, Operation_FSUB, ST(3), ST(0)) \
-  MakeTwoOperands(0x24, Operation_FSUB, ST(4), ST(0)) \
-  MakeTwoOperands(0x25, Operation_FSUB, ST(5), ST(0)) \
-  MakeTwoOperands(0x26, Operation_FSUB, ST(6), ST(0)) \
-  MakeTwoOperands(0x27, Operation_FSUB, ST(7), ST(0)) \
-  MakeTwoOperands(0x28, Operation_FSUBR, ST(0), ST(0)) \
-  MakeTwoOperands(0x29, Operation_FSUBR, ST(1), ST(0)) \
-  MakeTwoOperands(0x2A, Operation_FSUBR, ST(2), ST(0)) \
-  MakeTwoOperands(0x2B, Operation_FSUBR, ST(3), ST(0)) \
-  MakeTwoOperands(0x2C, Operation_FSUBR, ST(4), ST(0)) \
-  MakeTwoOperands(0x2D, Operation_FSUBR, ST(5), ST(0)) \
-  MakeTwoOperands(0x2E, Operation_FSUBR, ST(6), ST(0)) \
-  MakeTwoOperands(0x2F, Operation_FSUBR, ST(7), ST(0)) \
-  MakeTwoOperands(0x30, Operation_FDIV, ST(0), ST(0)) \
-  MakeTwoOperands(0x31, Operation_FDIV, ST(1), ST(0)) \
-  MakeTwoOperands(0x32, Operation_FDIV, ST(2), ST(0)) \
-  MakeTwoOperands(0x33, Operation_FDIV, ST(3), ST(0)) \
-  MakeTwoOperands(0x34, Operation_FDIV, ST(4), ST(0)) \
-  MakeTwoOperands(0x35, Operation_FDIV, ST(5), ST(0)) \
-  MakeTwoOperands(0x36, Operation_FDIV, ST(6), ST(0)) \
-  MakeTwoOperands(0x37, Operation_FDIV, ST(7), ST(0)) \
-  MakeTwoOperands(0x38, Operation_FDIVR, ST(0), ST(0)) \
-  MakeTwoOperands(0x39, Operation_FDIVR, ST(1), ST(0)) \
-  MakeTwoOperands(0x3A, Operation_FDIVR, ST(2), ST(0)) \
-  MakeTwoOperands(0x3B, Operation_FDIVR, ST(3), ST(0)) \
-  MakeTwoOperands(0x3C, Operation_FDIVR, ST(4), ST(0)) \
-  MakeTwoOperands(0x3D, Operation_FDIVR, ST(5), ST(0)) \
-  MakeTwoOperands(0x3E, Operation_FDIVR, ST(6), ST(0)) \
-  MakeTwoOperands(0x3F, Operation_FDIVR, ST(7), ST(0))
+  MakeTwoOperands(0x20, Operation_FSUBR, ST(0), ST(0)) \
+  MakeTwoOperands(0x21, Operation_FSUBR, ST(1), ST(0)) \
+  MakeTwoOperands(0x22, Operation_FSUBR, ST(2), ST(0)) \
+  MakeTwoOperands(0x23, Operation_FSUBR, ST(3), ST(0)) \
+  MakeTwoOperands(0x24, Operation_FSUBR, ST(4), ST(0)) \
+  MakeTwoOperands(0x25, Operation_FSUBR, ST(5), ST(0)) \
+  MakeTwoOperands(0x26, Operation_FSUBR, ST(6), ST(0)) \
+  MakeTwoOperands(0x27, Operation_FSUBR, ST(7), ST(0)) \
+  MakeTwoOperands(0x28, Operation_FSUB, ST(0), ST(0)) \
+  MakeTwoOperands(0x29, Operation_FSUB, ST(1), ST(0)) \
+  MakeTwoOperands(0x2A, Operation_FSUB, ST(2), ST(0)) \
+  MakeTwoOperands(0x2B, Operation_FSUB, ST(3), ST(0)) \
+  MakeTwoOperands(0x2C, Operation_FSUB, ST(4), ST(0)) \
+  MakeTwoOperands(0x2D, Operation_FSUB, ST(5), ST(0)) \
+  MakeTwoOperands(0x2E, Operation_FSUB, ST(6), ST(0)) \
+  MakeTwoOperands(0x2F, Operation_FSUB, ST(7), ST(0)) \
+  MakeTwoOperands(0x30, Operation_FDIVR, ST(0), ST(0)) \
+  MakeTwoOperands(0x31, Operation_FDIVR, ST(1), ST(0)) \
+  MakeTwoOperands(0x32, Operation_FDIVR, ST(2), ST(0)) \
+  MakeTwoOperands(0x33, Operation_FDIVR, ST(3), ST(0)) \
+  MakeTwoOperands(0x34, Operation_FDIVR, ST(4), ST(0)) \
+  MakeTwoOperands(0x35, Operation_FDIVR, ST(5), ST(0)) \
+  MakeTwoOperands(0x36, Operation_FDIVR, ST(6), ST(0)) \
+  MakeTwoOperands(0x37, Operation_FDIVR, ST(7), ST(0)) \
+  MakeTwoOperands(0x38, Operation_FDIV, ST(0), ST(0)) \
+  MakeTwoOperands(0x39, Operation_FDIV, ST(1), ST(0)) \
+  MakeTwoOperands(0x3A, Operation_FDIV, ST(2), ST(0)) \
+  MakeTwoOperands(0x3B, Operation_FDIV, ST(3), ST(0)) \
+  MakeTwoOperands(0x3C, Operation_FDIV, ST(4), ST(0)) \
+  MakeTwoOperands(0x3D, Operation_FDIV, ST(5), ST(0)) \
+  MakeTwoOperands(0x3E, Operation_FDIV, ST(6), ST(0)) \
+  MakeTwoOperands(0x3F, Operation_FDIV, ST(7), ST(0))
 
 #define EnumX87DDRegOpcodes() \
   MakeOneOperand(0x00, Operation_FLD, Mq) \
@@ -1141,14 +1141,14 @@ MakeInvalidOpcode(0x00) \
   MakeInvalidOpcode(0x3F)
 
 #define EnumX87DERegOpcodes() \
-  MakeTwoOperands(0x00, Operation_FIADD, ST(0), Md) \
-  MakeTwoOperands(0x01, Operation_FIMUL, ST(0), Md) \
-  MakeTwoOperands(0x02, Operation_FICOM, ST(0), Md) \
-  MakeTwoOperands(0x03, Operation_FICOMP, ST(0), Md) \
-  MakeTwoOperands(0x04, Operation_FISUB, ST(0), Md) \
-  MakeTwoOperands(0x05, Operation_FISUBR, ST(0), Md) \
-  MakeTwoOperands(0x06, Operation_FIDIV, ST(0), Md) \
-  MakeTwoOperands(0x07, Operation_FIDIVR, ST(0), Md)
+  MakeTwoOperands(0x00, Operation_FIADD, ST(0), Mw) \
+  MakeTwoOperands(0x01, Operation_FIMUL, ST(0), Mw) \
+  MakeTwoOperands(0x02, Operation_FICOM, ST(0), Mw) \
+  MakeTwoOperands(0x03, Operation_FICOMP, ST(0), Mw) \
+  MakeTwoOperands(0x04, Operation_FISUB, ST(0), Mw) \
+  MakeTwoOperands(0x05, Operation_FISUBR, ST(0), Mw) \
+  MakeTwoOperands(0x06, Operation_FIDIV, ST(0), Mw) \
+  MakeTwoOperands(0x07, Operation_FIDIVR, ST(0), Mw)
 
 #define EnumX87DEMemOpcodes() \
   MakeTwoOperands(0x00, Operation_FADDP, ST(0), ST(0)) \
@@ -1217,10 +1217,10 @@ MakeInvalidOpcode(0x00) \
   MakeTwoOperands(0x3F, Operation_FDIVP, ST(7), ST(0))
 
 #define EnumX87DFRegOpcodes() \
-  MakeOneOperand(0x00, Operation_FILD, Md) \
+  MakeOneOperand(0x00, Operation_FILD, Mw) \
   MakeInvalidOpcode(0x01) \
-  MakeOneOperand(0x02, Operation_FIST, Md) \
-  MakeOneOperand(0x03, Operation_FISTP, Md) \
+  MakeOneOperand(0x02, Operation_FIST, Mw) \
+  MakeOneOperand(0x03, Operation_FISTP, Mw) \
   MakeOneOperand(0x04, Operation_FBLD, Mt) \
   MakeOneOperand(0x05, Operation_FILD, Mq) \
   MakeOneOperand(0x06, Operation_FBSTP, Mt) \

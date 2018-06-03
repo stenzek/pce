@@ -1284,7 +1284,7 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
                ZeroExtend32(m_registers.FS), ZeroExtend32(m_registers.GS));
 #endif
 
-  uint32 fetch_EIP = m_registers.EIP;
+  uint32 fetch_EIP = m_current_EIP;
   auto fetchb = [this, &fetch_EIP]() {
     uint8 value = FetchDirectInstructionByte(fetch_EIP, false);
     fetch_EIP = (fetch_EIP + sizeof(value)) & m_EIP_mask;

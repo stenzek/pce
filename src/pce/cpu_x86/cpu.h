@@ -245,6 +245,14 @@ public:
   AddressSize GetCurrentAddressingSize() const { return m_current_address_size; }
   OperandSize GetCurrentOperandSize() const { return m_current_operand_size; }
   AddressSize GetStackAddressSize() const { return m_stack_address_size; }
+  VirtualMemoryAddress GetCurrentAddressMask() const
+  {
+    return (m_current_address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF;
+  }
+  VirtualMemoryAddress GetInstructionAddressMask() const
+  {
+    return (idata.address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF;
+  }
 
   bool IsHalted() const { return m_halted; }
 

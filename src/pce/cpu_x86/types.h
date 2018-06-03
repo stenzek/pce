@@ -377,17 +377,14 @@ enum Operation : uint8
   Operation_FBLD,
   Operation_FBSTP,
   Operation_FCHS,
-  Operation_FCLEX,
   Operation_FCOM,
   Operation_FCOMP,
   Operation_FCOMPP,
   Operation_FDECSTP,
-  Operation_FDISI,
   Operation_FDIV,
   Operation_FDIVP,
   Operation_FDIVR,
   Operation_FDIVRP,
-  Operation_FENI,
   Operation_FFREE,
   Operation_FIADD,
   Operation_FICOM,
@@ -640,6 +637,7 @@ struct InstructionData
   bool HasSIBBase() const { return (GetSIBBaseRegister() != Reg32_EBP || modrm_mod != 0b00); }
   bool HasSIBIndex() const { return (GetSIBIndexRegister() != Reg32_ESP); }
   uint8 GetSIBScaling() const { return ((sib >> 6) & 0x03); }
+  uint32 GetAddressMask() const { return (address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF; }
 };
 
 enum class ModRMAddressingMode : uint8
