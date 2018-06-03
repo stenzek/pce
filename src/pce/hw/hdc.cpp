@@ -89,6 +89,8 @@ bool HDC::LoadState(BinaryReader& reader)
   m_current_transfer.sectors_per_block = reader.ReadUInt32();
   m_current_transfer.remaining_sectors = reader.ReadUInt32();
   m_current_transfer.is_write = reader.ReadBool();
+  m_current_transfer.is_packet_command = reader.ReadBool();
+  m_current_transfer.is_packet_data = reader.ReadBool();
 
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
@@ -152,6 +154,8 @@ bool HDC::SaveState(BinaryWriter& writer)
   writer.WriteUInt32(m_current_transfer.sectors_per_block);
   writer.WriteUInt32(m_current_transfer.remaining_sectors);
   writer.WriteBool(m_current_transfer.is_write);
+  writer.WriteBool(m_current_transfer.is_packet_command);
+  writer.WriteBool(m_current_transfer.is_packet_data);
 
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {

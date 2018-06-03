@@ -1,6 +1,8 @@
-#include "pce/hw/cdrom.h"
+#include "YBaseLib/BinaryReader.h"
+#include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
+#include "pce/hw/cdrom.h"
 #include "pce/system.h"
 #include <functional>
 Log_SetChannel(HW::CDROM);
@@ -17,16 +19,106 @@ void CDROM::Initialize(System* system, Bus* bus)
   m_command_event = m_clock.NewEvent("CDROM Command Event", 1, std::bind(&CDROM::ExecuteCommand, this), false);
 }
 
-void CDROM::Reset() {}
+void CDROM::Reset()
+{
+  m_command_buffer.clear();
+  m_data_buffer.clear();
+  m_data_response_size = 0;
+  m_error = false;
+  m_busy = false;
+
+  UpdateSenseInfo(SENSE_NO_STATUS, 0);
+
+  m_current_lba = 0;
+  m_tray_locked = false;
+
+  if (m_command_event->IsActive())
+    m_command_event->Deactivate();
+}
 
 bool CDROM::LoadState(BinaryReader& reader)
 {
+  SAFE_RELEASE(m_media.stream);
+
+  uint32 magic;
+  if (!reader.SafeReadUInt32(&magic) || magic != SERIALIZATION_ID)
+    return false;
+
+  uint32 size;
+  if (!reader.SafeReadUInt32(&size))
+    return false;
+  m_command_buffer.resize(size);
+  if (size > 0 && !reader.SafeReadBytes(m_command_buffer.data(), size))
+    return false;
+
+  if (!reader.SafeReadUInt32(&size))
+    return false;
+  m_data_buffer.resize(size);
+  if (size > 0 && !reader.SafeReadBytes(m_data_buffer.data(), size))
+    return false;
+
+  bool result = reader.SafeReadUInt32(&m_data_response_size);
+  result &= reader.SafeReadBool(&m_busy);
+  result &= reader.SafeReadBool(&m_error);
+
+  uint8 sense_key = 0;
+  result &= reader.SafeReadUInt8(&sense_key);
+  m_sense.key = static_cast<SENSE_KEY>(sense_key);
+  result &= reader.SafeReadBytes(&m_sense.information, sizeof(m_sense.information));
+  result &= reader.SafeReadBytes(&m_sense.specific_information, sizeof(m_sense.specific_information));
+  result &= reader.SafeReadBytes(&m_sense.key_spec, sizeof(m_sense.key_spec));
+  result &= reader.SafeReadUInt8(&m_sense.fruc);
+  result &= reader.SafeReadUInt8(&m_sense.asc);
+  result &= reader.SafeReadUInt8(&m_sense.ascq);
+  result &= reader.SafeReadCString(&m_media.filename);
+  result &= reader.SafeReadUInt64(&m_media.total_sectors);
+  result &= reader.SafeReadUInt64(&m_current_lba);
+  result &= reader.SafeReadBool(&m_tray_locked);
+
+  if (!result)
+    return false;
+
+  // Load up the media, and make sure it matches in size.
+  if (!m_media.filename.IsEmpty())
+  {
+    if (!ByteStream_OpenFileStream(m_media.filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE,
+                                   &m_media.stream) ||
+        m_media.stream->GetSize() != (m_media.total_sectors * SECTOR_SIZE))
+    {
+      Log_ErrorPrintf("Failed to re-insert CD media from save state: '%s'. Ejecting.", m_media.filename.GetCharArray());
+      EjectMedia();
+    }
+  }
+
   return true;
 }
 
 bool CDROM::SaveState(BinaryWriter& writer)
 {
-  return true;
+  bool result = writer.SafeWriteUInt32(SERIALIZATION_ID);
+  result &= writer.SafeWriteUInt32(static_cast<uint32>(m_command_buffer.size()));
+  if (!m_command_buffer.empty())
+    result &= writer.SafeWriteBytes(m_command_buffer.data(), static_cast<uint32>(m_command_buffer.size()));
+  result &= writer.SafeWriteUInt32(static_cast<uint32>(m_data_buffer.size()));
+  if (!m_data_buffer.empty())
+    result &= writer.SafeWriteBytes(m_data_buffer.data(), static_cast<uint32>(m_data_buffer.size()));
+
+  result &= writer.SafeWriteUInt32(m_data_response_size);
+  result &= writer.SafeWriteBool(m_busy);
+  result &= writer.SafeWriteBool(m_error);
+
+  result &= writer.SafeWriteUInt8(static_cast<uint8>(m_sense.key));
+  result &= writer.SafeWriteBytes(m_sense.information, sizeof(m_sense.information));
+  result &= writer.SafeWriteBytes(m_sense.specific_information, sizeof(m_sense.specific_information));
+  result &= writer.SafeWriteBytes(m_sense.key_spec, sizeof(m_sense.key_spec));
+  result &= writer.SafeWriteUInt8(m_sense.fruc);
+  result &= writer.SafeWriteUInt8(m_sense.asc);
+  result &= writer.SafeWriteUInt8(m_sense.ascq);
+  result &= writer.SafeWriteCString(m_media.filename);
+  result &= writer.SafeWriteUInt64(m_media.total_sectors);
+  result &= writer.SafeWriteUInt64(m_current_lba);
+  result &= writer.SafeWriteBool(m_tray_locked);
+  return result;
 }
 
 bool CDROM::InsertMedia(const char* filename)
@@ -63,9 +155,6 @@ bool CDROM::InsertMedia(const char* filename)
 
 void CDROM::EjectMedia()
 {
-  if (!HasMedia())
-    return;
-
   SAFE_RELEASE(m_media.stream);
   m_media.filename.Clear();
   m_media.total_sectors = 0;

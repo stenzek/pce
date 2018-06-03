@@ -45,6 +45,7 @@ public:
 private:
   static const uint32 SECTOR_SIZE = 2048;
   static const uint32 AUDIO_SECTOR_SIZE = 2352;
+  static const uint32 SERIALIZATION_ID = MakeSerializationID('C', 'D', 'R');
 
   using CommandBuffer = std::vector<byte>;
   using DataBuffer = std::vector<byte>;
