@@ -472,17 +472,18 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
       break;
       case OperandMode_ModRM_RM:
       {
-        const char** reg_names = (asize == AddressSize_16) ? reg16_names : reg32_names;
         const ModRMAddress* m = DecodeModRMAddress(instruction->GetAddressSize(), instruction->data.modrm);
         if (m->addressing_mode == ModRMAddressingMode::Register)
         {
-          out_string->AppendString(reg_names[instruction->data.modrm_rm]);
+          out_string->AppendString((size == OperandSize_16) ? reg16_names[instruction->data.modrm_rm] :
+                                                              reg32_names[instruction->data.modrm_rm]);
         }
         else
         {
           PrintPtr(size);
           out_string->AppendFormattedString(" %s:[", segment_names[instruction->data.segment]);
 
+          const char** reg_names = (asize == AddressSize_16) ? reg16_names : reg32_names;
           switch (m->addressing_mode)
           {
             case ModRMAddressingMode::Direct:
@@ -541,9 +542,13 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
       }
       break;
       case OperandMode_ModRM_ControlRegister:
+        out_string->AppendFormattedString("cr%u", instruction->data.GetModRM_Reg());
+        break;
       case OperandMode_ModRM_DebugRegister:
+        out_string->AppendFormattedString("dr%u", instruction->data.GetModRM_Reg());
+        break;
       case OperandMode_ModRM_TestRegister:
-        out_string->AppendString(reg32_names[operand.reg32]);
+        out_string->AppendFormattedString("tr%u", instruction->data.GetModRM_Reg());
         break;
       case OperandMode_FPRegister:
         out_string->AppendFormattedString("st(%u)", operand.data);
