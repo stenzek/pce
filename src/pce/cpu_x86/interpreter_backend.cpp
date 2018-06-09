@@ -61,7 +61,7 @@ void NewInterpreterBackend::ExecuteInstruction(CPU* cpu)
 {
   // The instruction that sets the trap flag should not trigger an interrupt.
   // To handle this, we store the trap flag state before processing the instruction.
-  bool trap_after_instruction = cpu->m_registers.EFLAGS.TF;
+  cpu->m_trap_after_instruction = cpu->m_registers.EFLAGS.TF;
 
   // Store current instruction address in m_current_EIP.
   // The address of the current instruction is needed when exceptions occur.
@@ -93,13 +93,13 @@ void NewInterpreterBackend::ExecuteInstruction(CPU* cpu)
   // Read and decode an instruction from the current IP.
   Dispatch_Base(cpu);
 
-  if (trap_after_instruction)
+  if (cpu->m_trap_after_instruction)
   {
     // We should push the next instruction pointer, not the instruction that's trapping,
     // since it has already executed. We also can't use m_cpu->RaiseException since this would
     // reset the stack pointer too (and it could be a stack-modifying instruction). We
     // also don't need to abort the current instruction since we're looping anyway.
-    cpu->SetupInterruptCall(Interrupt_Debugger, true, false, 0, cpu->m_registers.EIP);
+    cpu->SetupInterruptCall(Interrupt_Debugger, false, false, 0, cpu->m_registers.EIP);
   }
 }
 

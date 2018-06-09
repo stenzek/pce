@@ -3171,8 +3171,11 @@ void NewInterpreter::Execute_Operation_INT(CPU* cpu)
 void NewInterpreter::Execute_Operation_INTO(CPU* cpu)
 {
   // Call overflow exception if OF is set
-  if (cpu->m_registers.EFLAGS.OF)
-    cpu->RaiseException(Interrupt_Overflow);
+  if (!cpu->m_registers.EFLAGS.OF)
+    return;
+
+  // Return address should not point to the faulting instruction.
+  cpu->SetupInterruptCall(Interrupt_Overflow, false, false, 0, cpu->m_registers.EIP);
 }
 
 void NewInterpreter::Execute_Operation_IRET(CPU* cpu)

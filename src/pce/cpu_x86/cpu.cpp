@@ -124,6 +124,7 @@ void CPU::Reset()
   m_nmi_state = false;
   m_fpu_exception = false;
   m_halted = false;
+  m_trap_after_instruction = false;
 
   // x87 state
   m_fpu_registers.CW.bits = 0x0040;
@@ -1849,6 +1850,9 @@ void CPU::BranchFromException(uint32 new_EIP)
   // we can clear the exception-in-progress now.
   m_current_exception = Interrupt_Count;
 
+  // Prevent debug interrupt for this instruction.
+  m_trap_after_instruction = false;
+
   FlushPrefetchQueue();
   m_registers.EIP = new_EIP;
   m_backend->BranchFromException(new_EIP);
@@ -2647,10 +2651,6 @@ void CPU::SetupRealModeInterruptCall(uint32 interrupt, uint32 return_EIP)
   m_registers.EFLAGS.IF = false;
   m_registers.EFLAGS.TF = false;
   m_registers.EFLAGS.AC = false;
-
-  // Control was successfully transferred to the exception handler, so
-  // we can clear the exception-in-progress now.
-  m_current_exception = Interrupt_Count;
 
   // Resume code execution at interrupt entry point
   BranchFromException(isr_EIP);

@@ -507,6 +507,9 @@ protected:
   // Halt state, when an interrupt request or nmi comes in this is reset
   bool m_halted = false;
 
+  // State of the trap flag at the beginning of an instruction. Not saved to state.
+  bool m_trap_after_instruction = false;
+
   // Exception currently being thrown. Interrupt_Count at all other times. Not saved to state.
   uint32 m_current_exception = Interrupt_Count;
 
