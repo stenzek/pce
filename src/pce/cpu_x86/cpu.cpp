@@ -2629,10 +2629,8 @@ void CPU::SetupRealModeInterruptCall(uint32 interrupt, uint32 return_EIP)
   PhysicalMemoryAddress address = m_idt_location.base_address;
   address += PhysicalMemoryAddress(interrupt) * 4;
 
-  // If this is zero it's probably not been populated
-  uint32 ivt_entry = m_bus->ReadMemoryDWord(address);
-  if (ivt_entry == 0x0000)
-    Log_WarningPrintf("Possible missing real-mode IDT entry");
+  uint32 ivt_entry = 0;
+  SafeReadMemoryDWord(address, &ivt_entry, false, true);
 
   // Extract segment/instruction pointer from IDT entry
   uint16 isr_segment_selector = uint16(ivt_entry >> 16);
