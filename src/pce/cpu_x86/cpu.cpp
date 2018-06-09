@@ -3321,7 +3321,7 @@ bool CPU::HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exc
 
 void CPU::DumpPageTable()
 {
-  Log_DevPrintf("Page table");
+  std::fprintf(stderr, "Page table\n");
   if (!InProtectedMode() && !(m_registers.CR0 & CR0Bit_PE))
     return;
 
@@ -3351,9 +3351,9 @@ void CPU::DumpPageTable()
       {
         if (page_count > 0)
         {
-          Log_DevPrintf("Linear 0x%08X - 0x%08X -> Physical 0x%08X - 0x%08X", page_start_linaddr,
-                        page_start_linaddr + (page_count * PAGE_SIZE) - 1, page_start_physaddr,
-                        page_start_physaddr + (page_count * PAGE_SIZE) - 1);
+          std::fprintf(stderr, "Linear 0x%08X - 0x%08X -> Physical 0x%08X - 0x%08X\n", page_start_linaddr,
+                       page_start_linaddr + (page_count * PAGE_SIZE) - 1, page_start_physaddr,
+                       page_start_physaddr + (page_count * PAGE_SIZE) - 1);
           page_count = 0;
         }
       }
@@ -3373,9 +3373,9 @@ void CPU::DumpPageTable()
 
     if (page_count > 0)
     {
-      Log_DevPrintf("Linear 0x%08X - 0x%08X -> Physical 0x%08X - 0x%08X", page_start_linaddr,
-                    page_start_linaddr + (page_count * PAGE_SIZE) - 1, page_start_physaddr,
-                    page_start_physaddr + (page_count * PAGE_SIZE) - 1);
+      std::fprintf(stderr, "Linear 0x%08X - 0x%08X -> Physical 0x%08X - 0x%08X\n", page_start_linaddr,
+                   page_start_linaddr + (page_count * PAGE_SIZE) - 1, page_start_physaddr,
+                   page_start_physaddr + (page_count * PAGE_SIZE) - 1);
     }
   }
 }
@@ -3384,7 +3384,7 @@ void CPU::DumpMemory(LinearMemoryAddress start_address, uint32 size)
 {
   DebugAssert(size > 0);
   LinearMemoryAddress end_address = start_address + size - 1;
-  Log_DevPrintf("Memory dump from 0x%08X - 0x%08X", start_address, end_address);
+  std::fprintf(stderr, "Memory dump from 0x%08X - 0x%08X\n", start_address, end_address);
 
   LinearMemoryAddress current_address = start_address;
   while (current_address <= end_address)
@@ -3400,8 +3400,8 @@ void CPU::DumpMemory(LinearMemoryAddress start_address, uint32 size)
       uint8 value;
       if (!SafeReadMemoryByte(current_address++, &value, false, false))
       {
-        Log_DevPrintf("0x%08X | %s| %s |", row_address, hex.GetCharArray(), printable.GetCharArray());
-        Log_ErrorPrintf("Failed memory read at 0x%08X", current_address);
+        std::fprintf(stderr, "0x%08X | %s| %s |", row_address, hex.GetCharArray(), printable.GetCharArray());
+        std::fprintf(stderr, "Failed memory read at 0x%08X\n", current_address);
         return;
       }
 
@@ -3412,7 +3412,7 @@ void CPU::DumpMemory(LinearMemoryAddress start_address, uint32 size)
         printable.AppendCharacter('.');
     }
 
-    Log_DevPrintf("0x%08X | %s| %s |", row_address, hex.GetCharArray(), printable.GetCharArray());
+    std::fprintf(stderr, "0x%08X | %s| %s |\n", row_address, hex.GetCharArray(), printable.GetCharArray());
   }
 }
 
@@ -3426,7 +3426,7 @@ void CPU::DumpStack()
     stack_bottom &= 0xFFFF;
   }
 
-  Log_DevPrintf("Stack dump, ESP = 0x%08X", m_registers.ESP);
+  std::fprintf(stderr, "Stack dump, ESP = 0x%08X\n", m_registers.ESP);
 
   LinearMemoryAddress stack_address = stack_top;
   for (uint32 count = 0; count < 128; count++)
@@ -3436,14 +3436,14 @@ void CPU::DumpStack()
       uint16 value;
       if (!SafeReadMemoryWord(stack_address, &value, false, false))
         break;
-      Log_DevPrintf("  0x%04X: 0x%04X", stack_address, ZeroExtend32(value));
+      std::fprintf(stderr, "  0x%04X: 0x%04X\n", stack_address, ZeroExtend32(value));
     }
     else
     {
       uint32 value;
       if (!SafeReadMemoryDWord(stack_address, &value, false, false))
         break;
-      Log_DevPrintf("  0x%08X: 0x%08X", stack_address, value);
+      std::fprintf(stderr, "  0x%08X: 0x%08X\n", stack_address, value);
     }
 
     if (stack_address == stack_bottom)
