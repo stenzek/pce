@@ -2946,6 +2946,12 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
 
 void CPU::CheckFloatingPointException()
 {
+  if ((m_registers.CR0 & (CR0Bit_MP | CR0Bit_TS)) == (CR0Bit_MP | CR0Bit_TS))
+  {
+    RaiseException(Interrupt_CoprocessorNotAvailable, 0);
+    return;
+  }
+
   // Check and handle any pending floating point exceptions
   if (!m_fpu_exception)
     return;
@@ -3168,6 +3174,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
   // Now we can load the new task in
   // TODO: Validate segment descriptors before loading them
   // TODO: set all segments to zero first?
+  // TODO: Loading LDT when not present should raise invalid TSS, not #NP.
   uint32 new_EIP;
   if (new_task_is_32bit)
   {

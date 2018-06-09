@@ -419,6 +419,8 @@ protected:
   void SetupRealModeInterruptCall(uint32 interrupt, uint32 return_EIP);
   void SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interrupt, bool push_error_code,
                                        uint32 error_code, uint32 return_EIP);
+
+  // Check pending exceptions (WAIT instruction).
   void CheckFloatingPointException();
 
   // Switches to the task segment selected by the parameter.

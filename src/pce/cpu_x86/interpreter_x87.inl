@@ -17,7 +17,7 @@
 namespace CPU_X86 {
 void NewInterpreter::StartX87Instruction(CPU* cpu)
 {
-  if (cpu->m_registers.CR0 & (CR0Bit_EM | CR0Bit_TS))
+  if ((cpu->m_registers.CR0 & CR0Bit_EM) || (cpu->m_registers.CR0 & (CR0Bit_MP | CR0Bit_TS)) == (CR0Bit_MP | CR0Bit_TS))
   {
     cpu->RaiseException(Interrupt_CoprocessorNotAvailable);
     return;
