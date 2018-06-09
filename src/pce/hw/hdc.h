@@ -81,8 +81,8 @@ public:
     ATA_CMD_EXECUTE_DRIVE_DIAGNOSTIC = 0x90,
     ATA_CMD_INITIALIZE_DRIVE_PARAMETERS = 0x91,
     ATA_CMD_SET_FEATURES = 0xEF,
+    ATA_CMD_DEVICE_RESET = 0x08,
 
-    ATAPI_CMD_DEVICE_RESET = 0x08,
     ATAPI_CMD_READ = 0xA8,
     ATAPI_CMD_EJECT = 0x1B,
     ATAPI_CMD_PACKET = 0xA0
@@ -251,6 +251,7 @@ protected:
   bool FlushWriteBuffer(uint32 drive_index, uint32 sector_count);
 
   void HandleATACommand(uint8 command);
+  void HandleATADeviceReset();
   void HandleATAIdentify();
   void HandleATARecalibrate();
   void HandleATATransferPIO(bool write, bool extended, bool multiple);
@@ -261,7 +262,6 @@ protected:
   void HandleATASetFeatures();
 
   void HandleATAPIIdentify();
-  void HandleATAPIDeviceReset();
   void HandleATAPIPacket();
   void HandleATAPICommandCompleted(uint32 drive_index);
 

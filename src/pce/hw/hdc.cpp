@@ -812,6 +812,10 @@ void HDC::HandleATACommand(uint8 command)
     {
       switch (command)
       {
+        case ATA_CMD_DEVICE_RESET:
+          HandleATADeviceReset();
+          break;
+
         case ATA_CMD_IDENTIFY:
           HandleATAIdentify();
           break;
@@ -904,8 +908,8 @@ void HDC::HandleATACommand(uint8 command)
           HandleATAPIIdentify();
           break;
 
-        case ATAPI_CMD_DEVICE_RESET:
-          HandleATAPIDeviceReset();
+        case ATA_CMD_DEVICE_RESET:
+          HandleATADeviceReset();
           break;
 
         case ATAPI_CMD_PACKET:
@@ -971,7 +975,17 @@ struct ATA_IDENTIFY_RESPONSE
   uint16 minor_version_number;         // 81
   uint16 word_82;                      // 82
   uint16 supports_lba48;               // 83 set (1 << 10) here
-  uint16 unused_5[16];                 // 84-99
+  uint16 word_84;                      // 84
+  uint16 word_85;                      // 85
+  uint16 word_86;                      // 86
+  uint16 word_87;                      // 87
+  uint16 word_88;                      // 88
+  uint16 word_89;                      // 89
+  uint16 word_90;                      // 90
+  uint16 word_91;                      // 91
+  uint16 word_92;                      // 92
+  uint16 word_93;                      // 93
+  uint16 unused_5[6];                  // 94-99
   uint64 lba48_sectors;                // 100-103
   uint16 unused_6[152];                // 104-255
 };
@@ -999,9 +1013,9 @@ void HDC::HandleATAIdentify()
   DebugAssert(drive);
 
   ATA_IDENTIFY_RESPONSE response = {};
-  response.flags |= (1 << 10); // >10mbit/sec transfer speed
+  //response.flags |= (1 << 10); // >10mbit/sec transfer speed
   response.flags |= (1 << 6);  // Fixed drive
-  response.flags |= (1 << 2);  // Soft sectored
+  //response.flags |= (1 << 2);  // Soft sectored
   response.cylinders = Truncate16(drive->num_cylinders);
   response.heads = Truncate16(drive->num_heads);
   response.unformatted_bytes_per_track = Truncate16(SECTOR_SIZE * drive->num_sectors);
@@ -1012,13 +1026,18 @@ void HDC::HandleATAIdentify()
   response.ecc_bytes = 4;
   PutIdentifyString(response.serial_number, sizeof(response.serial_number), "DERP123");
   PutIdentifyString(response.firmware_revision, sizeof(response.firmware_revision), "HURR101");
-  response.readwrite_multiple_supported = 16; // this is actually the number of sectors, tweak it
+
+  // Temporarily disabled as it seems to be broken.
+  //response.readwrite_multiple_supported = 0x8000 | 16; // this is actually the number of sectors, tweak it
+  response.readwrite_multiple_supported = 0;
+
   response.dword_io_supported = 1;
-  response.support |= (1 << 9); // LBA supported
+  // response.support |= (1 << 9); // LBA supported
   // response.support |= (1 << 8);       // DMA supported
-  response.pio_timing_mode = 0x200;
-  response.dma_timing_mode = 0x200;
-  response.user_fields_valid = 0x07;
+  response.support = 0xf000u & ~uint32(1 << 8);
+  response.pio_timing_mode = 2;
+  response.dma_timing_mode = 1;
+  response.user_fields_valid = 3;
   response.user_cylinders = Truncate16(drive->current_num_cylinders);
   response.user_heads = Truncate16(drive->current_num_heads);
   response.user_sectors_per_track = Truncate16(drive->current_num_sectors);
@@ -1028,10 +1047,18 @@ void HDC::HandleATAIdentify()
   PutIdentifyString(response.model, sizeof(response.model), "Herp derpity derp");
   // response.singleword_dma_modes = (1 << 0) | (1 << 8);
   // response.multiword_dma_modes = (1 << 0) | (1 << 8);
+  response.pio_modes_supported = 0x03;
   for (size_t i = 0; i < countof(response.pio_cycle_time); i++)
     response.pio_cycle_time[i] = 120;
-  response.word_80 = 0x7E;
+  response.word_80 = 0xF0;
+  response.minor_version_number = 0x16;
   response.word_82 = (1 << 14);
+  response.supports_lba48 = (1 << 10);
+  response.word_84 = (1 << 14);
+  response.word_85 = (1 << 14);
+  response.word_86 = (1 << 10);
+  response.word_93 = 1 | (1 << 14) | 0x2000;
+  response.lba48_sectors = drive->num_lbas;
 
   // 512 bytes total
   BeginTransfer(MAX_DRIVES, 1, 1, false);
@@ -1359,17 +1386,30 @@ void HDC::HandleATASetFeatures()
   }
 }
 
-void HDC::HandleATAPIDeviceReset()
+void HDC::HandleATADeviceReset()
 {
   DriveState* drive = GetCurrentDrive();
   DebugAssert(drive);
 
   Log_DevPrintf("ATAPI reset drive %u", ZeroExtend32(GetCurrentDriveIndex()));
-  SetSignature(drive);
 
-  // If the device is reset to its default state, ERR bit is set.
-  // Signature bits are set
-  CompleteCommand();
+  if (drive->type == DRIVE_TYPE_HDD)
+  {
+    StopTransfer();
+    CompleteCommand();
+    SetSignature(drive);
+  }
+  else if (drive->type == DRIVE_TYPE_ATAPI)
+  {
+    // If the device is reset to its default state, ERR bit is set.
+    // Signature bits are set
+    CompleteCommand();
+    SetSignature(drive);
+  }
+  else
+  {
+    AbortCommand();
+  }
 }
 
 void HDC::HandleATAPIPacket()
