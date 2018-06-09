@@ -191,6 +191,7 @@ bool CodeCacheBackend::IsLinkableExitInstruction(const Instruction* instruction)
     case Operation_JCXZ:
     case Operation_LOOP:
     case Operation_CALL_Near:
+    case Operation_RET_Near:
       return true;
 
     default:
