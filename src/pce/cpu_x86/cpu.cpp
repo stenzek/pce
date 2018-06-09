@@ -2448,8 +2448,6 @@ void CPU::InterruptReturn(OperandSize operand_size)
   else if (m_registers.EFLAGS.NT)
   {
     // Nested task return should not pop anything off stack
-    Log_ErrorPrint("Task return");
-
     // Link field is always two bytes at offset zero, in both 16 and 32-bit TSS
     uint16 link_field;
     if ((sizeof(link_field) - 1) > m_tss_location.limit)
@@ -2931,6 +2929,10 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
   }
   else if (descriptor.type == DESCRIPTOR_TYPE_TASK_GATE)
   {
+    // When we eventually switch back to the faulting task, we want EIP to point to the instruction
+    // which faulted, not the next instruction (which is what EIP currently contains).
+    m_registers.EIP = return_EIP;
+
     // Switch to new task with nesting
     DebugAssert(!m_registers.EFLAGS.VM);
     Log_DevPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
