@@ -19,8 +19,6 @@ public:
   CMOS();
   ~CMOS();
 
-  SimulationTime Simulate(SimulationTime time);
-
   virtual void Initialize(System* system, Bus* bus) override;
   virtual void Reset() override;
   virtual bool LoadState(BinaryReader& reader) override;
@@ -65,14 +63,16 @@ protected:
   void IOReadDataPort(uint8* value);
   void IOWriteDataPort(uint8 value);
 
+  void UpdateRTCFrequency();
+  void RTCInterruptEvent(CycleCount cycles);
+
   std::array<uint8, 256> m_data = {};
   uint8 m_index_register = 0;
   bool m_nmi_enabled = false;
 
-  void UpdateRTCFrequency();
   Clock m_rtc_clock;
   CycleCount m_rtc_interrupt_rate = 1;
-  CycleCount m_rtc_interrupt_downcount = 0;
+  TimingEvent::Pointer m_rtc_interrupt_event{};
 };
 
 } // namespace HW

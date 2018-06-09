@@ -16,10 +16,14 @@ CMOS::~CMOS() {}
 
 void CMOS::Initialize(System* system, Bus* bus)
 {
-  std::fill(m_data.begin(), m_data.end(), 0);
+  std::fill(m_data.begin(), m_data.end(), uint8(0));
 
   m_system = system;
   ConnectIOPorts(bus);
+
+  m_rtc_clock.SetManager(system->GetTimingManager());
+  m_rtc_interrupt_event =
+    m_rtc_clock.NewEvent("RTC Interrupt", 1, std::bind(&CMOS::RTCInterruptEvent, this, std::placeholders::_2), false);
 
   //     static const byte values[] = {
   //         0x11, 0x00, 0x49, 0x00, 0x17, 0x00, 0x01, 0x03, 0x12, 0x12, 0x06, 0x00,
@@ -52,35 +56,6 @@ void CMOS::Initialize(System* system, Bus* bus)
   m_data[0x0A] |= (2 << 4);
   m_data[0x0A] |= 6;
   UpdateRTCFrequency();
-}
-
-SimulationTime CMOS::Simulate(SimulationTime time)
-{
-  CycleCount cycles = 0; // m_rtc_clock.CalculateCyclesToExecute(time);
-
-  m_rtc_interrupt_downcount -= cycles;
-  if (m_rtc_interrupt_downcount <= 0)
-  {
-    while (m_rtc_interrupt_downcount <= 0)
-      m_rtc_interrupt_downcount += m_rtc_interrupt_rate;
-
-    if (m_data[RTC_REGISTER_STATUS_REGISTER_B] & RTC_SRB_PERIODIC_INTERRUPT_ENABLE)
-    {
-      // We don't trigger the interrupt unless the flag has been read and cleared.
-      if (!(m_data[RTC_REGISTER_STATUS_REGISTER_C] & RTC_SRC_PERIODIC_INTERRUPT))
-      {
-        m_data[RTC_REGISTER_STATUS_REGISTER_C] |= RTC_SRC_PERIODIC_INTERRUPT;
-        m_system->GetInterruptController()->TriggerInterrupt(RTC_INTERRUPT);
-      }
-    }
-  }
-
-  // Only one we really need to worry about is the RTC interrupt frequency,
-  // and that, only when interrupts are enabled in the first place
-  // if (m_data[RTC_REGISTER_STATUS_REGISTER_B] & RTC_SRB_PERIODIC_INTERRUPT_ENABLE)
-  // return m_rtc_clock.CalculateTimeForCycles(m_rtc_interrupt_downcount);
-  // else
-  return 0;
 }
 
 void CMOS::Reset()
@@ -233,6 +208,7 @@ bool CMOS::HandleKnownCMOSRead(uint8 index, uint8* value)
         // Clear interrupt bits once read back
         *value = m_data[RTC_REGISTER_STATUS_REGISTER_C];
         m_data[RTC_REGISTER_STATUS_REGISTER_C] &= ~(RTC_SRC_PERIODIC_INTERRUPT);
+        UpdateRTCFrequency();
         return true;
       }
 
@@ -309,10 +285,33 @@ void CMOS::UpdateRTCFrequency()
   Log_DevPrintf("Base rate = %u (%u hz), rate divider = %u, interrupt rate = %u hz", ZeroExtend32(base_rate_index),
                 base_rate, ZeroExtend32(rate_divider), interrupt_rate);
 
-  if (interrupt_rate > 0)
-    m_rtc_interrupt_rate = static_cast<CycleCount>(base_rate / interrupt_rate);
-  else
-    m_rtc_interrupt_rate = 1;
+  CycleCount interval = (interrupt_rate > 0) ? static_cast<CycleCount>(base_rate / interrupt_rate) : 1;
+
+  // Only schedule the event when the interrupt flag is clear.
+  if (!(m_data[RTC_REGISTER_STATUS_REGISTER_C] & RTC_SRC_PERIODIC_INTERRUPT))
+  {
+    if (!m_rtc_interrupt_event->IsActive())
+      m_rtc_interrupt_event->Queue(interval);
+    else if (m_rtc_interrupt_event->GetInterval() != interval)
+      m_rtc_interrupt_event->Reschedule(interval);
+  }
+  else if (m_rtc_interrupt_event->IsActive())
+  {
+    m_rtc_interrupt_event->Deactivate();
+  }
+}
+
+void CMOS::RTCInterruptEvent(CycleCount cycles)
+{
+  // We don't trigger the interrupt unless the flag has been read and cleared.
+  if (m_data[RTC_REGISTER_STATUS_REGISTER_B] & RTC_SRB_PERIODIC_INTERRUPT_ENABLE &&
+      !(m_data[RTC_REGISTER_STATUS_REGISTER_C] & RTC_SRC_PERIODIC_INTERRUPT))
+  {
+    m_system->GetInterruptController()->TriggerInterrupt(RTC_INTERRUPT);
+  }
+
+  m_data[RTC_REGISTER_STATUS_REGISTER_C] |= RTC_SRC_PERIODIC_INTERRUPT;
+  m_rtc_interrupt_event->Deactivate();
 }
 
 } // namespace HW
