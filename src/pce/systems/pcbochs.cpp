@@ -27,6 +27,7 @@ void PCBochs::Initialize()
 
   ConnectSystemIOPorts();
   SetCMOSVariables();
+  UpdateKeyboardControllerOutputPort();
 }
 
 void PCBochs::Reset()

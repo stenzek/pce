@@ -348,9 +348,10 @@ void PS2Controller::HandleControllerCommand(bool has_parameter)
       if (m_output_port_written_callback)
       {
         uint8 mask = (m_pending_command & 0x0F);
-        uint8 temp_value = m_output_port.raw ^ mask;
-        m_output_port_written_callback(temp_value);
-        m_output_port_written_callback(m_output_port.raw);
+        uint8 pulse_value = m_output_port.raw & ~mask;
+        uint8 restore_value = m_output_port.raw;
+        m_output_port_written_callback(pulse_value);
+        m_output_port_written_callback(restore_value);
       }
     }
     break;
