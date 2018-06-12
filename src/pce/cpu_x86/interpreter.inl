@@ -3986,8 +3986,9 @@ void NewInterpreter::Execute_Operation_LMSW(CPU* cpu)
     return;
   }
 
+  // LMSW cannot clear the PE bit of CR0.
   const uint16 value = ReadWordOperand<src_mode, src_constant>(cpu);
-  cpu->LoadSpecialRegister(Reg32_CR0, (cpu->m_registers.CR0 & 0xFFFFFFF0) | ZeroExtend32(value & 0xF));
+  cpu->LoadSpecialRegister(Reg32_CR0, (cpu->m_registers.CR0 & 0xFFFFFFF1) | ZeroExtend32(value & 0xF));
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
