@@ -15,14 +15,14 @@
 #endif
 
 namespace CPU_X86 {
-void NewInterpreter::RaiseInvalidOpcode(CPU* cpu)
+void Interpreter::RaiseInvalidOpcode(CPU* cpu)
 {
   cpu->PrintCurrentStateAndInstruction("Invalid opcode raised at ");
   cpu->RaiseException(Interrupt_InvalidOpcode);
 }
 
 template<OperandMode op_mode>
-void NewInterpreter::CalculateEffectiveAddress(CPU* cpu)
+void Interpreter::CalculateEffectiveAddress(CPU* cpu)
 {
   switch (op_mode)
   {
@@ -257,7 +257,7 @@ void NewInterpreter::CalculateEffectiveAddress(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-VirtualMemoryAddress CPU_X86::NewInterpreter::CalculateJumpTarget(CPU* cpu)
+VirtualMemoryAddress CPU_X86::Interpreter::CalculateJumpTarget(CPU* cpu)
 {
   static_assert(dst_mode == OperandMode_Relative || dst_mode == OperandMode_ModRM_RM,
                 "Operand mode is relative or indirect");
@@ -289,7 +289,7 @@ VirtualMemoryAddress CPU_X86::NewInterpreter::CalculateJumpTarget(CPU* cpu)
 }
 
 template<OperandMode mode, uint32 constant>
-uint8 NewInterpreter::ReadByteOperand(CPU* cpu)
+uint8 Interpreter::ReadByteOperand(CPU* cpu)
 {
   switch (mode)
   {
@@ -329,7 +329,7 @@ uint8 NewInterpreter::ReadByteOperand(CPU* cpu)
 }
 
 template<OperandMode mode, uint32 constant>
-uint16 NewInterpreter::ReadWordOperand(CPU* cpu)
+uint16 Interpreter::ReadWordOperand(CPU* cpu)
 {
   switch (mode)
   {
@@ -360,7 +360,7 @@ uint16 NewInterpreter::ReadWordOperand(CPU* cpu)
 }
 
 template<OperandMode mode, uint32 constant>
-uint32 NewInterpreter::ReadDWordOperand(CPU* cpu)
+uint32 Interpreter::ReadDWordOperand(CPU* cpu)
 {
   switch (mode)
   {
@@ -399,7 +399,7 @@ uint32 NewInterpreter::ReadDWordOperand(CPU* cpu)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-uint16 CPU_X86::NewInterpreter::ReadSignExtendedWordOperand(CPU* cpu)
+uint16 CPU_X86::Interpreter::ReadSignExtendedWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
@@ -445,7 +445,7 @@ uint16 CPU_X86::NewInterpreter::ReadSignExtendedWordOperand(CPU* cpu)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-uint32 CPU_X86::NewInterpreter::ReadSignExtendedDWordOperand(CPU* cpu)
+uint32 CPU_X86::Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
@@ -523,7 +523,7 @@ uint32 CPU_X86::NewInterpreter::ReadSignExtendedDWordOperand(CPU* cpu)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-uint16 CPU_X86::NewInterpreter::ReadZeroExtendedWordOperand(CPU* cpu)
+uint16 CPU_X86::Interpreter::ReadZeroExtendedWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
@@ -572,7 +572,7 @@ uint16 CPU_X86::NewInterpreter::ReadZeroExtendedWordOperand(CPU* cpu)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-uint32 CPU_X86::NewInterpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
+uint32 CPU_X86::Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
@@ -656,7 +656,7 @@ uint32 CPU_X86::NewInterpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
 }
 
 template<OperandMode mode, uint32 constant>
-void CPU_X86::NewInterpreter::WriteByteOperand(CPU* cpu, uint8 value)
+void CPU_X86::Interpreter::WriteByteOperand(CPU* cpu, uint8 value)
 {
   switch (mode)
   {
@@ -687,7 +687,7 @@ void CPU_X86::NewInterpreter::WriteByteOperand(CPU* cpu, uint8 value)
 }
 
 template<OperandMode mode, uint32 constant>
-void CPU_X86::NewInterpreter::WriteWordOperand(CPU* cpu, uint16 value)
+void CPU_X86::Interpreter::WriteWordOperand(CPU* cpu, uint16 value)
 {
   switch (mode)
   {
@@ -718,7 +718,7 @@ void CPU_X86::NewInterpreter::WriteWordOperand(CPU* cpu, uint16 value)
 }
 
 template<OperandMode mode, uint32 constant>
-void CPU_X86::NewInterpreter::WriteDWordOperand(CPU* cpu, uint32 value)
+void CPU_X86::Interpreter::WriteDWordOperand(CPU* cpu, uint32 value)
 {
   switch (mode)
   {
@@ -750,8 +750,8 @@ void CPU_X86::NewInterpreter::WriteDWordOperand(CPU* cpu, uint32 value)
 }
 
 template<OperandMode mode>
-void CPU_X86::NewInterpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, uint16* segment_selector,
-                                                    VirtualMemoryAddress* address)
+void CPU_X86::Interpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, uint16* segment_selector,
+                                                 VirtualMemoryAddress* address)
 {
   // Can either be far immediate, or memory
   switch (mode)
@@ -799,7 +799,7 @@ void CPU_X86::NewInterpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, 
 }
 
 template<JumpCondition condition>
-bool CPU_X86::NewInterpreter::TestJumpCondition(CPU* cpu)
+bool CPU_X86::Interpreter::TestJumpCondition(CPU* cpu)
 {
   switch (condition)
   {
@@ -1136,7 +1136,7 @@ inline uint32 ALUOp_Sbb32(CPU::Registers* registers, uint32 lhs, uint32 rhs)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_ADD(CPU* cpu)
+void Interpreter::Execute_Operation_ADD(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1167,7 +1167,7 @@ void NewInterpreter::Execute_Operation_ADD(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_ADC(CPU* cpu)
+void Interpreter::Execute_Operation_ADC(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1198,7 +1198,7 @@ void NewInterpreter::Execute_Operation_ADC(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_SUB(CPU* cpu)
+void Interpreter::Execute_Operation_SUB(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1229,7 +1229,7 @@ void NewInterpreter::Execute_Operation_SUB(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_SBB(CPU* cpu)
+void Interpreter::Execute_Operation_SBB(CPU* cpu)
 {
   OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1260,7 +1260,7 @@ void NewInterpreter::Execute_Operation_SBB(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_CMP(CPU* cpu)
+void Interpreter::Execute_Operation_CMP(CPU* cpu)
 {
   OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1289,7 +1289,7 @@ void NewInterpreter::Execute_Operation_CMP(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_AND(CPU* cpu)
+void Interpreter::Execute_Operation_AND(CPU* cpu)
 {
   OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1347,7 +1347,7 @@ void NewInterpreter::Execute_Operation_AND(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_OR(CPU* cpu)
+void Interpreter::Execute_Operation_OR(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1405,7 +1405,7 @@ void NewInterpreter::Execute_Operation_OR(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_XOR(CPU* cpu)
+void Interpreter::Execute_Operation_XOR(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1463,7 +1463,7 @@ void NewInterpreter::Execute_Operation_XOR(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_TEST(CPU* cpu)
+void Interpreter::Execute_Operation_TEST(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1518,7 +1518,7 @@ void NewInterpreter::Execute_Operation_TEST(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_MOV(CPU* cpu)
+void Interpreter::Execute_Operation_MOV(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   static_assert(dst_size == src_size, "dst_size == src_size");
@@ -1549,7 +1549,7 @@ void NewInterpreter::Execute_Operation_MOV(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_MOVZX(CPU* cpu)
+void Interpreter::Execute_Operation_MOVZX(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1574,7 +1574,7 @@ void NewInterpreter::Execute_Operation_MOVZX(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_MOVSX(CPU* cpu)
+void Interpreter::Execute_Operation_MOVSX(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1599,7 +1599,7 @@ void NewInterpreter::Execute_Operation_MOVSX(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
+void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16 && src_size == OperandSize_16, "Segment registers are 16-bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1641,7 +1641,7 @@ void NewInterpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_XCHG(CPU* cpu)
+void Interpreter::Execute_Operation_XCHG(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   static_assert(dst_size == src_size, "source and destination operands are of same size");
@@ -1682,7 +1682,7 @@ void NewInterpreter::Execute_Operation_XCHG(CPU* cpu)
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
          OperandMode count_mode, uint32 count_constant>
-void NewInterpreter::Execute_Operation_SHL(CPU* cpu)
+void Interpreter::Execute_Operation_SHL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
@@ -1759,7 +1759,7 @@ void NewInterpreter::Execute_Operation_SHL(CPU* cpu)
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
          OperandMode count_mode, uint32 count_constant>
-void NewInterpreter::Execute_Operation_SHR(CPU* cpu)
+void Interpreter::Execute_Operation_SHR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
@@ -1827,7 +1827,7 @@ void NewInterpreter::Execute_Operation_SHR(CPU* cpu)
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
          OperandMode count_mode, uint32 count_constant>
-void NewInterpreter::Execute_Operation_SAR(CPU* cpu)
+void Interpreter::Execute_Operation_SAR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
@@ -1895,7 +1895,7 @@ void NewInterpreter::Execute_Operation_SAR(CPU* cpu)
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
          OperandMode count_mode, uint32 count_constant>
-void NewInterpreter::Execute_Operation_RCL(CPU* cpu)
+void Interpreter::Execute_Operation_RCL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
@@ -1970,7 +1970,7 @@ void NewInterpreter::Execute_Operation_RCL(CPU* cpu)
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
          OperandMode count_mode, uint32 count_constant>
-void NewInterpreter::Execute_Operation_RCR(CPU* cpu)
+void Interpreter::Execute_Operation_RCR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
@@ -2045,7 +2045,7 @@ void NewInterpreter::Execute_Operation_RCR(CPU* cpu)
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
          OperandMode count_mode, uint32 count_constant>
-void NewInterpreter::Execute_Operation_ROL(CPU* cpu)
+void Interpreter::Execute_Operation_ROL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
@@ -2122,7 +2122,7 @@ void NewInterpreter::Execute_Operation_ROL(CPU* cpu)
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
          OperandMode count_mode, uint32 count_constant>
-void NewInterpreter::Execute_Operation_ROR(CPU* cpu)
+void Interpreter::Execute_Operation_ROR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
@@ -2199,7 +2199,7 @@ void NewInterpreter::Execute_Operation_ROR(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_IN(CPU* cpu)
+void Interpreter::Execute_Operation_IN(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -2251,7 +2251,7 @@ void NewInterpreter::Execute_Operation_IN(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_OUT(CPU* cpu)
+void Interpreter::Execute_Operation_OUT(CPU* cpu)
 {
   const OperandSize actual_size = (src_size == OperandSize_Count) ? cpu->idata.operand_size : src_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -2299,7 +2299,7 @@ void NewInterpreter::Execute_Operation_OUT(CPU* cpu)
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_INC(CPU* cpu)
+void Interpreter::Execute_Operation_INC(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
@@ -2334,7 +2334,7 @@ void NewInterpreter::Execute_Operation_INC(CPU* cpu)
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_DEC(CPU* cpu)
+void Interpreter::Execute_Operation_DEC(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
@@ -2369,7 +2369,7 @@ void NewInterpreter::Execute_Operation_DEC(CPU* cpu)
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_NOT(CPU* cpu)
+void Interpreter::Execute_Operation_NOT(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
@@ -2400,7 +2400,7 @@ void NewInterpreter::Execute_Operation_NOT(CPU* cpu)
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_NEG(CPU* cpu)
+void Interpreter::Execute_Operation_NEG(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
@@ -2440,7 +2440,7 @@ void NewInterpreter::Execute_Operation_NEG(CPU* cpu)
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_MUL(CPU* cpu)
+void Interpreter::Execute_Operation_MUL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
@@ -2494,7 +2494,7 @@ void NewInterpreter::Execute_Operation_MUL(CPU* cpu)
 
 template<OperandSize op1_size, OperandMode op1_mode, uint32 op1_constant, OperandSize op2_size, OperandMode op2_mode,
          uint32 op2_constant, OperandSize op3_size, OperandMode op3_mode, uint32 op3_constant>
-void NewInterpreter::Execute_Operation_IMUL(CPU* cpu)
+void Interpreter::Execute_Operation_IMUL(CPU* cpu)
 {
   CalculateEffectiveAddress<op1_mode>(cpu);
   CalculateEffectiveAddress<op2_mode>(cpu);
@@ -2616,7 +2616,7 @@ void NewInterpreter::Execute_Operation_IMUL(CPU* cpu)
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_DIV(CPU* cpu)
+void Interpreter::Execute_Operation_DIV(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
@@ -2695,7 +2695,7 @@ void NewInterpreter::Execute_Operation_DIV(CPU* cpu)
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_IDIV(CPU* cpu)
+void Interpreter::Execute_Operation_IDIV(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
@@ -2780,7 +2780,7 @@ void NewInterpreter::Execute_Operation_IDIV(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_PUSH(CPU* cpu)
+void Interpreter::Execute_Operation_PUSH(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
   if (cpu->idata.operand_size == OperandSize_16)
@@ -2801,7 +2801,7 @@ void NewInterpreter::Execute_Operation_PUSH(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_PUSH_Sreg(CPU* cpu)
+void Interpreter::Execute_Operation_PUSH_Sreg(CPU* cpu)
 {
   static_assert(src_size == OperandSize_16 && src_mode == OperandMode_SegmentRegister && src_constant < Segment_Count,
                 "operands are of correct type and in range");
@@ -2815,7 +2815,7 @@ void NewInterpreter::Execute_Operation_PUSH_Sreg(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_POP_Sreg(CPU* cpu)
+void Interpreter::Execute_Operation_POP_Sreg(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16 && dst_mode == OperandMode_SegmentRegister && dst_constant < Segment_Count,
                 "operands are of correct type and in range");
@@ -2830,7 +2830,7 @@ void NewInterpreter::Execute_Operation_POP_Sreg(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_POP(CPU* cpu)
+void Interpreter::Execute_Operation_POP(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_Count, "operand size is current mode");
 
@@ -2850,7 +2850,7 @@ void NewInterpreter::Execute_Operation_POP(CPU* cpu)
   }
 }
 
-void NewInterpreter::Execute_Operation_PUSHA(CPU* cpu)
+void Interpreter::Execute_Operation_PUSHA(CPU* cpu)
 {
   if (cpu->idata.operand_size == OperandSize_16)
   {
@@ -2882,7 +2882,7 @@ void NewInterpreter::Execute_Operation_PUSHA(CPU* cpu)
   }
 }
 
-void NewInterpreter::Execute_Operation_POPA(CPU* cpu)
+void Interpreter::Execute_Operation_POPA(CPU* cpu)
 {
   // Assignment split from reading in case of exception.
   if (cpu->idata.operand_size == OperandSize_16)
@@ -2929,7 +2929,7 @@ void NewInterpreter::Execute_Operation_POPA(CPU* cpu)
 
 template<OperandSize frame_size, OperandMode frame_mode, uint32 frame_constant, OperandSize level_size,
          OperandMode level_mode, uint32 level_constant>
-void NewInterpreter::Execute_Operation_ENTER(CPU* cpu)
+void Interpreter::Execute_Operation_ENTER(CPU* cpu)
 {
   static_assert(frame_size == OperandSize_16 && level_size == OperandSize_8, "args have correct size");
   uint16 stack_frame_size = ReadWordOperand<frame_mode, frame_constant>(cpu);
@@ -2984,7 +2984,7 @@ void NewInterpreter::Execute_Operation_ENTER(CPU* cpu)
     cpu->m_registers.ESP -= stack_frame_size;
 }
 
-void NewInterpreter::Execute_Operation_LEAVE(CPU* cpu)
+void Interpreter::Execute_Operation_LEAVE(CPU* cpu)
 {
   if (cpu->m_stack_address_size == AddressSize_16)
     cpu->m_registers.SP = cpu->m_registers.BP;
@@ -3001,7 +3001,7 @@ void NewInterpreter::Execute_Operation_LEAVE(CPU* cpu)
 
 template<OperandSize sreg_size, OperandMode sreg_mode, uint32 sreg_constant, OperandSize reg_size, OperandMode reg_mode,
          uint32 reg_constant, OperandSize ptr_size, OperandMode ptr_mode, uint32 ptr_constant>
-void NewInterpreter::Execute_Operation_LXS(CPU* cpu)
+void Interpreter::Execute_Operation_LXS(CPU* cpu)
 {
   static_assert(sreg_mode == OperandMode_SegmentRegister, "sreg_mode is Segment Register");
   static_assert(reg_mode == OperandMode_ModRM_Reg, "reg_mode is Register");
@@ -3025,7 +3025,7 @@ void NewInterpreter::Execute_Operation_LXS(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_LEA(CPU* cpu)
+void Interpreter::Execute_Operation_LEA(CPU* cpu)
 {
   static_assert(src_mode == OperandMode_ModRM_RM, "Source operand is a pointer");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -3039,7 +3039,7 @@ void NewInterpreter::Execute_Operation_LEA(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_JMP_Near(CPU* cpu)
+void Interpreter::Execute_Operation_JMP_Near(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   VirtualMemoryAddress jump_address = CalculateJumpTarget<dst_size, dst_mode, dst_constant>(cpu);
@@ -3047,7 +3047,7 @@ void NewInterpreter::Execute_Operation_JMP_Near(CPU* cpu)
 }
 
 template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_Jcc(CPU* cpu)
+void Interpreter::Execute_Operation_Jcc(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   if (!TestJumpCondition<condition>(cpu))
@@ -3058,7 +3058,7 @@ void NewInterpreter::Execute_Operation_Jcc(CPU* cpu)
 }
 
 template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_LOOP(CPU* cpu)
+void Interpreter::Execute_Operation_LOOP(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
@@ -3077,7 +3077,7 @@ void NewInterpreter::Execute_Operation_LOOP(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_CALL_Near(CPU* cpu)
+void Interpreter::Execute_Operation_CALL_Near(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   VirtualMemoryAddress jump_address = CalculateJumpTarget<dst_size, dst_mode, dst_constant>(cpu);
@@ -3090,7 +3090,7 @@ void NewInterpreter::Execute_Operation_CALL_Near(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_RET_Near(CPU* cpu)
+void Interpreter::Execute_Operation_RET_Near(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
@@ -3122,7 +3122,7 @@ void NewInterpreter::Execute_Operation_RET_Near(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_JMP_Far(CPU* cpu)
+void Interpreter::Execute_Operation_JMP_Far(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -3135,7 +3135,7 @@ void NewInterpreter::Execute_Operation_JMP_Far(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_CALL_Far(CPU* cpu)
+void Interpreter::Execute_Operation_CALL_Far(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -3148,7 +3148,7 @@ void NewInterpreter::Execute_Operation_CALL_Far(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_RET_Far(CPU* cpu)
+void Interpreter::Execute_Operation_RET_Far(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
@@ -3160,7 +3160,7 @@ void NewInterpreter::Execute_Operation_RET_Far(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_INT(CPU* cpu)
+void Interpreter::Execute_Operation_INT(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
@@ -3168,7 +3168,7 @@ void NewInterpreter::Execute_Operation_INT(CPU* cpu)
   cpu->SoftwareInterrupt(cpu->idata.operand_size, interrupt);
 }
 
-void NewInterpreter::Execute_Operation_INTO(CPU* cpu)
+void Interpreter::Execute_Operation_INTO(CPU* cpu)
 {
   // Call overflow exception if OF is set
   if (!cpu->m_registers.EFLAGS.OF)
@@ -3178,24 +3178,24 @@ void NewInterpreter::Execute_Operation_INTO(CPU* cpu)
   cpu->SetupInterruptCall(Interrupt_Overflow, false, false, 0, cpu->m_registers.EIP);
 }
 
-void NewInterpreter::Execute_Operation_IRET(CPU* cpu)
+void Interpreter::Execute_Operation_IRET(CPU* cpu)
 {
   cpu->InterruptReturn(cpu->idata.operand_size);
 }
 
-void NewInterpreter::Execute_Operation_NOP(CPU* cpu) {}
+void Interpreter::Execute_Operation_NOP(CPU* cpu) {}
 
-void NewInterpreter::Execute_Operation_CLC(CPU* cpu)
+void Interpreter::Execute_Operation_CLC(CPU* cpu)
 {
   SET_FLAG(&cpu->m_registers, CF, false);
 }
 
-void NewInterpreter::Execute_Operation_CLD(CPU* cpu)
+void Interpreter::Execute_Operation_CLD(CPU* cpu)
 {
   SET_FLAG(&cpu->m_registers, DF, false);
 }
 
-void NewInterpreter::Execute_Operation_CLI(CPU* cpu)
+void Interpreter::Execute_Operation_CLI(CPU* cpu)
 {
   // TODO: Delay of one instruction
   if (cpu->InProtectedMode() && cpu->GetCPL() > cpu->GetIOPL())
@@ -3207,12 +3207,12 @@ void NewInterpreter::Execute_Operation_CLI(CPU* cpu)
   SET_FLAG(&cpu->m_registers, IF, false);
 }
 
-void NewInterpreter::Execute_Operation_CMC(CPU* cpu)
+void Interpreter::Execute_Operation_CMC(CPU* cpu)
 {
   SET_FLAG(&cpu->m_registers, CF, !cpu->m_registers.EFLAGS.CF);
 }
 
-void NewInterpreter::Execute_Operation_CLTS(CPU* cpu)
+void Interpreter::Execute_Operation_CLTS(CPU* cpu)
 {
   if (cpu->GetCPL() != 0)
   {
@@ -3223,17 +3223,17 @@ void NewInterpreter::Execute_Operation_CLTS(CPU* cpu)
   cpu->m_registers.CR0 &= ~CR0Bit_TS;
 }
 
-void NewInterpreter::Execute_Operation_STC(CPU* cpu)
+void Interpreter::Execute_Operation_STC(CPU* cpu)
 {
   SET_FLAG(&cpu->m_registers, CF, true);
 }
 
-void NewInterpreter::Execute_Operation_STD(CPU* cpu)
+void Interpreter::Execute_Operation_STD(CPU* cpu)
 {
   SET_FLAG(&cpu->m_registers, DF, true);
 }
 
-void NewInterpreter::Execute_Operation_STI(CPU* cpu)
+void Interpreter::Execute_Operation_STI(CPU* cpu)
 {
   if (cpu->InProtectedMode() && cpu->GetCPL() > cpu->GetIOPL())
   {
@@ -3244,7 +3244,7 @@ void NewInterpreter::Execute_Operation_STI(CPU* cpu)
   SET_FLAG(&cpu->m_registers, IF, true);
 }
 
-void NewInterpreter::Execute_Operation_SALC(CPU* cpu)
+void Interpreter::Execute_Operation_SALC(CPU* cpu)
 {
   // Undocumented instruction. Same as SBB AL, AL without modifying any flags.
   uint32 old_flags = cpu->m_registers.EFLAGS.bits;
@@ -3252,7 +3252,7 @@ void NewInterpreter::Execute_Operation_SALC(CPU* cpu)
   cpu->m_registers.EFLAGS.bits = old_flags;
 }
 
-void NewInterpreter::Execute_Operation_LAHF(CPU* cpu)
+void Interpreter::Execute_Operation_LAHF(CPU* cpu)
 {
   //         // Don't clear/set all flags, only those allowed
   //     const uint16 MASK = Flag_CF | Flag_Reserved | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_IF |
@@ -3268,13 +3268,13 @@ void NewInterpreter::Execute_Operation_LAHF(CPU* cpu)
   cpu->m_registers.AH = Truncate8(cpu->m_registers.EFLAGS.bits);
 }
 
-void NewInterpreter::Execute_Operation_SAHF(CPU* cpu)
+void Interpreter::Execute_Operation_SAHF(CPU* cpu)
 {
   uint16 flags = Truncate16(cpu->m_registers.EFLAGS.bits & 0xFF00) | ZeroExtend16(cpu->m_registers.AH);
   cpu->SetFlags16(flags);
 }
 
-void NewInterpreter::Execute_Operation_PUSHF(CPU* cpu)
+void Interpreter::Execute_Operation_PUSHF(CPU* cpu)
 {
   // In V8086 mode if IOPL!=3, trap to V8086 monitor
   if (cpu->InVirtual8086Mode() && cpu->GetIOPL() != 3)
@@ -3298,7 +3298,7 @@ void NewInterpreter::Execute_Operation_PUSHF(CPU* cpu)
     DebugUnreachableCode();
 }
 
-void NewInterpreter::Execute_Operation_POPF(CPU* cpu)
+void Interpreter::Execute_Operation_POPF(CPU* cpu)
 {
   // If V8086 and IOPL!=3, trap to monitor
   if (cpu->InVirtual8086Mode() && cpu->GetIOPL() != 3)
@@ -3323,7 +3323,7 @@ void NewInterpreter::Execute_Operation_POPF(CPU* cpu)
   }
 }
 
-void NewInterpreter::Execute_Operation_HLT(CPU* cpu)
+void Interpreter::Execute_Operation_HLT(CPU* cpu)
 {
   // HLT is a privileged instruction
   if ((cpu->InProtectedMode() && cpu->GetCPL() != 0) || cpu->InVirtual8086Mode())
@@ -3335,7 +3335,7 @@ void NewInterpreter::Execute_Operation_HLT(CPU* cpu)
   cpu->SetHalted(true);
 }
 
-void NewInterpreter::Execute_Operation_CBW(CPU* cpu)
+void Interpreter::Execute_Operation_CBW(CPU* cpu)
 {
   if (cpu->idata.operand_size == OperandSize_16)
   {
@@ -3353,7 +3353,7 @@ void NewInterpreter::Execute_Operation_CBW(CPU* cpu)
   }
 }
 
-void NewInterpreter::Execute_Operation_CWD(CPU* cpu)
+void Interpreter::Execute_Operation_CWD(CPU* cpu)
 {
   if (cpu->idata.operand_size == OperandSize_16)
   {
@@ -3371,7 +3371,7 @@ void NewInterpreter::Execute_Operation_CWD(CPU* cpu)
   }
 }
 
-void NewInterpreter::Execute_Operation_XLAT(CPU* cpu)
+void Interpreter::Execute_Operation_XLAT(CPU* cpu)
 {
   uint8 value;
   if (cpu->idata.address_size == AddressSize_16)
@@ -3392,7 +3392,7 @@ void NewInterpreter::Execute_Operation_XLAT(CPU* cpu)
   cpu->m_registers.AL = value;
 }
 
-void NewInterpreter::Execute_Operation_AAA(CPU* cpu)
+void Interpreter::Execute_Operation_AAA(CPU* cpu)
 {
   if ((cpu->m_registers.AL & 0xF) > 0x09 || cpu->m_registers.EFLAGS.AF)
   {
@@ -3413,7 +3413,7 @@ void NewInterpreter::Execute_Operation_AAA(CPU* cpu)
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
 }
 
-void NewInterpreter::Execute_Operation_AAS(CPU* cpu)
+void Interpreter::Execute_Operation_AAS(CPU* cpu)
 {
   if ((cpu->m_registers.AL & 0xF) > 0x09 || cpu->m_registers.EFLAGS.AF)
   {
@@ -3435,7 +3435,7 @@ void NewInterpreter::Execute_Operation_AAS(CPU* cpu)
 }
 
 template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
-void NewInterpreter::Execute_Operation_AAM(CPU* cpu)
+void Interpreter::Execute_Operation_AAM(CPU* cpu)
 {
   CalculateEffectiveAddress<op_mode>(cpu);
 
@@ -3459,7 +3459,7 @@ void NewInterpreter::Execute_Operation_AAM(CPU* cpu)
 }
 
 template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
-void NewInterpreter::Execute_Operation_AAD(CPU* cpu)
+void Interpreter::Execute_Operation_AAD(CPU* cpu)
 {
   CalculateEffectiveAddress<op_mode>(cpu);
 
@@ -3478,7 +3478,7 @@ void NewInterpreter::Execute_Operation_AAD(CPU* cpu)
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
 }
 
-void NewInterpreter::Execute_Operation_DAA(CPU* cpu)
+void Interpreter::Execute_Operation_DAA(CPU* cpu)
 {
   uint8 old_AL = cpu->m_registers.AL;
   bool old_CF = cpu->m_registers.EFLAGS.CF;
@@ -3510,7 +3510,7 @@ void NewInterpreter::Execute_Operation_DAA(CPU* cpu)
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
 }
 
-void NewInterpreter::Execute_Operation_DAS(CPU* cpu)
+void Interpreter::Execute_Operation_DAS(CPU* cpu)
 {
   uint8 old_AL = cpu->m_registers.AL;
   bool old_CF = cpu->m_registers.EFLAGS.CF;
@@ -3539,7 +3539,7 @@ void NewInterpreter::Execute_Operation_DAS(CPU* cpu)
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_BSWAP(CPU* cpu)
+void Interpreter::Execute_Operation_BSWAP(CPU* cpu)
 {
   CalculateEffectiveAddress<val_mode>(cpu);
 
@@ -3558,7 +3558,7 @@ void NewInterpreter::Execute_Operation_BSWAP(CPU* cpu)
 }
 
 template<OperandSize addr_size, OperandMode addr_mode, uint32 addr_constant>
-void NewInterpreter::Execute_Operation_INVLPG(CPU* cpu)
+void Interpreter::Execute_Operation_INVLPG(CPU* cpu)
 {
   if (cpu->InVirtual8086Mode() || (cpu->InProtectedMode() && cpu->GetCPL() != 0))
   {
@@ -3573,7 +3573,7 @@ void NewInterpreter::Execute_Operation_INVLPG(CPU* cpu)
 
 template<OperandSize addr_size, OperandMode addr_mode, uint32 addr_constant, OperandSize table_size,
          OperandMode table_mode, uint32 table_constant>
-void NewInterpreter::Execute_Operation_BOUND(CPU* cpu)
+void Interpreter::Execute_Operation_BOUND(CPU* cpu)
 {
   CalculateEffectiveAddress<addr_mode>(cpu);
   CalculateEffectiveAddress<table_mode>(cpu);
@@ -3607,7 +3607,7 @@ void NewInterpreter::Execute_Operation_BOUND(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_ARPL(CPU* cpu)
+void Interpreter::Execute_Operation_ARPL(CPU* cpu)
 {
   static_assert(src_size == OperandSize_16 && dst_size == OperandSize_16, "operand sizes are 16-bits");
   if (cpu->InRealMode() || cpu->InVirtual8086Mode())
@@ -3634,7 +3634,7 @@ void NewInterpreter::Execute_Operation_ARPL(CPU* cpu)
 }
 
 template<Operation operation, OperandSize selector_size, OperandMode selector_mode, uint32 selector_constant>
-void NewInterpreter::Execute_Operation_VERx(CPU* cpu)
+void Interpreter::Execute_Operation_VERx(CPU* cpu)
 {
   static_assert(selector_size == OperandSize_16, "selector size is 16-bits");
   CalculateEffectiveAddress<selector_mode>(cpu);
@@ -3685,20 +3685,20 @@ void NewInterpreter::Execute_Operation_VERx(CPU* cpu)
 }
 
 template<OperandSize selector_size, OperandMode selector_mode, uint32 selector_constant>
-void NewInterpreter::Execute_Operation_VERW(CPU* cpu)
+void Interpreter::Execute_Operation_VERW(CPU* cpu)
 {
   Execute_Operation_VERx<Operation_VERW, selector_size, selector_mode, selector_constant>(cpu);
 }
 
 template<OperandSize selector_size, OperandMode selector_mode, uint32 selector_constant>
-void NewInterpreter::Execute_Operation_VERR(CPU* cpu)
+void Interpreter::Execute_Operation_VERR(CPU* cpu)
 {
   Execute_Operation_VERx<Operation_VERR, selector_size, selector_mode, selector_constant>(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize selector_size,
          OperandMode selector_mode, uint32 selector_constant>
-void NewInterpreter::Execute_Operation_LSL(CPU* cpu)
+void Interpreter::Execute_Operation_LSL(CPU* cpu)
 {
   static_assert(selector_size == OperandSize_16, "selector size is 16-bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -3769,7 +3769,7 @@ void NewInterpreter::Execute_Operation_LSL(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize selector_size,
          OperandMode selector_mode, uint32 selector_constant>
-void NewInterpreter::Execute_Operation_LAR(CPU* cpu)
+void Interpreter::Execute_Operation_LAR(CPU* cpu)
 {
   static_assert(selector_size == OperandSize_16, "selector size is 16-bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -3825,7 +3825,7 @@ void NewInterpreter::Execute_Operation_LAR(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_LIDT(CPU* cpu)
+void Interpreter::Execute_Operation_LIDT(CPU* cpu)
 {
   if (cpu->GetCPL() != 0)
   {
@@ -3846,7 +3846,7 @@ void NewInterpreter::Execute_Operation_LIDT(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_LGDT(CPU* cpu)
+void Interpreter::Execute_Operation_LGDT(CPU* cpu)
 {
   if (cpu->GetCPL() != 0)
   {
@@ -3867,7 +3867,7 @@ void NewInterpreter::Execute_Operation_LGDT(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_LLDT(CPU* cpu)
+void Interpreter::Execute_Operation_LLDT(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
 
@@ -3888,7 +3888,7 @@ void NewInterpreter::Execute_Operation_LLDT(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_LTR(CPU* cpu)
+void Interpreter::Execute_Operation_LTR(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
 
@@ -3909,7 +3909,7 @@ void NewInterpreter::Execute_Operation_LTR(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_SIDT(CPU* cpu)
+void Interpreter::Execute_Operation_SIDT(CPU* cpu)
 {
   uint32 idt_address = Truncate32(cpu->m_idt_location.base_address);
   uint16 idt_limit = Truncate16(cpu->m_idt_location.limit);
@@ -3929,7 +3929,7 @@ void NewInterpreter::Execute_Operation_SIDT(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_SGDT(CPU* cpu)
+void Interpreter::Execute_Operation_SGDT(CPU* cpu)
 {
   uint32 gdt_address = Truncate32(cpu->m_gdt_location.base_address);
   uint16 gdt_limit = Truncate16(cpu->m_gdt_location.limit);
@@ -3949,7 +3949,7 @@ void NewInterpreter::Execute_Operation_SGDT(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_SLDT(CPU* cpu)
+void Interpreter::Execute_Operation_SLDT(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
@@ -3963,7 +3963,7 @@ void NewInterpreter::Execute_Operation_SLDT(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_STR(CPU* cpu)
+void Interpreter::Execute_Operation_STR(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
@@ -3977,7 +3977,7 @@ void NewInterpreter::Execute_Operation_STR(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_LMSW(CPU* cpu)
+void Interpreter::Execute_Operation_LMSW(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
   if (cpu->GetCPL() != 0)
@@ -3992,7 +3992,7 @@ void NewInterpreter::Execute_Operation_LMSW(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_SMSW(CPU* cpu)
+void Interpreter::Execute_Operation_SMSW(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
@@ -4002,7 +4002,7 @@ void NewInterpreter::Execute_Operation_SMSW(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant, OperandSize count_size, OperandMode count_mode, uint32 count_constant>
-void NewInterpreter::Execute_Operation_SHLD(CPU* cpu)
+void Interpreter::Execute_Operation_SHLD(CPU* cpu)
 {
   static_assert(dst_size == src_size && count_size == OperandSize_8, "args are correct size");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -4058,7 +4058,7 @@ void NewInterpreter::Execute_Operation_SHLD(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant, OperandSize count_size, OperandMode count_mode, uint32 count_constant>
-void NewInterpreter::Execute_Operation_SHRD(CPU* cpu)
+void Interpreter::Execute_Operation_SHRD(CPU* cpu)
 {
   static_assert(dst_size == src_size && count_size == OperandSize_8, "args are correct size");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -4113,7 +4113,7 @@ void NewInterpreter::Execute_Operation_SHRD(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_XADD(CPU* cpu)
+void Interpreter::Execute_Operation_XADD(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -4158,7 +4158,7 @@ void NewInterpreter::Execute_Operation_XADD(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_CMPXCHG(CPU* cpu)
+void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -4230,7 +4230,7 @@ void NewInterpreter::Execute_Operation_CMPXCHG(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_BSR(CPU* cpu)
+void Interpreter::Execute_Operation_BSR(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -4275,7 +4275,7 @@ void NewInterpreter::Execute_Operation_BSR(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_BSF(CPU* cpu)
+void Interpreter::Execute_Operation_BSF(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -4320,35 +4320,35 @@ void NewInterpreter::Execute_Operation_BSF(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_BTC(CPU* cpu)
+void Interpreter::Execute_Operation_BTC(CPU* cpu)
 {
   Execute_Operation_BTx<Operation_BTC, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_BTR(CPU* cpu)
+void Interpreter::Execute_Operation_BTR(CPU* cpu)
 {
   Execute_Operation_BTx<Operation_BTR, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_BTS(CPU* cpu)
+void Interpreter::Execute_Operation_BTS(CPU* cpu)
 {
   Execute_Operation_BTx<Operation_BTS, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_BT(CPU* cpu)
+void Interpreter::Execute_Operation_BT(CPU* cpu)
 {
   Execute_Operation_BTx<Operation_BT, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
 }
 
 template<Operation operation, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size,
          OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_BTx(CPU* cpu)
+void Interpreter::Execute_Operation_BTx(CPU* cpu)
 {
   static_assert(dst_mode == OperandMode_ModRM_RM, "dst_mode is modrm r/m");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -4477,7 +4477,7 @@ void NewInterpreter::Execute_Operation_BTx(CPU* cpu)
 }
 
 template<bool check_equal, typename callback>
-void NewInterpreter::Execute_REP(CPU* cpu, callback cb)
+void Interpreter::Execute_REP(CPU* cpu, callback cb)
 {
   // We can execute this instruction as a non-rep.
   if (!cpu->idata.has_rep)
@@ -4546,7 +4546,7 @@ void NewInterpreter::Execute_REP(CPU* cpu, callback cb)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_INS(CPU* cpu)
+void Interpreter::Execute_Operation_INS(CPU* cpu)
 {
   // TODO: Move the port number check out of the loop.
   Execute_REP<false>(cpu, [](CPU* cpu) {
@@ -4620,7 +4620,7 @@ void NewInterpreter::Execute_Operation_INS(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_OUTS(CPU* cpu)
+void Interpreter::Execute_Operation_OUTS(CPU* cpu)
 {
   Execute_REP<false>(cpu, [](CPU* cpu) {
     const Segment segment = cpu->idata.segment;
@@ -4691,7 +4691,7 @@ void NewInterpreter::Execute_Operation_OUTS(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_SCAS(CPU* cpu)
+void Interpreter::Execute_Operation_SCAS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
   Execute_REP<true>(cpu, [](CPU* cpu) {
@@ -4746,7 +4746,7 @@ void NewInterpreter::Execute_Operation_SCAS(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_LODS(CPU* cpu)
+void Interpreter::Execute_Operation_LODS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
   Execute_REP<false>(cpu, [](CPU* cpu) {
@@ -4799,7 +4799,7 @@ void NewInterpreter::Execute_Operation_LODS(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_STOS(CPU* cpu)
+void Interpreter::Execute_Operation_STOS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
   Execute_REP<false>(cpu, [](CPU* cpu) {
@@ -4851,7 +4851,7 @@ void NewInterpreter::Execute_Operation_STOS(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_CMPS(CPU* cpu)
+void Interpreter::Execute_Operation_CMPS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
   Execute_REP<true>(cpu, [](CPU* cpu) {
@@ -4922,7 +4922,7 @@ void NewInterpreter::Execute_Operation_CMPS(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_MOVS(CPU* cpu)
+void Interpreter::Execute_Operation_MOVS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
   Execute_REP<false>(cpu, [](CPU* cpu) {
@@ -4990,7 +4990,7 @@ void NewInterpreter::Execute_Operation_MOVS(CPU* cpu)
 
 template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size,
          OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_CMOVcc(CPU* cpu)
+void Interpreter::Execute_Operation_CMOVcc(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -5018,7 +5018,7 @@ void NewInterpreter::Execute_Operation_CMOVcc(CPU* cpu)
 }
 
 template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_SETcc(CPU* cpu)
+void Interpreter::Execute_Operation_SETcc(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
@@ -5028,7 +5028,7 @@ void NewInterpreter::Execute_Operation_SETcc(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_MOV_TR(CPU* cpu)
+void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
 {
   static_assert((src_mode == OperandMode_ModRM_TestRegister && dst_mode == OperandMode_ModRM_RM) ||
                   (src_mode == OperandMode_ModRM_RM && dst_mode == OperandMode_ModRM_TestRegister),
@@ -5099,7 +5099,7 @@ void NewInterpreter::Execute_Operation_MOV_TR(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_MOV_DR(CPU* cpu)
+void Interpreter::Execute_Operation_MOV_DR(CPU* cpu)
 {
   static_assert((src_mode == OperandMode_ModRM_DebugRegister && dst_mode == OperandMode_ModRM_RM) ||
                   (src_mode == OperandMode_ModRM_RM && dst_mode == OperandMode_ModRM_DebugRegister),
@@ -5142,7 +5142,7 @@ void NewInterpreter::Execute_Operation_MOV_DR(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_MOV_CR(CPU* cpu)
+void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
 {
   static_assert((src_mode == OperandMode_ModRM_ControlRegister && dst_mode == OperandMode_ModRM_RM) ||
                   (src_mode == OperandMode_ModRM_RM && dst_mode == OperandMode_ModRM_ControlRegister),
@@ -5235,7 +5235,7 @@ void NewInterpreter::Execute_Operation_MOV_CR(CPU* cpu)
   }
 }
 
-void NewInterpreter::Execute_Operation_WBINVD(CPU* cpu)
+void Interpreter::Execute_Operation_WBINVD(CPU* cpu)
 {
   if (cpu->InVirtual8086Mode() || (cpu->InProtectedMode() && cpu->GetCPL() != 0))
   {
@@ -5246,12 +5246,12 @@ void NewInterpreter::Execute_Operation_WBINVD(CPU* cpu)
   // Log_WarningPrintf("WBINVD instruction");
 }
 
-void NewInterpreter::Execute_Operation_WAIT(CPU* cpu)
+void Interpreter::Execute_Operation_WAIT(CPU* cpu)
 {
   cpu->CheckFloatingPointException();
 }
 
-void NewInterpreter::Execute_Operation_RDTSC(CPU* cpu)
+void Interpreter::Execute_Operation_RDTSC(CPU* cpu)
 {
   // TSD flag in CR4 controls whether this is privileged or unprivileged
   // Log_WarningPrintf("RDTSC instruction");
@@ -5259,7 +5259,7 @@ void NewInterpreter::Execute_Operation_RDTSC(CPU* cpu)
   cpu->m_registers.EAX = 0;
 }
 
-void NewInterpreter::Execute_Operation_LOADALL_286(CPU* cpu)
+void Interpreter::Execute_Operation_LOADALL_286(CPU* cpu)
 {
 #pragma pack(push, 1)
   union LOADALL_286_TABLE

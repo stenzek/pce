@@ -519,6 +519,6 @@ void CodeCacheBackend::InterpretUncachedBlock()
   // This isn't our "formal" block exit, but it's a point where we know we'll be in a good state.
   m_branched = false;
   while (!m_branched)
-    NewInterpreterBackend::ExecuteInstruction(m_cpu);
+    InterpreterBackend::ExecuteInstruction(m_cpu);
 }
 } // namespace CPU_X86

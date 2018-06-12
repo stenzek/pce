@@ -14,18 +14,18 @@
 #endif
 
 namespace CPU_X86 {
-Log_SetChannel(CPU_X86::NewInterpreter);
+Log_SetChannel(CPU_X86::Interpreter);
 
 extern bool TRACE_EXECUTION;
 extern uint32 TRACE_EXECUTION_LAST_EIP;
 
-NewInterpreterBackend::NewInterpreterBackend(CPU* cpu) : m_cpu(cpu), m_system(cpu->GetSystem()), m_bus(cpu->GetBus()) {}
+InterpreterBackend::InterpreterBackend(CPU* cpu) : m_cpu(cpu), m_system(cpu->GetSystem()), m_bus(cpu->GetBus()) {}
 
-NewInterpreterBackend::~NewInterpreterBackend() {}
+InterpreterBackend::~InterpreterBackend() {}
 
-void NewInterpreterBackend::Reset() {}
+void InterpreterBackend::Reset() {}
 
-void NewInterpreterBackend::Execute()
+void InterpreterBackend::Execute()
 {
   fastjmp_set(&m_jmp_buf);
 
@@ -42,22 +42,22 @@ void NewInterpreterBackend::Execute()
   }
 }
 
-void NewInterpreterBackend::AbortCurrentInstruction()
+void InterpreterBackend::AbortCurrentInstruction()
 {
   // Log_WarningPrintf("Executing longjmp()");
   m_cpu->CommitPendingCycles();
   fastjmp_jmp(&m_jmp_buf);
 }
 
-void NewInterpreterBackend::BranchTo(uint32 new_EIP) {}
+void InterpreterBackend::BranchTo(uint32 new_EIP) {}
 
-void NewInterpreterBackend::BranchFromException(uint32 new_EIP) {}
+void InterpreterBackend::BranchFromException(uint32 new_EIP) {}
 
-void NewInterpreterBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) {}
+void InterpreterBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) {}
 
-void NewInterpreterBackend::FlushCodeCache() {}
+void InterpreterBackend::FlushCodeCache() {}
 
-void NewInterpreterBackend::ExecuteInstruction(CPU* cpu)
+void InterpreterBackend::ExecuteInstruction(CPU* cpu)
 {
   // The instruction that sets the trap flag should not trigger an interrupt.
   // To handle this, we store the trap flag state before processing the instruction.
@@ -103,7 +103,7 @@ void NewInterpreterBackend::ExecuteInstruction(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::RaiseInvalidOpcode(CPU* cpu)
+void InterpreterBackend::RaiseInvalidOpcode(CPU* cpu)
 {
   // This set is only here because of the Print call. RaiseException will reset it itself.
   // cpu->m_registers.EIP = cpu->m_current_EIP;
@@ -111,13 +111,13 @@ void NewInterpreterBackend::RaiseInvalidOpcode(CPU* cpu)
   cpu->RaiseException(Interrupt_InvalidOpcode);
 }
 
-void NewInterpreterBackend::FetchModRM(CPU* cpu)
+void InterpreterBackend::FetchModRM(CPU* cpu)
 {
   cpu->idata.modrm = cpu->FetchInstructionByte();
 }
 
 template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
-void CPU_X86::NewInterpreterBackend::FetchImmediate(CPU* cpu)
+void CPU_X86::InterpreterBackend::FetchImmediate(CPU* cpu)
 {
   switch (op_mode)
   {
@@ -284,7 +284,7 @@ namespace CPU_X86 {
 
 #define MakeNoOperands(opcode, inst)                                                                                   \
   case opcode:                                                                                                         \
-    NewInterpreter::Execute_##inst(cpu);                                                                               \
+    Interpreter::Execute_##inst(cpu);                                                                                  \
     return;
 #define MakeOneOperand(opcode, inst, op1)                                                                              \
   case opcode:                                                                                                         \
@@ -292,7 +292,7 @@ namespace CPU_X86 {
       FetchModRM(cpu);                                                                                                 \
     if constexpr (OperandMode_NeedsImmediate(op1))                                                                     \
       FetchImmediate<op1>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<op1>(cpu);                                                                          \
+    Interpreter::Execute_##inst<op1>(cpu);                                                                             \
     return;
 #define MakeOneOperandCC(opcode, inst, cc, op1)                                                                        \
   case opcode:                                                                                                         \
@@ -300,7 +300,7 @@ namespace CPU_X86 {
       FetchModRM(cpu);                                                                                                 \
     if constexpr (OperandMode_NeedsImmediate(op1))                                                                     \
       FetchImmediate<op1>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<cc, op1>(cpu);                                                                      \
+    Interpreter::Execute_##inst<cc, op1>(cpu);                                                                         \
     return;
 #define MakeTwoOperands(opcode, inst, op1, op2)                                                                        \
   case opcode:                                                                                                         \
@@ -310,7 +310,7 @@ namespace CPU_X86 {
       FetchImmediate<op1>(cpu);                                                                                        \
     if constexpr (OperandMode_NeedsImmediate(op2))                                                                     \
       FetchImmediate<op2>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<op1, op2>(cpu);                                                                     \
+    Interpreter::Execute_##inst<op1, op2>(cpu);                                                                        \
     return;
 #define MakeTwoOperandsCC(opcode, inst, cc, op1, op2)                                                                  \
   case opcode:                                                                                                         \
@@ -320,7 +320,7 @@ namespace CPU_X86 {
       FetchImmediate<op1>(cpu);                                                                                        \
     if constexpr (OperandMode_NeedsImmediate(op2))                                                                     \
       FetchImmediate<op2>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<cc, op1, op2>(cpu);                                                                 \
+    Interpreter::Execute_##inst<cc, op1, op2>(cpu);                                                                    \
     return;
 #define MakeThreeOperands(opcode, inst, op1, op2, op3)                                                                 \
   case opcode:                                                                                                         \
@@ -332,7 +332,7 @@ namespace CPU_X86 {
       FetchImmediate<op2>(cpu);                                                                                        \
     if constexpr (OperandMode_NeedsImmediate(op3))                                                                     \
       FetchImmediate<op3>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<op1, op2, op3>(cpu);                                                                \
+    Interpreter::Execute_##inst<op1, op2, op3>(cpu);                                                                   \
     return;
 #define MakeExtension(opcode, prefix)                                                                                  \
   case opcode:                                                                                                         \
@@ -347,7 +347,7 @@ namespace CPU_X86 {
     Dispatch_Prefix_##prefix(cpu);                                                                                     \
     return;
 
-void NewInterpreterBackend::Dispatch_Base(CPU* cpu)
+void InterpreterBackend::Dispatch_Base(CPU* cpu)
 {
   for (;;)
   {
@@ -369,7 +369,7 @@ void NewInterpreterBackend::Dispatch_Base(CPU* cpu)
 #undef MakeExtension
 #undef MakeX87Extension
 
-void NewInterpreterBackend::Dispatch_Prefix_0f(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_0f(CPU* cpu)
 {
   for (;;)
   {
@@ -391,19 +391,19 @@ void NewInterpreterBackend::Dispatch_Prefix_0f(CPU* cpu)
 #undef MakeThreeOperands
 #define MakeNoOperands(opcode, inst)                                                                                   \
   case opcode:                                                                                                         \
-    NewInterpreter::Execute_##inst(cpu);                                                                               \
+    Interpreter::Execute_##inst(cpu);                                                                                  \
     return;
 #define MakeOneOperand(opcode, inst, op1)                                                                              \
   case opcode:                                                                                                         \
     if constexpr (OperandMode_NeedsImmediate(op1))                                                                     \
       FetchImmediate<op1>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<op1>(cpu);                                                                          \
+    Interpreter::Execute_##inst<op1>(cpu);                                                                             \
     return;
 #define MakeOneOperandCC(opcode, inst, cc, op1)                                                                        \
   case opcode:                                                                                                         \
     if constexpr (OperandMode_NeedsImmediate(op1))                                                                     \
       FetchImmediate<op1>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<cc, op1>(cpu);                                                                      \
+    Interpreter::Execute_##inst<cc, op1>(cpu);                                                                         \
     return;
 #define MakeTwoOperands(opcode, inst, op1, op2)                                                                        \
   case opcode:                                                                                                         \
@@ -411,7 +411,7 @@ void NewInterpreterBackend::Dispatch_Prefix_0f(CPU* cpu)
       FetchImmediate<op1>(cpu);                                                                                        \
     if constexpr (OperandMode_NeedsImmediate(op2))                                                                     \
       FetchImmediate<op2>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<op1, op2>(cpu);                                                                     \
+    Interpreter::Execute_##inst<op1, op2>(cpu);                                                                        \
     return;
 #define MakeTwoOperandsCC(opcode, inst, cc, op1, op2)                                                                  \
   case opcode:                                                                                                         \
@@ -419,7 +419,7 @@ void NewInterpreterBackend::Dispatch_Prefix_0f(CPU* cpu)
       FetchImmediate<op1>(cpu);                                                                                        \
     if constexpr (OperandMode_NeedsImmediate(op2))                                                                     \
       FetchImmediate<op2>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<cc, op1, op2>(cpu);                                                                 \
+    Interpreter::Execute_##inst<cc, op1, op2>(cpu);                                                                    \
     return;
 #define MakeThreeOperands(opcode, inst, op1, op2, op3)                                                                 \
   case opcode:                                                                                                         \
@@ -429,10 +429,10 @@ void NewInterpreterBackend::Dispatch_Prefix_0f(CPU* cpu)
       FetchImmediate<op2>(cpu);                                                                                        \
     if constexpr (OperandMode_NeedsImmediate(op3))                                                                     \
       FetchImmediate<op3>(cpu);                                                                                        \
-    NewInterpreter::Execute_##inst<op1, op2, op3>(cpu);                                                                \
+    Interpreter::Execute_##inst<op1, op2, op3>(cpu);                                                                   \
     return;
 
-void NewInterpreterBackend::Dispatch_Prefix_0f00(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_0f00(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -441,7 +441,7 @@ void NewInterpreterBackend::Dispatch_Prefix_0f00(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_0f01(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_0f01(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -450,7 +450,7 @@ void NewInterpreterBackend::Dispatch_Prefix_0f01(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_0fba(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_0fba(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -459,7 +459,7 @@ void NewInterpreterBackend::Dispatch_Prefix_0fba(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_80(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_80(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -468,7 +468,7 @@ void NewInterpreterBackend::Dispatch_Prefix_80(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_81(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_81(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -477,7 +477,7 @@ void NewInterpreterBackend::Dispatch_Prefix_81(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_82(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_82(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -486,7 +486,7 @@ void NewInterpreterBackend::Dispatch_Prefix_82(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_83(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_83(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -495,7 +495,7 @@ void NewInterpreterBackend::Dispatch_Prefix_83(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_c0(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_c0(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -504,7 +504,7 @@ void NewInterpreterBackend::Dispatch_Prefix_c0(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_c1(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_c1(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -513,7 +513,7 @@ void NewInterpreterBackend::Dispatch_Prefix_c1(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_d0(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_d0(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -522,7 +522,7 @@ void NewInterpreterBackend::Dispatch_Prefix_d0(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_d1(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_d1(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -531,7 +531,7 @@ void NewInterpreterBackend::Dispatch_Prefix_d1(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_d2(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_d2(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -540,7 +540,7 @@ void NewInterpreterBackend::Dispatch_Prefix_d2(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_d3(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_d3(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -553,10 +553,10 @@ void NewInterpreterBackend::Dispatch_Prefix_d3(CPU* cpu)
 #define MakeInvalidX87Opcode(opcode)                                                                                   \
   case opcode:                                                                                                         \
     FetchImmediate<OperandSize_Count, OperandMode_ModRM_RM, 0>(cpu);                                                   \
-    NewInterpreter::StartX87Instruction(cpu);                                                                          \
+    Interpreter::StartX87Instruction(cpu);                                                                             \
     return;
 
-void NewInterpreterBackend::Dispatch_Prefix_d8(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_d8(CPU* cpu)
 {
   FetchModRM(cpu);
   if (!cpu->idata.ModRM_RM_IsReg())
@@ -575,7 +575,7 @@ void NewInterpreterBackend::Dispatch_Prefix_d8(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_d9(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_d9(CPU* cpu)
 {
   FetchModRM(cpu);
   if (!cpu->idata.ModRM_RM_IsReg())
@@ -594,7 +594,7 @@ void NewInterpreterBackend::Dispatch_Prefix_d9(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_da(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_da(CPU* cpu)
 {
   FetchModRM(cpu);
   if (!cpu->idata.ModRM_RM_IsReg())
@@ -613,7 +613,7 @@ void NewInterpreterBackend::Dispatch_Prefix_da(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_db(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_db(CPU* cpu)
 {
   FetchModRM(cpu);
   if (!cpu->idata.ModRM_RM_IsReg())
@@ -632,7 +632,7 @@ void NewInterpreterBackend::Dispatch_Prefix_db(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_dc(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_dc(CPU* cpu)
 {
   FetchModRM(cpu);
   if (!cpu->idata.ModRM_RM_IsReg())
@@ -651,7 +651,7 @@ void NewInterpreterBackend::Dispatch_Prefix_dc(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_dd(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_dd(CPU* cpu)
 {
   FetchModRM(cpu);
   if (!cpu->idata.ModRM_RM_IsReg())
@@ -670,7 +670,7 @@ void NewInterpreterBackend::Dispatch_Prefix_dd(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_de(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_de(CPU* cpu)
 {
   FetchModRM(cpu);
   if (!cpu->idata.ModRM_RM_IsReg())
@@ -689,7 +689,7 @@ void NewInterpreterBackend::Dispatch_Prefix_de(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_df(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_df(CPU* cpu)
 {
   FetchModRM(cpu);
   if (!cpu->idata.ModRM_RM_IsReg())
@@ -708,7 +708,7 @@ void NewInterpreterBackend::Dispatch_Prefix_df(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_f6(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_f6(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -717,7 +717,7 @@ void NewInterpreterBackend::Dispatch_Prefix_f6(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_f7(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_f7(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -726,7 +726,7 @@ void NewInterpreterBackend::Dispatch_Prefix_f7(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_fe(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_fe(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)
@@ -735,7 +735,7 @@ void NewInterpreterBackend::Dispatch_Prefix_fe(CPU* cpu)
   }
 }
 
-void NewInterpreterBackend::Dispatch_Prefix_ff(CPU* cpu)
+void InterpreterBackend::Dispatch_Prefix_ff(CPU* cpu)
 {
   FetchModRM(cpu);
   switch (cpu->idata.GetModRM_Reg() & 0x07)

@@ -15,7 +15,7 @@
 #endif
 
 namespace CPU_X86 {
-void NewInterpreter::StartX87Instruction(CPU* cpu)
+void Interpreter::StartX87Instruction(CPU* cpu)
 {
   if ((cpu->m_registers.CR0 & CR0Bit_EM) || (cpu->m_registers.CR0 & (CR0Bit_MP | CR0Bit_TS)) == (CR0Bit_MP | CR0Bit_TS))
   {
@@ -28,7 +28,7 @@ void NewInterpreter::StartX87Instruction(CPU* cpu)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-floatx80 NewInterpreter::ReadFloatOperand(CPU* cpu, float_status_t& fs)
+floatx80 Interpreter::ReadFloatOperand(CPU* cpu, float_status_t& fs)
 {
   if constexpr (mode == OperandMode_FPRegister)
   {
@@ -76,7 +76,7 @@ floatx80 NewInterpreter::ReadFloatOperand(CPU* cpu, float_status_t& fs)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-floatx80 NewInterpreter::ReadIntegerOperandAsFloat(CPU* cpu, float_status_t& fs)
+floatx80 Interpreter::ReadIntegerOperandAsFloat(CPU* cpu, float_status_t& fs)
 {
   // Only memory-based addressing is valid.
   static_assert(mode == OperandMode_Memory || mode == OperandMode_ModRM_RM, "only can use memory-based addressing");
@@ -102,7 +102,7 @@ floatx80 NewInterpreter::ReadIntegerOperandAsFloat(CPU* cpu, float_status_t& fs)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-void NewInterpreter::WriteFloatOperand(CPU* cpu, float_status_t& fs, const floatx80& value)
+void Interpreter::WriteFloatOperand(CPU* cpu, float_status_t& fs, const floatx80& value)
 {
   if constexpr (mode == OperandMode_FPRegister)
   {
@@ -142,7 +142,7 @@ void NewInterpreter::WriteFloatOperand(CPU* cpu, float_status_t& fs, const float
   }
 }
 
-void NewInterpreter::CheckFloatStackOverflow(CPU* cpu)
+void Interpreter::CheckFloatStackOverflow(CPU* cpu)
 {
   // overflow = write, underflow = read
   uint8 index = (cpu->m_fpu_registers.SW.TOP - 1) & 7;
@@ -155,7 +155,7 @@ void NewInterpreter::CheckFloatStackOverflow(CPU* cpu)
   }
 }
 
-void NewInterpreter::CheckFloatStackUnderflow(CPU* cpu, uint8 relative_index)
+void Interpreter::CheckFloatStackUnderflow(CPU* cpu, uint8 relative_index)
 {
   uint8 index = (cpu->m_fpu_registers.SW.TOP + relative_index) & 7;
   if (cpu->m_fpu_registers.TW.IsEmpty(index))
@@ -167,20 +167,20 @@ void NewInterpreter::CheckFloatStackUnderflow(CPU* cpu, uint8 relative_index)
   }
 }
 
-void NewInterpreter::PushFloatStack(CPU* cpu)
+void Interpreter::PushFloatStack(CPU* cpu)
 {
   uint8 top = (cpu->m_fpu_registers.SW.TOP - 1) & 7;
   cpu->m_fpu_registers.SW.TOP = top;
 }
 
-void NewInterpreter::PopFloatStack(CPU* cpu)
+void Interpreter::PopFloatStack(CPU* cpu)
 {
   uint8 top = cpu->m_fpu_registers.SW.TOP;
   cpu->m_fpu_registers.SW.TOP = (top + 1) & 7;
   cpu->m_fpu_registers.TW.SetEmpty(top);
 }
 
-floatx80 NewInterpreter::ReadFloatRegister(CPU* cpu, uint8 relative_index)
+floatx80 Interpreter::ReadFloatRegister(CPU* cpu, uint8 relative_index)
 {
   uint8 index = (cpu->m_fpu_registers.SW.TOP + relative_index) & 7;
   floatx80 ret;
@@ -188,8 +188,7 @@ floatx80 NewInterpreter::ReadFloatRegister(CPU* cpu, uint8 relative_index)
   return ret;
 }
 
-void NewInterpreter::WriteFloatRegister(CPU* cpu, uint8 relative_index, const floatx80& value,
-                                        bool update_tag /*= true*/)
+void Interpreter::WriteFloatRegister(CPU* cpu, uint8 relative_index, const floatx80& value, bool update_tag /*= true*/)
 {
   uint8 index = (cpu->m_fpu_registers.SW.TOP + relative_index) & 7;
   std::memcpy(&cpu->m_fpu_registers.ST[index], &value, sizeof(float80));
@@ -197,7 +196,7 @@ void NewInterpreter::WriteFloatRegister(CPU* cpu, uint8 relative_index, const fl
     UpdateFloatTagRegister(cpu, index);
 }
 
-void NewInterpreter::UpdateFloatTagRegister(CPU* cpu, uint8 index)
+void Interpreter::UpdateFloatTagRegister(CPU* cpu, uint8 index)
 {
   // TODO: Defer updating tag word until FXSAVE
   const floatx80& fx80 = reinterpret_cast<const floatx80&>(cpu->m_fpu_registers.ST[index]);
@@ -214,7 +213,7 @@ void NewInterpreter::UpdateFloatTagRegister(CPU* cpu, uint8 index)
   }
 }
 
-float_status_t NewInterpreter::GetFloatStatus(CPU* cpu)
+float_status_t Interpreter::GetFloatStatus(CPU* cpu)
 {
   static const int precision_lut[] = {32, 64, 80, 80};
 
@@ -230,7 +229,7 @@ float_status_t NewInterpreter::GetFloatStatus(CPU* cpu)
   return ret;
 }
 
-void NewInterpreter::RaiseFloatExceptions(CPU* cpu, const float_status_t& fs)
+void Interpreter::RaiseFloatExceptions(CPU* cpu, const float_status_t& fs)
 {
   if (fs.float_exception_flags == 0)
     return;
@@ -280,13 +279,13 @@ void NewInterpreter::RaiseFloatExceptions(CPU* cpu, const float_status_t& fs)
   }
 }
 
-void NewInterpreter::UpdateC1Status(CPU* cpu, const float_status_t& fs)
+void Interpreter::UpdateC1Status(CPU* cpu, const float_status_t& fs)
 {
   // C1 <- 1 if rounded up, otherwise 0
   cpu->m_fpu_registers.SW.C1 = 0;
 }
 
-void NewInterpreter::Execute_Operation_FNINIT(CPU* cpu)
+void Interpreter::Execute_Operation_FNINIT(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
@@ -298,7 +297,7 @@ void NewInterpreter::Execute_Operation_FNINIT(CPU* cpu)
   // TRACE_EXECUTION = true;
 }
 
-void NewInterpreter::Execute_Operation_FNCLEX(CPU* cpu)
+void Interpreter::Execute_Operation_FNCLEX(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
@@ -307,44 +306,44 @@ void NewInterpreter::Execute_Operation_FNCLEX(CPU* cpu)
   cpu->m_fpu_registers.SW.bits &= ~uint16((1 << 15) | 0b11111111);
 }
 
-void NewInterpreter::Execute_Operation_FNOP(CPU* cpu)
+void Interpreter::Execute_Operation_FNOP(CPU* cpu)
 {
   StartX87Instruction(cpu);
 }
 
-void NewInterpreter::Execute_Operation_FNENI(CPU* cpu)
-{
-  // No-op on 80287+.
-  StartX87Instruction(cpu);
-}
-
-void NewInterpreter::Execute_Operation_FNDISI(CPU* cpu)
+void Interpreter::Execute_Operation_FNENI(CPU* cpu)
 {
   // No-op on 80287+.
   StartX87Instruction(cpu);
 }
 
-void NewInterpreter::Execute_Operation_FSETPM(CPU* cpu)
+void Interpreter::Execute_Operation_FNDISI(CPU* cpu)
+{
+  // No-op on 80287+.
+  StartX87Instruction(cpu);
+}
+
+void Interpreter::Execute_Operation_FSETPM(CPU* cpu)
 {
   // No-op on 80387+.
   StartX87Instruction(cpu);
 }
 
-void NewInterpreter::Execute_Operation_FINCSTP(CPU* cpu)
+void Interpreter::Execute_Operation_FINCSTP(CPU* cpu)
 {
   StartX87Instruction(cpu);
   cpu->m_fpu_registers.SW.TOP = (cpu->m_fpu_registers.SW.TOP + 1) & 7;
   cpu->m_fpu_registers.SW.C1 = 0;
 }
 
-void NewInterpreter::Execute_Operation_FDECSTP(CPU* cpu)
+void Interpreter::Execute_Operation_FDECSTP(CPU* cpu)
 {
   StartX87Instruction(cpu);
   cpu->m_fpu_registers.SW.TOP = (cpu->m_fpu_registers.SW.TOP - 1) & 7;
   cpu->m_fpu_registers.SW.C1 = 0;
 }
 
-void NewInterpreter::Execute_Operation_FABS(CPU* cpu)
+void Interpreter::Execute_Operation_FABS(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
@@ -359,7 +358,7 @@ void NewInterpreter::Execute_Operation_FABS(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FADD(CPU* cpu)
+void Interpreter::Execute_Operation_FADD(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -378,14 +377,14 @@ void NewInterpreter::Execute_Operation_FADD(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FADDP(CPU* cpu)
+void Interpreter::Execute_Operation_FADDP(CPU* cpu)
 {
   Execute_Operation_FADD<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
   PopFloatStack(cpu);
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_FBLD(CPU* cpu)
+void Interpreter::Execute_Operation_FBLD(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
@@ -422,7 +421,7 @@ void NewInterpreter::Execute_Operation_FBLD(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FBSTP(CPU* cpu)
+void Interpreter::Execute_Operation_FBSTP(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu);
@@ -478,7 +477,7 @@ void NewInterpreter::Execute_Operation_FBSTP(CPU* cpu)
   PopFloatStack(cpu);
 }
 
-void NewInterpreter::Execute_Operation_FCHS(CPU* cpu)
+void Interpreter::Execute_Operation_FCHS(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
@@ -491,7 +490,7 @@ void NewInterpreter::Execute_Operation_FCHS(CPU* cpu)
   cpu->m_fpu_registers.SW.C1 = 0;
 }
 
-void NewInterpreter::SetStatusWordFromCompare(CPU* cpu, const float_status_t& fs, int res)
+void Interpreter::SetStatusWordFromCompare(CPU* cpu, const float_status_t& fs, int res)
 {
   // Condition flags should be set to unordered if an unmasked exception occurs.
   cpu->m_fpu_registers.SW.C3 = 1;
@@ -524,7 +523,7 @@ void NewInterpreter::SetStatusWordFromCompare(CPU* cpu, const float_status_t& fs
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant, bool quiet>
-void NewInterpreter::Execute_Operation_FCOM(CPU* cpu)
+void Interpreter::Execute_Operation_FCOM(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -546,7 +545,7 @@ void NewInterpreter::Execute_Operation_FCOM(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant, bool quiet>
-void NewInterpreter::Execute_Operation_FCOMP(CPU* cpu)
+void Interpreter::Execute_Operation_FCOMP(CPU* cpu)
 {
   Execute_Operation_FCOM<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant, quiet>(cpu);
   PopFloatStack(cpu);
@@ -554,7 +553,7 @@ void NewInterpreter::Execute_Operation_FCOMP(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant, bool quiet>
-void NewInterpreter::Execute_Operation_FCOMPP(CPU* cpu)
+void Interpreter::Execute_Operation_FCOMPP(CPU* cpu)
 {
   Execute_Operation_FCOM<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant, quiet>(cpu);
   PopFloatStack(cpu);
@@ -563,26 +562,26 @@ void NewInterpreter::Execute_Operation_FCOMPP(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FUCOM(CPU* cpu)
+void Interpreter::Execute_Operation_FUCOM(CPU* cpu)
 {
   Execute_Operation_FCOM<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant, true>(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FUCOMP(CPU* cpu)
+void Interpreter::Execute_Operation_FUCOMP(CPU* cpu)
 {
   Execute_Operation_FCOMP<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant, true>(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FUCOMPP(CPU* cpu)
+void Interpreter::Execute_Operation_FUCOMPP(CPU* cpu)
 {
   Execute_Operation_FCOMPP<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant, true>(cpu);
 }
 
-void NewInterpreter::Execute_Operation_FTST(CPU* cpu)
+void Interpreter::Execute_Operation_FTST(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
@@ -595,7 +594,7 @@ void NewInterpreter::Execute_Operation_FTST(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FDIV(CPU* cpu)
+void Interpreter::Execute_Operation_FDIV(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -614,7 +613,7 @@ void NewInterpreter::Execute_Operation_FDIV(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FDIVP(CPU* cpu)
+void Interpreter::Execute_Operation_FDIVP(CPU* cpu)
 {
   Execute_Operation_FDIV<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
   PopFloatStack(cpu);
@@ -622,7 +621,7 @@ void NewInterpreter::Execute_Operation_FDIVP(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FDIVR(CPU* cpu)
+void Interpreter::Execute_Operation_FDIVR(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -641,14 +640,14 @@ void NewInterpreter::Execute_Operation_FDIVR(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FDIVRP(CPU* cpu)
+void Interpreter::Execute_Operation_FDIVRP(CPU* cpu)
 {
   Execute_Operation_FDIVR<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
   PopFloatStack(cpu);
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_FFREE(CPU* cpu)
+void Interpreter::Execute_Operation_FFREE(CPU* cpu)
 {
   static_assert(val_mode == OperandMode_FPRegister && val_constant < countof(cpu->m_fpu_registers.ST),
                 "mode is FP register");
@@ -658,7 +657,7 @@ void NewInterpreter::Execute_Operation_FFREE(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FIADD(CPU* cpu)
+void Interpreter::Execute_Operation_FIADD(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -677,7 +676,7 @@ void NewInterpreter::Execute_Operation_FIADD(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FIMUL(CPU* cpu)
+void Interpreter::Execute_Operation_FIMUL(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -696,7 +695,7 @@ void NewInterpreter::Execute_Operation_FIMUL(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FIDIV(CPU* cpu)
+void Interpreter::Execute_Operation_FIDIV(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -715,7 +714,7 @@ void NewInterpreter::Execute_Operation_FIDIV(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FIDIVR(CPU* cpu)
+void Interpreter::Execute_Operation_FIDIVR(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -734,7 +733,7 @@ void NewInterpreter::Execute_Operation_FIDIVR(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant, bool quiet>
-void NewInterpreter::Execute_Operation_FICOM(CPU* cpu)
+void Interpreter::Execute_Operation_FICOM(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -756,14 +755,14 @@ void NewInterpreter::Execute_Operation_FICOM(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FICOMP(CPU* cpu)
+void Interpreter::Execute_Operation_FICOMP(CPU* cpu)
 {
   Execute_Operation_FICOM<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
   PopFloatStack(cpu);
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_FILD(CPU* cpu)
+void Interpreter::Execute_Operation_FILD(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
@@ -777,7 +776,7 @@ void NewInterpreter::Execute_Operation_FILD(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FIST(CPU* cpu)
+void Interpreter::Execute_Operation_FIST(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16 || dst_size == OperandSize_32 || dst_size == OperandSize_64,
                 "dst_size is 16/32/64 bits");
@@ -819,7 +818,7 @@ void NewInterpreter::Execute_Operation_FIST(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FISTP(CPU* cpu)
+void Interpreter::Execute_Operation_FISTP(CPU* cpu)
 {
   Execute_Operation_FIST<dst_size, dst_mode, dst_constant>(cpu);
   PopFloatStack(cpu);
@@ -827,20 +826,20 @@ void NewInterpreter::Execute_Operation_FISTP(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FISUB(CPU* cpu)
+void Interpreter::Execute_Operation_FISUB(CPU* cpu)
 {
   Panic("Not Implemented");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FISUBR(CPU* cpu)
+void Interpreter::Execute_Operation_FISUBR(CPU* cpu)
 {
   Panic("Not Implemented");
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_FLD(CPU* cpu)
+void Interpreter::Execute_Operation_FLD(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
@@ -854,7 +853,7 @@ void NewInterpreter::Execute_Operation_FLD(CPU* cpu)
   WriteFloatRegister(cpu, 0, value, true);
 }
 
-void NewInterpreter::Execute_Operation_FLD1(CPU* cpu)
+void Interpreter::Execute_Operation_FLD1(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackOverflow(cpu);
@@ -864,7 +863,7 @@ void NewInterpreter::Execute_Operation_FLD1(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_FLDCW(CPU* cpu)
+void Interpreter::Execute_Operation_FLDCW(CPU* cpu)
 {
   static_assert(src_size == OperandSize_16, "src size is 16-bits");
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -875,12 +874,12 @@ void NewInterpreter::Execute_Operation_FLDCW(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_FLDENV(CPU* cpu)
+void Interpreter::Execute_Operation_FLDENV(CPU* cpu)
 {
   Panic("Not Implemented");
 }
 
-void NewInterpreter::Execute_Operation_FLDL2E(CPU* cpu)
+void Interpreter::Execute_Operation_FLDL2E(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackOverflow(cpu);
@@ -889,7 +888,7 @@ void NewInterpreter::Execute_Operation_FLDL2E(CPU* cpu)
                      floatx80_round_const(Const_L2E, (cpu->m_fpu_registers.CW.RC & FPURoundingControl_Down) ? -1 : 0));
 }
 
-void NewInterpreter::Execute_Operation_FLDL2T(CPU* cpu)
+void Interpreter::Execute_Operation_FLDL2T(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackOverflow(cpu);
@@ -898,7 +897,7 @@ void NewInterpreter::Execute_Operation_FLDL2T(CPU* cpu)
                      floatx80_round_const(Const_L2T, (cpu->m_fpu_registers.CW.RC == FPURoundingControl_Up) ? 1 : 0));
 }
 
-void NewInterpreter::Execute_Operation_FLDLG2(CPU* cpu)
+void Interpreter::Execute_Operation_FLDLG2(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackOverflow(cpu);
@@ -907,7 +906,7 @@ void NewInterpreter::Execute_Operation_FLDLG2(CPU* cpu)
                      floatx80_round_const(Const_LG2, (cpu->m_fpu_registers.CW.RC & FPURoundingControl_Down) ? -1 : 0));
 }
 
-void NewInterpreter::Execute_Operation_FLDLN2(CPU* cpu)
+void Interpreter::Execute_Operation_FLDLN2(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackOverflow(cpu);
@@ -916,7 +915,7 @@ void NewInterpreter::Execute_Operation_FLDLN2(CPU* cpu)
                      floatx80_round_const(Const_LN2, (cpu->m_fpu_registers.CW.RC & FPURoundingControl_Down) ? -1 : 0));
 }
 
-void NewInterpreter::Execute_Operation_FLDPI(CPU* cpu)
+void Interpreter::Execute_Operation_FLDPI(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackOverflow(cpu);
@@ -925,7 +924,7 @@ void NewInterpreter::Execute_Operation_FLDPI(CPU* cpu)
                      floatx80_round_const(Const_PI, (cpu->m_fpu_registers.CW.RC & FPURoundingControl_Down) ? -1 : 0));
 }
 
-void NewInterpreter::Execute_Operation_FLDZ(CPU* cpu)
+void Interpreter::Execute_Operation_FLDZ(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackOverflow(cpu);
@@ -935,7 +934,7 @@ void NewInterpreter::Execute_Operation_FLDZ(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FMUL(CPU* cpu)
+void Interpreter::Execute_Operation_FMUL(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -954,14 +953,14 @@ void NewInterpreter::Execute_Operation_FMUL(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FMULP(CPU* cpu)
+void Interpreter::Execute_Operation_FMULP(CPU* cpu)
 {
   Execute_Operation_FMUL<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
   PopFloatStack(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FNSAVE(CPU* cpu)
+void Interpreter::Execute_Operation_FNSAVE(CPU* cpu)
 {
   // this seems buggy.
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1042,7 +1041,7 @@ void NewInterpreter::Execute_Operation_FNSAVE(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void NewInterpreter::Execute_Operation_FRSTOR(CPU* cpu)
+void Interpreter::Execute_Operation_FRSTOR(CPU* cpu)
 {
   // this seems buggy.
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -1131,7 +1130,7 @@ void NewInterpreter::Execute_Operation_FRSTOR(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FNSTCW(CPU* cpu)
+void Interpreter::Execute_Operation_FNSTCW(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16, "dst_size is 16 bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1141,13 +1140,13 @@ void NewInterpreter::Execute_Operation_FNSTCW(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FNSTENV(CPU* cpu)
+void Interpreter::Execute_Operation_FNSTENV(CPU* cpu)
 {
   Panic("Not Implemented");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FNSTSW(CPU* cpu)
+void Interpreter::Execute_Operation_FNSTSW(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16, "dst_size is 16 bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1157,7 +1156,7 @@ void NewInterpreter::Execute_Operation_FNSTSW(CPU* cpu)
 }
 
 template<bool ieee754>
-void NewInterpreter::Execute_Operation_FPREM(CPU* cpu)
+void Interpreter::Execute_Operation_FPREM(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
@@ -1187,12 +1186,12 @@ void NewInterpreter::Execute_Operation_FPREM(CPU* cpu)
   }
 }
 
-void NewInterpreter::Execute_Operation_FPREM1(CPU* cpu)
+void Interpreter::Execute_Operation_FPREM1(CPU* cpu)
 {
   Execute_Operation_FPREM<true>(cpu);
 }
 
-void NewInterpreter::Execute_Operation_FPTAN(CPU* cpu)
+void Interpreter::Execute_Operation_FPTAN(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1212,7 +1211,7 @@ void NewInterpreter::Execute_Operation_FPTAN(CPU* cpu)
   WriteFloatRegister(cpu, 0, floatx80_is_nan(val) ? val : Const_1);
 }
 
-void NewInterpreter::Execute_Operation_FRNDINT(CPU* cpu)
+void Interpreter::Execute_Operation_FRNDINT(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1226,7 +1225,7 @@ void NewInterpreter::Execute_Operation_FRNDINT(CPU* cpu)
   WriteFloatRegister(cpu, 0, res);
 }
 
-void NewInterpreter::Execute_Operation_FSCALE(CPU* cpu)
+void Interpreter::Execute_Operation_FSCALE(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1241,7 +1240,7 @@ void NewInterpreter::Execute_Operation_FSCALE(CPU* cpu)
   WriteFloatRegister(cpu, 0, res);
 }
 
-void NewInterpreter::Execute_Operation_FSQRT(CPU* cpu)
+void Interpreter::Execute_Operation_FSQRT(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1256,7 +1255,7 @@ void NewInterpreter::Execute_Operation_FSQRT(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FST(CPU* cpu)
+void Interpreter::Execute_Operation_FST(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu);
@@ -1270,7 +1269,7 @@ void NewInterpreter::Execute_Operation_FST(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FSTCW(CPU* cpu)
+void Interpreter::Execute_Operation_FSTCW(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16, "dst is 16-bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1280,20 +1279,20 @@ void NewInterpreter::Execute_Operation_FSTCW(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FSTENV(CPU* cpu)
+void Interpreter::Execute_Operation_FSTENV(CPU* cpu)
 {
   Panic("Not Implemented");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FSTP(CPU* cpu)
+void Interpreter::Execute_Operation_FSTP(CPU* cpu)
 {
   Execute_Operation_FST<dst_size, dst_mode, dst_constant>(cpu);
   PopFloatStack(cpu);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void NewInterpreter::Execute_Operation_FSTSW(CPU* cpu)
+void Interpreter::Execute_Operation_FSTSW(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16, "dst is 16-bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -1304,7 +1303,7 @@ void NewInterpreter::Execute_Operation_FSTSW(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FSUB(CPU* cpu)
+void Interpreter::Execute_Operation_FSUB(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -1323,7 +1322,7 @@ void NewInterpreter::Execute_Operation_FSUB(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FSUBP(CPU* cpu)
+void Interpreter::Execute_Operation_FSUBP(CPU* cpu)
 {
   Execute_Operation_FSUB<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
   PopFloatStack(cpu);
@@ -1331,7 +1330,7 @@ void NewInterpreter::Execute_Operation_FSUBP(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FSUBR(CPU* cpu)
+void Interpreter::Execute_Operation_FSUBR(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -1350,13 +1349,13 @@ void NewInterpreter::Execute_Operation_FSUBR(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
-void NewInterpreter::Execute_Operation_FSUBRP(CPU* cpu)
+void Interpreter::Execute_Operation_FSUBRP(CPU* cpu)
 {
   Execute_Operation_FSUBR<dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
   PopFloatStack(cpu);
 }
 
-void NewInterpreter::Execute_Operation_FXAM(CPU* cpu)
+void Interpreter::Execute_Operation_FXAM(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
@@ -1419,7 +1418,7 @@ void NewInterpreter::Execute_Operation_FXAM(CPU* cpu)
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
-void NewInterpreter::Execute_Operation_FXCH(CPU* cpu)
+void Interpreter::Execute_Operation_FXCH(CPU* cpu)
 {
   static_assert(val_mode == OperandMode_FPRegister && val_constant < countof(cpu->m_fpu_registers.ST),
                 "val_mode is FP register");
@@ -1436,12 +1435,12 @@ void NewInterpreter::Execute_Operation_FXCH(CPU* cpu)
   WriteFloatRegister(cpu, 0, stn, true);
 }
 
-void NewInterpreter::Execute_Operation_FXTRACT(CPU* cpu)
+void Interpreter::Execute_Operation_FXTRACT(CPU* cpu)
 {
   Panic("Not Implemented");
 }
 
-void NewInterpreter::Execute_Operation_FPATAN(CPU* cpu)
+void Interpreter::Execute_Operation_FPATAN(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1457,7 +1456,7 @@ void NewInterpreter::Execute_Operation_FPATAN(CPU* cpu)
   PopFloatStack(cpu);
 }
 
-void NewInterpreter::Execute_Operation_F2XM1(CPU* cpu)
+void Interpreter::Execute_Operation_F2XM1(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1470,7 +1469,7 @@ void NewInterpreter::Execute_Operation_F2XM1(CPU* cpu)
   WriteFloatRegister(cpu, 0, res);
 }
 
-void NewInterpreter::Execute_Operation_FYL2X(CPU* cpu)
+void Interpreter::Execute_Operation_FYL2X(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1486,7 +1485,7 @@ void NewInterpreter::Execute_Operation_FYL2X(CPU* cpu)
   PopFloatStack(cpu);
 }
 
-void NewInterpreter::Execute_Operation_FYL2XP1(CPU* cpu)
+void Interpreter::Execute_Operation_FYL2XP1(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1501,7 +1500,7 @@ void NewInterpreter::Execute_Operation_FYL2XP1(CPU* cpu)
   WriteFloatRegister(cpu, 1, res);
 }
 
-void NewInterpreter::Execute_Operation_FCOS(CPU* cpu)
+void Interpreter::Execute_Operation_FCOS(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1519,7 +1518,7 @@ void NewInterpreter::Execute_Operation_FCOS(CPU* cpu)
   WriteFloatRegister(cpu, 0, val);
 }
 
-void NewInterpreter::Execute_Operation_FSIN(CPU* cpu)
+void Interpreter::Execute_Operation_FSIN(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1537,7 +1536,7 @@ void NewInterpreter::Execute_Operation_FSIN(CPU* cpu)
   WriteFloatRegister(cpu, 0, val);
 }
 
-void NewInterpreter::Execute_Operation_FSINCOS(CPU* cpu)
+void Interpreter::Execute_Operation_FSINCOS(CPU* cpu)
 {
   StartX87Instruction(cpu);
   CheckFloatStackUnderflow(cpu, 0);

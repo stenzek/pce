@@ -8,7 +8,7 @@
 #include <softfloatx80.h>
 
 namespace CPU_X86 {
-class NewInterpreter
+class Interpreter
 {
 private:
   // Raises undefined opcode exception.

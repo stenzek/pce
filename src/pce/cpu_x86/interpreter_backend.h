@@ -4,11 +4,11 @@
 #include "pce/fastjmp.h"
 
 namespace CPU_X86 {
-class NewInterpreterBackend : public Backend
+class InterpreterBackend : public Backend
 {
 public:
-  NewInterpreterBackend(CPU* cpu);
-  ~NewInterpreterBackend();
+  InterpreterBackend(CPU* cpu);
+  ~InterpreterBackend();
 
   void Reset() override;
   void Execute() override;

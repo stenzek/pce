@@ -24,8 +24,8 @@ class CPU : public CPUBase
   friend class DebuggerInterface;
   friend class CodeCacheBackend;
   friend class CachedInterpreterBackend;
-  friend class NewInterpreter;
-  friend class NewInterpreterBackend;
+  friend class Interpreter;
+  friend class InterpreterBackend;
   friend class JitX64Backend;
   friend class JitX64CodeGenerator;
 

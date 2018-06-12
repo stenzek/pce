@@ -444,7 +444,7 @@ void CPU::CreateBackend()
   {
     case CPUBackendType::Interpreter:
       Log_InfoPrintf("Switching to interpreter backend.");
-      m_backend = std::make_unique<NewInterpreterBackend>(this);
+      m_backend = std::make_unique<InterpreterBackend>(this);
       break;
 
     case CPUBackendType::CachedInterpreter:
