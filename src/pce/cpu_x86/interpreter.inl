@@ -3270,8 +3270,8 @@ void Interpreter::Execute_Operation_LAHF(CPU* cpu)
 
 void Interpreter::Execute_Operation_SAHF(CPU* cpu)
 {
-  uint16 flags = Truncate16(cpu->m_registers.EFLAGS.bits & 0xFF00) | ZeroExtend16(cpu->m_registers.AH);
-  cpu->SetFlags16(flags);
+  const uint32 change_mask = Flag_SF | Flag_ZF | Flag_AF | Flag_CF | Flag_PF;
+  cpu->SetFlags((cpu->m_registers.EFLAGS.bits & ~change_mask) | (ZeroExtend32(cpu->m_registers.AH) & change_mask));
 }
 
 void Interpreter::Execute_Operation_PUSHF(CPU* cpu)
@@ -3307,20 +3307,33 @@ void Interpreter::Execute_Operation_POPF(CPU* cpu)
     return;
   }
 
+  // Pop flags off stack, leaving top 16 bits intact for 16-bit instructions.
+  uint32 flags = 0;
   if (cpu->idata.operand_size == OperandSize_16)
-  {
-    uint16 flags = cpu->PopWord();
-    cpu->SetFlags16(flags);
-  }
+    flags = (cpu->m_registers.EFLAGS.bits & 0xFFFF0000) | ZeroExtend32(cpu->PopWord());
   else if (cpu->idata.operand_size == OperandSize_32)
+    flags = cpu->PopDWord();
+  else
+    DebugUnreachableCode();
+
+  // Some flags can't be changed if we're not in CPL=0.
+  uint32 change_mask =
+    Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_DF | Flag_OF | Flag_NT | Flag_AC | Flag_ID;
+  if (cpu->InProtectedMode())
   {
-    uint32 flags = cpu->PopDWord();
-    cpu->SetFlags(flags);
+    if (cpu->GetCPL() <= cpu->GetIOPL())
+      change_mask |= Flag_IF;
+    if (cpu->GetCPL() == 0)
+      change_mask |= Flag_IOPL;
   }
   else
   {
-    DebugUnreachableCode();
+    // Both can be updated in real mode.
+    change_mask |= Flag_IF | Flag_IOPL;
   }
+
+  // Update flags.
+  cpu->SetFlags((flags & change_mask) | (cpu->m_registers.EFLAGS.bits & ~change_mask));
 }
 
 void Interpreter::Execute_Operation_HLT(CPU* cpu)
@@ -5356,7 +5369,7 @@ void Interpreter::Execute_Operation_LOADALL_286(CPU* cpu)
   if (table.MSW & CR0Bit_PE)
     cpu->m_registers.CR0 |= CR0Bit_PE;
 
-  cpu->SetFlags16(table.FLAGS);
+  cpu->SetFlags((cpu->m_registers.EFLAGS.bits & 0xFFFF0000) | ZeroExtend32(table.FLAGS));
   cpu->m_registers.IP = table.IP;
   cpu->m_registers.DS = table.DS_REG;
   cpu->m_registers.SS = table.SS_REG;

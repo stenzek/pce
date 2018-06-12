@@ -53,9 +53,12 @@ void CPU::Reset()
 
   // IOPL NT, reserved are 1 on 8086
   m_registers.EFLAGS.bits = 0;
-  // m_registers.EFLAGS.bits |= Flag_IOPL;
-  // m_registers.EFLAGS.bits |= Flag_NT;
-  // m_registers.EFLAGS.bits |= (1 << 15);
+  if (m_model == MODEL_8086)
+  {
+    m_registers.EFLAGS.bits |= Flag_IOPL;
+    m_registers.EFLAGS.bits |= Flag_NT;
+    m_registers.EFLAGS.bits |= (1 << 15);
+  }
   m_registers.EFLAGS.bits |= Flag_Reserved;
 
   // Load default GDT/IDT locations
@@ -707,64 +710,41 @@ uint32 CPU::PopDWord()
   return ReadMemoryDWord(linear_address);
 }
 
-void CPU::SetFlags16(uint16 value)
-{
-  // Preserve upper bits
-  SetFlags((m_registers.EFLAGS.bits & 0xFFFF0000) | ZeroExtend32(value));
-}
-
 void CPU::SetFlags(uint32 value)
 {
   // Don't clear/set all flags, only those allowed
   uint32 MASK = Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_IF | Flag_DF | Flag_OF;
 
-  if (m_model >= MODEL_386)
+  if (m_model >= MODEL_PENTIUM)
   {
-    // IOPL flag is 286+
-    // Nested task flag can't be set in real mode on a 286
+    // ID is Pentium+
+    MASK |= Flag_IOPL | Flag_NT | Flag_AC | Flag_ID;
+  }
+  if (m_model >= MODEL_486)
+  {
+    // AC is 486+
+    MASK |= Flag_IOPL | Flag_NT | Flag_AC;
+  }
+  else if (m_model >= MODEL_386)
+  {
     MASK |= Flag_IOPL | Flag_NT;
   }
-  else if (m_model == MODEL_286)
+  else
   {
-    MASK |= Flag_IOPL;
-    if (InProtectedMode())
-      MASK |= Flag_NT;
-  }
-
-  // IOPL can only be changed at CPL=0
-  if (GetCPL() != 0)
-  {
-    if ((m_registers.EFLAGS.bits & Flag_IOPL) != (value & Flag_IOPL))
-      Log_WarningPrintf("Blocked IOPL change");
-
-    MASK &= ~Flag_IOPL;
-  }
-
-  // IF can't be changed in protected mode when IOPL<CPL
-  if (InProtectedMode() && GetIOPL() < GetCPL())
-  {
-    if ((m_registers.EFLAGS.bits & Flag_IF) != (value & Flag_IF))
-      Log_WarningPrintf("Blocked IF change");
-
-    MASK &= ~Flag_IF;
-  }
-
-  if ((m_registers.EFLAGS.bits & Flag_IOPL) != (value & Flag_IOPL))
-    Log_WarningPrintf("IOPL change %u -> %u", (m_registers.EFLAGS.bits >> 12) & 3, (value >> 12) & 3);
-
-  if ((value & Flag_NT) != (m_registers.EFLAGS.bits & Flag_NT))
-    Log_WarningPrintf("NT change");
-
-  // AC check can only be set on a 486 and CPL=0
-  if (m_model >= MODEL_486)
-    MASK |= Flag_AC;
-
-  // Clear upper bits on <386
-  if (m_model < MODEL_386)
+    // Clear upper bits on <386
     value &= 0x0000FFFF;
 
-  m_registers.EFLAGS.bits &= ~MASK;
-  m_registers.EFLAGS.bits |= (value & MASK);
+    if (m_model == MODEL_286)
+    {
+      // IOPL flag is 286+
+      // Nested task flag can't be set in real mode on a 286
+      MASK |= Flag_IOPL;
+      if (InProtectedMode())
+        MASK |= Flag_NT;
+    }
+  }
+
+  m_registers.EFLAGS.bits = (value & MASK) | (m_registers.EFLAGS.bits & ~MASK);
 }
 
 void CPU::SetHalted(bool halt)
@@ -1484,7 +1464,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     else
     {
       // V8086 mode uses DPL=3, and makes the segment valid
-      segment_cache->dpl = 0;
+      segment_cache->dpl = 3;
       if (segment == Segment_CS)
       {
         segment_cache->access.is_code = true;
@@ -2509,14 +2489,12 @@ void CPU::InterruptReturn(OperandSize operand_size)
       LoadSegmentRegister(Segment_DS, v86_DS);
       LoadSegmentRegister(Segment_FS, v86_FS);
       LoadSegmentRegister(Segment_GS, v86_GS);
-
-      // Set IOPL from the popped flags
-      m_registers.EFLAGS.bits &= ~Flag_IOPL;
-      m_registers.EFLAGS.bits |= return_EFLAGS & Flag_IOPL;
       SetFlags(return_EFLAGS);
+
       m_cpl = 3;
       m_tlb_user_supervisor_bit = BoolToUInt8(InSupervisorMode());
       m_registers.ESP = v86_ESP;
+
       BranchTo(return_EIP);
       return;
     }
@@ -2532,6 +2510,15 @@ void CPU::InterruptReturn(OperandSize operand_size)
     // Validate we can jump to this segment from here
     if (!CheckTargetCodeSegment(return_CS, 0, target_selector.rpl, true))
       return;
+
+    // Some flags can't be changed if we're not in CPL=0.
+    uint32 change_mask = Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_DF | Flag_OF | Flag_NT |
+                         Flag_RF | Flag_AC | Flag_ID;
+    if (GetCPL() <= GetIOPL())
+      change_mask |= Flag_IF;
+    if (GetCPL() == 0)
+      change_mask |= Flag_VIP | Flag_VIF | Flag_IOPL;
+    return_EFLAGS = (return_EFLAGS & change_mask) | (m_registers.EFLAGS.bits & ~change_mask);
 
     // Are we changing privilege levels?
     if (target_selector.rpl > GetCPL())
@@ -2554,12 +2541,6 @@ void CPU::InterruptReturn(OperandSize operand_size)
         outer_SS = Truncate16(PopDWord());
       }
 
-      // Set flags first, since this must be done with the old CPL
-      uint32 current_EFLAGS = m_registers.EFLAGS.bits;
-      SetFlags(return_EFLAGS);
-      uint32 actual_EFLAGS = m_registers.EFLAGS.bits;
-      m_registers.EFLAGS.bits = current_EFLAGS;
-
       // Change code segment and CPL
       LoadSegmentRegister(Segment_CS, return_CS);
 
@@ -2575,7 +2556,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
 
       // Finally now that we can't fail, sort out the registers
       // m_registers.ESP = outer_ESP;
-      m_registers.EFLAGS.bits = actual_EFLAGS;
+      SetFlags(return_EFLAGS);
 
       // Validate segments ES,FS,GS,DS so the kernel doesn't leak them
       static const Segment validate_segments[] = {Segment_ES, Segment_FS, Segment_GS, Segment_DS};

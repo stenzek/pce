@@ -365,7 +365,6 @@ protected:
   uint32 PopDWord();
 
   // Sets flags from a value, masking away bits that can't be changed
-  void SetFlags16(uint16 value);
   void SetFlags(uint32 value);
   void SetHalted(bool halt);
 

@@ -13,9 +13,11 @@ using VirtualMemoryAddress = uint32;
 enum Model : uint8
 {
   MODEL_8086,
+  MODEL_186,
   MODEL_286,
   MODEL_386,
-  MODEL_486
+  MODEL_486,
+  MODEL_PENTIUM
 };
 
 enum Reg8 : uint8
