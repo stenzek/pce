@@ -367,6 +367,8 @@ protected:
   // Sets flags from a value, masking away bits that can't be changed
   void SetFlags(uint32 value);
   void SetHalted(bool halt);
+  void UpdateAlignmentCheckMask();
+  void SetCPL(uint8 cpl);
 
   // Loads 80386+ control/debug/test registers
   void LoadSpecialRegister(Reg32 reg, uint32 value);
@@ -494,19 +496,22 @@ protected:
   uint8 m_cpl = 0;
 
   // Used to speed up TLB lookups, 0 - supervisor, 1 - user
-  uint8 m_tlb_user_supervisor_bit = 0;
+  uint8 m_tlb_user_bit = 0;
 
-  // Non-maskable interrupt line
-  bool m_nmi_state = false;
-
-  // External interrupt request line
-  bool m_irq_state = false;
+  // Whether alignment checking is enabled (AM bit of CR0 and AC bit of EFLAGS).
+  bool m_alignment_check_enabled = false;
 
   // Has pending floating-point exception, for WAIT instruction
   bool m_fpu_exception = false;
 
   // Halt state, when an interrupt request or nmi comes in this is reset
   bool m_halted = false;
+
+  // Non-maskable interrupt line
+  bool m_nmi_state = false;
+
+  // External interrupt request line
+  bool m_irq_state = false;
 
   // State of the trap flag at the beginning of an instruction. Not saved to state.
   bool m_trap_after_instruction = false;

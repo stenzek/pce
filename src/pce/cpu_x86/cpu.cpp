@@ -118,15 +118,14 @@ void CPU::Reset()
     m_registers.CR0 |= CR0Bit_CD | CR0Bit_NW | CR0Bit_ET;
 
   // Start at privilege level 0
-  m_cpl = 0;
-  m_tlb_user_supervisor_bit = 0;
+  SetCPL(0);
+  m_fpu_exception = false;
+  m_halted = false;
+  m_nmi_state = false;
 
   m_current_EIP = m_registers.EIP;
   m_current_ESP = m_registers.ESP;
   m_current_exception = Interrupt_Count;
-  m_nmi_state = false;
-  m_fpu_exception = false;
-  m_halted = false;
   m_trap_after_instruction = false;
 
   // x87 state
@@ -215,12 +214,13 @@ bool CPU::LoadState(BinaryReader& reader)
     ReadSegmentCache(&m_segment_cache[i]);
 
   reader.SafeReadUInt8(&m_cpl);
-  reader.SafeReadUInt8(&m_tlb_user_supervisor_bit);
+  reader.SafeReadUInt8(&m_tlb_user_bit);
+  reader.SafeReadBool(&m_alignment_check_enabled);
+  reader.SafeReadBool(&m_fpu_exception);
+  reader.SafeReadBool(&m_halted);
 
   reader.SafeReadBool(&m_nmi_state);
   reader.SafeReadBool(&m_irq_state);
-  reader.SafeReadBool(&m_fpu_exception);
-  reader.SafeReadBool(&m_halted);
 
 #ifdef ENABLE_TLB_EMULATION
   uint32 tlb_entry_count;
@@ -311,12 +311,13 @@ bool CPU::SaveState(BinaryWriter& writer)
     WriteSegmentCache(&m_segment_cache[i]);
 
   writer.WriteUInt8(m_cpl);
-  writer.WriteUInt8(m_tlb_user_supervisor_bit);
+  writer.WriteUInt8(m_tlb_user_bit);
+  writer.WriteBool(m_alignment_check_enabled);
+  writer.WriteBool(m_fpu_exception);
+  writer.WriteBool(m_halted);
 
   writer.WriteBool(m_nmi_state);
   writer.WriteBool(m_irq_state);
-  writer.WriteBool(m_fpu_exception);
-  writer.WriteBool(m_halted);
 
 #ifdef ENABLE_TLB_EMULATION
   writer.WriteUInt32(Truncate32(TLB_ENTRY_COUNT));
@@ -745,6 +746,7 @@ void CPU::SetFlags(uint32 value)
   }
 
   m_registers.EFLAGS.bits = (value & MASK) | (m_registers.EFLAGS.bits & ~MASK);
+  UpdateAlignmentCheckMask();
 }
 
 void CPU::SetHalted(bool halt)
@@ -753,6 +755,19 @@ void CPU::SetHalted(bool halt)
     Log_TracePrintf("CPU Halt");
 
   m_halted = halt;
+}
+
+void CPU::UpdateAlignmentCheckMask()
+{
+  m_alignment_check_enabled = InUserMode() && !!(m_registers.CR0 & CR0Bit_AM) && m_registers.EFLAGS.AC;
+  Assert(!m_alignment_check_enabled);
+}
+
+void CPU::SetCPL(uint8 cpl)
+{
+  m_cpl = cpl;
+  m_tlb_user_bit = BoolToUInt8(InUserMode());
+  UpdateAlignmentCheckMask();
 }
 
 void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
@@ -766,9 +781,11 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
 
       // 486 introduced WP bit
       if (m_model >= MODEL_486)
-        CHANGE_MASK |= CR0Bit_WP;
+        CHANGE_MASK |= CR0Bit_AM | CR0Bit_WP;
 
       Log_DevPrintf("CR0 <- 0x%08X", value);
+      value &= CHANGE_MASK;
+
       // Log_DevPrintf("  Protected mode: %s", ((value & CR0Bit_PE) != 0) ? "enabled" : "disabled");
       // Log_DevPrintf("  Paging: %s", ((value & CR0Bit_PG) != 0) ? "enabled" : "disabled");
 
@@ -787,15 +804,15 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
       if ((m_registers.CR0 & flush_mask) != (value & flush_mask))
         InvalidateAllTLBEntries();
 
-      m_registers.CR0 &= ~CHANGE_MASK;
-      m_registers.CR0 |= (value & CHANGE_MASK);
+      m_registers.CR0 = (m_registers.CR0 & ~CHANGE_MASK) | value;
+      UpdateAlignmentCheckMask();
 
+      // Transitioning to real mode?
       if (InRealMode())
       {
         // CPL is always zero in real mode
         // CPL will be updated when CS is loaded after switching to protected mode
-        m_cpl = 0;
-        m_tlb_user_supervisor_bit = 0;
+        SetCPL(0);
       }
 
       m_backend->OnControlRegisterLoaded(Reg32_CR0, old_value, m_registers.CR0);
@@ -872,7 +889,7 @@ bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, Li
 #ifdef ENABLE_TLB_EMULATION
   // Check TLB.
   size_t tlb_index = GetTLBEntryIndex(linear_address);
-  TLBEntry& tlb_entry = m_tlb_entries[m_tlb_user_supervisor_bit][static_cast<uint8>(access_type)][tlb_index];
+  TLBEntry& tlb_entry = m_tlb_entries[m_tlb_user_bit][static_cast<uint8>(access_type)][tlb_index];
   if (tlb_entry.linear_address == (linear_address & PAGE_MASK))
   {
     // TLB hit!
@@ -1022,42 +1039,60 @@ uint8 CPU::ReadMemoryByte(LinearMemoryAddress address)
 
 uint16 CPU::ReadMemoryWord(LinearMemoryAddress address)
 {
-  // TODO: Alignment access exception.
-  // if ((address & (sizeof(uint16) - 1)) != 0)
+  AddMemoryCycle();
 
-  // If the address falls within the same page we can still skip doing byte reads.
-  if ((address & PAGE_MASK) == ((address + sizeof(uint16) - 1) & PAGE_MASK))
+  // Unaligned access?
+  if ((address & (sizeof(uint16) - 1)) != 0)
   {
-    AddMemoryCycle();
-    PhysicalMemoryAddress physical_address;
-    TranslateLinearAddress(&physical_address, address, true, AccessType::Read, true);
-    return m_bus->ReadMemoryWord(physical_address);
+    // Alignment access exception.
+    if (m_alignment_check_enabled)
+    {
+      RaiseException(Interrupt_AlignmentCheck, 0);
+      return 0;
+    }
+
+    // If the address falls within the same page we can still skip doing byte reads.
+    if ((address & PAGE_MASK) != ((address + sizeof(uint16) - 1) & PAGE_MASK))
+    {
+      // Fall back to byte reads.
+      uint8 b0 = ReadMemoryByte(address + 0);
+      uint8 b1 = ReadMemoryByte(address + 1);
+      return ZeroExtend16(b0) | (ZeroExtend16(b1) << 8);
+    }
   }
 
-  // Fall back to byte reads.
-  uint8 b0 = ReadMemoryByte(address + 0);
-  uint8 b1 = ReadMemoryByte(address + 1);
-  return ZeroExtend16(b0) | (ZeroExtend16(b1) << 8);
+  PhysicalMemoryAddress physical_address;
+  TranslateLinearAddress(&physical_address, address, true, AccessType::Read, true);
+  return m_bus->ReadMemoryWord(physical_address);
 }
 
 uint32 CPU::ReadMemoryDWord(LinearMemoryAddress address)
 {
-  // TODO: Alignment access exception.
-  // if ((address & (sizeof(uint32) - 1)) != 0)
+  AddMemoryCycle();
 
-  // If the address falls within the same page we can still skip doing byte reads.
-  if ((address & PAGE_MASK) == ((address + sizeof(uint32) - 1) & PAGE_MASK))
+  // Unaligned access?
+  if ((address & (sizeof(uint32) - 1)) != 0)
   {
-    AddMemoryCycle();
-    PhysicalMemoryAddress physical_address;
-    TranslateLinearAddress(&physical_address, address, true, AccessType::Read, true);
-    return m_bus->ReadMemoryDWord(physical_address);
+    // Alignment access exception.
+    if (m_alignment_check_enabled)
+    {
+      RaiseException(Interrupt_AlignmentCheck, 0);
+      return 0;
+    }
+
+    // If the address falls within the same page we can still skip doing byte reads.
+    if ((address & PAGE_MASK) != ((address + sizeof(uint32) - 1) & PAGE_MASK))
+    {
+      // Fallback to word reads when it's split across pages.
+      uint16 w0 = ReadMemoryWord(address + 0);
+      uint16 w1 = ReadMemoryWord(address + 2);
+      return ZeroExtend32(w0) | (ZeroExtend32(w1) << 16);
+    }
   }
 
-  // Fallback to word reads when it's split across pages.
-  uint16 w0 = ReadMemoryWord(address + 0);
-  uint16 w1 = ReadMemoryWord(address + 2);
-  return ZeroExtend32(w0) | (ZeroExtend32(w1) << 16);
+  PhysicalMemoryAddress physical_address;
+  TranslateLinearAddress(&physical_address, address, true, AccessType::Read, true);
+  return m_bus->ReadMemoryDWord(physical_address);
 }
 
 void CPU::WriteMemoryByte(LinearMemoryAddress address, uint8 value)
@@ -1070,42 +1105,60 @@ void CPU::WriteMemoryByte(LinearMemoryAddress address, uint8 value)
 
 void CPU::WriteMemoryWord(LinearMemoryAddress address, uint16 value)
 {
-  // TODO: Alignment check exception.
-  // if ((address & (sizeof(uint16) - 1)) != 0)
+  AddMemoryCycle();
 
-  // If the address falls within the same page we can still skip doing byte reads.
-  if ((address & PAGE_MASK) == ((address + sizeof(uint16) - 1) & PAGE_MASK))
+  // Unaligned access?
+  if ((address & (sizeof(uint16) - 1)) != 0)
   {
-    AddMemoryCycle();
-    PhysicalMemoryAddress physical_address;
-    TranslateLinearAddress(&physical_address, address, true, AccessType::Write, true);
-    m_bus->WriteMemoryWord(physical_address, value);
-    return;
+    // Alignment access exception.
+    if (m_alignment_check_enabled)
+    {
+      RaiseException(Interrupt_AlignmentCheck, 0);
+      return;
+    }
+
+    // If the address falls within the same page we can still skip doing byte reads.
+    if ((address & PAGE_MASK) != ((address + sizeof(uint16) - 1) & PAGE_MASK))
+    {
+      // Slowest path here.
+      WriteMemoryByte((address + 0), Truncate8(value));
+      WriteMemoryByte((address + 1), Truncate8(value >> 8));
+      return;
+    }
   }
 
-  // Slowest path here.
-  WriteMemoryByte((address + 0), Truncate8(value));
-  WriteMemoryByte((address + 1), Truncate8(value >> 8));
+  PhysicalMemoryAddress physical_address;
+  TranslateLinearAddress(&physical_address, address, true, AccessType::Write, true);
+  m_bus->WriteMemoryWord(physical_address, value);
 }
 
 void CPU::WriteMemoryDWord(LinearMemoryAddress address, uint32 value)
 {
-  // TODO: Alignment access exception.
-  // if ((address & (sizeof(uint32) - 1)) != 0)
+  AddMemoryCycle();
 
-  // If the address falls within the same page we can still skip doing byte reads.
-  if ((address & PAGE_MASK) == ((address + sizeof(uint32) - 1) & PAGE_MASK))
+  // Unaligned access?
+  if ((address & (sizeof(uint32) - 1)) != 0)
   {
-    AddMemoryCycle();
-    PhysicalMemoryAddress physical_address;
-    TranslateLinearAddress(&physical_address, address, true, AccessType::Write, true);
-    m_bus->WriteMemoryDWord(physical_address, value);
-    return;
+    // Alignment access exception.
+    if (m_alignment_check_enabled)
+    {
+      RaiseException(Interrupt_AlignmentCheck, 0);
+      return;
+    }
+
+    // If the address falls within the same page we can still skip doing byte reads.
+    if ((address & PAGE_MASK) != ((address + sizeof(uint32) - 1) & PAGE_MASK))
+    {
+      // Fallback to word writes when it's split across pages.
+      WriteMemoryWord((address + 0), Truncate16(value));
+      WriteMemoryWord((address + 2), Truncate16(value >> 16));
+      return;
+    }
   }
 
-  // Fallback to word writes when it's split across pages.
-  WriteMemoryWord((address + 0), Truncate16(value));
-  WriteMemoryWord((address + 2), Truncate16(value >> 16));
+  PhysicalMemoryAddress physical_address;
+  TranslateLinearAddress(&physical_address, address, true, AccessType::Write, true);
+  m_bus->WriteMemoryDWord(physical_address, value);
 }
 
 uint8 CPU::ReadMemoryByte(Segment segment, VirtualMemoryAddress address)
@@ -1166,9 +1219,6 @@ bool CPU::SafeReadMemoryWord(LinearMemoryAddress address, uint16* value, bool ac
 {
   PhysicalMemoryAddress physical_address;
 
-  // TODO: Alignment access exception.
-  // if ((address & (sizeof(uint16) - 1)) != 0)
-
   // If the address falls within the same page we can still skip doing byte reads.
   if ((address & PAGE_MASK) == ((address + sizeof(uint16) - 1) & PAGE_MASK))
   {
@@ -1193,9 +1243,6 @@ bool CPU::SafeReadMemoryWord(LinearMemoryAddress address, uint16* value, bool ac
 bool CPU::SafeReadMemoryDWord(LinearMemoryAddress address, uint32* value, bool access_check, bool raise_page_fault)
 {
   PhysicalMemoryAddress physical_address;
-
-  // TODO: Alignment access exception.
-  // if ((address & (sizeof(uint32) - 1)) != 0)
 
   // If the address falls within the same page we can still skip doing byte reads.
   if ((address & PAGE_MASK) == ((address + sizeof(uint32) - 1) & PAGE_MASK))
@@ -1228,9 +1275,6 @@ bool CPU::SafeWriteMemoryWord(VirtualMemoryAddress address, uint16 value, bool a
 {
   PhysicalMemoryAddress physical_address;
 
-  // TODO: Alignment check exception.
-  // if ((address & (sizeof(uint16) - 1)) != 0)
-
   // If the address falls within the same page we can still skip doing byte reads.
   if ((address & PAGE_MASK) == ((address + sizeof(uint16) - 1) & PAGE_MASK))
   {
@@ -1248,9 +1292,6 @@ bool CPU::SafeWriteMemoryWord(VirtualMemoryAddress address, uint16 value, bool a
 bool CPU::SafeWriteMemoryDWord(VirtualMemoryAddress address, uint32 value, bool access_check, bool raise_page_fault)
 {
   PhysicalMemoryAddress physical_address;
-
-  // TODO: Alignment access exception.
-  // if ((address & (sizeof(uint32) - 1)) != 0)
 
   // If the address falls within the same page we can still skip doing byte reads.
   if ((address & PAGE_MASK) == ((address + sizeof(uint32) - 1) & PAGE_MASK))
@@ -1623,10 +1664,9 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     }
 
     // CPL is the selector's RPL
-    if (m_cpl != reg_value.rpl)
-      Log_DevPrintf("Privilege change: %u -> %u", ZeroExtend32(m_cpl), ZeroExtend32(reg_value.rpl.GetValue()));
-    m_cpl = reg_value.rpl;
-    m_tlb_user_supervisor_bit = BoolToUInt8(InSupervisorMode());
+    if (GetCPL() != reg_value.rpl)
+      Log_DevPrintf("Privilege change: %u -> %u", ZeroExtend32(GetCPL()), ZeroExtend32(reg_value.rpl.GetValue()));
+    SetCPL(reg_value.rpl);
     FlushPrefetchQueue();
   }
   else if (segment == Segment_SS)
@@ -1636,7 +1676,6 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     if (new_address_size != m_stack_address_size)
     {
       Log_DevPrintf("Switching to %s stack", (new_address_size == AddressSize_32) ? "32-bit" : "16-bit");
-
       m_stack_address_size = new_address_size;
     }
   }
@@ -2490,9 +2529,8 @@ void CPU::InterruptReturn(OperandSize operand_size)
       LoadSegmentRegister(Segment_FS, v86_FS);
       LoadSegmentRegister(Segment_GS, v86_GS);
       SetFlags(return_EFLAGS);
+      SetCPL(3);
 
-      m_cpl = 3;
-      m_tlb_user_supervisor_bit = BoolToUInt8(InSupervisorMode());
       m_registers.ESP = v86_ESP;
 
       BranchTo(return_EIP);
@@ -2710,7 +2748,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
     }
 
     // Does this result in a privilege change?
-    if (!target_descriptor.memory.IsConformingCodeSegment() && target_descriptor.dpl < m_cpl)
+    if (!target_descriptor.memory.IsConformingCodeSegment() && target_descriptor.dpl < GetCPL())
     {
       bool is_virtual_8086_exit = InVirtual8086Mode();
       if (is_virtual_8086_exit)
