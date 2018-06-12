@@ -345,7 +345,7 @@ MakeInvalidOpcode(0x04) \
 MakeNoOperands(0x05, Operation_LOADALL_286) \
 MakeNoOperands(0x06, Operation_CLTS) \
 MakeInvalidOpcode(0x07) \
-MakeInvalidOpcode(0x08) \
+MakeNoOperands(0x08, Operation_INVD) /* 80486+ */ \
 MakeNoOperands(0x09, Operation_WBINVD) /* 80486+ */ \
 MakeInvalidOpcode(0x0A) \
 MakeInvalidOpcode(0x0B) \

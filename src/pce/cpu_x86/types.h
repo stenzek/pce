@@ -362,6 +362,7 @@ enum Operation : uint8
   Operation_BSWAP,
   Operation_CMPXCHG,
   Operation_CMOVcc,
+  Operation_INVD,
   Operation_WBINVD,
   Operation_INVLPG,
   Operation_XADD,

@@ -5235,6 +5235,15 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
   }
 }
 
+void Interpreter::Execute_Operation_INVD(CPU* cpu)
+{
+  if (cpu->InVirtual8086Mode() || (cpu->InProtectedMode() && cpu->GetCPL() != 0))
+  {
+    cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+    return;
+  }
+}
+
 void Interpreter::Execute_Operation_WBINVD(CPU* cpu)
 {
   if (cpu->InVirtual8086Mode() || (cpu->InProtectedMode() && cpu->GetCPL() != 0))

@@ -277,6 +277,7 @@ public:
 
   template<OperandSize addr_size, OperandMode addr_mode, uint32 addr_constant>
   static inline void Execute_Operation_INVLPG(CPU* cpu);
+  static inline void Execute_Operation_INVD(CPU* cpu);
   static inline void Execute_Operation_WBINVD(CPU* cpu);
 
   template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
