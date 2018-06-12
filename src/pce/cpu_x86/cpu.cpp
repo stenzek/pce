@@ -2394,20 +2394,6 @@ void CPU::FarReturn(OperandSize operand_size, uint32 pop_byte_count)
   }
 }
 
-void CPU::SoftwareInterrupt(OperandSize operand_size, uint32 interrupt)
-{
-  // In V8086 mode, IOPL has to be 3 otherwise GPF.
-  // TODO: If it's set to 0, jumps to PL 0????
-  if (InVirtual8086Mode() && GetIOPL() != 3)
-  {
-    RaiseException(Interrupt_GeneralProtectionFault, 0);
-    return;
-  }
-
-  // Return to IP after this instruction
-  SetupInterruptCall(interrupt, true, false, 0, m_registers.EIP);
-}
-
 void CPU::InterruptReturn(OperandSize operand_size)
 {
   if (InRealMode())

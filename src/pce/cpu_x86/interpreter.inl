@@ -3162,10 +3162,23 @@ void Interpreter::Execute_Operation_RET_Far(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_INT(CPU* cpu)
 {
-  CalculateEffectiveAddress<dst_mode>(cpu);
+  static_assert(dst_size == OperandSize_8, "size is 8 bits");
+  static_assert(dst_mode == OperandMode_Constant || dst_mode == OperandMode_Immediate, "constant or immediate");
+  uint32 interrupt = ReadByteOperand<dst_mode, dst_constant>(cpu);
 
-  uint32 interrupt = ReadZeroExtendedWordOperand<dst_size, dst_mode, dst_constant>(cpu);
-  cpu->SoftwareInterrupt(cpu->idata.operand_size, interrupt);
+  // The V8086 IOPL checks do not occur for the one-byte INT3 instruction.
+  if constexpr (dst_mode != OperandMode_Constant)
+  {
+    // In V8086 mode, IOPL has to be 3 otherwise GPF.
+    if (cpu->InVirtual8086Mode() && cpu->GetIOPL() != 3)
+    {
+      cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+      return;
+    }
+  }
+
+  // Return to IP after this instruction
+  cpu->SetupInterruptCall(interrupt, true, false, 0, cpu->m_registers.EIP);
 }
 
 void Interpreter::Execute_Operation_INTO(CPU* cpu)

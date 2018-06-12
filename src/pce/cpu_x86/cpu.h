@@ -411,7 +411,6 @@ protected:
   void FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_size);
   void FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_size);
   void FarReturn(OperandSize operand_size, uint32 pop_byte_count);
-  void SoftwareInterrupt(OperandSize operand_size, uint32 interrupt);
   void InterruptReturn(OperandSize operand_size);
 
   // Change processor state to execute interrupt handler
