@@ -2813,8 +2813,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
 
       // If loading this segment fails, we'll get pushed out of V8086 when we shouldn't..
       // TODO: We really need a ValidateSegmentRegister
-      if (is_virtual_8086_exit)
-        m_registers.EFLAGS.bits &= ~(Flag_VM | Flag_TF | Flag_RF | Flag_NT);
+      m_registers.EFLAGS.bits &= ~(Flag_VM | Flag_TF | Flag_RF | Flag_NT);
 
       // Load the new code segment early, since this can fail without side-effects
       LoadSegmentRegister(Segment_CS, target_selector.bits);
