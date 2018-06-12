@@ -659,6 +659,7 @@ const Decoder::ModRMAddress* Decoder::DecodeModRMAddress(AddressSize address_siz
 #define MakeExtension(opcode, prefix) { Operation_Extension, {}, nullptr, prefix_##prefix },
 #define MakeModRMRegExtension(opcode, prefix) { Operation_Extension_ModRM_Reg, {}, nullptr, prefix_##prefix },
 #define MakeX87Extension(opcode, prefix) { Operation_Extension_ModRM_X87, {}, nullptr, prefix_##prefix },
+#define MakeInvalidX87Opcode(opcode) { Operation_Invalid, {}, nullptr, nullptr },
 
 #include "pce/cpu_x86/opcodes.h"
 

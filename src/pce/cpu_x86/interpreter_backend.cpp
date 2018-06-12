@@ -549,6 +549,13 @@ void NewInterpreterBackend::Dispatch_Prefix_d3(CPU* cpu)
   }
 }
 
+// Invalid x87 opcodes should still fetch the modrm operands, but fail silently.
+#define MakeInvalidX87Opcode(opcode)                                                                                   \
+  case opcode:                                                                                                         \
+    FetchImmediate<OperandSize_Count, OperandMode_ModRM_RM, 0>(cpu);                                                   \
+    NewInterpreter::StartX87Instruction(cpu);                                                                          \
+    return;
+
 void NewInterpreterBackend::Dispatch_Prefix_d8(CPU* cpu)
 {
   FetchModRM(cpu);

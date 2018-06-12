@@ -762,7 +762,7 @@ MakeTwoOperands(0x07, Operation_BTC, op1, op2)
 
 #define EnumX87D9RegOpcodes() \
   MakeOneOperand(0x00, Operation_FLD, Md) \
-  MakeInvalidOpcode(0x01) \
+  MakeInvalidX87Opcode(0x01) \
   MakeOneOperand(0x02, Operation_FST, Md) \
   MakeOneOperand(0x03, Operation_FSTP, Md) \
   MakeOneOperand(0x04, Operation_FLDENV, M) \
@@ -788,29 +788,29 @@ MakeTwoOperands(0x07, Operation_BTC, op1, op2)
   MakeOneOperand(0x0E, Operation_FXCH, ST(6)) \
   MakeOneOperand(0x0F, Operation_FXCH, ST(7)) \
   MakeNoOperands(0x10, Operation_FNOP) \
-  MakeInvalidOpcode(0x11) \
-  MakeInvalidOpcode(0x12) \
-  MakeInvalidOpcode(0x13) \
-  MakeInvalidOpcode(0x14) \
-  MakeInvalidOpcode(0x15) \
-  MakeInvalidOpcode(0x16) \
-  MakeInvalidOpcode(0x17) \
-  MakeInvalidOpcode(0x18) \
-  MakeInvalidOpcode(0x19) \
-  MakeInvalidOpcode(0x1A) \
-  MakeInvalidOpcode(0x1B) \
-  MakeInvalidOpcode(0x1C) \
-  MakeInvalidOpcode(0x1D) \
-  MakeInvalidOpcode(0x1E) \
-  MakeInvalidOpcode(0x1F) \
+  MakeInvalidX87Opcode(0x11) \
+  MakeInvalidX87Opcode(0x12) \
+  MakeInvalidX87Opcode(0x13) \
+  MakeInvalidX87Opcode(0x14) \
+  MakeInvalidX87Opcode(0x15) \
+  MakeInvalidX87Opcode(0x16) \
+  MakeInvalidX87Opcode(0x17) \
+  MakeInvalidX87Opcode(0x18) \
+  MakeInvalidX87Opcode(0x19) \
+  MakeInvalidX87Opcode(0x1A) \
+  MakeInvalidX87Opcode(0x1B) \
+  MakeInvalidX87Opcode(0x1C) \
+  MakeInvalidX87Opcode(0x1D) \
+  MakeInvalidX87Opcode(0x1E) \
+  MakeInvalidX87Opcode(0x1F) \
   MakeNoOperands(0x20, Operation_FCHS) \
   MakeNoOperands(0x21, Operation_FABS) \
-  MakeInvalidOpcode(0x22) \
-  MakeInvalidOpcode(0x23) \
+  MakeInvalidX87Opcode(0x22) \
+  MakeInvalidX87Opcode(0x23) \
   MakeNoOperands(0x24, Operation_FTST) \
   MakeNoOperands(0x25, Operation_FXAM) \
-  MakeInvalidOpcode(0x26) \
-  MakeInvalidOpcode(0x27) \
+  MakeInvalidX87Opcode(0x26) \
+  MakeInvalidX87Opcode(0x27) \
   MakeNoOperands(0x28, Operation_FLD1) \
   MakeNoOperands(0x29, Operation_FLDL2T) \
   MakeNoOperands(0x2A, Operation_FLDL2E) \
@@ -818,7 +818,7 @@ MakeTwoOperands(0x07, Operation_BTC, op1, op2)
   MakeNoOperands(0x2C, Operation_FLDLG2) \
   MakeNoOperands(0x2D, Operation_FLDLN2) \
   MakeNoOperands(0x2E, Operation_FLDZ) \
-  MakeInvalidOpcode(0x2F) \
+  MakeInvalidX87Opcode(0x2F) \
   MakeNoOperands(0x30, Operation_F2XM1) \
   MakeNoOperands(0x31, Operation_FYL2X) \
   MakeNoOperands(0x32, Operation_FPTAN) \
@@ -847,146 +847,146 @@ MakeTwoOperands(0x07, Operation_BTC, op1, op2)
   MakeTwoOperands(0x07, Operation_FIDIVR, ST(0), Md)
 
 #define EnumX87DAMemOpcodes() \
-  MakeInvalidOpcode(0x00) \
-  MakeInvalidOpcode(0x01) \
-  MakeInvalidOpcode(0x02) \
-  MakeInvalidOpcode(0x03) \
-  MakeInvalidOpcode(0x04) \
-  MakeInvalidOpcode(0x05) \
-  MakeInvalidOpcode(0x06) \
-  MakeInvalidOpcode(0x07) \
-  MakeInvalidOpcode(0x08) \
-  MakeInvalidOpcode(0x09) \
-  MakeInvalidOpcode(0x0A) \
-  MakeInvalidOpcode(0x0B) \
-  MakeInvalidOpcode(0x0C) \
-  MakeInvalidOpcode(0x0D) \
-  MakeInvalidOpcode(0x0E) \
-  MakeInvalidOpcode(0x0F) \
-  MakeInvalidOpcode(0x10) \
-  MakeInvalidOpcode(0x11) \
-  MakeInvalidOpcode(0x12) \
-  MakeInvalidOpcode(0x13) \
-  MakeInvalidOpcode(0x14) \
-  MakeInvalidOpcode(0x15) \
-  MakeInvalidOpcode(0x16) \
-  MakeInvalidOpcode(0x17) \
-  MakeInvalidOpcode(0x18) \
-  MakeInvalidOpcode(0x19) \
-  MakeInvalidOpcode(0x1A) \
-  MakeInvalidOpcode(0x1B) \
-  MakeInvalidOpcode(0x1C) \
-  MakeInvalidOpcode(0x1D) \
-  MakeInvalidOpcode(0x1E) \
-  MakeInvalidOpcode(0x1F) \
-  MakeInvalidOpcode(0x20) \
-  MakeInvalidOpcode(0x21) \
-  MakeInvalidOpcode(0x22) \
-  MakeInvalidOpcode(0x23) \
-  MakeInvalidOpcode(0x24) \
-  MakeInvalidOpcode(0x25) \
-  MakeInvalidOpcode(0x26) \
-  MakeInvalidOpcode(0x27) \
-  MakeInvalidOpcode(0x28) \
+  MakeInvalidX87Opcode(0x00) \
+  MakeInvalidX87Opcode(0x01) \
+  MakeInvalidX87Opcode(0x02) \
+  MakeInvalidX87Opcode(0x03) \
+  MakeInvalidX87Opcode(0x04) \
+  MakeInvalidX87Opcode(0x05) \
+  MakeInvalidX87Opcode(0x06) \
+  MakeInvalidX87Opcode(0x07) \
+  MakeInvalidX87Opcode(0x08) \
+  MakeInvalidX87Opcode(0x09) \
+  MakeInvalidX87Opcode(0x0A) \
+  MakeInvalidX87Opcode(0x0B) \
+  MakeInvalidX87Opcode(0x0C) \
+  MakeInvalidX87Opcode(0x0D) \
+  MakeInvalidX87Opcode(0x0E) \
+  MakeInvalidX87Opcode(0x0F) \
+  MakeInvalidX87Opcode(0x10) \
+  MakeInvalidX87Opcode(0x11) \
+  MakeInvalidX87Opcode(0x12) \
+  MakeInvalidX87Opcode(0x13) \
+  MakeInvalidX87Opcode(0x14) \
+  MakeInvalidX87Opcode(0x15) \
+  MakeInvalidX87Opcode(0x16) \
+  MakeInvalidX87Opcode(0x17) \
+  MakeInvalidX87Opcode(0x18) \
+  MakeInvalidX87Opcode(0x19) \
+  MakeInvalidX87Opcode(0x1A) \
+  MakeInvalidX87Opcode(0x1B) \
+  MakeInvalidX87Opcode(0x1C) \
+  MakeInvalidX87Opcode(0x1D) \
+  MakeInvalidX87Opcode(0x1E) \
+  MakeInvalidX87Opcode(0x1F) \
+  MakeInvalidX87Opcode(0x20) \
+  MakeInvalidX87Opcode(0x21) \
+  MakeInvalidX87Opcode(0x22) \
+  MakeInvalidX87Opcode(0x23) \
+  MakeInvalidX87Opcode(0x24) \
+  MakeInvalidX87Opcode(0x25) \
+  MakeInvalidX87Opcode(0x26) \
+  MakeInvalidX87Opcode(0x27) \
+  MakeInvalidX87Opcode(0x28) \
   MakeTwoOperands(0x29, Operation_FUCOMPP, ST(0), ST(1)) \
-  MakeInvalidOpcode(0x2A) \
-  MakeInvalidOpcode(0x2B) \
-  MakeInvalidOpcode(0x2C) \
-  MakeInvalidOpcode(0x2D) \
-  MakeInvalidOpcode(0x2E) \
-  MakeInvalidOpcode(0x2F) \
-  MakeInvalidOpcode(0x30) \
-  MakeInvalidOpcode(0x31) \
-  MakeInvalidOpcode(0x32) \
-  MakeInvalidOpcode(0x33) \
-  MakeInvalidOpcode(0x34) \
-  MakeInvalidOpcode(0x35) \
-  MakeInvalidOpcode(0x36) \
-  MakeInvalidOpcode(0x37) \
-  MakeInvalidOpcode(0x38) \
-  MakeInvalidOpcode(0x39) \
-  MakeInvalidOpcode(0x3A) \
-  MakeInvalidOpcode(0x3B) \
-  MakeInvalidOpcode(0x3C) \
-  MakeInvalidOpcode(0x3D) \
-  MakeInvalidOpcode(0x3E) \
-  MakeInvalidOpcode(0x3F)
+  MakeInvalidX87Opcode(0x2A) \
+  MakeInvalidX87Opcode(0x2B) \
+  MakeInvalidX87Opcode(0x2C) \
+  MakeInvalidX87Opcode(0x2D) \
+  MakeInvalidX87Opcode(0x2E) \
+  MakeInvalidX87Opcode(0x2F) \
+  MakeInvalidX87Opcode(0x30) \
+  MakeInvalidX87Opcode(0x31) \
+  MakeInvalidX87Opcode(0x32) \
+  MakeInvalidX87Opcode(0x33) \
+  MakeInvalidX87Opcode(0x34) \
+  MakeInvalidX87Opcode(0x35) \
+  MakeInvalidX87Opcode(0x36) \
+  MakeInvalidX87Opcode(0x37) \
+  MakeInvalidX87Opcode(0x38) \
+  MakeInvalidX87Opcode(0x39) \
+  MakeInvalidX87Opcode(0x3A) \
+  MakeInvalidX87Opcode(0x3B) \
+  MakeInvalidX87Opcode(0x3C) \
+  MakeInvalidX87Opcode(0x3D) \
+  MakeInvalidX87Opcode(0x3E) \
+  MakeInvalidX87Opcode(0x3F)
 
 #define EnumX87DBRegOpcodes() \
   MakeOneOperand(0x00, Operation_FILD, Md) \
-  MakeInvalidOpcode(0x01) \
+  MakeInvalidX87Opcode(0x01) \
   MakeOneOperand(0x02, Operation_FIST, Md) \
   MakeOneOperand(0x03, Operation_FISTP, Md) \
-  MakeInvalidOpcode(0x04) \
+  MakeInvalidX87Opcode(0x04) \
   MakeOneOperand(0x05, Operation_FLD, Mt) \
-  MakeInvalidOpcode(0x06) \
+  MakeInvalidX87Opcode(0x06) \
   MakeOneOperand(0x07, Operation_FSTP, Mt)
 
 #define EnumX87DBMemOpcodes() \
-MakeInvalidOpcode(0x00) \
-  MakeInvalidOpcode(0x01) \
-  MakeInvalidOpcode(0x02) \
-  MakeInvalidOpcode(0x03) \
-  MakeInvalidOpcode(0x04) \
-  MakeInvalidOpcode(0x05) \
-  MakeInvalidOpcode(0x06) \
-  MakeInvalidOpcode(0x07) \
-  MakeInvalidOpcode(0x08) \
-  MakeInvalidOpcode(0x09) \
-  MakeInvalidOpcode(0x0A) \
-  MakeInvalidOpcode(0x0B) \
-  MakeInvalidOpcode(0x0C) \
-  MakeInvalidOpcode(0x0D) \
-  MakeInvalidOpcode(0x0E) \
-  MakeInvalidOpcode(0x0F) \
-  MakeInvalidOpcode(0x10) \
-  MakeInvalidOpcode(0x11) \
-  MakeInvalidOpcode(0x12) \
-  MakeInvalidOpcode(0x13) \
-  MakeInvalidOpcode(0x14) \
-  MakeInvalidOpcode(0x15) \
-  MakeInvalidOpcode(0x16) \
-  MakeInvalidOpcode(0x17) \
-  MakeInvalidOpcode(0x18) \
-  MakeInvalidOpcode(0x19) \
-  MakeInvalidOpcode(0x1A) \
-  MakeInvalidOpcode(0x1B) \
-  MakeInvalidOpcode(0x1C) \
-  MakeInvalidOpcode(0x1D) \
-  MakeInvalidOpcode(0x1E) \
-  MakeInvalidOpcode(0x1F) \
+MakeInvalidX87Opcode(0x00) \
+  MakeInvalidX87Opcode(0x01) \
+  MakeInvalidX87Opcode(0x02) \
+  MakeInvalidX87Opcode(0x03) \
+  MakeInvalidX87Opcode(0x04) \
+  MakeInvalidX87Opcode(0x05) \
+  MakeInvalidX87Opcode(0x06) \
+  MakeInvalidX87Opcode(0x07) \
+  MakeInvalidX87Opcode(0x08) \
+  MakeInvalidX87Opcode(0x09) \
+  MakeInvalidX87Opcode(0x0A) \
+  MakeInvalidX87Opcode(0x0B) \
+  MakeInvalidX87Opcode(0x0C) \
+  MakeInvalidX87Opcode(0x0D) \
+  MakeInvalidX87Opcode(0x0E) \
+  MakeInvalidX87Opcode(0x0F) \
+  MakeInvalidX87Opcode(0x10) \
+  MakeInvalidX87Opcode(0x11) \
+  MakeInvalidX87Opcode(0x12) \
+  MakeInvalidX87Opcode(0x13) \
+  MakeInvalidX87Opcode(0x14) \
+  MakeInvalidX87Opcode(0x15) \
+  MakeInvalidX87Opcode(0x16) \
+  MakeInvalidX87Opcode(0x17) \
+  MakeInvalidX87Opcode(0x18) \
+  MakeInvalidX87Opcode(0x19) \
+  MakeInvalidX87Opcode(0x1A) \
+  MakeInvalidX87Opcode(0x1B) \
+  MakeInvalidX87Opcode(0x1C) \
+  MakeInvalidX87Opcode(0x1D) \
+  MakeInvalidX87Opcode(0x1E) \
+  MakeInvalidX87Opcode(0x1F) \
   MakeNoOperands(0x20, Operation_FNENI) \
   MakeNoOperands(0x21, Operation_FNDISI) \
   MakeNoOperands(0x22, Operation_FNCLEX) \
   MakeNoOperands(0x23, Operation_FNINIT) \
   MakeNoOperands(0x24, Operation_FSETPM) \
-  MakeInvalidOpcode(0x25) \
-  MakeInvalidOpcode(0x26) \
-  MakeInvalidOpcode(0x27) \
-  MakeInvalidOpcode(0x28) \
-  MakeInvalidOpcode(0x29) \
-  MakeInvalidOpcode(0x2A) \
-  MakeInvalidOpcode(0x2B) \
-  MakeInvalidOpcode(0x2C) \
-  MakeInvalidOpcode(0x2D) \
-  MakeInvalidOpcode(0x2E) \
-  MakeInvalidOpcode(0x2F) \
-  MakeInvalidOpcode(0x30) \
-  MakeInvalidOpcode(0x31) \
-  MakeInvalidOpcode(0x32) \
-  MakeInvalidOpcode(0x33) \
-  MakeInvalidOpcode(0x34) \
-  MakeInvalidOpcode(0x35) \
-  MakeInvalidOpcode(0x36) \
-  MakeInvalidOpcode(0x37) \
-  MakeInvalidOpcode(0x38) \
-  MakeInvalidOpcode(0x39) \
-  MakeInvalidOpcode(0x3A) \
-  MakeInvalidOpcode(0x3B) \
-  MakeInvalidOpcode(0x3C) \
-  MakeInvalidOpcode(0x3D) \
-  MakeInvalidOpcode(0x3E) \
-  MakeInvalidOpcode(0x3F)
+  MakeInvalidX87Opcode(0x25) \
+  MakeInvalidX87Opcode(0x26) \
+  MakeInvalidX87Opcode(0x27) \
+  MakeInvalidX87Opcode(0x28) \
+  MakeInvalidX87Opcode(0x29) \
+  MakeInvalidX87Opcode(0x2A) \
+  MakeInvalidX87Opcode(0x2B) \
+  MakeInvalidX87Opcode(0x2C) \
+  MakeInvalidX87Opcode(0x2D) \
+  MakeInvalidX87Opcode(0x2E) \
+  MakeInvalidX87Opcode(0x2F) \
+  MakeInvalidX87Opcode(0x30) \
+  MakeInvalidX87Opcode(0x31) \
+  MakeInvalidX87Opcode(0x32) \
+  MakeInvalidX87Opcode(0x33) \
+  MakeInvalidX87Opcode(0x34) \
+  MakeInvalidX87Opcode(0x35) \
+  MakeInvalidX87Opcode(0x36) \
+  MakeInvalidX87Opcode(0x37) \
+  MakeInvalidX87Opcode(0x38) \
+  MakeInvalidX87Opcode(0x39) \
+  MakeInvalidX87Opcode(0x3A) \
+  MakeInvalidX87Opcode(0x3B) \
+  MakeInvalidX87Opcode(0x3C) \
+  MakeInvalidX87Opcode(0x3D) \
+  MakeInvalidX87Opcode(0x3E) \
+  MakeInvalidX87Opcode(0x3F)
 
 #define EnumX87DCRegOpcodes() \
   MakeTwoOperands(0x00, Operation_FADD, ST(0), Mq) \
@@ -1066,11 +1066,11 @@ MakeInvalidOpcode(0x00) \
 
 #define EnumX87DDRegOpcodes() \
   MakeOneOperand(0x00, Operation_FLD, Mq) \
-  MakeInvalidOpcode(0x01) \
+  MakeInvalidX87Opcode(0x01) \
   MakeOneOperand(0x02, Operation_FST, Mq) \
   MakeOneOperand(0x03, Operation_FSTP, Mq) \
   MakeOneOperand(0x04, Operation_FRSTOR, M) \
-  MakeInvalidOpcode(0x05) \
+  MakeInvalidX87Opcode(0x05) \
   MakeOneOperand(0x06, Operation_FNSAVE, M) \
   MakeOneOperand(0x07, Operation_FNSTSW, Mw)
 
@@ -1083,14 +1083,14 @@ MakeInvalidOpcode(0x00) \
   MakeOneOperand(0x05, Operation_FFREE, ST(5)) \
   MakeOneOperand(0x06, Operation_FFREE, ST(6)) \
   MakeOneOperand(0x07, Operation_FFREE, ST(7)) \
-  MakeInvalidOpcode(0x08) \
-  MakeInvalidOpcode(0x09) \
-  MakeInvalidOpcode(0x0A) \
-  MakeInvalidOpcode(0x0B) \
-  MakeInvalidOpcode(0x0C) \
-  MakeInvalidOpcode(0x0D) \
-  MakeInvalidOpcode(0x0E) \
-  MakeInvalidOpcode(0x0F) \
+  MakeInvalidX87Opcode(0x08) \
+  MakeInvalidX87Opcode(0x09) \
+  MakeInvalidX87Opcode(0x0A) \
+  MakeInvalidX87Opcode(0x0B) \
+  MakeInvalidX87Opcode(0x0C) \
+  MakeInvalidX87Opcode(0x0D) \
+  MakeInvalidX87Opcode(0x0E) \
+  MakeInvalidX87Opcode(0x0F) \
   MakeOneOperand(0x10, Operation_FST, ST(0)) \
   MakeOneOperand(0x11, Operation_FST, ST(1)) \
   MakeOneOperand(0x12, Operation_FST, ST(2)) \
@@ -1123,22 +1123,22 @@ MakeInvalidOpcode(0x00) \
   MakeTwoOperands(0x2D, Operation_FUCOMP, ST(0), ST(5)) \
   MakeTwoOperands(0x2E, Operation_FUCOMP, ST(0), ST(6)) \
   MakeTwoOperands(0x2F, Operation_FUCOMP, ST(0), ST(7)) \
-  MakeInvalidOpcode(0x30) \
-  MakeInvalidOpcode(0x31) \
-  MakeInvalidOpcode(0x32) \
-  MakeInvalidOpcode(0x33) \
-  MakeInvalidOpcode(0x34) \
-  MakeInvalidOpcode(0x35) \
-  MakeInvalidOpcode(0x36) \
-  MakeInvalidOpcode(0x37) \
-  MakeInvalidOpcode(0x38) \
-  MakeInvalidOpcode(0x39) \
-  MakeInvalidOpcode(0x3A) \
-  MakeInvalidOpcode(0x3B) \
-  MakeInvalidOpcode(0x3C) \
-  MakeInvalidOpcode(0x3D) \
-  MakeInvalidOpcode(0x3E) \
-  MakeInvalidOpcode(0x3F)
+  MakeInvalidX87Opcode(0x30) \
+  MakeInvalidX87Opcode(0x31) \
+  MakeInvalidX87Opcode(0x32) \
+  MakeInvalidX87Opcode(0x33) \
+  MakeInvalidX87Opcode(0x34) \
+  MakeInvalidX87Opcode(0x35) \
+  MakeInvalidX87Opcode(0x36) \
+  MakeInvalidX87Opcode(0x37) \
+  MakeInvalidX87Opcode(0x38) \
+  MakeInvalidX87Opcode(0x39) \
+  MakeInvalidX87Opcode(0x3A) \
+  MakeInvalidX87Opcode(0x3B) \
+  MakeInvalidX87Opcode(0x3C) \
+  MakeInvalidX87Opcode(0x3D) \
+  MakeInvalidX87Opcode(0x3E) \
+  MakeInvalidX87Opcode(0x3F)
 
 #define EnumX87DERegOpcodes() \
   MakeTwoOperands(0x00, Operation_FIADD, ST(0), Mw) \
@@ -1167,22 +1167,22 @@ MakeInvalidOpcode(0x00) \
   MakeTwoOperands(0x0D, Operation_FMULP, ST(5), ST(0)) \
   MakeTwoOperands(0x0E, Operation_FMULP, ST(6), ST(0)) \
   MakeTwoOperands(0x0F, Operation_FMULP, ST(7), ST(0)) \
-  MakeInvalidOpcode(0x10) \
-  MakeInvalidOpcode(0x11) \
-  MakeInvalidOpcode(0x12) \
-  MakeInvalidOpcode(0x13) \
-  MakeInvalidOpcode(0x14) \
-  MakeInvalidOpcode(0x15) \
-  MakeInvalidOpcode(0x16) \
-  MakeInvalidOpcode(0x17) \
-  MakeInvalidOpcode(0x18) \
+  MakeInvalidX87Opcode(0x10) \
+  MakeInvalidX87Opcode(0x11) \
+  MakeInvalidX87Opcode(0x12) \
+  MakeInvalidX87Opcode(0x13) \
+  MakeInvalidX87Opcode(0x14) \
+  MakeInvalidX87Opcode(0x15) \
+  MakeInvalidX87Opcode(0x16) \
+  MakeInvalidX87Opcode(0x17) \
+  MakeInvalidX87Opcode(0x18) \
   MakeTwoOperands(0x19, Operation_FCOMPP, ST(0), ST(1)) \
-  MakeInvalidOpcode(0x1A) \
-  MakeInvalidOpcode(0x1B) \
-  MakeInvalidOpcode(0x1C) \
-  MakeInvalidOpcode(0x1D) \
-  MakeInvalidOpcode(0x1E) \
-  MakeInvalidOpcode(0x1F) \
+  MakeInvalidX87Opcode(0x1A) \
+  MakeInvalidX87Opcode(0x1B) \
+  MakeInvalidX87Opcode(0x1C) \
+  MakeInvalidX87Opcode(0x1D) \
+  MakeInvalidX87Opcode(0x1E) \
+  MakeInvalidX87Opcode(0x1F) \
   MakeTwoOperands(0x20, Operation_FSUBRP, ST(0), ST(0)) \
   MakeTwoOperands(0x21, Operation_FSUBRP, ST(1), ST(0)) \
   MakeTwoOperands(0x22, Operation_FSUBRP, ST(2), ST(0)) \
@@ -1218,7 +1218,7 @@ MakeInvalidOpcode(0x00) \
 
 #define EnumX87DFRegOpcodes() \
   MakeOneOperand(0x00, Operation_FILD, Mw) \
-  MakeInvalidOpcode(0x01) \
+  MakeInvalidX87Opcode(0x01) \
   MakeOneOperand(0x02, Operation_FIST, Mw) \
   MakeOneOperand(0x03, Operation_FISTP, Mw) \
   MakeOneOperand(0x04, Operation_FBLD, Mt) \
@@ -1227,69 +1227,69 @@ MakeInvalidOpcode(0x00) \
   MakeOneOperand(0x07, Operation_FISTP, Mq)
 
 #define EnumX87DFMemOpcodes() \
-  MakeInvalidOpcode(0x00) \
-  MakeInvalidOpcode(0x01) \
-  MakeInvalidOpcode(0x02) \
-  MakeInvalidOpcode(0x03) \
-  MakeInvalidOpcode(0x04) \
-  MakeInvalidOpcode(0x05) \
-  MakeInvalidOpcode(0x06) \
-  MakeInvalidOpcode(0x07) \
-  MakeInvalidOpcode(0x08) \
-  MakeInvalidOpcode(0x09) \
-  MakeInvalidOpcode(0x0A) \
-  MakeInvalidOpcode(0x0B) \
-  MakeInvalidOpcode(0x0C) \
-  MakeInvalidOpcode(0x0D) \
-  MakeInvalidOpcode(0x0E) \
-  MakeInvalidOpcode(0x0F) \
-  MakeInvalidOpcode(0x10) \
-  MakeInvalidOpcode(0x11) \
-  MakeInvalidOpcode(0x12) \
-  MakeInvalidOpcode(0x13) \
-  MakeInvalidOpcode(0x14) \
-  MakeInvalidOpcode(0x15) \
-  MakeInvalidOpcode(0x16) \
-  MakeInvalidOpcode(0x17) \
-  MakeInvalidOpcode(0x18) \
-  MakeInvalidOpcode(0x19) \
-  MakeInvalidOpcode(0x1A) \
-  MakeInvalidOpcode(0x1B) \
-  MakeInvalidOpcode(0x1C) \
-  MakeInvalidOpcode(0x1D) \
-  MakeInvalidOpcode(0x1E) \
-  MakeInvalidOpcode(0x1F) \
+  MakeInvalidX87Opcode(0x00) \
+  MakeInvalidX87Opcode(0x01) \
+  MakeInvalidX87Opcode(0x02) \
+  MakeInvalidX87Opcode(0x03) \
+  MakeInvalidX87Opcode(0x04) \
+  MakeInvalidX87Opcode(0x05) \
+  MakeInvalidX87Opcode(0x06) \
+  MakeInvalidX87Opcode(0x07) \
+  MakeInvalidX87Opcode(0x08) \
+  MakeInvalidX87Opcode(0x09) \
+  MakeInvalidX87Opcode(0x0A) \
+  MakeInvalidX87Opcode(0x0B) \
+  MakeInvalidX87Opcode(0x0C) \
+  MakeInvalidX87Opcode(0x0D) \
+  MakeInvalidX87Opcode(0x0E) \
+  MakeInvalidX87Opcode(0x0F) \
+  MakeInvalidX87Opcode(0x10) \
+  MakeInvalidX87Opcode(0x11) \
+  MakeInvalidX87Opcode(0x12) \
+  MakeInvalidX87Opcode(0x13) \
+  MakeInvalidX87Opcode(0x14) \
+  MakeInvalidX87Opcode(0x15) \
+  MakeInvalidX87Opcode(0x16) \
+  MakeInvalidX87Opcode(0x17) \
+  MakeInvalidX87Opcode(0x18) \
+  MakeInvalidX87Opcode(0x19) \
+  MakeInvalidX87Opcode(0x1A) \
+  MakeInvalidX87Opcode(0x1B) \
+  MakeInvalidX87Opcode(0x1C) \
+  MakeInvalidX87Opcode(0x1D) \
+  MakeInvalidX87Opcode(0x1E) \
+  MakeInvalidX87Opcode(0x1F) \
   MakeOneOperand(0x20, Operation_FNSTSW, AX) \
-  MakeInvalidOpcode(0x21) \
-  MakeInvalidOpcode(0x22) \
-  MakeInvalidOpcode(0x23) \
-  MakeInvalidOpcode(0x24) \
-  MakeInvalidOpcode(0x25) \
-  MakeInvalidOpcode(0x26) \
-  MakeInvalidOpcode(0x27) \
-  MakeInvalidOpcode(0x28) \
-  MakeInvalidOpcode(0x29) \
-  MakeInvalidOpcode(0x2A) \
-  MakeInvalidOpcode(0x2B) \
-  MakeInvalidOpcode(0x2C) \
-  MakeInvalidOpcode(0x2D) \
-  MakeInvalidOpcode(0x2E) \
-  MakeInvalidOpcode(0x2F) \
-  MakeInvalidOpcode(0x30) \
-  MakeInvalidOpcode(0x31) \
-  MakeInvalidOpcode(0x32) \
-  MakeInvalidOpcode(0x33) \
-  MakeInvalidOpcode(0x34) \
-  MakeInvalidOpcode(0x35) \
-  MakeInvalidOpcode(0x36) \
-  MakeInvalidOpcode(0x37) \
-  MakeInvalidOpcode(0x38) \
-  MakeInvalidOpcode(0x39) \
-  MakeInvalidOpcode(0x3A) \
-  MakeInvalidOpcode(0x3B) \
-  MakeInvalidOpcode(0x3C) \
-  MakeInvalidOpcode(0x3D) \
-  MakeInvalidOpcode(0x3E) \
-  MakeInvalidOpcode(0x3F)
+  MakeInvalidX87Opcode(0x21) \
+  MakeInvalidX87Opcode(0x22) \
+  MakeInvalidX87Opcode(0x23) \
+  MakeInvalidX87Opcode(0x24) \
+  MakeInvalidX87Opcode(0x25) \
+  MakeInvalidX87Opcode(0x26) \
+  MakeInvalidX87Opcode(0x27) \
+  MakeInvalidX87Opcode(0x28) \
+  MakeInvalidX87Opcode(0x29) \
+  MakeInvalidX87Opcode(0x2A) \
+  MakeInvalidX87Opcode(0x2B) \
+  MakeInvalidX87Opcode(0x2C) \
+  MakeInvalidX87Opcode(0x2D) \
+  MakeInvalidX87Opcode(0x2E) \
+  MakeInvalidX87Opcode(0x2F) \
+  MakeInvalidX87Opcode(0x30) \
+  MakeInvalidX87Opcode(0x31) \
+  MakeInvalidX87Opcode(0x32) \
+  MakeInvalidX87Opcode(0x33) \
+  MakeInvalidX87Opcode(0x34) \
+  MakeInvalidX87Opcode(0x35) \
+  MakeInvalidX87Opcode(0x36) \
+  MakeInvalidX87Opcode(0x37) \
+  MakeInvalidX87Opcode(0x38) \
+  MakeInvalidX87Opcode(0x39) \
+  MakeInvalidX87Opcode(0x3A) \
+  MakeInvalidX87Opcode(0x3B) \
+  MakeInvalidX87Opcode(0x3C) \
+  MakeInvalidX87Opcode(0x3D) \
+  MakeInvalidX87Opcode(0x3E) \
+  MakeInvalidX87Opcode(0x3F)
 
 // clang-format on
