@@ -2667,7 +2667,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
 {
   auto MakeErrorCode = [](uint32 num, uint8 idt, bool software_interrupt) {
     if (idt == 0)
-      return ((num & 0xFC) | BoolToUInt32(!software_interrupt));
+      return ((num & 0xFFFC) | BoolToUInt32(!software_interrupt));
     else
       return ((num << 3) | 2 | BoolToUInt32(!software_interrupt));
   };
@@ -2716,20 +2716,19 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
     DESCRIPTOR_ENTRY target_descriptor;
     if (target_selector.index == 0)
     {
-      RaiseException(Interrupt_GeneralProtectionFault, 0);
+      RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(target_selector.bits, 0, software_interrupt));
       return;
     }
     if (!ReadDescriptorEntry(&target_descriptor, target_selector.ti ? m_ldt_location : m_gdt_location,
                              target_selector.index) ||
-        !target_descriptor.IsCodeSegment())
+        !target_descriptor.IsCodeSegment() || target_descriptor.dpl > GetCPL())
     {
-      // TODO: Correct error code here, should be error_code(num,int,ext)
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(target_selector.bits, 0, software_interrupt));
       return;
     }
     if (!target_descriptor.IsPresent())
     {
-      RaiseException(Interrupt_SegmentNotPresent, target_selector.ValueForException());
+      RaiseException(Interrupt_SegmentNotPresent, MakeErrorCode(target_selector.bits, 0, software_interrupt));
       return;
     }
 
@@ -2739,9 +2738,15 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
       bool is_virtual_8086_exit = InVirtual8086Mode();
       if (is_virtual_8086_exit)
       {
+        // If new code segment DPL != 0, then #GP(
+        if (target_descriptor.dpl != 0)
+        {
+          RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(target_selector.bits, 0, software_interrupt));
+          return;
+        }
+
         // Leaving V8086 mode via trap
         Log_DevPrintf("Leaving V8086 mode via gate %u", interrupt);
-        target_selector.rpl = 0;
       }
       else
       {
@@ -2896,7 +2901,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
       // Trap to V8086 monitor
       if (InVirtual8086Mode())
       {
-        RaiseException(Interrupt_GeneralProtectionFault, 0);
+        RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(target_selector.bits, 0, software_interrupt));
         return;
       }
 
