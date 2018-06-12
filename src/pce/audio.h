@@ -8,7 +8,6 @@
 #include "YBaseLib/Mutex.h"
 #include "YBaseLib/MutexLock.h"
 #include "YBaseLib/String.h"
-#include "YBaseLib/TaskQueue.h"
 #include "pce/types.h"
 
 namespace Audio {
@@ -71,6 +70,9 @@ public:
   // Looks up channel by name. Shouldn't really be needed.
   Channel* GetChannelByName(const char* name);
 
+  // Clears all buffers. Use when changing speed limiter state, or loading state.
+  void ClearBuffers();
+
 protected:
   void CheckRenderBufferSize(size_t num_samples);
 
@@ -84,8 +86,6 @@ protected:
   // Output buffer.
   std::vector<OutputFormatType> m_render_buffer;
   std::unique_ptr<CircularBuffer> m_output_buffer;
-
-  TaskQueue m_worker_queue;
 };
 
 class AudioBuffer
@@ -143,7 +143,12 @@ public:
   // Changes the frequency of the input data. Flushes the resample buffer.
   void ChangeSampleRate(float new_sample_rate);
 
+  // Clears the buffer. Use when loading state or changing speed limiter.
+  void ClearBuffer();
+
 private:
+  void InternalClearBuffer();
+
   String m_name;
   float m_input_sample_rate;
   float m_output_sample_rate;

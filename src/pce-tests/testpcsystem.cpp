@@ -55,8 +55,7 @@ void TestPCSystem::Initialize()
   // Fill memory regions.
   m_bus->CreateRAMRegion(uint32(0), uint32(0xFFFFFFFF));
 
-  // Remove the audio mixing and throttle events, they're not needed for the test cases.
-  m_audio_render_event->Deactivate();
+  // Remove the throttle event, it's not needed for the test cases.
   m_throttle_event->Deactivate();
 }
 

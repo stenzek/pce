@@ -134,6 +134,7 @@ void SoundBlaster::Initialize(System* system, Bus* bus)
 
 void SoundBlaster::Reset()
 {
+  m_dac_state.output_channel->ClearBuffer();
   m_ymf262.Reset();
   ResetDSP(false);
   ResetMixer();

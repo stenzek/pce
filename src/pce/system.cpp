@@ -91,20 +91,14 @@ void System::SetSpeedLimiterEnabled(bool enabled)
   {
     // Clear the emulation timers, since the real time will be out of sync now.
     m_timing_manager.ResetTotalEmulatedTime();
-    m_last_audio_render_time = 0;
     m_elapsed_real_time.Reset();
     m_last_emulated_time = 0;
     m_speed_elapsed_real_time.Reset();
     m_speed_elapsed_simulation_time = 0;
     m_host_interface->GetDisplay()->ResetFramesRendered();
 
-    // Unmute the audio backend.
-    m_host_interface->GetAudioMixer()->SetMuted(false);
-  }
-  else
-  {
-    // Mute the audio, since we'll be generating more samples than the backend will consume.
-    m_host_interface->GetAudioMixer()->SetMuted(true);
+    // If the speed limiter is being re-enabled, clear all audio buffers so we don't introduce lag.
+    m_host_interface->GetAudioMixer()->ClearBuffers();
   }
 
   m_host_interface->ReportFormattedMessage("Speed limiter %s.", enabled ? "enabled" : "disabled");
@@ -310,7 +304,6 @@ void System::OnSimulationResumed()
 
   // Ensure timers are zeroed before starting.
   m_timing_manager.ResetTotalEmulatedTime();
-  m_last_audio_render_time = 0;
   m_elapsed_real_time.Reset();
   m_last_emulated_time = 0;
   m_speed_elapsed_real_time.Reset();
@@ -377,27 +370,12 @@ void System::ThrottleEventCallback()
       if (diff < -(max_variance_ms * 1000000))
       {
         Log_ErrorPrintf("System too slow, lost %d ms", int32(-diff / 1000000));
-
-        // Audio buffers have to emptied.
-        // m_audio_render_event->InvokeEarly(true);
-        m_last_audio_render_time = 0;
-
         m_elapsed_real_time.Reset();
         m_timing_manager.ResetTotalEmulatedTime();
         m_last_emulated_time = 0;
       }
     }
   }
-}
-
-void System::AudioRenderEventCallback()
-{
-  SimulationTime render_time = m_timing_manager.GetTotalEmulatedTime() - m_last_audio_render_time;
-  m_last_audio_render_time = m_timing_manager.GetTotalEmulatedTime();
-
-  //     static SimulationTime total_audio_time;
-  //     total_audio_time += render_time;
-  //     Log_ErrorPrintf("TOTAL AUDIO RENDER TIME: %.2f ms", total_audio_time / 1000000.0);
 }
 
 template<class Callback>

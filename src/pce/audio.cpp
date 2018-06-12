@@ -35,7 +35,6 @@ Mixer::Mixer(float output_sample_rate) : m_output_sample_rate(output_sample_rate
   // Render/mix buffers are allocated on-demand.
   m_output_buffer = std::make_unique<CircularBuffer>(size_t(output_sample_rate * OutputBufferLengthInSeconds) *
                                                      NumOutputChannels * sizeof(OutputFormatType));
-  m_worker_queue.Initialize();
 }
 
 Mixer::~Mixer() {}
@@ -73,6 +72,12 @@ Channel* Mixer::GetChannelByName(const char* name)
   }
 
   return nullptr;
+}
+
+void Mixer::ClearBuffers()
+{
+  for (const auto& channel : m_channels)
+    channel->ClearBuffer();
 }
 
 void Mixer::CheckRenderBufferSize(size_t num_samples)
@@ -155,7 +160,7 @@ Channel::Channel(const char* name, float output_sample_rate, float input_sample_
     m_input_buffer(uint32(float(InputBufferLengthInSeconds* input_sample_rate)) * channels * m_input_sample_size),
     m_output_buffer(uint32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels *
                     sizeof(OutputFormatType)),
-    m_resample_buffer(uint32(float(InputBufferLengthInSeconds* input_sample_rate)) * channels),
+    m_resample_buffer(uint32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels),
     m_resampler_state(src_new(SRC_SINC_FASTEST, int(channels), nullptr)),
     m_resample_ratio(double(output_sample_rate) / double(input_sample_rate))
 {
@@ -180,8 +185,13 @@ void* Channel::ReserveInputSamples(size_t sample_count)
 
   m_lock.Lock();
 
-  if (!m_input_buffer.GetWritePointer(&write_ptr, &byte_count))
-    Panic("Buffer overrun");
+  // When the speed limiter is off, we can easily exceed the audio buffer length.
+  // In this case, just destroy the oldest samples, wrapping around.
+  while (!m_input_buffer.GetWritePointer(&write_ptr, &byte_count))
+  {
+    size_t bytes_to_remove = byte_count - m_input_buffer.GetContiguousBufferSpace();
+    m_input_buffer.MoveReadPointer(bytes_to_remove);
+  }
 
   return write_ptr;
 }
@@ -229,19 +239,24 @@ void Channel::ReadSamples(float* destination, size_t num_samples)
 void Channel::ChangeSampleRate(float new_sample_rate)
 {
   MutexLock lock(m_lock);
-
-  // Get as many output samples as possible.
-  size_t num_input_samples = m_input_buffer.GetBufferUsed() / m_input_frame_size;
-  size_t num_output_samples = size_t(std::ceil(m_resample_ratio * double(num_input_samples)));
-  if (num_output_samples > 0)
-    ResampleInput(num_output_samples);
-
-  // Wipe out the input buffer.
-  m_input_buffer.Clear();
+  InternalClearBuffer();
 
   // Calculate the new ratio.
   m_input_sample_rate = new_sample_rate;
   m_resample_ratio = double(m_output_sample_rate) / double(new_sample_rate);
+}
+
+void Channel::ClearBuffer()
+{
+  MutexLock lock(m_lock);
+  InternalClearBuffer();
+}
+
+void Channel::InternalClearBuffer()
+{
+  m_input_buffer.Clear();
+  src_reset(reinterpret_cast<SRC_STATE*>(m_resampler_state));
+  m_output_buffer.Clear();
 }
 
 bool Channel::ResampleInput(size_t num_output_samples)

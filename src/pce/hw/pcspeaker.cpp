@@ -36,6 +36,8 @@ bool PCSpeaker::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != 0x12345678)
     return false;
 
+  m_output_channel->ClearBuffer();
+
   reader.SafeReadBool(&m_output_enabled);
   reader.SafeReadBool(&m_level);
 
@@ -54,6 +56,7 @@ bool PCSpeaker::SaveState(BinaryWriter& writer)
 
 void PCSpeaker::Reset()
 {
+  m_output_channel->ClearBuffer();
   m_output_enabled = false;
   m_level = false;
 }

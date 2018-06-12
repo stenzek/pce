@@ -62,6 +62,7 @@ void YMF262::Initialize(System* system)
 void YMF262::Reset()
 {
   FlushWorkerThread();
+  m_output_channel->ClearBuffer();
 
   for (size_t i = 0; i < m_num_chips; i++)
   {
@@ -290,6 +291,7 @@ bool YMF262::SaveChipState(size_t chip_index, BinaryWriter& writer) const
 bool YMF262::LoadState(BinaryReader& reader)
 {
   FlushWorkerThread();
+  m_output_channel->ClearBuffer();
 
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;

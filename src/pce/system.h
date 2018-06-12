@@ -143,7 +143,6 @@ protected:
 
   // Throttle event callback.
   void ThrottleEventCallback();
-  void AudioRenderEventCallback();
 
   // Host outputs
   HostInterface* m_host_interface;
@@ -152,10 +151,6 @@ protected:
   TimingManager m_timing_manager;
   PODArray<Component*> m_components;
   State m_state = State::Uninitialized;
-
-  // Audio mixing/render event
-  TimingEvent::Pointer m_audio_render_event;
-  SimulationTime m_last_audio_render_time = 0;
 
   // Throttle event
   Timer m_elapsed_real_time;
