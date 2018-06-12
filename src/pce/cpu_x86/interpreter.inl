@@ -3326,7 +3326,7 @@ void Interpreter::Execute_Operation_POPF(CPU* cpu)
 void Interpreter::Execute_Operation_HLT(CPU* cpu)
 {
   // HLT is a privileged instruction
-  if ((cpu->InProtectedMode() && cpu->GetCPL() != 0) || cpu->InVirtual8086Mode())
+  if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
     return;
@@ -3560,7 +3560,7 @@ void Interpreter::Execute_Operation_BSWAP(CPU* cpu)
 template<OperandSize addr_size, OperandMode addr_mode, uint32 addr_constant>
 void Interpreter::Execute_Operation_INVLPG(CPU* cpu)
 {
-  if (cpu->InVirtual8086Mode() || (cpu->InProtectedMode() && cpu->GetCPL() != 0))
+  if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
     return;
@@ -5039,7 +5039,7 @@ void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
 
   // Requires privilege level zero
-  if ((cpu->InProtectedMode() && cpu->GetCPL() != 0) || cpu->InVirtual8086Mode())
+  if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
     return;
@@ -5110,7 +5110,7 @@ void Interpreter::Execute_Operation_MOV_DR(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
 
   // Requires privilege level zero
-  if ((cpu->InProtectedMode() && cpu->GetCPL() != 0) || cpu->InVirtual8086Mode())
+  if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
     return;
@@ -5153,7 +5153,7 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
 
   // Requires privilege level zero
-  if ((cpu->InProtectedMode() && cpu->GetCPL() != 0) || cpu->InVirtual8086Mode())
+  if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
     return;
@@ -5237,7 +5237,7 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
 
 void Interpreter::Execute_Operation_INVD(CPU* cpu)
 {
-  if (cpu->InVirtual8086Mode() || (cpu->InProtectedMode() && cpu->GetCPL() != 0))
+  if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
     return;
@@ -5246,7 +5246,7 @@ void Interpreter::Execute_Operation_INVD(CPU* cpu)
 
 void Interpreter::Execute_Operation_WBINVD(CPU* cpu)
 {
-  if (cpu->InVirtual8086Mode() || (cpu->InProtectedMode() && cpu->GetCPL() != 0))
+  if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
     return;

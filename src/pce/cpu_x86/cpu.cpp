@@ -492,7 +492,7 @@ uint16 CPU::GetIOPL() const
 
 bool CPU::InRealMode() const
 {
-  return (!(m_registers.CR0 & CR0Bit_PE) && !m_registers.EFLAGS.VM);
+  return ((m_registers.CR0 & CR0Bit_PE) == 0);
 }
 
 bool CPU::InProtectedMode() const
@@ -718,16 +718,21 @@ void CPU::SetFlags(uint32 value)
   // Don't clear/set all flags, only those allowed
   uint32 MASK = Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_IF | Flag_DF | Flag_OF;
 
-  // IOPL flag is 286+
   if (m_model >= MODEL_386)
+  {
+    // IOPL flag is 286+
+    // Nested task flag can't be set in real mode on a 286
+    MASK |= Flag_IOPL | Flag_NT;
+  }
+  else if (m_model == MODEL_286)
+  {
     MASK |= Flag_IOPL;
-
-  // Nested task flag can't be set in real mode on a 286
-  if (m_model >= MODEL_286 && (m_model >= MODEL_386 || InProtectedMode()))
-    MASK |= Flag_NT;
+    if (InProtectedMode())
+      MASK |= Flag_NT;
+  }
 
   // IOPL can only be changed at CPL=0
-  if ((InProtectedMode() && GetCPL() != 0) || InVirtual8086Mode())
+  if (GetCPL() != 0)
   {
     if ((m_registers.EFLAGS.bits & Flag_IOPL) != (value & Flag_IOPL))
       Log_WarningPrintf("Blocked IOPL change");
@@ -751,7 +756,7 @@ void CPU::SetFlags(uint32 value)
     Log_WarningPrintf("NT change");
 
   // AC check can only be set on a 486 and CPL=0
-  if (m_model >= MODEL_486 && (!InProtectedMode() || GetCPL() == 0))
+  if (m_model >= MODEL_486)
     MASK |= Flag_AC;
 
   // Clear upper bits on <386
