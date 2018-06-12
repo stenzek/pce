@@ -997,13 +997,13 @@ struct TASK_STATE_SEGMENT_32
   uint8 T;
   uint8 reserved_64;
   uint16 IOPB_offset;
-  uint32 SSP;
+  // uint32 SSP;
   // Optional data
   // Optional interrupt redirection bitmap
   // Optional IO permission bitmap
   // 0x7
 };
-static_assert(sizeof(TASK_STATE_SEGMENT_32) == 0x6C, "Size of TSS32 is correct");
+static_assert(sizeof(TASK_STATE_SEGMENT_32) == 0x68, "Size of TSS32 is correct");
 static_assert(((sizeof(TASK_STATE_SEGMENT_32) % sizeof(uint32)) == 0), "Size of TSS32 is dword-aligned");
 #pragma pack(pop)
 
