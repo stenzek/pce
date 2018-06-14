@@ -3594,6 +3594,12 @@ void Interpreter::Execute_Operation_INVLPG(CPU* cpu)
 
   // Get effective address of operand, this is the linear address to clear.
   CalculateEffectiveAddress<addr_mode>(cpu);
+  if (cpu->idata.ModRM_RM_IsReg() || cpu->idata.has_lock)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode, 0);
+    return;
+  }
+
   cpu->InvalidateTLBEntry(cpu->m_effective_address);
 }
 
@@ -5268,6 +5274,12 @@ void Interpreter::Execute_Operation_INVD(CPU* cpu)
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
     return;
   }
+
+  if (cpu->idata.has_lock)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode, 0);
+    return;
+  }
 }
 
 void Interpreter::Execute_Operation_WBINVD(CPU* cpu)
@@ -5275,6 +5287,12 @@ void Interpreter::Execute_Operation_WBINVD(CPU* cpu)
   if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+    return;
+  }
+
+  if (cpu->idata.has_lock)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode, 0);
     return;
   }
 
