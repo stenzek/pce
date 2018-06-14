@@ -62,9 +62,6 @@
     <ClCompile Include="hw\keyboard_scancodes.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="hw\ps2.cpp">
-      <Filter>hw</Filter>
-    </ClCompile>
     <ClCompile Include="hw\xt_ppi.cpp">
       <Filter>hw</Filter>
     </ClCompile>
@@ -109,6 +106,9 @@
       <Filter>hw</Filter>
     </ClCompile>
     <ClCompile Include="hw\cdrom.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\i8042_ps2.cpp">
       <Filter>hw</Filter>
     </ClCompile>
   </ItemGroup>
@@ -189,9 +189,6 @@
     <ClInclude Include="hw\keyboard_scancodes.h">
       <Filter>hw</Filter>
     </ClInclude>
-    <ClInclude Include="hw\ps2.h">
-      <Filter>hw</Filter>
-    </ClInclude>
     <ClInclude Include="hw\xt_ppi.h">
       <Filter>hw</Filter>
     </ClInclude>
@@ -246,6 +243,9 @@
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="hw\cdrom.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\i8042_ps2.h">
       <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>

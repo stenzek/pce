@@ -5,33 +5,33 @@
 #include "pce/bus.h"
 #include "pce/cpu.h"
 #include "pce/host_interface.h"
+#include "pce/hw/i8042_ps2.h"
 #include "pce/hw/keyboard_scancodes.h"
-#include "pce/hw/ps2.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 #include <cstring>
-Log_SetChannel(HW::PS2Controller);
+Log_SetChannel(HW::i8042_PS2);
 
 namespace HW {
 
-PS2Controller::PS2Controller() : m_clock("8042 Keyboard Controller", 1000000.0f) {}
+i8042_PS2::i8042_PS2() : m_clock("8042 Keyboard Controller", 1000000.0f) {}
 
-PS2Controller::~PS2Controller() {}
+i8042_PS2::~i8042_PS2() {}
 
-void PS2Controller::Initialize(System* system, Bus* bus)
+void i8042_PS2::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   ConnectIOPorts(bus);
 
   m_system->GetHostInterface()->AddKeyboardCallback(
-    this, std::bind(&PS2Controller::AddScanCode, this, std::placeholders::_1, std::placeholders::_2));
+    this, std::bind(&i8042_PS2::AddScanCode, this, std::placeholders::_1, std::placeholders::_2));
 
   m_clock.SetManager(system->GetTimingManager());
-  m_command_event = m_clock.NewEvent("Keyboard Command", 10, std::bind(&PS2Controller::OnCommandEvent, this), false);
-  m_transfer_event = m_clock.NewEvent("Keyboard Transfer", 10, std::bind(&PS2Controller::OnTransferEvent, this), false);
+  m_command_event = m_clock.NewEvent("Keyboard Command", 10, std::bind(&i8042_PS2::OnCommandEvent, this), false);
+  m_transfer_event = m_clock.NewEvent("Keyboard Transfer", 10, std::bind(&i8042_PS2::OnTransferEvent, this), false);
 }
 
-void PS2Controller::Reset()
+void i8042_PS2::Reset()
 {
   SoftReset();
 
@@ -43,7 +43,7 @@ void PS2Controller::Reset()
     port.external_buffer.clear();
 }
 
-void PS2Controller::SoftReset()
+void i8042_PS2::SoftReset()
 {
   m_status_register.output_buffer_status = false;
   m_status_register.input_buffer_status = false;
@@ -78,7 +78,7 @@ void PS2Controller::SoftReset()
     m_command_event->Deactivate();
 }
 
-bool PS2Controller::LoadState(BinaryReader& reader)
+bool i8042_PS2::LoadState(BinaryReader& reader)
 {
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
@@ -114,7 +114,7 @@ bool PS2Controller::LoadState(BinaryReader& reader)
   return !reader.GetErrorState();
 }
 
-bool PS2Controller::SaveState(BinaryWriter& writer)
+bool i8042_PS2::SaveState(BinaryWriter& writer)
 {
   writer.WriteUInt32(SERIALIZATION_ID);
 
@@ -144,7 +144,7 @@ bool PS2Controller::SaveState(BinaryWriter& writer)
   return true;
 }
 
-void PS2Controller::AddScanCode(GenScanCode scancode, bool key_down)
+void i8042_PS2::AddScanCode(GenScanCode scancode, bool key_down)
 {
   uint8 index = key_down ? 0 : 1;
   DebugAssert(index < 2);
@@ -161,20 +161,20 @@ void PS2Controller::AddScanCode(GenScanCode scancode, bool key_down)
   UpdateTransferEvent();
 }
 
-void PS2Controller::ConnectIOPorts(Bus* bus)
+void i8042_PS2::ConnectIOPorts(Bus* bus)
 {
-  bus->ConnectIOPortRead(0x60, this, std::bind(&PS2Controller::IOReadDataPort, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(0x60, this, std::bind(&PS2Controller::IOWriteDataPort, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(0x64, this, std::bind(&PS2Controller::IOReadStatusRegister, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(0x64, this, std::bind(&PS2Controller::IOWriteCommandRegister, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x60, this, std::bind(&i8042_PS2::IOReadDataPort, this, std::placeholders::_2));
+  bus->ConnectIOPortWrite(0x60, this, std::bind(&i8042_PS2::IOWriteDataPort, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x64, this, std::bind(&i8042_PS2::IOReadStatusRegister, this, std::placeholders::_2));
+  bus->ConnectIOPortWrite(0x64, this, std::bind(&i8042_PS2::IOWriteCommandRegister, this, std::placeholders::_2));
 }
 
-void PS2Controller::IOReadStatusRegister(uint8* value)
+void i8042_PS2::IOReadStatusRegister(uint8* value)
 {
   *value = m_status_register.raw;
 }
 
-void PS2Controller::IOReadDataPort(uint8* value)
+void i8042_PS2::IOReadDataPort(uint8* value)
 {
   const uint32 port_index = (m_status_register.mouse_buffer_status) ? 1 : 0;
 
@@ -205,13 +205,13 @@ void PS2Controller::IOReadDataPort(uint8* value)
   UpdateTransferEvent();
 }
 
-void PS2Controller::UpdatePortBufferStatus()
+void i8042_PS2::UpdatePortBufferStatus()
 {
   m_status_register.output_buffer_status = (m_ports[0].internal_buffer_size > 0);
   m_status_register.mouse_buffer_status = (m_ports[1].internal_buffer_size > 0);
 }
 
-void PS2Controller::UpdateTransferEvent()
+void i8042_PS2::UpdateTransferEvent()
 {
   // Buffer has to be empty to be able to transfer.
   if (m_ports[0].internal_buffer_size == 0 && m_ports[1].internal_buffer_size == 0 &&
@@ -227,7 +227,7 @@ void PS2Controller::UpdateTransferEvent()
   }
 }
 
-void PS2Controller::OnTransferEvent()
+void i8042_PS2::OnTransferEvent()
 {
   // Only transfer one byte at a time.
   m_transfer_event->Deactivate();
@@ -263,13 +263,13 @@ void PS2Controller::OnTransferEvent()
   }
 }
 
-void PS2Controller::AppendToOutputBuffer(uint32 port, const void* data, uint32 length)
+void i8042_PS2::AppendToOutputBuffer(uint32 port, const void* data, uint32 length)
 {
   for (uint32 i = 0; i < length; i++)
     AppendToOutputBuffer(port, reinterpret_cast<const uint8*>(data)[i]);
 }
 
-void PS2Controller::AppendToOutputBuffer(uint32 port, uint8 data)
+void i8042_PS2::AppendToOutputBuffer(uint32 port, uint8 data)
 {
   auto& portbuf = m_ports[port];
   portbuf.internal_buffer[portbuf.internal_buffer_size++] = data;
@@ -281,7 +281,7 @@ void PS2Controller::AppendToOutputBuffer(uint32 port, uint8 data)
   Log_DevPrintf("Port %u buffer contents: %s", port, buffer_str.GetCharArray());
 }
 
-void PS2Controller::IOWriteDataPort(uint8 value)
+void i8042_PS2::IOWriteDataPort(uint8 value)
 {
   if (m_command_event->IsActive())
     m_command_event->InvokeEarly(true);
@@ -292,7 +292,7 @@ void PS2Controller::IOWriteDataPort(uint8 value)
   EnqueueCommandOrData(value, true);
 }
 
-void PS2Controller::IOWriteCommandRegister(uint8 value)
+void i8042_PS2::IOWriteCommandRegister(uint8 value)
 {
   if (m_command_event->IsActive())
     m_command_event->InvokeEarly(true);
@@ -303,7 +303,7 @@ void PS2Controller::IOWriteCommandRegister(uint8 value)
   EnqueueCommandOrData(value, false);
 }
 
-void PS2Controller::EnqueueCommandOrData(uint8 data, bool is_data)
+void i8042_PS2::EnqueueCommandOrData(uint8 data, bool is_data)
 {
   m_status_register.input_buffer_status = true;
 
@@ -326,7 +326,7 @@ void PS2Controller::EnqueueCommandOrData(uint8 data, bool is_data)
   m_command_event->Queue(delay); // 10us
 }
 
-void PS2Controller::OnCommandEvent()
+void i8042_PS2::OnCommandEvent()
 {
   m_status_register.input_buffer_status = false;
   m_command_event->Deactivate();
@@ -351,7 +351,7 @@ void PS2Controller::OnCommandEvent()
   }
 }
 
-bool PS2Controller::HandleControllerCommand(uint8 command, uint8 data, bool has_data)
+bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data)
 {
   if (command >= 0x20 && command <= 0x3F)
   {
@@ -510,7 +510,7 @@ bool PS2Controller::HandleControllerCommand(uint8 command, uint8 data, bool has_
   }
 }
 
-bool PS2Controller::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
+bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
 {
   switch (command)
   {

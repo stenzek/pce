@@ -157,7 +157,7 @@ void PC_AMI_386::UpdateKeyboardControllerOutputPort()
 
 void PC_AMI_386::AddComponents()
 {
-  m_keyboard_controller = new HW::PS2Controller();
+  m_keyboard_controller = new HW::i8042_PS2();
   m_dma_controller = new HW::i8237_DMA();
   m_timer = new HW::i8253_PIT();
   m_interrupt_controller = new HW::i8259_PIC();

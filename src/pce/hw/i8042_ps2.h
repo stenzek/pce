@@ -10,11 +10,11 @@
 
 namespace HW {
 
-class PS2Controller : public Component
+class i8042_PS2 : public Component
 {
 public:
-  PS2Controller();
-  ~PS2Contrkoller();
+  i8042_PS2();
+  ~i8042_PS2();
 
   void Initialize(System* system, Bus* bus) override;
   void Reset() override;

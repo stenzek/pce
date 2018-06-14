@@ -54,7 +54,7 @@
     <ClCompile Include="hw\cmos.cpp" />
     <ClCompile Include="hw\fdc.cpp" />
     <ClCompile Include="hw\hdc.cpp" />
-    <ClCompile Include="hw\ps2.cpp" />
+    <ClCompile Include="hw\i8042_ps2.cpp" />
     <ClCompile Include="hw\i8237_dma.cpp" />
     <ClCompile Include="hw\i8253_pit.cpp" />
     <ClCompile Include="hw\i8259_pic.cpp" />
@@ -110,7 +110,7 @@
     <ClInclude Include="hw\fdc.h" />
     <ClInclude Include="display.h" />
     <ClInclude Include="hw\hdc.h" />
-    <ClInclude Include="hw\ps2.h" />
+    <ClInclude Include="hw\i8042_ps2.h" />
     <ClInclude Include="hw\i8237_dma.h" />
     <ClInclude Include="hw\i8253_pit.h" />
     <ClInclude Include="hw\i8259_pic.h" />

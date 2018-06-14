@@ -7,7 +7,7 @@
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
-#include "pce/hw/ps2.h"
+#include "pce/hw/i8042_ps2.h"
 #include "pce/systems/pcbase.h"
 
 class ByteStream;

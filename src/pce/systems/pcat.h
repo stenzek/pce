@@ -6,7 +6,7 @@
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
-#include "pce/hw/ps2.h"
+#include "pce/hw/i8042_ps2.h"
 #include "pce/systems/pcbase.h"
 
 class ByteStream;
@@ -44,7 +44,7 @@ private:
 
   void IOWriteSystemControlPortA(uint8 value);
 
-  HW::PS2Controller* m_keyboard_controller = nullptr;
+  HW::i8042_PS2* m_keyboard_controller = nullptr;
   HW::i8237_DMA* m_dma_controller = nullptr;
   HW::i8253_PIT* m_timer = nullptr;
   HW::i8259_PIC* m_interrupt_controller = nullptr;
