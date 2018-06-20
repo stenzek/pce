@@ -477,13 +477,7 @@ public:
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
   static inline void Execute_Operation_FST(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-  static inline void Execute_Operation_FSTCW(CPU* cpu);
-  template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-  static inline void Execute_Operation_FSTENV(CPU* cpu);
-  template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
   static inline void Execute_Operation_FSTP(CPU* cpu);
-  template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-  static inline void Execute_Operation_FSTSW(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant>
   static inline void Execute_Operation_FSUB(CPU* cpu);

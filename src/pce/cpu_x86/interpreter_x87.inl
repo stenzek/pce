@@ -1173,36 +1173,10 @@ void Interpreter::Execute_Operation_FST(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void Interpreter::Execute_Operation_FSTCW(CPU* cpu)
-{
-  static_assert(dst_size == OperandSize_16, "dst is 16-bits");
-  CalculateEffectiveAddress<dst_mode>(cpu);
-  StartX87Instruction(cpu);
-
-  WriteWordOperand<dst_mode, dst_constant>(cpu, cpu->m_fpu_registers.CW);
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void Interpreter::Execute_Operation_FSTENV(CPU* cpu)
-{
-  Panic("Not Implemented");
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FSTP(CPU* cpu)
 {
   Execute_Operation_FST<dst_size, dst_mode, dst_constant>(cpu);
   PopFloatStack(cpu);
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void Interpreter::Execute_Operation_FSTSW(CPU* cpu)
-{
-  static_assert(dst_size == OperandSize_16, "dst is 16-bits");
-  CalculateEffectiveAddress<dst_mode>(cpu);
-  StartX87Instruction(cpu);
-
-  WriteWordOperand<dst_mode, dst_constant>(cpu, cpu->m_fpu_registers.SW);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
