@@ -1511,15 +1511,16 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
       // V8086 mode uses DPL=3, and makes the segment valid
       segment_cache->access.dpl = 3;
       segment_cache->access.present = true;
-      segment_cache->access.is_code = (segment == Segment_CS);
-      if (segment_cache->access.is_code)
+      if (segment == Segment_CS)
       {
+        segment_cache->access.is_code = true;
         segment_cache->access.code_readable = true;
         segment_cache->access.code_confirming = true;
-        DebugAssert(GetCPL() == 3);
+        SetCPL(3);
       }
       else
       {
+        segment_cache->access.is_code = false;
         segment_cache->access.data_writable = true;
         segment_cache->access.data_expand_down = false;
       }
@@ -2518,7 +2519,6 @@ void CPU::InterruptReturn(OperandSize operand_size)
       LoadSegmentRegister(Segment_FS, v86_FS);
       LoadSegmentRegister(Segment_GS, v86_GS);
       SetFlags(return_EFLAGS);
-      SetCPL(3);
 
       m_registers.ESP = v86_ESP;
 
