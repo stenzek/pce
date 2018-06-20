@@ -1241,11 +1241,12 @@ void Interpreter::Execute_Operation_FXAM(CPU* cpu)
 
   // Empty values are accepted here.
   floatx80 val = ReadFloatRegister(cpu, 0);
+  int sign = floatx80_sign(val);
 
-  uint8 C0, C1, C2, C3;
-
-  // C1 <- SignBit(ST(0))
-  C1 = uint8(val.exp >> 15);
+  uint8 C0 = 0;
+  uint8 C1 = 0;
+  uint8 C2 = 0;
+  uint8 C3 = 0;
 
   // GetClass(ST(0))
   if (cpu->m_fpu_registers.TW.IsEmpty(cpu->m_fpu_registers.SW.TOP))
@@ -1255,41 +1256,42 @@ void Interpreter::Execute_Operation_FXAM(CPU* cpu)
     C2 = 0;
     C0 = 1;
   }
-  else if (floatx80_is_unsupported(val))
-  {
-    // Unsupported
-    C3 = 0;
-    C2 = 0;
-    C0 = 0;
-  }
-  else if (floatx80_is_infinity(val))
-  {
-    // Infinity
-    C3 = 1;
-    C2 = 0;
-    C0 = 0;
-  }
-  else if (floatx80_is_zero(val))
-  {
-    // Zero
-    C3 = 1;
-    C2 = 0;
-    C0 = 0;
-  }
-  else if (floatx80_is_zero_or_denormal(val))
-  {
-    // Denormal
-    C3 = 1;
-    C2 = 1;
-    C0 = 0;
-  }
   else
   {
-    // Normal
-    C3 = 0;
-    C2 = 1;
-    C0 = 0;
+    float_class_t val_class = floatx80_class(val);
+    switch (val_class)
+    {
+      case float_zero:
+        C3 = C1 = 1;
+        break;
+
+      case float_SNaN:
+      case float_QNaN:
+      {
+        if (floatx80_is_unsupported(val))
+          C1 = 1;
+        else
+          C1 = C0 = 1;
+      }
+      break;
+
+      case float_negative_inf:
+      case float_positive_inf:
+        C2 = C1 = C0 = 1;
+        break;
+
+      case float_denormal:
+        C3 = C2 = C1 = 1;
+        break;
+
+      case float_normalized:
+        C2 = C1 = 1;
+        break;
+    }
   }
+
+  if (sign == 0)
+    C1 = 0;
 
   cpu->m_fpu_registers.SW.C0 = C0;
   cpu->m_fpu_registers.SW.C1 = C1;
