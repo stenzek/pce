@@ -5415,31 +5415,33 @@ void Interpreter::Execute_Operation_LOADALL_286(CPU* cpu)
   cpu->m_registers.CX = table.CX;
   cpu->m_registers.AX = table.AX;
 
-  // TODO: Handle expand-up here, and access mask.
-  cpu->m_segment_cache[Segment_ES].base_address = table.ES_DESC.physical_address.GetValue();
-  cpu->m_segment_cache[Segment_ES].access.bits = table.ES_DESC.access_rights_or_zero;
-  cpu->m_segment_cache[Segment_ES].limit_low = 0;
-  cpu->m_segment_cache[Segment_ES].limit_high = table.ES_DESC.limit;
-  cpu->m_segment_cache[Segment_ES].limit_raw = table.ES_DESC.limit;
-  cpu->m_segment_cache[Segment_ES].access_mask = AccessTypeMask::All;
-  cpu->m_segment_cache[Segment_CS].base_address = table.CS_DESC.physical_address.GetValue();
-  cpu->m_segment_cache[Segment_CS].access.bits = table.CS_DESC.access_rights_or_zero;
-  cpu->m_segment_cache[Segment_CS].limit_low = 0;
-  cpu->m_segment_cache[Segment_CS].limit_high = table.CS_DESC.limit;
-  cpu->m_segment_cache[Segment_CS].limit_raw = table.CS_DESC.limit;
-  cpu->m_segment_cache[Segment_CS].access_mask = AccessTypeMask::All;
-  cpu->m_segment_cache[Segment_SS].base_address = table.SS_DESC.physical_address.GetValue();
-  cpu->m_segment_cache[Segment_SS].access.bits = table.SS_DESC.access_rights_or_zero;
-  cpu->m_segment_cache[Segment_SS].limit_low = 0;
-  cpu->m_segment_cache[Segment_SS].limit_high = table.SS_DESC.limit;
-  cpu->m_segment_cache[Segment_SS].limit_raw = table.SS_DESC.limit;
-  cpu->m_segment_cache[Segment_SS].access_mask = AccessTypeMask::All;
-  cpu->m_segment_cache[Segment_DS].base_address = table.DS_DESC.physical_address.GetValue();
-  cpu->m_segment_cache[Segment_DS].access.bits = table.DS_DESC.access_rights_or_zero;
-  cpu->m_segment_cache[Segment_DS].limit_low = 0;
-  cpu->m_segment_cache[Segment_DS].limit_high = table.DS_DESC.limit;
-  cpu->m_segment_cache[Segment_DS].limit_raw = table.DS_DESC.limit;
-  cpu->m_segment_cache[Segment_DS].access_mask = AccessTypeMask::All;
+  const LOADALL_286_TABLE::DESC_CACHE_286* caches[4] = {&table.ES_DESC, &table.CS_DESC, &table.SS_DESC, &table.DS_DESC};
+  for (uint32 i = 0; i < 4; i++)
+  {
+    CPU::SegmentCache& seg = cpu->m_segment_cache[i];
+    seg.access.bits = caches[i]->access_rights_or_zero;
+    seg.base_address = caches[i]->physical_address.GetValue();
+    seg.limit_low = 0;
+    seg.limit_high = ZeroExtend32(caches[i]->limit);
+
+    if (seg.access.is_code)
+    {
+      seg.access_mask = AccessTypeMask::Execute;
+      if (seg.access.code_readable)
+        seg.access_mask |= AccessTypeMask::Read;
+    }
+    else
+    {
+      seg.access_mask = AccessTypeMask::Read;
+      if (seg.access.data_writable)
+        seg.access_mask |= AccessTypeMask::Write;
+      if (seg.access.data_expand_down)
+      {
+        seg.limit_low = seg.limit_high + 1;
+        seg.limit_high = 0xFFFF;
+      }
+    }
+  }
 
   cpu->m_gdt_location.base_address = table.GDT_DESC.physical_address.GetValue();
   cpu->m_gdt_location.limit = table.GDT_DESC.limit;

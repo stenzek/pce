@@ -217,10 +217,8 @@ public:
     LinearMemoryAddress base_address;
     VirtualMemoryAddress limit_low;
     VirtualMemoryAddress limit_high;
-    uint32 limit_raw;
     SEGMENT_DESCRIPTOR_ACCESS_BITS access;
     AccessTypeMask access_mask;
-    uint8 dpl;
   };
 
   struct TSSCache
@@ -552,11 +550,12 @@ bool CPU_X86::CPU::CheckSegmentAccess(Segment segment, VirtualMemoryAddress offs
   // Non-CS segments should be data or code+readable
   // SS segments should be data+writable
   // Everything else should be code or writable
+  // TODO: Add a flag for 4G segments so we can skip the limit check.
 
   // First we check if we have read/write/execute access.
   // Then check against the segment limit (can be expand up or down, but calculated at load time).
-  if ((!InRealMode() && (segcache->access_mask & static_cast<AccessTypeMask>(1 << static_cast<uint8>(access))) ==
-                          AccessTypeMask::None) ||
+  if (((segcache->access_mask & static_cast<AccessTypeMask>(1 << static_cast<uint8>(access))) ==
+       AccessTypeMask::None) ||
       (offset < segcache->limit_low) || ((offset + (size - 1)) > segcache->limit_high))
   {
     // For the SS selector we issue SF not GPF.

@@ -641,6 +641,7 @@ struct InstructionData
   bool HasSIBIndex() const { return (GetSIBIndexRegister() != Reg32_ESP); }
   uint8 GetSIBScaling() const { return ((sib >> 6) & 0x03); }
   uint32 GetAddressMask() const { return (address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF; }
+  bool Is32Bit() const { return (operand_size == OperandSize_32); }
 };
 
 enum class ModRMAddressingMode : uint8
@@ -725,7 +726,7 @@ union SEGMENT_DESCRIPTOR_ACCESS_BITS
   BitField<uint32, bool, 2, 1> code_confirming;
   BitField<uint32, bool, 1, 1> data_expand_down;
   BitField<uint32, bool, 2, 1> data_writable;
-  BitField<uint32, uint8, 5, 2> privilege;
+  BitField<uint32, uint8, 5, 2> dpl;
   BitField<uint32, bool, 7, 1> present;
 };
 

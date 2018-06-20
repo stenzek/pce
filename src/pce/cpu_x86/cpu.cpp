@@ -82,11 +82,9 @@ void CPU::Reset()
     segment->base_address = 0;
     segment->limit_low = 0;
     segment->limit_high = 0xFFFF;
-    segment->limit_raw = 0xFFFF;
     segment->access.bits = 0;
     segment->access.present = true;
-    segment->access.privilege = 0;
-    segment->dpl = 0;
+    segment->access.dpl = 0;
     segment->access_mask = AccessTypeMask::All;
     if (i == Segment_CS)
     {
@@ -205,10 +203,8 @@ bool CPU::LoadState(BinaryReader& reader)
     reader.SafeReadUInt32(&ptr->base_address);
     reader.SafeReadUInt32(&ptr->limit_low);
     reader.SafeReadUInt32(&ptr->limit_high);
-    reader.SafeReadUInt32(&ptr->limit_raw);
     reader.SafeReadUInt8(&ptr->access.bits);
     reader.SafeReadUInt8(reinterpret_cast<uint8*>(&ptr->access_mask));
-    reader.SafeReadUInt8(&ptr->dpl);
   };
   for (uint32 i = 0; i < Segment_Count; i++)
     ReadSegmentCache(&m_segment_cache[i]);
@@ -302,10 +298,8 @@ bool CPU::SaveState(BinaryWriter& writer)
     writer.WriteUInt32(ptr->base_address);
     writer.WriteUInt32(ptr->limit_low);
     writer.WriteUInt32(ptr->limit_high);
-    writer.WriteUInt32(ptr->limit_raw);
     writer.WriteUInt8(ptr->access.bits);
     writer.WriteUInt8(static_cast<uint8>(ptr->access_mask));
-    writer.WriteUInt8(ptr->dpl);
   };
   for (uint32 i = 0; i < Segment_Count; i++)
     WriteSegmentCache(&m_segment_cache[i]);
@@ -1494,32 +1488,41 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     // The limit can be modified in protected mode by loading a descriptor.
     // When the register is reloaded in real mode, this limit must be preserved.
     // TODO: What about stack address size?
-    segment_cache->base_address = PhysicalMemoryAddress(value) * 0x10;
     m_registers.segment_selectors[segment] = value;
 
+    segment_cache->base_address = PhysicalMemoryAddress(value) * 0x10;
     if (InRealMode())
     {
       // Real mode uses DPL=0, but maintains validity and limits of existing segment
-      segment_cache->dpl = 0;
+      segment_cache->access.dpl = 0;
+
+      // Only CS has the limits/access reset.
+      if (segment == Segment_CS)
+      {
+        segment_cache->access.present = true;
+        segment_cache->access.code_confirming = true;
+        segment_cache->access.code_readable = true;
+        segment_cache->access_mask = AccessTypeMask::All;
+      }
     }
     else
     {
       // V8086 mode uses DPL=3, and makes the segment valid
-      segment_cache->dpl = 3;
-      if (segment == Segment_CS)
+      segment_cache->access.dpl = 3;
+      segment_cache->access.present = true;
+      segment_cache->access.is_code = (segment == Segment_CS);
+      if (segment_cache->access.is_code)
       {
-        segment_cache->access.is_code = true;
         segment_cache->access.code_readable = true;
+        segment_cache->access.code_confirming = true;
       }
       else
       {
-        segment_cache->access.is_code = false;
         segment_cache->access.data_writable = true;
         segment_cache->access.data_expand_down = false;
       }
       segment_cache->limit_low = 0x0000;
       segment_cache->limit_high = 0xFFFF;
-      segment_cache->limit_raw = 0xFFFF;
       segment_cache->access_mask = AccessTypeMask::All;
     }
 
@@ -1551,9 +1554,8 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     segment_cache->base_address = 0;
     segment_cache->limit_low = 0;
     segment_cache->limit_high = 0;
-    segment_cache->limit_raw = 0;
     segment_cache->access.bits = 0;
-    segment_cache->dpl = 0;
+    segment_cache->access.dpl = 0;
     segment_cache->access_mask = AccessTypeMask::None;
     m_registers.segment_selectors[segment] = value;
     Log_TracePrintf("Loaded null selector for %s", segment_names[segment]);
@@ -1606,13 +1608,12 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
   // Extract information from descriptor
   segment_cache->base_address = descriptor.memory.GetBase();
   segment_cache->access.bits = descriptor.memory.access_bits;
-  segment_cache->dpl = descriptor.dpl;
+  segment_cache->access.dpl = descriptor.dpl;
   m_registers.segment_selectors[segment] = value;
 
   // Handle page granularity.
   uint32 limit = descriptor.memory.GetLimit();
   bool is_32bit_segment = (m_model >= MODEL_386 && descriptor.memory.flags.size);
-  segment_cache->limit_raw = limit;
   if (m_model >= MODEL_386 && descriptor.memory.flags.granularity)
     limit = (limit << 12) | 0xFFF;
 
@@ -2369,7 +2370,7 @@ void CPU::FarReturn(OperandSize operand_size, uint32 pop_byte_count)
         Segment validate_segment = validate_segments[i];
         const SegmentCache* validate_segment_cache = &m_segment_cache[validate_segment];
         if ((!validate_segment_cache->access.is_code || !validate_segment_cache->access.code_confirming) &&
-            validate_segment_cache->dpl < target_selector.rpl)
+            validate_segment_cache->access.dpl < target_selector.rpl)
         {
           // If data or non-conforming code, set null selector
           LoadSegmentRegister(validate_segment, 0);
@@ -2589,7 +2590,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
         Segment validate_segment = validate_segments[i];
         const SegmentCache* validate_segment_cache = &m_segment_cache[validate_segment];
         if ((!validate_segment_cache->access.is_code || !validate_segment_cache->access.code_confirming) &&
-            validate_segment_cache->dpl < target_selector.rpl)
+            validate_segment_cache->access.dpl < target_selector.rpl)
         {
           // If data or non-conforming code, set null selector
           LoadSegmentRegister(validate_segment, 0);
