@@ -276,13 +276,11 @@ void Interpreter::RaiseFloatExceptions(CPU* cpu, const float_status_t& fs)
   {
     cpu->m_fpu_exception = true;
     cpu->AbortCurrentInstruction();
+    return;
   }
-}
 
-void Interpreter::UpdateC1Status(CPU* cpu, const float_status_t& fs)
-{
   // C1 <- 1 if rounded up, otherwise 0
-  cpu->m_fpu_registers.SW.C1 = 0;
+  cpu->m_fpu_registers.SW.C1 = (fs.float_exception_flags & RAISE_SW_C1) != 0;
 }
 
 void Interpreter::Execute_Operation_FNINIT(CPU* cpu)
@@ -1094,7 +1092,6 @@ void Interpreter::Execute_Operation_FRNDINT(CPU* cpu)
   floatx80 val = ReadFloatRegister(cpu, 0);
   floatx80 res = floatx80_round_to_int(val, fs);
   RaiseFloatExceptions(cpu, fs);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 0, res);
 }
 
@@ -1109,7 +1106,6 @@ void Interpreter::Execute_Operation_FSCALE(CPU* cpu)
   floatx80 st1 = ReadFloatRegister(cpu, 1);
   floatx80 res = floatx80_scale(st0, st1, fs);
   RaiseFloatExceptions(cpu, fs);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 0, res);
 }
 
@@ -1123,7 +1119,6 @@ void Interpreter::Execute_Operation_FSQRT(CPU* cpu)
   floatx80 val = ReadFloatRegister(cpu, 0);
   floatx80 res = floatx80_sqrt(val, fs);
   RaiseFloatExceptions(cpu, fs);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 0, res);
 }
 
@@ -1324,7 +1319,6 @@ void Interpreter::Execute_Operation_FPATAN(CPU* cpu)
   floatx80 st1 = ReadFloatRegister(cpu, 1);
   floatx80 res = fpatan(st0, st1, fs);
   RaiseFloatExceptions(cpu, fs);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 1, res);
   PopFloatStack(cpu);
 }
@@ -1338,7 +1332,6 @@ void Interpreter::Execute_Operation_F2XM1(CPU* cpu)
   floatx80 val = ReadFloatRegister(cpu, 0);
   floatx80 res = f2xm1(val, fs);
   RaiseFloatExceptions(cpu, fs);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 0, res);
 }
 
@@ -1353,7 +1346,6 @@ void Interpreter::Execute_Operation_FYL2X(CPU* cpu)
   floatx80 st1 = ReadFloatRegister(cpu, 1);
   floatx80 res = fyl2x(st0, st1, fs);
   RaiseFloatExceptions(cpu, fs);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 1, res);
   PopFloatStack(cpu);
 }
@@ -1369,7 +1361,6 @@ void Interpreter::Execute_Operation_FYL2XP1(CPU* cpu)
   floatx80 st1 = ReadFloatRegister(cpu, 1);
   floatx80 res = fyl2xp1(st0, st1, fs);
   RaiseFloatExceptions(cpu, fs);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 1, res);
 }
 
@@ -1387,7 +1378,6 @@ void Interpreter::Execute_Operation_FCOS(CPU* cpu)
   }
 
   RaiseFloatExceptions(cpu, fs);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 0, val);
 }
 
@@ -1405,7 +1395,6 @@ void Interpreter::Execute_Operation_FSIN(CPU* cpu)
   }
 
   RaiseFloatExceptions(cpu, fs);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 0, val);
 }
 
@@ -1425,7 +1414,6 @@ void Interpreter::Execute_Operation_FSINCOS(CPU* cpu)
 
   RaiseFloatExceptions(cpu, fs);
   CheckFloatStackOverflow(cpu);
-  UpdateC1Status(cpu, fs);
   WriteFloatRegister(cpu, 0, sin_val);
   PushFloatStack(cpu);
   WriteFloatRegister(cpu, 0, cos_val);
