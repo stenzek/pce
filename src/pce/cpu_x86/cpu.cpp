@@ -1,3 +1,4 @@
+#include "pce/cpu_x86/cpu.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
@@ -6,7 +7,6 @@
 #include "pce/bus.h"
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cached_interpreter_backend.h"
-#include "pce/cpu_x86/cpu.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
 #include "pce/cpu_x86/interpreter_backend.h"
@@ -130,6 +130,7 @@ void CPU::Reset()
   m_fpu_registers.CW.bits = 0x0040;
   m_fpu_registers.SW.bits = 0x0000;
   m_fpu_registers.TW.bits = 0x5555;
+  std::memset(m_fpu_registers.ST, 0, sizeof(m_fpu_registers.ST));
 
   InvalidateAllTLBEntries();
   FlushPrefetchQueue();
