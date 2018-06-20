@@ -685,6 +685,44 @@ void Interpreter::Execute_Operation_FIADD(CPU* cpu)
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
          uint32 src_constant>
+void Interpreter::Execute_Operation_FISUB(CPU* cpu)
+{
+  CalculateEffectiveAddress<dst_mode>(cpu);
+  CalculateEffectiveAddress<src_mode>(cpu);
+  StartX87Instruction(cpu);
+
+  float_status_t fs = GetFloatStatus(cpu);
+  floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
+  floatx80 rhs = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
+  RaiseFloatExceptions(cpu, fs);
+
+  floatx80 res = floatx80_sub(lhs, rhs, fs);
+  RaiseFloatExceptions(cpu, fs);
+
+  WriteFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs, res);
+}
+
+template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         uint32 src_constant>
+void Interpreter::Execute_Operation_FISUBR(CPU* cpu)
+{
+  CalculateEffectiveAddress<dst_mode>(cpu);
+  CalculateEffectiveAddress<src_mode>(cpu);
+  StartX87Instruction(cpu);
+
+  float_status_t fs = GetFloatStatus(cpu);
+  floatx80 lhs = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
+  floatx80 rhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
+  RaiseFloatExceptions(cpu, fs);
+
+  floatx80 res = floatx80_sub(lhs, rhs, fs);
+  RaiseFloatExceptions(cpu, fs);
+
+  WriteFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs, res);
+}
+
+template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         uint32 src_constant>
 void Interpreter::Execute_Operation_FIMUL(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -831,20 +869,6 @@ void Interpreter::Execute_Operation_FISTP(CPU* cpu)
 {
   Execute_Operation_FIST<dst_size, dst_mode, dst_constant>(cpu);
   PopFloatStack(cpu);
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
-void Interpreter::Execute_Operation_FISUB(CPU* cpu)
-{
-  Panic("Not Implemented");
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
-void Interpreter::Execute_Operation_FISUBR(CPU* cpu)
-{
-  Panic("Not Implemented");
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
