@@ -873,12 +873,6 @@ void Interpreter::Execute_Operation_FLDCW(CPU* cpu)
   cpu->m_fpu_registers.CW.bits = cw;
 }
 
-template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void Interpreter::Execute_Operation_FLDENV(CPU* cpu)
-{
-  Panic("Not Implemented");
-}
-
 void Interpreter::Execute_Operation_FLDL2E(CPU* cpu)
 {
   StartX87Instruction(cpu);
@@ -959,79 +953,24 @@ void Interpreter::Execute_Operation_FMULP(CPU* cpu)
   PopFloatStack(cpu);
 }
 
+template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
+void Interpreter::Execute_Operation_FRSTOR(CPU* cpu)
+{
+  CalculateEffectiveAddress<src_mode>(cpu);
+  StartX87Instruction(cpu);
+
+  cpu->LoadFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
+                    true);
+}
+
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FNSAVE(CPU* cpu)
 {
-  // this seems buggy.
   CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu);
 
-  // Save environment.
-  // TODO: Mask addr with current address size
-  // TODO: Refactor to its own method
-  const uint16 cw = cpu->m_fpu_registers.CW.bits;
-  const uint16 sw = cpu->m_fpu_registers.SW.bits;
-  const uint16 tw = cpu->m_fpu_registers.TW.bits;
-  const uint32 fip = 0;
-  const uint16 fcs = 0;
-  const uint32 fdp = 0;
-  const uint16 fds = 0;
-  const uint32 fop = 0;
-
-  const Segment seg = cpu->idata.segment;
-  const uint32 addr_mask = cpu->m_current_address_size == AddressSize_16 ? 0xFFFF : 0xFFFFFFFF;
-  VirtualMemoryAddress addr = cpu->m_effective_address;
-  if (cpu->idata.operand_size == OperandSize_32)
-  {
-    cpu->WriteMemoryWord(seg, (addr + 0) & addr_mask, cw);
-    cpu->WriteMemoryWord(seg, (addr + 4) & addr_mask, sw);
-    cpu->WriteMemoryWord(seg, (addr + 8) & addr_mask, tw);
-    if (cpu->InProtectedMode())
-    {
-      cpu->WriteMemoryDWord(seg, (addr + 12) & addr_mask, fip);
-      cpu->WriteMemoryDWord(seg, (addr + 16) & addr_mask, ZeroExtend32(fcs) | ((fop & 0x7FF) << 16));
-      cpu->WriteMemoryDWord(seg, (addr + 20) & addr_mask, fdp);
-      cpu->WriteMemoryWord(seg, (addr + 24) & addr_mask, fds);
-    }
-    else
-    {
-      cpu->WriteMemoryWord(seg, (addr + 12) & addr_mask, Truncate16(fip));
-      cpu->WriteMemoryDWord(seg, (addr + 16) & addr_mask, (fop & 0x7FF) | ((fip >> 16) << 11));
-      cpu->WriteMemoryWord(seg, (addr + 20) & addr_mask, Truncate16(fdp));
-      cpu->WriteMemoryWord(seg, (addr + 24) & addr_mask, ((fdp >> 16) << 11));
-    }
-    addr += 28;
-  }
-  else
-  {
-    cpu->WriteMemoryWord(seg, (addr + 0) & addr_mask, cw);
-    cpu->WriteMemoryWord(seg, (addr + 2) & addr_mask, sw);
-    cpu->WriteMemoryWord(seg, (addr + 4) & addr_mask, tw);
-    if (cpu->InProtectedMode() && !cpu->InVirtual8086Mode())
-    {
-      cpu->WriteMemoryWord(seg, (addr + 6) & addr_mask, Truncate16(fip));
-      cpu->WriteMemoryWord(seg, (addr + 8) & addr_mask, fcs);
-      cpu->WriteMemoryWord(seg, (addr + 10) & addr_mask, Truncate16(fdp));
-      cpu->WriteMemoryWord(seg, (addr + 12) & addr_mask, fds);
-    }
-    else
-    {
-      cpu->WriteMemoryWord(seg, (addr + 6) & addr_mask, Truncate16(fip));
-      cpu->WriteMemoryWord(seg, (addr + 8) & addr_mask, (fop & 0x7FF) | (((fip >> 16) & 0xF) << 12));
-      cpu->WriteMemoryWord(seg, (addr + 10) & addr_mask, Truncate16(fdp));
-      cpu->WriteMemoryWord(seg, (addr + 12) & addr_mask, (((fdp >> 16) & 0xF) << 12));
-    }
-    addr += 14;
-  }
-
-  // Save each of the registers out
-  for (uint32 i = 0; i < 8; i++)
-  {
-    cpu->WriteMemoryDWord(seg, (addr + 0) & addr_mask, Truncate32(cpu->m_fpu_registers.ST[i].low));
-    cpu->WriteMemoryDWord(seg, (addr + 4) & addr_mask, Truncate32(cpu->m_fpu_registers.ST[i].low >> 32));
-    cpu->WriteMemoryWord(seg, (addr + 8) & addr_mask, cpu->m_fpu_registers.ST[i].high);
-    addr += 10;
-  }
+  cpu->StoreFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
+                     true);
 
   // Reset state
   cpu->m_fpu_registers.CW.bits = 0x037F;
@@ -1041,92 +980,32 @@ void Interpreter::Execute_Operation_FNSAVE(CPU* cpu)
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
-void Interpreter::Execute_Operation_FRSTOR(CPU* cpu)
+void Interpreter::Execute_Operation_FLDENV(CPU* cpu)
 {
-  // this seems buggy.
   CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
 
-  // Save environment.
-  // TODO: Mask addr with current address size
-  // TODO: Refactor to its own method
-  uint16 cw = cpu->m_fpu_registers.CW.bits;
-  uint16 sw = cpu->m_fpu_registers.SW.bits;
-  uint16 tw = cpu->m_fpu_registers.TW.bits;
-  uint32 fip = 0;
-  uint16 fcs = 0;
-  uint32 fdp = 0;
-  uint16 fds = 0;
-  uint32 fop = 0;
+  cpu->LoadFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
+                    false);
+}
 
-  const Segment seg = cpu->idata.segment;
-  const uint32 addr_mask = cpu->m_current_address_size == AddressSize_16 ? 0xFFFF : 0xFFFFFFFF;
-  VirtualMemoryAddress addr = cpu->m_effective_address;
-  if (cpu->idata.operand_size == OperandSize_32)
-  {
-    cw = cpu->ReadMemoryWord(seg, (addr + 0) & addr_mask);
-    sw = cpu->ReadMemoryWord(seg, (addr + 4) & addr_mask);
-    tw = cpu->ReadMemoryWord(seg, (addr + 8) & addr_mask);
-    if (cpu->InProtectedMode())
-    {
-      fip = cpu->ReadMemoryDWord(seg, (addr + 12) & addr_mask);
-      uint32 temp = cpu->ReadMemoryDWord(seg, (addr + 16) & addr_mask);
-      fop = (temp >> 16) & 0x7FF;
-      fcs = Truncate16(temp & 0xFFFF);
-      fdp = cpu->ReadMemoryDWord(seg, (addr + 20) & addr_mask);
-      fds = cpu->ReadMemoryWord(seg, (addr + 24) & addr_mask);
-    }
-    else
-    {
-      fip = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 12) & addr_mask));
-      uint32 temp = cpu->ReadMemoryDWord(seg, (addr + 16) & addr_mask);
-      fop = Truncate16(temp) & 0x7FF;
-      fip |= ZeroExtend32(Truncate16(temp >> 11)) << 16;
-      fdp = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 20) & addr_mask));
-      fdp |= ZeroExtend32(Truncate16(cpu->ReadMemoryWord(seg, (addr + 24) & addr_mask) >> 11)) << 16;
-    }
-    addr += 28;
-  }
-  else
-  {
-    cw = cpu->ReadMemoryWord(seg, (addr + 0) & addr_mask);
-    sw = cpu->ReadMemoryWord(seg, (addr + 2) & addr_mask);
-    tw = cpu->ReadMemoryWord(seg, (addr + 4) & addr_mask);
-    if (cpu->InProtectedMode() && !cpu->InVirtual8086Mode())
-    {
-      fip = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 6) & addr_mask));
-      fcs = cpu->ReadMemoryWord(seg, (addr + 8) & addr_mask);
-      fdp = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 10) & addr_mask));
-      fds = cpu->ReadMemoryWord(seg, (addr + 12) & addr_mask);
-    }
-    else
-    {
-      fip = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 6) & addr_mask));
-      uint16 temp = cpu->ReadMemoryWord(seg, (addr + 8) & addr_mask);
-      fop = temp & 0x7FF;
-      fip |= (ZeroExtend32(temp >> 12) & 0xF) << 16;
-      fdp = ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 10) & addr_mask));
-      fdp |= (ZeroExtend32(cpu->ReadMemoryWord(seg, (addr + 12) & addr_mask) >> 12) & 0xF) << 16;
-    }
-    addr += 14;
-  }
+template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+void Interpreter::Execute_Operation_FNSTENV(CPU* cpu)
+{
+  CalculateEffectiveAddress<dst_mode>(cpu);
+  StartX87Instruction(cpu);
 
-  // Save each of the registers out
-  for (uint32 i = 0; i < 8; i++)
-  {
-    cpu->m_fpu_registers.ST[i].low = ZeroExtend64(cpu->ReadMemoryDWord(seg, (addr + 0) & addr_mask));
-    cpu->m_fpu_registers.ST[i].low |= ZeroExtend64(cpu->ReadMemoryDWord(seg, (addr + 4) & addr_mask)) << 32;
-    cpu->m_fpu_registers.ST[i].high = cpu->ReadMemoryWord(seg, (addr + 8) & addr_mask);
-    addr += 10;
-  }
+  cpu->StoreFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
+                     false);
 
-  cpu->m_fpu_exception = (cpu->m_fpu_registers.SW.I | cpu->m_fpu_registers.SW.Z | cpu->m_fpu_registers.SW.O |
-                          cpu->m_fpu_registers.SW.U | cpu->m_fpu_registers.SW.P | cpu->m_fpu_registers.SW.D);
-  if (cpu->m_fpu_exception)
-  {
-    // New environment has an exception set.
-    cpu->AbortCurrentInstruction();
-  }
+  // Mask all exceptions.
+  cpu->m_fpu_registers.CW.IM = false;
+  cpu->m_fpu_registers.CW.DM = false;
+  cpu->m_fpu_registers.CW.ZM = false;
+  cpu->m_fpu_registers.CW.OM = false;
+  cpu->m_fpu_registers.CW.UM = false;
+  cpu->m_fpu_registers.CW.PM = false;
+  cpu->m_fpu_registers.CW.IEM = false;
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
@@ -1137,12 +1016,6 @@ void Interpreter::Execute_Operation_FNSTCW(CPU* cpu)
   StartX87Instruction(cpu);
 
   WriteWordOperand<dst_mode, dst_constant>(cpu, cpu->m_fpu_registers.CW.bits);
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-void Interpreter::Execute_Operation_FNSTENV(CPU* cpu)
-{
-  Panic("Not Implemented");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>

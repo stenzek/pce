@@ -2959,29 +2959,6 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
   }
 }
 
-void CPU::CheckFloatingPointException()
-{
-  if ((m_registers.CR0 & (CR0Bit_MP | CR0Bit_TS)) == (CR0Bit_MP | CR0Bit_TS))
-  {
-    RaiseException(Interrupt_CoprocessorNotAvailable, 0);
-    return;
-  }
-
-  // Check and handle any pending floating point exceptions
-  if (!m_fpu_exception)
-    return;
-
-  m_fpu_exception = false;
-  if (m_registers.CR0 & CR0Bit_NE)
-  {
-    RaiseException(Interrupt_MathFault);
-    return;
-  }
-
-  // Compatibility mode via the PIC.
-  m_system->GetInterruptController()->TriggerInterrupt(13);
-}
-
 inline constexpr bool IsAvailableTaskDescriptorType(uint8 type)
 {
   return (type == DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_16 || type == DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_32);
@@ -3332,6 +3309,175 @@ bool CPU::HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exc
 
   // IO operation is allowed
   return true;
+}
+
+void CPU::CheckFloatingPointException()
+{
+  if ((m_registers.CR0 & (CR0Bit_MP | CR0Bit_TS)) == (CR0Bit_MP | CR0Bit_TS))
+  {
+    RaiseException(Interrupt_CoprocessorNotAvailable, 0);
+    return;
+  }
+
+  // Check and handle any pending floating point exceptions
+  if (!m_fpu_exception)
+    return;
+
+  m_fpu_exception = false;
+  if (m_registers.CR0 & CR0Bit_NE)
+  {
+    RaiseException(Interrupt_MathFault);
+    return;
+  }
+
+  // Compatibility mode via the PIC.
+  m_system->GetInterruptController()->TriggerInterrupt(13);
+}
+
+void CPU::LoadFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddress addr_mask, bool is_32bit,
+                       bool load_registers)
+{
+  uint16 cw = 0;
+  uint16 sw = 0;
+  uint16 tw = 0;
+  uint32 fip = 0;
+  uint16 fcs = 0;
+  uint32 fdp = 0;
+  uint16 fds = 0;
+  uint32 fop = 0;
+
+  if (idata.operand_size == OperandSize_32)
+  {
+    cw = ReadMemoryWord(seg, (addr + 0) & addr_mask);
+    sw = ReadMemoryWord(seg, (addr + 4) & addr_mask);
+    tw = ReadMemoryWord(seg, (addr + 8) & addr_mask);
+    if (InProtectedMode())
+    {
+      fip = ReadMemoryDWord(seg, (addr + 12) & addr_mask);
+      uint32 temp = ReadMemoryDWord(seg, (addr + 16) & addr_mask);
+      fop = (temp >> 16) & 0x7FF;
+      fcs = Truncate16(temp & 0xFFFF);
+      fdp = ReadMemoryDWord(seg, (addr + 20) & addr_mask);
+      fds = ReadMemoryWord(seg, (addr + 24) & addr_mask);
+    }
+    else
+    {
+      fip = ZeroExtend32(ReadMemoryWord(seg, (addr + 12) & addr_mask));
+      uint32 temp = ReadMemoryDWord(seg, (addr + 16) & addr_mask);
+      fop = Truncate16(temp) & 0x7FF;
+      fip |= ZeroExtend32(Truncate16(temp >> 11)) << 16;
+      fdp = ZeroExtend32(ReadMemoryWord(seg, (addr + 20) & addr_mask));
+      fdp |= ZeroExtend32(Truncate16(ReadMemoryWord(seg, (addr + 24) & addr_mask) >> 11)) << 16;
+    }
+    addr += 28;
+  }
+  else
+  {
+    cw = ReadMemoryWord(seg, (addr + 0) & addr_mask);
+    sw = ReadMemoryWord(seg, (addr + 2) & addr_mask);
+    tw = ReadMemoryWord(seg, (addr + 4) & addr_mask);
+    if (InProtectedMode() && !InVirtual8086Mode())
+    {
+      fip = ZeroExtend32(ReadMemoryWord(seg, (addr + 6) & addr_mask));
+      fcs = ReadMemoryWord(seg, (addr + 8) & addr_mask);
+      fdp = ZeroExtend32(ReadMemoryWord(seg, (addr + 10) & addr_mask));
+      fds = ReadMemoryWord(seg, (addr + 12) & addr_mask);
+    }
+    else
+    {
+      fip = ZeroExtend32(ReadMemoryWord(seg, (addr + 6) & addr_mask));
+      uint16 temp = ReadMemoryWord(seg, (addr + 8) & addr_mask);
+      fop = temp & 0x7FF;
+      fip |= (ZeroExtend32(temp >> 12) & 0xF) << 16;
+      fdp = ZeroExtend32(ReadMemoryWord(seg, (addr + 10) & addr_mask));
+      fdp |= (ZeroExtend32(ReadMemoryWord(seg, (addr + 12) & addr_mask) >> 12) & 0xF) << 16;
+    }
+    addr += 14;
+  }
+
+  m_fpu_exception = (m_fpu_registers.SW.I | m_fpu_registers.SW.Z | m_fpu_registers.SW.O | m_fpu_registers.SW.U |
+                     m_fpu_registers.SW.P | m_fpu_registers.SW.D);
+
+  if (!load_registers)
+    return;
+
+  for (uint32 i = 0; i < 8; i++)
+  {
+    m_fpu_registers.ST[i].low = ZeroExtend64(ReadMemoryDWord(seg, (addr + 0) & addr_mask));
+    m_fpu_registers.ST[i].low |= ZeroExtend64(ReadMemoryDWord(seg, (addr + 4) & addr_mask)) << 32;
+    m_fpu_registers.ST[i].high = ReadMemoryWord(seg, (addr + 8) & addr_mask);
+    addr += 10;
+  }
+}
+
+void CPU::StoreFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddress addr_mask, bool is_32bit,
+                        bool store_registers)
+{
+  const uint16 cw = m_fpu_registers.CW.bits;
+  const uint16 sw = m_fpu_registers.SW.bits;
+  const uint16 tw = m_fpu_registers.TW.bits;
+  const uint32 fip = 0;
+  const uint16 fcs = 0;
+  const uint32 fdp = 0;
+  const uint16 fds = 0;
+  const uint32 fop = 0;
+
+  if (is_32bit)
+  {
+    WriteMemoryWord(seg, (addr + 0) & addr_mask, cw);
+    WriteMemoryWord(seg, (addr + 4) & addr_mask, sw);
+    WriteMemoryWord(seg, (addr + 8) & addr_mask, tw);
+    if (InProtectedMode())
+    {
+      WriteMemoryDWord(seg, (addr + 12) & addr_mask, fip);
+      WriteMemoryDWord(seg, (addr + 16) & addr_mask, ZeroExtend32(fcs) | ((fop & 0x7FF) << 16));
+      WriteMemoryDWord(seg, (addr + 20) & addr_mask, fdp);
+      WriteMemoryWord(seg, (addr + 24) & addr_mask, fds);
+    }
+    else
+    {
+      WriteMemoryWord(seg, (addr + 12) & addr_mask, Truncate16(fip));
+      WriteMemoryDWord(seg, (addr + 16) & addr_mask, (fop & 0x7FF) | ((fip >> 16) << 11));
+      WriteMemoryWord(seg, (addr + 20) & addr_mask, Truncate16(fdp));
+      WriteMemoryWord(seg, (addr + 24) & addr_mask, ((fdp >> 16) << 11));
+    }
+
+    addr += 28;
+  }
+  else
+  {
+    WriteMemoryWord(seg, (addr + 0) & addr_mask, cw);
+    WriteMemoryWord(seg, (addr + 2) & addr_mask, sw);
+    WriteMemoryWord(seg, (addr + 4) & addr_mask, tw);
+    if (InProtectedMode() && !InVirtual8086Mode())
+    {
+      WriteMemoryWord(seg, (addr + 6) & addr_mask, Truncate16(fip));
+      WriteMemoryWord(seg, (addr + 8) & addr_mask, fcs);
+      WriteMemoryWord(seg, (addr + 10) & addr_mask, Truncate16(fdp));
+      WriteMemoryWord(seg, (addr + 12) & addr_mask, fds);
+    }
+    else
+    {
+      WriteMemoryWord(seg, (addr + 6) & addr_mask, Truncate16(fip));
+      WriteMemoryWord(seg, (addr + 8) & addr_mask, (fop & 0x7FF) | (((fip >> 16) & 0xF) << 12));
+      WriteMemoryWord(seg, (addr + 10) & addr_mask, Truncate16(fdp));
+      WriteMemoryWord(seg, (addr + 12) & addr_mask, (((fdp >> 16) & 0xF) << 12));
+    }
+
+    addr += 14;
+  }
+
+  if (!store_registers)
+    return;
+
+  // Save each of the registers out
+  for (uint32 i = 0; i < 8; i++)
+  {
+    WriteMemoryDWord(seg, (addr + 0) & addr_mask, Truncate32(m_fpu_registers.ST[i].low));
+    WriteMemoryDWord(seg, (addr + 4) & addr_mask, Truncate32(m_fpu_registers.ST[i].low >> 32));
+    WriteMemoryWord(seg, (addr + 8) & addr_mask, m_fpu_registers.ST[i].high);
+    addr += 10;
+  }
 }
 
 void CPU::DumpPageTable()

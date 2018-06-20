@@ -421,6 +421,12 @@ protected:
   // Check pending exceptions (WAIT instruction).
   void CheckFloatingPointException();
 
+  // Store/load floating-point environment.
+  void LoadFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddress addr_mask, bool is_32bit,
+                    bool load_registers);
+  void StoreFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddress addr_mask, bool is_32bit,
+                     bool store_registers);
+
   // Switches to the task segment selected by the parameter.
   // Optionally sets nested task flag and backlink field.
   // This assumes that new_task is a valid descriptor and is not busy.
