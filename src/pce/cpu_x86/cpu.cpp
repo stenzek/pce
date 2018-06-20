@@ -3315,14 +3315,8 @@ bool CPU::HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exc
 
 void CPU::CheckFloatingPointException()
 {
-  if ((m_registers.CR0 & (CR0Bit_MP | CR0Bit_TS)) == (CR0Bit_MP | CR0Bit_TS))
-  {
-    RaiseException(Interrupt_CoprocessorNotAvailable, 0);
-    return;
-  }
-
   // Check and handle any pending floating point exceptions
-  if (!m_fpu_exception)
+  if (!m_fpu_registers.SW.IR)
     return;
 
   m_fpu_exception = false;
@@ -3397,8 +3391,7 @@ void CPU::LoadFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddr
     addr += 14;
   }
 
-  m_fpu_exception = (m_fpu_registers.SW.I | m_fpu_registers.SW.Z | m_fpu_registers.SW.O | m_fpu_registers.SW.U |
-                     m_fpu_registers.SW.P | m_fpu_registers.SW.D);
+  UpdateFPUSummaryException();
 
   if (!load_registers)
     return;
@@ -3480,6 +3473,15 @@ void CPU::StoreFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAdd
     WriteMemoryWord(seg, (addr + 8) & addr_mask, m_fpu_registers.ST[i].high);
     addr += 10;
   }
+}
+
+void CPU::UpdateFPUSummaryException()
+{
+  uint16 unmasked_exceptions = (m_fpu_registers.SW.bits & 0x3F) & (m_fpu_registers.CW.bits ^ uint16(0x3F));
+  if (unmasked_exceptions != 0)
+    m_fpu_registers.SW.IR = m_fpu_registers.SW.B = true;
+  else
+    m_fpu_registers.SW.IR = m_fpu_registers.SW.B = false;
 }
 
 void CPU::DumpPageTable()

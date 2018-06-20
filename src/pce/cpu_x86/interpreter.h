@@ -347,7 +347,7 @@ public:
   static inline bool TestJumpCondition(CPU* cpu);
 
   // x87/FPU
-  static inline void StartX87Instruction(CPU* cpu);
+  static inline void StartX87Instruction(CPU* cpu, bool check_exceptions = true);
   template<OperandSize size, OperandMode mode, uint32 constant>
   static inline floatx80 ReadFloatOperand(CPU* cpu, float_status_t& fs);
   template<OperandSize size, OperandMode mode, uint32 constant>

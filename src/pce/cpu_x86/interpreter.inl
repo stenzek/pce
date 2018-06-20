@@ -5299,11 +5299,6 @@ void Interpreter::Execute_Operation_WBINVD(CPU* cpu)
   // Log_WarningPrintf("WBINVD instruction");
 }
 
-void Interpreter::Execute_Operation_WAIT(CPU* cpu)
-{
-  cpu->CheckFloatingPointException();
-}
-
 void Interpreter::Execute_Operation_RDTSC(CPU* cpu)
 {
   // TSD flag in CR4 controls whether this is privileged or unprivileged

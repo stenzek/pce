@@ -427,6 +427,9 @@ protected:
   void StoreFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddress addr_mask, bool is_32bit,
                      bool store_registers);
 
+  // Update IR/B flags in status word when a new status word is loaded.
+  void UpdateFPUSummaryException();
+
   // Switches to the task segment selected by the parameter.
   // Optionally sets nested task flag and backlink field.
   // This assumes that new_task is a valid descriptor and is not busy.

@@ -15,7 +15,7 @@
 #endif
 
 namespace CPU_X86 {
-void Interpreter::StartX87Instruction(CPU* cpu)
+void Interpreter::StartX87Instruction(CPU* cpu, bool check_exceptions)
 {
   if ((cpu->m_registers.CR0 & CR0Bit_EM) || (cpu->m_registers.CR0 & (CR0Bit_MP | CR0Bit_TS)) == (CR0Bit_MP | CR0Bit_TS))
   {
@@ -25,6 +25,10 @@ void Interpreter::StartX87Instruction(CPU* cpu)
 
   // If no FPU
   // cpu->AbortCurrentInstruction();
+
+  // TODO: Do we always want to do this?
+  if (check_exceptions)
+    cpu->CheckFloatingPointException();
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
@@ -231,61 +235,68 @@ float_status_t Interpreter::GetFloatStatus(CPU* cpu)
 
 void Interpreter::RaiseFloatExceptions(CPU* cpu, const float_status_t& fs)
 {
+  // TODO: This can be optimized.
   if (fs.float_exception_flags == 0)
     return;
 
-  bool abort = false;
+  // 0x03F - exception flags in SW.
+  // 0x200 - rounded up flag.
+  int unmasked_exceptions = fs.float_exception_flags & (fs.float_exception_masks ^ 0x3F);
+  uint16 status_exception_bits = uint16(fs.float_exception_flags & 0x23F);
 
-  if (fs.float_exception_flags & float_flag_invalid)
+  // #P is overruled by #O and #U.
+  if (fs.float_exception_flags & float_flag_inexact &&
+      fs.float_exception_flags & (float_flag_overflow | float_flag_underflow))
   {
-    cpu->m_fpu_registers.SW.I = true;
-    abort |= !cpu->m_fpu_registers.CW.IM;
+    status_exception_bits &= ~(float_flag_inexact | RAISE_SW_C1);
+    unmasked_exceptions &= ~float_flag_inexact;
   }
 
-  if (fs.float_exception_flags & float_flag_denormal)
+  // invalid/divide by zero ignore other unmasked exceptions
+  if (fs.float_exception_flags & (float_flag_invalid | float_flag_divbyzero | float_flag_denormal))
   {
-    cpu->m_fpu_registers.SW.D = true;
-    abort |= !cpu->m_fpu_registers.CW.DM;
+    unmasked_exceptions &= (float_flag_invalid | float_flag_divbyzero | float_flag_denormal);
+    if (fs.float_exception_flags & float_flag_invalid)
+      cpu->m_fpu_registers.SW.bits |= status_exception_bits;
+    else if (fs.float_exception_flags & float_flag_divbyzero)
+      cpu->m_fpu_registers.SW.Z = true;
+    else if (fs.float_exception_flags & float_flag_denormal)
+      cpu->m_fpu_registers.SW.D = true;
+  }
+  else
+  {
+    // Set status word bits.
+    cpu->m_fpu_registers.SW.bits |= status_exception_bits;
   }
 
-  if (fs.float_exception_flags & float_flag_divbyzero)
+  // If any unmasked exceptions occurred, we need to abort the instruction. This prevents memory writes and such.
+  if (unmasked_exceptions != 0)
   {
-    cpu->m_fpu_registers.SW.Z = true;
-    abort |= !cpu->m_fpu_registers.CW.ZM;
-  }
+    cpu->m_fpu_registers.SW.IR = cpu->m_fpu_registers.SW.B = true;
 
-  if (fs.float_exception_flags & float_flag_overflow)
-  {
-    cpu->m_fpu_registers.SW.O = true;
-    abort |= !cpu->m_fpu_registers.CW.OM;
+    // #P still should finish the instruction/write the result.
+    if ((unmasked_exceptions & (~float_flag_inexact)) != 0)
+    {
+      cpu->AbortCurrentInstruction();
+      return;
+    }
   }
+}
 
-  if (fs.float_exception_flags & float_flag_underflow)
+void Interpreter::Execute_Operation_WAIT(CPU* cpu)
+{
+  if ((cpu->m_registers.CR0 & (CR0Bit_MP | CR0Bit_TS)) == (CR0Bit_MP | CR0Bit_TS))
   {
-    cpu->m_fpu_registers.SW.U = true;
-    abort |= !cpu->m_fpu_registers.CW.UM;
-  }
-
-  if (fs.float_exception_flags & float_flag_inexact)
-  {
-    cpu->m_fpu_registers.SW.P = true;
-    abort |= !cpu->m_fpu_registers.CW.PM;
-  }
-
-  if (abort)
-  {
-    cpu->m_fpu_exception = true;
-    cpu->AbortCurrentInstruction();
+    cpu->RaiseException(Interrupt_CoprocessorNotAvailable, 0);
     return;
   }
 
-  // C1 <- 1 if rounded up, otherwise 0
-  cpu->m_fpu_registers.SW.C1 = (fs.float_exception_flags & RAISE_SW_C1) != 0;
+  cpu->CheckFloatingPointException();
 }
 
 void Interpreter::Execute_Operation_FNINIT(CPU* cpu)
 {
-  StartX87Instruction(cpu);
+  StartX87Instruction(cpu, false);
 
   cpu->m_fpu_registers.CW.bits = 0x037F;
   cpu->m_fpu_registers.SW.bits = 0;
@@ -297,7 +308,7 @@ void Interpreter::Execute_Operation_FNINIT(CPU* cpu)
 
 void Interpreter::Execute_Operation_FNCLEX(CPU* cpu)
 {
-  StartX87Instruction(cpu);
+  StartX87Instruction(cpu, false);
 
   // FPUStatusWord[0:7] <- 0;
   // FPUStatusWord[15] <- 0;
@@ -869,6 +880,7 @@ void Interpreter::Execute_Operation_FLDCW(CPU* cpu)
 
   uint16 cw = ReadWordOperand<src_mode, src_constant>(cpu);
   cpu->m_fpu_registers.CW.bits = cw;
+  cpu->UpdateFPUSummaryException();
 }
 
 void Interpreter::Execute_Operation_FLDL2E(CPU* cpu)
@@ -965,7 +977,7 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FNSAVE(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
-  StartX87Instruction(cpu);
+  StartX87Instruction(cpu, false);
 
   cpu->StoreFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
                      true);
@@ -974,7 +986,7 @@ void Interpreter::Execute_Operation_FNSAVE(CPU* cpu)
   cpu->m_fpu_registers.CW.bits = 0x037F;
   cpu->m_fpu_registers.SW.bits = 0;
   cpu->m_fpu_registers.TW.bits = 0xFFFF;
-  cpu->m_fpu_exception = false;
+  cpu->UpdateFPUSummaryException();
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
@@ -991,19 +1003,19 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FNSTENV(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
-  StartX87Instruction(cpu);
+  StartX87Instruction(cpu, false);
 
   cpu->StoreFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
                      false);
 
   // Mask all exceptions.
-  cpu->m_fpu_registers.CW.IM = false;
-  cpu->m_fpu_registers.CW.DM = false;
-  cpu->m_fpu_registers.CW.ZM = false;
-  cpu->m_fpu_registers.CW.OM = false;
-  cpu->m_fpu_registers.CW.UM = false;
-  cpu->m_fpu_registers.CW.PM = false;
-  cpu->m_fpu_registers.CW.IEM = false;
+  cpu->m_fpu_registers.CW.IM = true;
+  cpu->m_fpu_registers.CW.DM = true;
+  cpu->m_fpu_registers.CW.ZM = true;
+  cpu->m_fpu_registers.CW.OM = true;
+  cpu->m_fpu_registers.CW.UM = true;
+  cpu->m_fpu_registers.CW.PM = true;
+  cpu->UpdateFPUSummaryException();
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
@@ -1011,7 +1023,7 @@ void Interpreter::Execute_Operation_FNSTCW(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16, "dst_size is 16 bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
-  StartX87Instruction(cpu);
+  StartX87Instruction(cpu, false);
 
   WriteWordOperand<dst_mode, dst_constant>(cpu, cpu->m_fpu_registers.CW.bits);
 }
@@ -1021,7 +1033,7 @@ void Interpreter::Execute_Operation_FNSTSW(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16, "dst_size is 16 bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
-  StartX87Instruction(cpu);
+  StartX87Instruction(cpu, false);
 
   WriteWordOperand<dst_mode, dst_constant>(cpu, cpu->m_fpu_registers.SW.bits);
 }
