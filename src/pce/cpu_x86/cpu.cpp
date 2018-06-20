@@ -1,4 +1,3 @@
-#include "pce/cpu_x86/cpu.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
@@ -7,6 +6,7 @@
 #include "pce/bus.h"
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cached_interpreter_backend.h"
+#include "pce/cpu_x86/cpu.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
 #include "pce/cpu_x86/interpreter_backend.h"
@@ -777,16 +777,16 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
       if (m_model >= MODEL_486)
         CHANGE_MASK |= CR0Bit_AM | CR0Bit_WP;
 
-      Log_DevPrintf("CR0 <- 0x%08X", value);
+      if (m_registers.CR0 != ((m_registers.CR0 & ~CHANGE_MASK) | (value & CHANGE_MASK)))
+        Log_DevPrintf("CR0 <- 0x%08X", value);
+
       value &= CHANGE_MASK;
 
-      // Log_DevPrintf("  Protected mode: %s", ((value & CR0Bit_PE) != 0) ? "enabled" : "disabled");
-      // Log_DevPrintf("  Paging: %s", ((value & CR0Bit_PG) != 0) ? "enabled" : "disabled");
-
-      if ((value & CR0Bit_PE) != (m_registers.CR0 & CR0Bit_PE))
-        Log_DevPrintf("Switching to %s mode", ((value & CR0Bit_PE) != 0) ? "protected" : "real");
-      if ((value & CR0Bit_PG) != (m_registers.CR0 & CR0Bit_PG))
-        Log_DevPrintf("Paging is now %s", ((value & CR0Bit_PG) != 0) ? "enabled" : "disabled");
+      if ((value & (CR0Bit_PE | CR0Bit_PG)) != (m_registers.CR0 & (CR0Bit_PE | CR0Bit_PG)))
+      {
+        Log_DevPrintf("Switching to %s mode%s", ((value & CR0Bit_PE) != 0) ? "protected" : "real",
+                      ((value & CR0Bit_PG) != 0) ? " (paging)" : "");
+      }
 
       if ((value & CR0Bit_CD) != (m_registers.CR0 & CR0Bit_CD))
         Log_ErrorPrintf("CPU read cache is now %s", ((value & CR0Bit_CD) != 0) ? "disabled" : "enabled");
@@ -801,14 +801,6 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
       m_registers.CR0 = (m_registers.CR0 & ~CHANGE_MASK) | value;
       UpdateAlignmentCheckMask();
 
-      // Transitioning to real mode?
-      if (InRealMode())
-      {
-        // CPL is always zero in real mode
-        // CPL will be updated when CS is loaded after switching to protected mode
-        SetCPL(0);
-      }
-
       m_backend->OnControlRegisterLoaded(Reg32_CR0, old_value, m_registers.CR0);
     }
     break;
@@ -816,8 +808,10 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
     case Reg32_CR2:
     {
       // Page fault linear address
+      if (m_registers.CR2 != value)
+        Log_DevPrintf("CR2 <- 0x%08X", value);
+
       uint32 old_value = m_registers.CR2;
-      Log_DevPrintf("CR2 <- 0x%08X", value);
       m_registers.CR2 = value;
       m_backend->OnControlRegisterLoaded(Reg32_CR2, old_value, value);
     }
@@ -825,9 +819,10 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
 
     case Reg32_CR3:
     {
-      // TODO: Invalidate TLB?
+      if (m_registers.CR3 != value)
+        Log_DevPrintf("CR3 <- 0x%08X", value);
+
       uint32 old_value = m_registers.CR3;
-      Log_DevPrintf("CR3 <- 0x%08X", value);
       m_registers.CR3 = value;
       InvalidateAllTLBEntries();
       FlushPrefetchQueue();
@@ -837,8 +832,10 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
 
     case Reg32_CR4:
     {
+      if (m_registers.CR4 != value)
+        Log_DevPrintf("CR4 <- 0x%08X", value);
+
       uint32 old_value = m_registers.CR4;
-      Log_DevPrintf("CR4 <- 0x%08X", value);
       m_registers.CR4 = value;
       m_backend->OnControlRegisterLoaded(Reg32_CR4, old_value, value);
     }
@@ -853,7 +850,9 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
     case Reg32_DR6:
     case Reg32_DR7:
     {
-      Log_WarningPrintf("DR%u <- 0x%08X", uint32(reg - Reg32_DR0), value);
+      if (m_registers.reg32[reg] != value)
+        Log_DevPrintf("DR%u <- 0x%08X", uint32(reg - Reg32_DR0), value);
+
       m_registers.reg32[reg] = value;
     }
     break;
@@ -1503,6 +1502,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
         segment_cache->access.code_confirming = true;
         segment_cache->access.code_readable = true;
         segment_cache->access_mask = AccessTypeMask::All;
+        SetCPL(0);
       }
     }
     else
@@ -1515,6 +1515,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
       {
         segment_cache->access.code_readable = true;
         segment_cache->access.code_confirming = true;
+        DebugAssert(GetCPL() == 3);
       }
       else
       {
@@ -1656,8 +1657,8 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     OperandSize new_operand_size = (is_32bit_segment) ? OperandSize_32 : OperandSize_16;
     if (new_address_size != m_current_address_size)
     {
-      Log_DevPrintf("Switching to %s %s execution", (new_address_size == AddressSize_32) ? "32-bit" : "16-bit",
-                    (InProtectedMode()) ? "protected mode" : "real mode");
+      Log_DevPrintf("Switching to %s %s execution%s", (new_address_size == AddressSize_32) ? "32-bit" : "16-bit",
+                    InProtectedMode() ? "protected mode" : "real mode", IsPagingEnabled() ? " (paging enabled)" : "");
 
       m_current_address_size = new_address_size;
       m_current_operand_size = new_operand_size;
