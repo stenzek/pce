@@ -672,7 +672,7 @@ void Interpreter::Execute_Operation_FFREE(CPU* cpu)
                 "mode is FP register");
   StartX87Instruction(cpu);
   ClearC1(cpu);
-  cpu->m_fpu_registers.TW.SetEmpty(val_constant);
+  cpu->m_fpu_registers.TW.SetEmpty((cpu->m_fpu_registers.SW.TOP + uint8(val_constant)) & 0x7);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
