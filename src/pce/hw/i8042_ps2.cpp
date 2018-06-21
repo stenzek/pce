@@ -39,8 +39,14 @@ void i8042_PS2::Reset()
   m_status_register.self_test_flag = false;
   m_configuration_byte.self_test_flag = false;
 
-  for (auto& port : m_ports)
-    port.external_buffer.clear();
+  m_keyboard.scan_buffer.clear();
+  m_keyboard.data_buffer.clear();
+  m_keyboard.enabled = true;
+
+  m_mouse.data_buffer.clear();
+  m_mouse.delta_x = 0;
+  m_mouse.delta_y = 0;
+  m_mouse.enabled = true;
 }
 
 void i8042_PS2::SoftReset()
@@ -66,11 +72,11 @@ void i8042_PS2::SoftReset()
   if (m_output_port_written_callback)
     m_output_port_written_callback(m_output_port.raw);
 
-  for (auto& port : m_ports)
-  {
-    std::fill_n(port.internal_buffer, countof(port.internal_buffer), uint8(0));
-    port.internal_buffer_size = 0;
-  }
+  m_input_buffer = 0;
+  m_output_buffer = 0;
+  m_pending_command = NO_PENDING_COMMAND;
+  m_pending_keyboard_command = NO_PENDING_COMMAND;
+  m_pending_mouse_command = NO_PENDING_COMMAND;
 
   UpdateTransferEvent();
 
@@ -92,24 +98,27 @@ bool i8042_PS2::LoadState(BinaryReader& reader)
   reader.SafeReadUInt16(&m_pending_command);
   reader.SafeReadUInt16(&m_pending_keyboard_command);
 
-  for (uint32 i = 0; i < countof(m_ports); i++)
-  {
-    auto& port = m_ports[i];
-    port.external_buffer.clear();
-
+  auto ReadBuffer = [&reader](std::deque<uint8>& buffer) {
     uint32 size = 0;
     reader.SafeReadUInt32(&size);
+    buffer.clear();
     if (size > 0)
     {
       uint8 data = 0;
       for (uint32 j = 0; j < size; j++)
         reader.SafeReadUInt8(&data);
-      port.external_buffer.push_back(data);
+      buffer.push_back(data);
     }
+  };
 
-    reader.SafeReadBytes(port.internal_buffer, countof(port.internal_buffer));
-    reader.SafeReadUInt8(&port.internal_buffer_size);
-  }
+  ReadBuffer(m_keyboard.scan_buffer);
+  ReadBuffer(m_keyboard.data_buffer);
+  reader.SafeReadBool(&m_keyboard.enabled);
+
+  ReadBuffer(m_mouse.data_buffer);
+  reader.SafeReadInt16(&m_mouse.delta_x);
+  reader.SafeReadInt16(&m_mouse.delta_y);
+  reader.SafeReadBool(&m_mouse.enabled);
 
   return !reader.GetErrorState();
 }
@@ -127,19 +136,23 @@ bool i8042_PS2::SaveState(BinaryWriter& writer)
   writer.SafeWriteUInt16(m_pending_command);
   writer.SafeWriteUInt16(m_pending_keyboard_command);
 
-  for (uint32 i = 0; i < countof(m_ports); i++)
-  {
-    const auto& port = m_ports[i];
-    writer.SafeWriteUInt32(static_cast<uint32>(port.external_buffer.size()));
-    if (!port.external_buffer.empty())
+  auto WriteBuffer = [&writer](std::deque<uint8>& buffer) {
+    writer.SafeWriteUInt32(static_cast<uint32>(buffer.size()));
+    if (!buffer.empty())
     {
-      for (size_t j = 0; j < port.external_buffer.size(); j++)
-        writer.SafeWriteUInt8(port.external_buffer[i]);
+      for (size_t j = 0; j < buffer.size(); j++)
+        writer.SafeWriteUInt8(buffer[j]);
     }
+  };
 
-    writer.SafeWriteBytes(port.internal_buffer, countof(port.internal_buffer));
-    writer.SafeWriteInt8(port.internal_buffer_size);
-  }
+  WriteBuffer(m_keyboard.scan_buffer);
+  WriteBuffer(m_keyboard.data_buffer);
+  writer.SafeWriteBool(m_keyboard.enabled);
+
+  WriteBuffer(m_mouse.data_buffer);
+  writer.SafeWriteInt16(m_mouse.delta_x);
+  writer.SafeWriteInt16(m_mouse.delta_y);
+  writer.SafeWriteBool(m_mouse.enabled);
 
   return true;
 }
@@ -159,7 +172,9 @@ void i8042_PS2::AddScanCode(GenScanCode scancode, bool key_down)
     hw_scancode = KeyboardScanCodes::Set2Mapping[scancode][index];
 
   for (uint32 i = 0; hw_scancode[i] != 0; i++)
-    AppendToExternalBuffer(0, hw_scancode[i]);
+    m_keyboard.scan_buffer.push_back(hw_scancode[i]);
+
+  UpdateTransferEvent();
 }
 
 void i8042_PS2::ConnectIOPorts(Bus* bus)
@@ -177,19 +192,6 @@ void i8042_PS2::IOReadStatusRegister(uint8* value)
 
 void i8042_PS2::IOReadDataPort(uint8* value)
 {
-  const uint32 port_index = (m_status_register.mouse_buffer_status) ? 1 : 0;
-
-  *value = m_ports[port_index].internal_buffer[0];
-  if (m_ports[port_index].internal_buffer_size <= 1)
-  {
-    m_ports[port_index].internal_buffer_size = 0;
-  }
-  else
-  {
-    std::memmove(&m_ports[port_index].internal_buffer[0], &m_ports[port_index].internal_buffer[1],
-                 --m_ports[port_index].internal_buffer_size);
-  }
-
   // Lower interrupts after read
   if (m_status_register.mouse_buffer_status)
   {
@@ -202,96 +204,9 @@ void i8042_PS2::IOReadDataPort(uint8* value)
     m_system->GetInterruptController()->LowerInterrupt(PORT_1_IRQ);
   }
 
-  UpdatePortBufferStatus();
-  UpdateTransferEvent();
-}
-
-void i8042_PS2::UpdatePortBufferStatus()
-{
-  m_status_register.mouse_buffer_status = (m_ports[1].internal_buffer_size > 0);
-  m_status_register.output_buffer_status =
-    m_status_register.mouse_buffer_status || (m_ports[0].internal_buffer_size > 0);
-}
-
-void i8042_PS2::UpdateTransferEvent()
-{
-  // Buffer has to be empty to be able to transfer.
-  if (m_ports[0].internal_buffer_size == 0 && m_ports[1].internal_buffer_size == 0 &&
-      (!m_ports[0].external_buffer.empty() || !m_ports[1].external_buffer.empty()))
-  {
-    if (!m_transfer_event->IsActive())
-      m_transfer_event->Queue(DATA_EVENT_DELAY);
-  }
-  else
-  {
-    if (m_transfer_event->IsActive())
-      m_transfer_event->Deactivate();
-  }
-}
-
-void i8042_PS2::OnTransferEvent()
-{
-  // Only transfer one byte at a time.
-  m_transfer_event->Deactivate();
-
-  // Did something else jump the queue?
-  if (m_ports[0].internal_buffer_size > 0 || m_ports[1].internal_buffer_size > 0)
-  {
-    // Wait until later.
-    return;
-  }
-
-  // Keyboard has higher priority.
-  // TODO: This could just be single packets, with a source tag.
-  if (!m_ports[0].external_buffer.empty())
-  {
-    AppendToInternalBuffer(0, m_ports[0].external_buffer.front());
-    m_ports[0].external_buffer.pop_front();
-    if (m_configuration_byte.port_1_interrupt)
-    {
-      m_output_port.port_1_interrupt_requested = true;
-      m_system->GetInterruptController()->RaiseInterrupt(PORT_1_IRQ);
-    }
-  }
-  else if (!m_ports[1].external_buffer.empty())
-  {
-    AppendToInternalBuffer(1, m_ports[1].external_buffer.front());
-    m_ports[1].external_buffer.pop_front();
-    if (m_configuration_byte.port_2_interrupt)
-    {
-      m_output_port.port_2_interrupt_requested = true;
-      m_system->GetInterruptController()->RaiseInterrupt(PORT_2_IRQ);
-    }
-  }
-}
-
-void i8042_PS2::AppendToInternalBuffer(uint32 port, const void* data, uint32 length)
-{
-  for (uint32 i = 0; i < length; i++)
-    AppendToInternalBuffer(port, reinterpret_cast<const uint8*>(data)[i]);
-}
-
-void i8042_PS2::AppendToInternalBuffer(uint32 port, uint8 data)
-{
-  auto& portbuf = m_ports[port];
-  portbuf.internal_buffer[portbuf.internal_buffer_size++] = data;
-  UpdatePortBufferStatus();
-
-  SmallString buffer_str;
-  for (uint32 i = 0; i < portbuf.internal_buffer_size; i++)
-    buffer_str.AppendFormattedString("%02X ", uint32(portbuf.internal_buffer[i]));
-  Log_DevPrintf("Port %u buffer contents: %s", port, buffer_str.GetCharArray());
-}
-
-void i8042_PS2::AppendToExternalBuffer(uint32 port, const void* data, uint32 length)
-{
-  for (uint32 i = 0; i < length; i++)
-    AppendToInternalBuffer(port, reinterpret_cast<const uint8*>(data)[i]);
-}
-
-void i8042_PS2::AppendToExternalBuffer(uint32 port, uint8 data)
-{
-  m_ports[port].external_buffer.push_back(data);
+  *value = m_output_buffer;
+  m_status_register.output_buffer_status = false;
+  m_status_register.mouse_buffer_status = false;
   UpdateTransferEvent();
 }
 
@@ -315,6 +230,89 @@ void i8042_PS2::IOWriteCommandRegister(uint8 value)
   m_status_register.command_flag = true;
 
   EnqueueCommandOrData(value, false);
+}
+
+void i8042_PS2::UpdateTransferEvent()
+{
+  const bool keyboard_has_command_data = !m_keyboard.data_buffer.empty();
+  const bool keyboard_has_scan_data = (!m_keyboard.scan_buffer.empty() && !m_configuration_byte.port_1_clock_disable);
+  const bool mouse_has_data = !m_mouse.data_buffer.empty();
+
+  // Buffer has to be empty to be able to transfer.
+  if (!m_status_register.output_buffer_status && (keyboard_has_command_data | keyboard_has_scan_data | mouse_has_data))
+  {
+    if (!m_transfer_event->IsActive())
+      m_transfer_event->Queue(DATA_EVENT_DELAY);
+  }
+  else
+  {
+    if (m_transfer_event->IsActive())
+      m_transfer_event->Deactivate();
+  }
+}
+
+void i8042_PS2::OnTransferEvent()
+{
+  // Don't transfer if something else got in the way.
+  if (m_status_register.output_buffer_status)
+  {
+    m_transfer_event->Deactivate();
+    return;
+  }
+
+  // Only transfer one byte at a time.
+  // Keyboard has higher priority.
+  if (!m_keyboard.data_buffer.empty() ||
+      (!m_keyboard.scan_buffer.empty() && !m_configuration_byte.port_1_clock_disable))
+  {
+    auto& src_buffer = (!m_keyboard.data_buffer.empty()) ? m_keyboard.data_buffer : m_keyboard.scan_buffer;
+    m_output_buffer = src_buffer.front();
+    src_buffer.pop_front();
+
+    m_status_register.output_buffer_status = true;
+    m_status_register.mouse_buffer_status = false;
+
+    if (m_configuration_byte.port_1_interrupt)
+    {
+      m_output_port.port_1_interrupt_requested = true;
+      m_system->GetInterruptController()->RaiseInterrupt(PORT_1_IRQ);
+    }
+  }
+  else if (!m_mouse.data_buffer.empty())
+  {
+    m_output_buffer = m_mouse.data_buffer.front();
+    m_mouse.data_buffer.pop_front();
+
+    m_status_register.output_buffer_status = true;
+    m_status_register.mouse_buffer_status = true;
+
+    if (m_configuration_byte.port_2_interrupt)
+    {
+      m_output_port.port_2_interrupt_requested = true;
+      m_system->GetInterruptController()->RaiseInterrupt(PORT_2_IRQ);
+    }
+  }
+
+  UpdateTransferEvent();
+}
+
+void i8042_PS2::SetOutputBuffer(uint32 port, uint8 data)
+{
+  m_output_buffer = data;
+  m_status_register.output_buffer_status = true;
+  m_status_register.mouse_buffer_status = (port != 0);
+}
+
+void i8042_PS2::AppendToKeyboardBuffer(uint8 data)
+{
+  m_keyboard.data_buffer.push_back(data);
+  UpdateTransferEvent();
+}
+
+void i8042_PS2::AppendToMouseBuffer(uint8 data)
+{
+  m_mouse.data_buffer.push_back(data);
+  UpdateTransferEvent();
 }
 
 void i8042_PS2::EnqueueCommandOrData(uint8 data, bool is_data)
@@ -380,7 +378,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       Log_DevPrintf("KBC read config byte");
 
     // Read byte (CMD&0x1F) of internal RAM
-    AppendToInternalBuffer(0, m_internal_ram[command & 0x1F]);
+    SetOutputBuffer(0, m_internal_ram[command & 0x1F]);
     return true;
   }
   else if (command >= 0x60 && command <= 0x7F)
@@ -405,7 +403,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
   {
     case 0xA1: // Get controller version
     {
-      AppendToInternalBuffer(0, 0x30);
+      SetOutputBuffer(0, 0x30);
       return true;
     }
     break;
@@ -414,7 +412,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     {
       Log_DevPrintf("KBC test controller");
       SoftReset();
-      AppendToInternalBuffer(0, 0x55); // test passed
+      SetOutputBuffer(0, 0x55); // test passed
       return true;
     }
     break;
@@ -422,7 +420,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     case 0xAB: // Keyboard interface test
     {
       Log_DevPrintf("KBC test interface");
-      AppendToInternalBuffer(0, 0x00);
+      SetOutputBuffer(0, 0x00);
       return true;
     }
     break;
@@ -444,7 +442,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     case 0xA9: // mouse interface test
     {
       Log_DevPrintf("Mouse test interface");
-      AppendToInternalBuffer(0, 0x00);
+      SetOutputBuffer(0, 0x00);
       return true;
     }
     break;
@@ -468,7 +466,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     case 0xC0: // Read input port
     {
       Log_DevPrintf("KBC read input port = 0x%02X", ZeroExtend32(m_input_port));
-      AppendToInternalBuffer(0, m_input_port);
+      SetOutputBuffer(0, m_input_port);
       return true;
     }
     break;
@@ -476,7 +474,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     case 0xD0: // Read output port
     {
       Log_DevPrintf("KBC read output port");
-      AppendToInternalBuffer(0, m_output_port.raw);
+      SetOutputBuffer(0, m_output_port.raw);
       return true;
     }
     break;
@@ -520,13 +518,13 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       // Unknown, sent by AMI 386 bios.
     case 0xC9:
       Log_WarningPrintf("Unknown 0xC9 command");
-      AppendToInternalBuffer(0, 0x00);
+      SetOutputBuffer(0, 0x00);
       return true;
 
       // Unknown, sent by AMI 486 bios.
     case 0xB4:
       Log_WarningPrintf("Unknown 0xB4 command");
-      AppendToInternalBuffer(0, 0x00);
+      SetOutputBuffer(0, 0x00);
       return true;
 
       // These are actually pulsing the output lines.
@@ -571,14 +569,14 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
   {
     case 0xF0: // Set scan code set
     {
-      AppendToExternalBuffer(0, 0xFA); // ACK
+      AppendToKeyboardBuffer(0xFA); // ACK
       if (!has_data)
         return false;
 
       if (data == 0)
       {
         // Query current scan code set
-        AppendToExternalBuffer(0, 0x02);
+        AppendToKeyboardBuffer(0x02);
       }
       else
       {
@@ -599,7 +597,7 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
 
     case 0xF3: // Set typematic/repeat rate
     {
-      AppendToExternalBuffer(0, 0xFA); // ACK
+      AppendToKeyboardBuffer(0xFA); // ACK
       if (!has_data)
         return false;
 
@@ -610,14 +608,14 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
     case 0xF4: // Enable keyboard
     {
       Log_DevPrintf("Enable keyboard (Keyboard command)");
-      AppendToExternalBuffer(0, 0xFA);
+      AppendToKeyboardBuffer(0xFA);
       return true;
     }
 
     case 0xF5: // Disable keyboard
     {
       Log_DevPrintf("Disable keyboard (Keyboard command)");
-      AppendToExternalBuffer(0, 0xFA);
+      AppendToKeyboardBuffer(0xFA);
       return true;
     }
 
@@ -625,8 +623,8 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
     {
       Log_DevPrintf("Keyboard reset");
 
-      AppendToExternalBuffer(0, 0xFA); // Command ACK
-      AppendToExternalBuffer(0, 0xAA); // Power on reset
+      AppendToKeyboardBuffer(0xFA); // Command ACK
+      AppendToKeyboardBuffer(0xAA); // Power on reset
       return true;
     }
 
@@ -638,7 +636,7 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
 
 bool i8042_PS2::HandleMouseCommand(uint8 command, uint8 data, bool has_data)
 {
-  auto SendACK = [this]() { AppendToExternalBuffer(1, 0xFA); };
+  auto SendACK = [this]() { AppendToMouseBuffer(0xFA); };
 
   switch (command)
   {
@@ -672,7 +670,7 @@ bool i8042_PS2::HandleMouseCommand(uint8 command, uint8 data, bool has_data)
     {
       Log_DevPrintf("Read mouse ID");
       SendACK();
-      AppendToInternalBuffer(1, 0x00); // 0x03 for wheel
+      AppendToMouseBuffer(0x00); // 0x03 for wheel
       return true;
     }
 
@@ -709,9 +707,9 @@ bool i8042_PS2::HandleMouseCommand(uint8 command, uint8 data, bool has_data)
 
       // If no mouse is attached, 0xFE should be sent, TIM bit should be set
 
-      SendACK();                       // Command ACK
-      AppendToExternalBuffer(1, 0xAA); // Power on reset
-      AppendToExternalBuffer(1, 0x00); // ID code
+      SendACK();                 // Command ACK
+      AppendToMouseBuffer(0xAA); // Power on reset
+      AppendToMouseBuffer(0x00); // ID code
       return true;
     }
 

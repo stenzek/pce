@@ -35,6 +35,7 @@ private:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('8', '0', '4', '2');
   static const uint32 PORT_1_IRQ = 1;
   static const uint32 PORT_2_IRQ = 12;
+  static const uint32 NUM_PORTS = 2;
   static const uint32 INTERNAL_RAM_SIZE = 32;
   static const uint32 INPUT_BUFFER_SIZE = 32;
   static const uint32 PORT_BUFFER_SIZE = 32;
@@ -51,14 +52,15 @@ private:
   void IOReadStatusRegister(uint8* value);
   void IOWriteCommandRegister(uint8 value);
 
-  void UpdatePortBufferStatus();
   void UpdateTransferEvent();
   void OnTransferEvent();
 
-  void AppendToInternalBuffer(uint32 port, const void* data, uint32 length);
-  void AppendToInternalBuffer(uint32 port, uint8 data);
-  void AppendToExternalBuffer(uint32 port, const void* data, uint32 length);
-  void AppendToExternalBuffer(uint32 port, uint8 data);
+  // Overwrites whatever was in the output buffer.
+  void SetOutputBuffer(uint32 port, uint8 data);
+
+  // Writes to the *data* buffer.
+  void AppendToKeyboardBuffer(uint8 data);
+  void AppendToMouseBuffer(uint8 data);
 
   void EnqueueCommandOrData(uint8 data, bool is_data);
   void OnCommandEvent();
@@ -117,6 +119,7 @@ private:
   };
 
   uint8 m_input_buffer = 0;
+  uint8 m_output_buffer = 0;
 
   uint16 m_pending_command = NO_PENDING_COMMAND;
   uint16 m_pending_keyboard_command = NO_PENDING_COMMAND;
@@ -125,10 +128,18 @@ private:
   // buffers
   struct
   {
-    std::deque<uint8> external_buffer;
-    uint8 internal_buffer[PORT_BUFFER_SIZE];
-    uint8 internal_buffer_size;
-  } m_ports[2] = {};
+    std::deque<uint8> scan_buffer; // for pending scancodes
+    std::deque<uint8> data_buffer; // for command replies
+    bool enabled = true;
+  } m_keyboard;
+
+  struct
+  {
+    std::deque<uint8> data_buffer; // for command replies and packets
+    int16 delta_x = 0;
+    int16 delta_y = 0;
+    bool enabled = true;
+  } m_mouse;
 
   // timer events
   TimingEvent::Pointer m_command_event{};
