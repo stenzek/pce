@@ -154,6 +154,7 @@ bool CodeCacheBackend::IsExitBlockInstruction(const Instruction* instruction)
     case Operation_IRET:
     case Operation_HLT:
     case Operation_LOADALL_286:
+    case Operation_INVLPG:
       return true;
 
     case Operation_MOV:
@@ -192,6 +193,7 @@ bool CodeCacheBackend::IsLinkableExitInstruction(const Instruction* instruction)
     case Operation_LOOP:
     case Operation_CALL_Near:
     case Operation_RET_Near:
+    case Operation_INVLPG:
       return true;
 
     default:
