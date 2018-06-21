@@ -283,6 +283,11 @@ void Interpreter::RaiseFloatExceptions(CPU* cpu, const float_status_t& fs)
   }
 }
 
+void Interpreter::ClearC1(CPU* cpu)
+{
+  cpu->m_fpu_registers.SW.C1 = 0;
+}
+
 void Interpreter::Execute_Operation_WAIT(CPU* cpu)
 {
   if ((cpu->m_registers.CR0 & (CR0Bit_MP | CR0Bit_TS)) == (CR0Bit_MP | CR0Bit_TS))
@@ -341,28 +346,27 @@ void Interpreter::Execute_Operation_FSETPM(CPU* cpu)
 void Interpreter::Execute_Operation_FINCSTP(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  ClearC1(cpu);
   cpu->m_fpu_registers.SW.TOP = (cpu->m_fpu_registers.SW.TOP + 1) & 7;
-  cpu->m_fpu_registers.SW.C1 = 0;
 }
 
 void Interpreter::Execute_Operation_FDECSTP(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  ClearC1(cpu);
   cpu->m_fpu_registers.SW.TOP = (cpu->m_fpu_registers.SW.TOP - 1) & 7;
-  cpu->m_fpu_registers.SW.C1 = 0;
 }
 
 void Interpreter::Execute_Operation_FABS(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
 
   floatx80 val = ReadFloatRegister(cpu, 0);
   val = floatx80_abs(val);
   WriteFloatRegister(cpu, 0, val, true);
-
-  cpu->m_fpu_registers.SW.C1 = 0;
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -376,6 +380,8 @@ void Interpreter::Execute_Operation_FADD(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 rhs = ReadFloatOperand<src_size, src_mode, src_constant>(cpu, fs);
+
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_add(lhs, rhs, fs);
@@ -406,7 +412,7 @@ void Interpreter::Execute_Operation_FBLD(CPU* cpu)
   uint16 hi2 = p3;
   uint64 lo8 = (ZeroExtend64(p2) << 32) | ZeroExtend64(p1);
 
-  cpu->m_fpu_registers.SW.C1 = 0;
+  ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
 
   int64 scale = 1;
@@ -438,7 +444,7 @@ void Interpreter::Execute_Operation_FBSTP(CPU* cpu)
   // The store can throw an exception, so we want to preserve the old FPU flags.
   uint16 SW = cpu->m_fpu_registers.SW.bits;
 
-  cpu->m_fpu_registers.SW.C1 = 0;
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
 
   // TODO: this shouldn't abort if underflow exceptions are masked
@@ -490,13 +496,12 @@ void Interpreter::Execute_Operation_FCHS(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
 
   floatx80 val = ReadFloatRegister(cpu, 0);
   val = floatx80_chs(val);
   WriteFloatRegister(cpu, 0, val, true);
-
-  cpu->m_fpu_registers.SW.C1 = 0;
 }
 
 void Interpreter::SetStatusWordFromCompare(CPU* cpu, const float_status_t& fs, int res)
@@ -541,6 +546,8 @@ void Interpreter::Execute_Operation_FCOM(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 rhs = ReadFloatOperand<src_size, src_mode, src_constant>(cpu, fs);
+
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   int res;
@@ -593,6 +600,7 @@ void Interpreter::Execute_Operation_FUCOMPP(CPU* cpu)
 void Interpreter::Execute_Operation_FTST(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  ClearC1(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 val = ReadFloatRegister(cpu, 0);
@@ -612,6 +620,7 @@ void Interpreter::Execute_Operation_FDIV(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 dividend = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 divisor = ReadFloatOperand<src_size, src_mode, src_constant>(cpu, fs);
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_div(dividend, divisor, fs);
@@ -639,6 +648,7 @@ void Interpreter::Execute_Operation_FDIVR(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 divisor = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 dividend = ReadFloatOperand<src_size, src_mode, src_constant>(cpu, fs);
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_div(dividend, divisor, fs);
@@ -661,6 +671,7 @@ void Interpreter::Execute_Operation_FFREE(CPU* cpu)
   static_assert(val_mode == OperandMode_FPRegister && val_constant < countof(cpu->m_fpu_registers.ST),
                 "mode is FP register");
   StartX87Instruction(cpu);
+  ClearC1(cpu);
   cpu->m_fpu_registers.TW.SetEmpty(val_constant);
 }
 
@@ -675,6 +686,7 @@ void Interpreter::Execute_Operation_FIADD(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 rhs = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_add(lhs, rhs, fs);
@@ -694,6 +706,7 @@ void Interpreter::Execute_Operation_FISUB(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 rhs = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_sub(lhs, rhs, fs);
@@ -713,6 +726,7 @@ void Interpreter::Execute_Operation_FISUBR(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
   floatx80 rhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_sub(lhs, rhs, fs);
@@ -732,6 +746,7 @@ void Interpreter::Execute_Operation_FIMUL(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 rhs = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_mul(lhs, rhs, fs);
@@ -751,6 +766,7 @@ void Interpreter::Execute_Operation_FIDIV(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 dividend = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 divisor = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_div(dividend, divisor, fs);
@@ -770,6 +786,7 @@ void Interpreter::Execute_Operation_FIDIVR(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 divisor = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 dividend = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_div(dividend, divisor, fs);
@@ -789,6 +806,7 @@ void Interpreter::Execute_Operation_FICOM(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 rhs = int32_to_floatx80(int32(ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu)));
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   int res;
@@ -816,6 +834,8 @@ void Interpreter::Execute_Operation_FILD(CPU* cpu)
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 value = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
+  ClearC1(cpu);
+  CheckFloatStackOverflow(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   PushFloatStack(cpu);
@@ -830,7 +850,9 @@ void Interpreter::Execute_Operation_FIST(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu);
 
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
+
   floatx80 value = ReadFloatRegister(cpu, 0);
 
   float_status_t fs = GetFloatStatus(cpu);
@@ -876,6 +898,8 @@ void Interpreter::Execute_Operation_FLD(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
@@ -889,9 +913,11 @@ void Interpreter::Execute_Operation_FLD(CPU* cpu)
 void Interpreter::Execute_Operation_FLD1(CPU* cpu)
 {
   StartX87Instruction(cpu);
-  CheckFloatStackOverflow(cpu);
-  PushFloatStack(cpu);
 
+  ClearC1(cpu);
+  CheckFloatStackOverflow(cpu);
+
+  PushFloatStack(cpu);
   WriteFloatRegister(cpu, 0, Const_1, true);
 }
 
@@ -910,7 +936,10 @@ void Interpreter::Execute_Operation_FLDCW(CPU* cpu)
 void Interpreter::Execute_Operation_FLDL2E(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
+
   PushFloatStack(cpu);
   WriteFloatRegister(cpu, 0,
                      floatx80_round_const(Const_L2E, (cpu->m_fpu_registers.CW.RC & FPURoundingControl_Down) ? -1 : 0));
@@ -919,7 +948,10 @@ void Interpreter::Execute_Operation_FLDL2E(CPU* cpu)
 void Interpreter::Execute_Operation_FLDL2T(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
+
   PushFloatStack(cpu);
   WriteFloatRegister(cpu, 0,
                      floatx80_round_const(Const_L2T, (cpu->m_fpu_registers.CW.RC == FPURoundingControl_Up) ? 1 : 0));
@@ -928,7 +960,10 @@ void Interpreter::Execute_Operation_FLDL2T(CPU* cpu)
 void Interpreter::Execute_Operation_FLDLG2(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
+
   PushFloatStack(cpu);
   WriteFloatRegister(cpu, 0,
                      floatx80_round_const(Const_LG2, (cpu->m_fpu_registers.CW.RC & FPURoundingControl_Down) ? -1 : 0));
@@ -937,7 +972,10 @@ void Interpreter::Execute_Operation_FLDLG2(CPU* cpu)
 void Interpreter::Execute_Operation_FLDLN2(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
+
   PushFloatStack(cpu);
   WriteFloatRegister(cpu, 0,
                      floatx80_round_const(Const_LN2, (cpu->m_fpu_registers.CW.RC & FPURoundingControl_Down) ? -1 : 0));
@@ -946,7 +984,10 @@ void Interpreter::Execute_Operation_FLDLN2(CPU* cpu)
 void Interpreter::Execute_Operation_FLDPI(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
+
   PushFloatStack(cpu);
   WriteFloatRegister(cpu, 0,
                      floatx80_round_const(Const_PI, (cpu->m_fpu_registers.CW.RC & FPURoundingControl_Down) ? -1 : 0));
@@ -955,7 +996,10 @@ void Interpreter::Execute_Operation_FLDPI(CPU* cpu)
 void Interpreter::Execute_Operation_FLDZ(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
+
   PushFloatStack(cpu);
   WriteFloatRegister(cpu, 0, Const_Z);
 }
@@ -971,6 +1015,8 @@ void Interpreter::Execute_Operation_FMUL(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 rhs = ReadFloatOperand<src_size, src_mode, src_constant>(cpu, fs);
+
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_mul(lhs, rhs, fs);
@@ -1067,6 +1113,7 @@ void Interpreter::Execute_Operation_FPREM(CPU* cpu)
 {
   StartX87Instruction(cpu);
 
+  cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C0 = 0;
   CheckFloatStackUnderflow(cpu, 0);
   CheckFloatStackUnderflow(cpu, 1);
 
@@ -1101,6 +1148,8 @@ void Interpreter::Execute_Operation_FPREM1(CPU* cpu)
 void Interpreter::Execute_Operation_FPTAN(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C0 = 0;
   CheckFloatStackUnderflow(cpu, 0);
 
   float_status_t fs = GetFloatStatus(cpu);
@@ -1121,6 +1170,8 @@ void Interpreter::Execute_Operation_FPTAN(CPU* cpu)
 void Interpreter::Execute_Operation_FRNDINT(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
 
   // ST(0) <- RoundToIntegralValue(ST(0))
@@ -1134,6 +1185,8 @@ void Interpreter::Execute_Operation_FRNDINT(CPU* cpu)
 void Interpreter::Execute_Operation_FSCALE(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
   CheckFloatStackUnderflow(cpu, 1);
 
@@ -1148,6 +1201,8 @@ void Interpreter::Execute_Operation_FSCALE(CPU* cpu)
 void Interpreter::Execute_Operation_FSQRT(CPU* cpu)
 {
   StartX87Instruction(cpu);
+
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
 
   // ST(0) <- SquareRoot(ST(0))
@@ -1164,6 +1219,7 @@ void Interpreter::Execute_Operation_FST(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu);
 
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
   floatx80 value = ReadFloatRegister(cpu, 0);
 
@@ -1190,6 +1246,8 @@ void Interpreter::Execute_Operation_FSUB(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 rhs = ReadFloatOperand<src_size, src_mode, src_constant>(cpu, fs);
+
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_sub(lhs, rhs, fs);
@@ -1217,6 +1275,8 @@ void Interpreter::Execute_Operation_FSUBR(CPU* cpu)
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 rhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
   floatx80 lhs = ReadFloatOperand<src_size, src_mode, src_constant>(cpu, fs);
+
+  ClearC1(cpu);
   RaiseFloatExceptions(cpu, fs);
 
   floatx80 res = floatx80_sub(lhs, rhs, fs);
@@ -1303,8 +1363,9 @@ void Interpreter::Execute_Operation_FXCH(CPU* cpu)
   static_assert(val_mode == OperandMode_FPRegister && val_constant < countof(cpu->m_fpu_registers.ST),
                 "val_mode is FP register");
   StartX87Instruction(cpu);
+  ClearC1(cpu);
 
-  uint8 index = val_constant;
+  uint8 index = uint8(val_constant);
   CheckFloatStackUnderflow(cpu, 0);
   CheckFloatStackUnderflow(cpu, index);
 
@@ -1323,6 +1384,7 @@ void Interpreter::Execute_Operation_FXTRACT(CPU* cpu)
 void Interpreter::Execute_Operation_FPATAN(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
   CheckFloatStackUnderflow(cpu, 1);
 
@@ -1338,6 +1400,7 @@ void Interpreter::Execute_Operation_FPATAN(CPU* cpu)
 void Interpreter::Execute_Operation_F2XM1(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
 
   float_status_t fs = GetFloatStatus(cpu);
@@ -1350,6 +1413,7 @@ void Interpreter::Execute_Operation_F2XM1(CPU* cpu)
 void Interpreter::Execute_Operation_FYL2X(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
   CheckFloatStackUnderflow(cpu, 1);
 
@@ -1365,6 +1429,7 @@ void Interpreter::Execute_Operation_FYL2X(CPU* cpu)
 void Interpreter::Execute_Operation_FYL2XP1(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
   CheckFloatStackUnderflow(cpu, 1);
 
@@ -1379,6 +1444,7 @@ void Interpreter::Execute_Operation_FYL2XP1(CPU* cpu)
 void Interpreter::Execute_Operation_FCOS(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C2 = 0;
   CheckFloatStackUnderflow(cpu, 0);
 
   float_status_t fs = GetFloatStatus(cpu);
@@ -1396,6 +1462,7 @@ void Interpreter::Execute_Operation_FCOS(CPU* cpu)
 void Interpreter::Execute_Operation_FSIN(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C2 = 0;
   CheckFloatStackUnderflow(cpu, 0);
 
   float_status_t fs = GetFloatStatus(cpu);
@@ -1413,6 +1480,7 @@ void Interpreter::Execute_Operation_FSIN(CPU* cpu)
 void Interpreter::Execute_Operation_FSINCOS(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C2 = 0;
   CheckFloatStackUnderflow(cpu, 0);
 
   float_status_t fs = GetFloatStatus(cpu);

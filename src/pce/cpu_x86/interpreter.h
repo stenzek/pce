@@ -364,6 +364,7 @@ public:
   static inline float_status_t GetFloatStatus(CPU* cpu);
   static inline void RaiseFloatExceptions(CPU* cpu, const float_status_t& fs);
   static inline void SetStatusWordFromCompare(CPU* cpu, const float_status_t& fs, int res);
+  static inline void ClearC1(CPU* cpu);
 
   static inline void Execute_Operation_F2XM1(CPU* cpu);
   static inline void Execute_Operation_FABS(CPU* cpu);
