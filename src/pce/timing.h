@@ -113,6 +113,9 @@ public:
   // Changing frequency of hz events.
   void SetFrequency(float new_frequency, uint32 interval = 1);
 
+  // Changing active state.
+  void SetActive(bool active);
+
 private:
   TimingManager* m_manager;
   String m_name;

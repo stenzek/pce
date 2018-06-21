@@ -288,3 +288,17 @@ void TimingEvent::SetFrequency(float new_frequency, uint32 interval /* = 1 */)
   m_cycle_period = new_cycle_period;
   m_interval = interval;
 }
+
+void TimingEvent::SetActive(bool active)
+{
+  if (active)
+  {
+    if (!m_active)
+      Activate();
+  }
+  else
+  {
+    if (m_active)
+      Deactivate();
+  }
+}

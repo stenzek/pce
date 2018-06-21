@@ -41,10 +41,10 @@ private:
   static const uint32 PORT_BUFFER_SIZE = 32;
   static const uint32 EXTERNAL_BUFFER_SIZE = 1024;
   static const uint16 NO_PENDING_COMMAND = 0xFFFF;
-  static const CycleCount DATA_EVENT_DELAY = 250;
+  static const CycleCount SERIAL_TRANSFER_DELAY = 250;
+  static const uint8 DEFAULT_MOUSE_SAMPLE_RATE = 100;
+  static const uint32 NUM_MOUSE_BUTTONS = 3;
 
-  void AddScanCode(GenScanCode scancode, bool key_down);
-  void ConnectIOPorts(Bus* bus);
   void SoftReset();
 
   void IOReadDataPort(uint8* value);
@@ -52,8 +52,13 @@ private:
   void IOReadStatusRegister(uint8* value);
   void IOWriteCommandRegister(uint8 value);
 
-  void UpdateTransferEvent();
+  void OnHostKeyboardEvent(GenScanCode scancode, bool key_down);
+  void OnHostMousePositionChanged(int32 dx, int32 dy);
+  void OnHostMouseButtonChanged(uint32 button, bool down);
+
+  void UpdateEvents();
   void OnTransferEvent();
+  void OnMouseReportEvent();
 
   // Overwrites whatever was in the output buffer.
   void SetOutputBuffer(uint32 port, uint8 data);
@@ -68,6 +73,10 @@ private:
   bool HandleControllerCommand(uint8 command, uint8 data, bool has_data);
   bool HandleKeyboardCommand(uint8 command, uint8 data, bool has_data);
   bool HandleMouseCommand(uint8 command, uint8 data, bool has_data);
+
+  void ResetKeyboard();
+  void ResetMouse();
+  void CreateMousePacket();
 
   Clock m_clock;
   System* m_system = nullptr;
@@ -136,14 +145,21 @@ private:
   struct
   {
     std::deque<uint8> data_buffer; // for command replies and packets
-    int16 delta_x = 0;
-    int16 delta_y = 0;
+
+    int32 delta_x = 0;
+    int32 delta_y = 0;
+    uint8 button_state = 0;
+    bool buttons_changed = false;
+
+    uint8 sample_rate = 100;
     bool enabled = true;
+    bool stream_mode = true;
   } m_mouse;
 
   // timer events
   TimingEvent::Pointer m_command_event{};
   TimingEvent::Pointer m_transfer_event{};
+  TimingEvent::Pointer m_mouse_report_event{};
 };
 
 } // namespace HW
