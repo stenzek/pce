@@ -336,7 +336,8 @@ void PCBochs::SetCMOSVariables()
 
   // Equipment byte
   uint8 equipment_byte = 0;
-  // equipment_byte |= (1 << 1);     // coprocessor installed
+  equipment_byte |= (1 << 1); // coprocessor installed
+  equipment_byte |= (1 << 2); // ps/2 device/mouse installed
   if (m_fdd_controller->GetDriveCount() > 0)
   {
     equipment_byte |= (1 << 0); // disk available for boot

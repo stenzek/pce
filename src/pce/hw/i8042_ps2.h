@@ -55,14 +55,17 @@ private:
   void UpdateTransferEvent();
   void OnTransferEvent();
 
-  void AppendToOutputBuffer(uint32 port, const void* data, uint32 length);
-  void AppendToOutputBuffer(uint32 port, uint8 data);
+  void AppendToInternalBuffer(uint32 port, const void* data, uint32 length);
+  void AppendToInternalBuffer(uint32 port, uint8 data);
+  void AppendToExternalBuffer(uint32 port, const void* data, uint32 length);
+  void AppendToExternalBuffer(uint32 port, uint8 data);
 
   void EnqueueCommandOrData(uint8 data, bool is_data);
   void OnCommandEvent();
 
   bool HandleControllerCommand(uint8 command, uint8 data, bool has_data);
   bool HandleKeyboardCommand(uint8 command, uint8 data, bool has_data);
+  bool HandleMouseCommand(uint8 command, uint8 data, bool has_data);
 
   Clock m_clock;
   System* m_system = nullptr;
@@ -117,6 +120,7 @@ private:
 
   uint16 m_pending_command = NO_PENDING_COMMAND;
   uint16 m_pending_keyboard_command = NO_PENDING_COMMAND;
+  uint16 m_pending_mouse_command = NO_PENDING_COMMAND;
 
   // buffers
   struct
