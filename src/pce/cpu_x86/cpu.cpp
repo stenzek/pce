@@ -117,7 +117,6 @@ void CPU::Reset()
 
   // Start at privilege level 0
   SetCPL(0);
-  m_fpu_exception = false;
   m_halted = false;
   m_nmi_state = false;
 
@@ -213,7 +212,6 @@ bool CPU::LoadState(BinaryReader& reader)
   reader.SafeReadUInt8(&m_cpl);
   reader.SafeReadUInt8(&m_tlb_user_bit);
   reader.SafeReadBool(&m_alignment_check_enabled);
-  reader.SafeReadBool(&m_fpu_exception);
   reader.SafeReadBool(&m_halted);
 
   reader.SafeReadBool(&m_nmi_state);
@@ -308,7 +306,6 @@ bool CPU::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(m_cpl);
   writer.WriteUInt8(m_tlb_user_bit);
   writer.WriteBool(m_alignment_check_enabled);
-  writer.WriteBool(m_fpu_exception);
   writer.WriteBool(m_halted);
 
   writer.WriteBool(m_nmi_state);
@@ -3319,7 +3316,6 @@ void CPU::CheckFloatingPointException()
   if (!m_fpu_registers.SW.IR)
     return;
 
-  m_fpu_exception = false;
   if (m_registers.CR0 & CR0Bit_NE)
   {
     RaiseException(Interrupt_MathFault);

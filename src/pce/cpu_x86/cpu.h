@@ -507,9 +507,6 @@ protected:
   // Whether alignment checking is enabled (AM bit of CR0 and AC bit of EFLAGS).
   bool m_alignment_check_enabled = false;
 
-  // Has pending floating-point exception, for WAIT instruction
-  bool m_fpu_exception = false;
-
   // Halt state, when an interrupt request or nmi comes in this is reset
   bool m_halted = false;
 
