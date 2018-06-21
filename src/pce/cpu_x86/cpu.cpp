@@ -792,11 +792,14 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
         Log_ErrorPrintf("CPU cache is now %s", ((value & CR0Bit_NW) != 0) ? "write-back" : "write-through");
 
       // We must flush the TLB when WP changes, because it changes the cached access masks.
-      constexpr uint32 flush_mask = CR0Bit_WP;
-      if ((m_registers.CR0 & flush_mask) != (value & flush_mask))
+      uint32 new_value = (m_registers.CR0 & ~CHANGE_MASK) | value;
+      if (((m_registers.CR0 & CR0Bit_WP) != (new_value & CR0Bit_WP)) ||
+          (!(m_registers.CR0 & CR0Bit_PG) && (new_value & CR0Bit_PG)))
+      {
         InvalidateAllTLBEntries();
+      }
 
-      m_registers.CR0 = (m_registers.CR0 & ~CHANGE_MASK) | value;
+      m_registers.CR0 = new_value;
       UpdateAlignmentCheckMask();
 
       m_backend->OnControlRegisterLoaded(Reg32_CR0, old_value, m_registers.CR0);
