@@ -3391,7 +3391,7 @@ void CPU::LoadFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddr
     addr += 14;
   }
 
-  m_fpu_registers.CW.bits = cw;
+  m_fpu_registers.CW.bits = (cw & ~FPUControlWord::ReservedBits) | FPUControlWord::FixedBits;
   m_fpu_registers.SW.bits = sw;
   m_fpu_registers.TW.bits = tw;
   UpdateFPUSummaryException();

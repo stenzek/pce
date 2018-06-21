@@ -929,7 +929,7 @@ void Interpreter::Execute_Operation_FLDCW(CPU* cpu)
   StartX87Instruction(cpu);
 
   uint16 cw = ReadWordOperand<src_mode, src_constant>(cpu);
-  cpu->m_fpu_registers.CW.bits = cw;
+  cpu->m_fpu_registers.CW.bits = (cw & ~FPUControlWord::ReservedBits) | FPUControlWord::FixedBits;
   cpu->UpdateFPUSummaryException();
 }
 

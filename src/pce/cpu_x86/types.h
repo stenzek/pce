@@ -177,6 +177,9 @@ enum FPURoundingControl : uint8
 };
 union FPUControlWord
 {
+  static const uint16 ReservedBits = uint16(0xE0C0);
+  static const uint16 FixedBits = uint16(0x0040);
+
   BitField<uint16, bool, 0, 1> IM;                // Invalid Operation Mask
   BitField<uint16, bool, 1, 1> DM;                // Denormalized Operand Mask
   BitField<uint16, bool, 2, 1> ZM;                // Zero Divide Mask
