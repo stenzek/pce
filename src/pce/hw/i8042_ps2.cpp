@@ -444,7 +444,6 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       SetOutputBuffer(0, 0x30);
       return true;
     }
-    break;
 
     case 0xAA: // Test controller
     {
@@ -453,7 +452,6 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       SetOutputBuffer(0, 0x55); // test passed
       return true;
     }
-    break;
 
     case 0xAB: // Keyboard interface test
     {
@@ -461,7 +459,6 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       SetOutputBuffer(0, 0x00);
       return true;
     }
-    break;
 
     case 0xA7: // Disable aux device
     {
@@ -483,7 +480,6 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       SetOutputBuffer(0, 0x00);
       return true;
     }
-    break;
 
     case 0xAD: // Disable keyboard interface
     {
@@ -491,7 +487,6 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       m_configuration_byte.port_1_clock_disable = true;
       return true;
     }
-    break;
 
     case 0xAE: // Enable keyboard interface
     {
@@ -499,7 +494,6 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       m_configuration_byte.port_1_clock_disable = false;
       return true;
     }
-    break;
 
     case 0xC0: // Read input port
     {
@@ -507,7 +501,6 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       SetOutputBuffer(0, m_input_port);
       return true;
     }
-    break;
 
     case 0xD0: // Read output port
     {
@@ -515,7 +508,6 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       SetOutputBuffer(0, m_output_port.raw);
       return true;
     }
-    break;
 
     case 0xD1: // Write output port
     {
@@ -531,7 +523,17 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
 
       return true;
     }
-    break;
+
+    case 0xD3: // Write to aux port buffer (mouse)
+    {
+      if (!has_data)
+        return false;
+
+      Log_DevPrintf("Write to mouse buffer 0x%02X", ZeroExtend32(data));
+      AppendToMouseBuffer(data);
+      UpdateEvents();
+      return true;
+    }
 
     case 0xD4: // Write to aux port (mouse)
     {
@@ -607,6 +609,22 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
 
   switch (command)
   {
+    case 0x05: // ???
+    {
+      AppendToKeyboardBuffer(0xFA);
+      return true;
+    }
+
+    case 0xED: // Set LED state
+    {
+      SendACK();
+      if (!has_data)
+        return false;
+
+      Log_DevPrintf("Keyboard set LEDs %02X", ZeroExtend32(data));
+      return true;
+    }
+
     case 0xF0: // Set scan code set
     {
       SendACK();
@@ -711,6 +729,19 @@ bool i8042_PS2::HandleMouseCommand(uint8 command, uint8 data, bool has_data)
       // 3 - 200dpi, 8 counts per mm
       Log_DevPrintf("Set mouse resolution 0x%02X", ZeroExtend32(data));
       SendACK();
+      return true;
+    }
+
+    case 0xE9: // Get information
+    {
+      SendACK();
+
+      uint8 status_byte = (((!m_mouse.stream_mode) ? 0x40 : 0x00) | (!m_mouse.enabled ? 0x20 : 0x00) |
+                           // scaling==0 -> 0x10
+                           ((m_mouse.button_state & 1) << 2) | ((m_mouse.button_state & 2) << 0));
+      AppendToMouseBuffer(status_byte);
+      AppendToMouseBuffer(0); // resolution byte
+      AppendToMouseBuffer(m_mouse.sample_rate);
       return true;
     }
 
