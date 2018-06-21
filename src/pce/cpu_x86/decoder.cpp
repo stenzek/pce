@@ -473,13 +473,15 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
         const ModRMAddress* m = DecodeModRMAddress(instruction->GetAddressSize(), instruction->data.modrm);
         if (m->addressing_mode == ModRMAddressingMode::Register)
         {
-          out_string->AppendString((size == OperandSize_16) ? reg16_names[instruction->data.modrm_rm] :
-                                                              reg32_names[instruction->data.modrm_rm]);
+          out_string->AppendString((size == OperandSize_8) ?
+                                     reg8_names[instruction->data.modrm_rm] :
+                                     ((size == OperandSize_16) ? reg16_names[instruction->data.modrm_rm] :
+                                                                 reg32_names[instruction->data.modrm_rm]));
         }
         else
         {
           PrintPtr(size);
-          out_string->AppendFormattedString(" %s:[", segment_names[instruction->data.segment]);
+          out_string->AppendFormattedString(" [%s:", segment_names[instruction->data.segment]);
 
           const char** reg_names = (asize == AddressSize_16) ? reg16_names : reg32_names;
           switch (m->addressing_mode)

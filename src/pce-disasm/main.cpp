@@ -106,25 +106,25 @@ static bool ParseArguments(int argc, char* argv[])
   return true;
 }
 
-static void PrintInstruction(uint32 address, const CPU_X86::Instruction* instruction)
+static void PrintInstruction(const CPU_X86::Instruction* instruction)
 {
   SmallString hex_string;
   SmallString instr_string;
 
   uint32 instruction_length = (instruction) ? instruction->length : 6;
-  for (uint32 i = 0; i < instruction_length && (address + i) < input_code.GetSize(); i++)
-    hex_string.AppendFormattedString("%02X ", ZeroExtend32(input_code[address + i]));
+  for (uint32 i = 0; i < instruction_length && (instruction->address + i) < input_code.GetSize(); i++)
+    hex_string.AppendFormattedString("%02X ", ZeroExtend32(input_code[instruction->address + i]));
   for (uint32 i = instruction_length; i < 6; i++)
     hex_string.AppendString("   ");
 
   if (instruction)
   {
     CPU_X86::Decoder::DisassembleToString(instruction, &instr_string);
-    fprintf(stdout, "0x%08X | %s | %s\n", address, hex_string.GetCharArray(), instr_string.GetCharArray());
+    fprintf(stdout, "0x%08X | %s | %s\n", instruction->address, hex_string.GetCharArray(), instr_string.GetCharArray());
   }
   else
   {
-    fprintf(stderr, "Failed to decode instruction at offset 0x%08X\n", address);
+    fprintf(stderr, "Failed to decode instruction at offset 0x%08X\n", instruction->address);
     fprintf(stderr, "Bytes at failure point: %s\n", hex_string.GetCharArray());
   }
 }
@@ -138,20 +138,22 @@ static bool RunDisassembler()
 
   Log_DevPrintf("Origin address: 0x%08X", origin_address);
 
-  AutoReleasePtr<ByteStream> memory_stream = ByteStream_CreateReadOnlyMemoryStream(input_code.GetBasePointer(), input_code.GetSize());
+  AutoReleasePtr<ByteStream> memory_stream =
+    ByteStream_CreateReadOnlyMemoryStream(input_code.GetBasePointer(), input_code.GetSize());
   bool error = false;
 
   while (memory_stream->GetPosition() < memory_stream->GetSize() && !memory_stream->InErrorState())
   {
     CPU_X86::Instruction instruction;
-    if (CPU_X86::Decoder::DecodeInstruction(&instruction, address_size, operand_size, Truncate32(memory_stream->GetPosition()), memory_stream))
+    if (CPU_X86::Decoder::DecodeInstruction(&instruction, address_size, operand_size,
+                                            Truncate32(memory_stream->GetPosition()), memory_stream))
     {
-      PrintInstruction(Truncate32(memory_stream->GetPosition()), &instruction);
+      PrintInstruction(&instruction);
     }
     else
     {
       // Skip one byte and try again
-      PrintInstruction(Truncate32(memory_stream->GetPosition()), nullptr);
+      PrintInstruction(nullptr);
       error = true;
     }
   }
