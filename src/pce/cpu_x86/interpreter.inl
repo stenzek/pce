@@ -4150,7 +4150,11 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
 
+  // Order is swapped when both src/dst are registers.
+  // We have to write the destination first for the memory version though, in case it faults.
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
+  const bool swap_order = (dst_mode == OperandMode_ModRM_RM && cpu->idata.ModRM_RM_IsReg());
+
   if (actual_size == OperandSize_8)
   {
     uint8 dst = ReadByteOperand<dst_mode, dst_constant>(cpu);
@@ -4158,8 +4162,17 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
     uint8 tmp = ALUOp_Add8(&cpu->m_registers, dst, src);
     src = dst;
     dst = tmp;
-    WriteByteOperand<dst_mode, dst_constant>(cpu, dst);
-    WriteByteOperand<src_mode, src_constant>(cpu, src);
+
+    if (swap_order)
+    {
+      WriteByteOperand<src_mode, src_constant>(cpu, src);
+      WriteByteOperand<dst_mode, dst_constant>(cpu, dst);
+    }
+    else
+    {
+      WriteByteOperand<dst_mode, dst_constant>(cpu, dst);
+      WriteByteOperand<src_mode, src_constant>(cpu, src);
+    }
   }
   else if (actual_size == OperandSize_16)
   {
@@ -4168,8 +4181,16 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
     uint16 tmp = ALUOp_Add16(&cpu->m_registers, dst, src);
     src = dst;
     dst = tmp;
-    WriteWordOperand<dst_mode, dst_constant>(cpu, dst);
-    WriteWordOperand<src_mode, src_constant>(cpu, src);
+    if (swap_order)
+    {
+      WriteWordOperand<src_mode, src_constant>(cpu, src);
+      WriteWordOperand<dst_mode, dst_constant>(cpu, dst);
+    }
+    else
+    {
+      WriteWordOperand<dst_mode, dst_constant>(cpu, dst);
+      WriteWordOperand<src_mode, src_constant>(cpu, src);
+    }
   }
   else if (actual_size == OperandSize_32)
   {
@@ -4178,8 +4199,16 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
     uint32 tmp = ALUOp_Add32(&cpu->m_registers, dst, src);
     src = dst;
     dst = tmp;
-    WriteDWordOperand<dst_mode, dst_constant>(cpu, dst);
-    WriteDWordOperand<src_mode, src_constant>(cpu, src);
+    if (swap_order)
+    {
+      WriteDWordOperand<src_mode, src_constant>(cpu, src);
+      WriteDWordOperand<dst_mode, dst_constant>(cpu, dst);
+    }
+    else
+    {
+      WriteDWordOperand<dst_mode, dst_constant>(cpu, dst);
+      WriteDWordOperand<src_mode, src_constant>(cpu, src);
+    }
   }
   else
   {
