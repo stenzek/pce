@@ -11,9 +11,9 @@ bool Decoder::DecodeInstruction(Instruction* instruction, AddressSize address_si
                                 VirtualMemoryAddress eip_addr, ByteStream* stream)
 {
   BinaryReader reader(stream, ENDIAN_TYPE_LITTLE);
-  auto readb = [&reader]() -> uint8 { return reader.ReadUInt8(); };
-  auto readw = [&reader]() -> uint16 { return reader.ReadUInt16(); };
-  auto readd = [&reader]() -> uint32 { return reader.ReadUInt32(); };
+  auto readb = [&reader](uint8* val) { return reader.SafeReadUInt8(val); };
+  auto readw = [&reader](uint16* val) { return reader.SafeReadUInt16(val); };
+  auto readd = [&reader](uint32* val) { return reader.SafeReadUInt32(val); };
   return DecodeInstruction(instruction, address_size, operand_size, eip_addr, readb, readw, readd) &&
          !reader.GetErrorState();
 }

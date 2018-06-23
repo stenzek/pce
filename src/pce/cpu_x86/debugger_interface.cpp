@@ -166,25 +166,29 @@ LinearMemoryAddress DebuggerInterface::GetStackBottom() const
 bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out_line, uint32* out_size) const
 {
   uint32 fetch_EIP = m_cpu->m_registers.EIP;
-  auto fetchb = [this, &fetch_EIP]() {
-    uint8 value = m_cpu->FetchDirectInstructionByte(fetch_EIP, false);
-    fetch_EIP = (fetch_EIP + sizeof(value)) & m_cpu->m_EIP_mask;
-    return value;
+  auto fetchb = [this, &fetch_EIP](uint8* val) {
+    if (!m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+      return false;
+    fetch_EIP = (fetch_EIP + sizeof(uint8)) & m_cpu->m_EIP_mask;
+    return true;
   };
-  auto fetchw = [this, &fetch_EIP]() {
-    uint16 value = m_cpu->FetchDirectInstructionWord(fetch_EIP, false);
-    fetch_EIP = (fetch_EIP + sizeof(value)) & m_cpu->m_EIP_mask;
-    return value;
+  auto fetchw = [this, &fetch_EIP](uint16* val) {
+    if (!m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+      return false;
+    fetch_EIP = (fetch_EIP + sizeof(uint16)) & m_cpu->m_EIP_mask;
+    return true;
   };
-  auto fetchd = [this, &fetch_EIP]() {
-    uint32 value = m_cpu->FetchDirectInstructionDWord(fetch_EIP, false);
-    fetch_EIP = (fetch_EIP + sizeof(value)) & m_cpu->m_EIP_mask;
-    return value;
+  auto fetchd = [this, &fetch_EIP](uint32* val) {
+    if (!m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+      return false;
+    fetch_EIP = (fetch_EIP + sizeof(uint32)) & m_cpu->m_EIP_mask;
+    return true;
   };
 
   // Try to decode the instruction first.
   Instruction instruction;
-  if (!Decoder::DecodeInstruction(&instruction, m_cpu->GetCurrentAddressingSize(), m_cpu->GetCurrentOperandSize(), fetch_EIP, fetchb, fetchw, fetchd))
+  if (!Decoder::DecodeInstruction(&instruction, m_cpu->GetCurrentAddressingSize(), m_cpu->GetCurrentOperandSize(),
+                                  fetch_EIP, fetchb, fetchw, fetchd))
   {
     return false;
   }

@@ -266,8 +266,6 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 
         if (physical_page != last_physical_page)
         {
-          last_physical_page = physical_page;
-
           // We shouldn't even read if it's not cachable.
           if (!cpu->m_bus->IsCachablePage(physical_page))
             return;
@@ -275,7 +273,9 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
           // Can't span more than two pages.
           uint32 page_span = (last_physical_page - first_physical_page) >> 12;
           if (page_span > 1)
-            failed = true;
+            return;
+
+          last_physical_page = physical_page;
         }
 
         cpu->m_bus->ReadMemoryBlock(physical_address, fetch_size_in_page, &buffer[buffer_size]);
@@ -285,7 +285,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
       }
     }
 
-    uint8 FetchByte()
+    bool FetchByte(uint8* val)
     {
       uint32 buffer_remaining = buffer_size - buffer_pos;
       if (buffer_remaining < sizeof(uint8))
@@ -295,15 +295,13 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
       }
 
       if (buffer_remaining < sizeof(uint8))
-      {
-        failed = true;
-        return 0;
-      }
+        return false;
 
-      return buffer[buffer_pos++];
+      *val = buffer[buffer_pos++];
+      return true;
     }
 
-    uint16 FetchWord()
+    bool FetchWord(uint16* val)
     {
       uint32 buffer_remaining = buffer_size - buffer_pos;
       if (buffer_remaining < sizeof(uint16))
@@ -313,18 +311,14 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
       }
 
       if (buffer_remaining < sizeof(uint16))
-      {
-        failed = true;
-        return 0;
-      }
+        return false;
 
-      uint16 value;
-      std::memcpy(&value, &buffer[buffer_pos], sizeof(value));
-      buffer_pos += sizeof(value);
-      return value;
+      std::memcpy(val, &buffer[buffer_pos], sizeof(uint16));
+      buffer_pos += sizeof(uint16);
+      return true;
     }
 
-    uint32 FetchDWord()
+    uint32 FetchDWord(uint32* val)
     {
       uint32 buffer_remaining = buffer_size - buffer_pos;
       if (buffer_remaining < sizeof(uint32))
@@ -334,19 +328,15 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
       }
 
       if (buffer_remaining < sizeof(uint32))
-      {
-        failed = true;
-        return 0;
-      }
+        return false;
 
-      uint32 value;
-      std::memcpy(&value, &buffer[buffer_pos], sizeof(value));
-      buffer_pos += sizeof(value);
-      return value;
+      std::memcpy(val, &buffer[buffer_pos], sizeof(uint32));
+      buffer_pos += sizeof(uint32);
+      return true;
     }
 
     FetchCallback(CodeCacheBackend* backend_, CPU* cpu_, uint32 EIP_, uint32 EIP_mask_)
-      : backend(backend_), cpu(cpu_), EIP(EIP_), EIP_mask(EIP_mask_), failed(false)
+      : backend(backend_), cpu(cpu_), EIP(EIP_), EIP_mask(EIP_mask_)
     {
     }
 
@@ -357,7 +347,6 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
     uint32 first_physical_page = 0xFFFFFFFF;
     uint32 last_physical_page = 0xFFFFFFFF;
     bool is_32bit_code;
-    bool failed;
 
     std::array<uint8, BUFFER_SIZE> buffer;
     uint32 buffer_size = 0;
@@ -365,9 +354,9 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
   };
 
   FetchCallback callback(this, m_cpu, m_cpu->m_registers.EIP, m_cpu->m_EIP_mask);
-  auto fetchb = [&callback]() -> uint8 { return callback.FetchByte(); };
-  auto fetchw = [&callback]() -> uint16 { return callback.FetchWord(); };
-  auto fetchd = [&callback]() -> uint32 { return callback.FetchDWord(); };
+  auto fetchb = std::bind(&FetchCallback::FetchByte, &callback, std::placeholders::_1);
+  auto fetchw = std::bind(&FetchCallback::FetchWord, &callback, std::placeholders::_1);
+  auto fetchd = std::bind(&FetchCallback::FetchDWord, &callback, std::placeholders::_1);
   size_t instruction_count = 0;
   VirtualMemoryAddress start_EIP = m_cpu->m_registers.EIP;
   VirtualMemoryAddress next_EIP = start_EIP;
@@ -378,8 +367,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
     block->instructions.emplace_back();
     Instruction* instruction = &block->instructions.back();
     if (!Decoder::DecodeInstruction(instruction, m_cpu->m_current_address_size, m_cpu->m_current_operand_size, next_EIP,
-                                    fetchb, fetchw, fetchd) ||
-        callback.failed)
+                                    fetchb, fetchw, fetchd))
     {
       block->instructions.pop_back();
       break;

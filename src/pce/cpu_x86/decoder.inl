@@ -18,7 +18,10 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
   for (;;)
   {
     // Fetch first byte.
-    uint8 opcode = fetchb();
+    uint8 opcode;
+    if (!fetchb(&opcode))
+      return false;
+
     instruction->length += sizeof(uint8);
     const TableEntry* te = &table[opcode];
 
@@ -51,7 +54,8 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
       case Operation_Extension_ModRM_Reg:
       {
         has_modrm = true;
-        instruction->data.modrm = fetchb();
+        if (!fetchb(&instruction->data.modrm))
+          return false;
         instruction->length += sizeof(uint8);
         te = &te->next_table[instruction->data.GetModRM_Reg()];
       }
@@ -59,7 +63,8 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
       case Operation_Extension_ModRM_X87:
       {
         has_modrm = true;
-        instruction->data.modrm = fetchb();
+        if (!fetchb(&instruction->data.modrm))
+          return false;
         instruction->length += sizeof(uint8);
         if (!instruction->data.ModRM_RM_IsReg())
           te = &te->next_table[instruction->data.GetModRM_Reg() & 0x07];
@@ -100,7 +105,8 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
           if (!has_modrm)
           {
             has_modrm = true;
-            instruction->data.modrm = fetchb();
+            if (!fetchb(&instruction->data.modrm))
+              return false;
             instruction->length += sizeof(uint8);
           }
         }
@@ -111,7 +117,8 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
           if (!has_modrm)
           {
             has_modrm = true;
-            instruction->data.modrm = fetchb();
+            if (!fetchb(&instruction->data.modrm))
+              return false;
             instruction->length += sizeof(uint8);
           }
 
@@ -128,7 +135,8 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
             if (addr->addressing_mode == ModRMAddressingMode::SIB)
             {
               // SIB has a displacement instead of base if set to EBP
-              instruction->data.sib = fetchb();
+              if (!fetchb(&instruction->data.sib))
+                return false;
               instruction->length += sizeof(uint8);
               const Reg32 base_reg = instruction->data.GetSIBBaseRegister();
               if (!instruction->data.HasSIBBase())
@@ -145,17 +153,30 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
             switch (displacement_size)
             {
               case 1:
-                instruction->data.disp32 = SignExtend32(fetchb());
+              {
+                uint8 tmpbyte;
+                if (!fetchb(&tmpbyte))
+                  return false;
+                instruction->data.disp32 = SignExtend32(tmpbyte);
                 instruction->length += sizeof(uint8);
-                break;
+              }
+              break;
               case 2:
-                instruction->data.disp32 = SignExtend32(fetchw());
+              {
+                uint16 tmpword;
+                if (!fetchw(&tmpword))
+                  return false;
+                instruction->data.disp32 = SignExtend32(tmpword);
                 instruction->length += sizeof(uint16);
-                break;
+              }
+              break;
               case 4:
-                instruction->data.disp32 = fetchd();
+              {
+                if (!fetchd(&instruction->data.disp32))
+                  return false;
                 instruction->length += sizeof(uint32);
-                break;
+              }
+              break;
             }
           }
         }
@@ -166,17 +187,26 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
           switch (operand.size)
           {
             case OperandSize_8:
-              instruction->data.imm8 = fetchb();
+            {
+              if (!fetchb(&instruction->data.imm8))
+                return false;
               instruction->length += sizeof(uint8);
-              break;
+            }
+            break;
             case OperandSize_16:
-              instruction->data.imm16 = fetchw();
+            {
+              if (!fetchw(&instruction->data.imm16))
+                return false;
               instruction->length += sizeof(uint16);
-              break;
+            }
+            break;
             case OperandSize_32:
-              instruction->data.imm32 = fetchd();
+            {
+              if (!fetchd(&instruction->data.imm32))
+                return false;
               instruction->length += sizeof(uint32);
-              break;
+            }
+            break;
           }
         }
         break;
@@ -186,17 +216,27 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
           switch (operand.size)
           {
             case OperandSize_8:
-              instruction->data.imm2_8 = fetchb();
+            {
+              if (!fetchb(&instruction->data.imm2_8))
+                return false;
               instruction->length += sizeof(uint8);
-              break;
+            }
+            break;
             case OperandSize_16:
-              instruction->data.imm2_16 = fetchw();
+            {
+              if (!fetchw(&instruction->data.imm2_16))
+                return false;
               instruction->length += sizeof(uint16);
-              break;
+            }
+            break;
             case OperandSize_32:
-              instruction->data.imm2_32 = fetchd();
+            {
+              if (!fetchd(&instruction->data.imm2_32))
+                return false;
+
               instruction->length += sizeof(uint32);
-              break;
+            }
+            break;
           }
         }
         break;
@@ -206,17 +246,30 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
           switch (operand.size)
           {
             case OperandSize_8:
-              instruction->data.disp32 = SignExtend32(fetchb());
+            {
+              uint8 tmpbyte;
+              if (!fetchb(&tmpbyte))
+                return false;
+              instruction->data.disp32 = SignExtend32(tmpbyte);
               instruction->length += sizeof(uint8);
-              break;
+            }
+            break;
             case OperandSize_16:
-              instruction->data.disp32 = SignExtend32(fetchw());
+            {
+              uint16 tmpword;
+              if (!fetchw(&tmpword))
+                return false;
+              instruction->data.disp32 = SignExtend32(tmpword);
               instruction->length += sizeof(uint16);
-              break;
+            }
+            break;
             case OperandSize_32:
-              instruction->data.disp32 = fetchd();
+            {
+              if (!fetchd(&instruction->data.disp32))
+                return false;
               instruction->length += sizeof(uint32);
-              break;
+            }
+            break;
           }
         }
         break;
@@ -225,12 +278,16 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
         {
           if (instruction->data.address_size == AddressSize_16)
           {
-            instruction->data.disp32 = ZeroExtend32(fetchw());
+            uint16 tmpword;
+            if (!fetchw(&tmpword))
+              return false;
+            instruction->data.disp32 = ZeroExtend32(tmpword);
             instruction->length += sizeof(uint16);
           }
           else
           {
-            instruction->data.disp32 = fetchd();
+            if (!fetchd(&instruction->data.disp32))
+              return false;
             instruction->length += sizeof(uint32);
           }
         }
@@ -240,15 +297,20 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
         {
           if (instruction->data.operand_size == OperandSize_16)
           {
-            instruction->data.disp32 = ZeroExtend32(fetchw());
+            uint16 tmpword;
+            if (!fetchw(&tmpword))
+              return false;
+            instruction->data.disp32 = ZeroExtend32(tmpword);
             instruction->length += sizeof(uint16);
           }
           else
           {
-            instruction->data.disp32 = fetchd();
+            if (!fetchd(&instruction->data.disp32))
+              return false;
             instruction->length += sizeof(uint32);
           }
-          instruction->data.imm16 = fetchw();
+          if (!fetchw(&instruction->data.imm16))
+            return false;
           instruction->length += sizeof(uint16);
         }
         break;

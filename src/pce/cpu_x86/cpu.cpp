@@ -1319,20 +1319,23 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
 #endif
 
   uint32 fetch_EIP = m_current_EIP;
-  auto fetchb = [this, &fetch_EIP]() {
-    uint8 value = FetchDirectInstructionByte(fetch_EIP, false);
-    fetch_EIP = (fetch_EIP + sizeof(value)) & m_EIP_mask;
-    return value;
+  auto fetchb = [this, &fetch_EIP](uint8* val) {
+    if (!SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+      return false;
+    fetch_EIP = (fetch_EIP + sizeof(uint8)) & m_EIP_mask;
+    return true;
   };
-  auto fetchw = [this, &fetch_EIP]() {
-    uint16 value = FetchDirectInstructionWord(fetch_EIP, false);
-    fetch_EIP = (fetch_EIP + sizeof(value)) & m_EIP_mask;
-    return value;
+  auto fetchw = [this, &fetch_EIP](uint16* val) {
+    if (!SafeReadMemoryWord(CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+      return false;
+    fetch_EIP = (fetch_EIP + sizeof(uint16)) & m_EIP_mask;
+    return true;
   };
-  auto fetchd = [this, &fetch_EIP]() {
-    uint32 value = FetchDirectInstructionDWord(fetch_EIP, false);
-    fetch_EIP = (fetch_EIP + sizeof(value)) & m_EIP_mask;
-    return value;
+  auto fetchd = [this, &fetch_EIP](uint32* val) {
+    if (!SafeReadMemoryDWord(CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+      return false;
+    fetch_EIP = (fetch_EIP + sizeof(uint32)) & m_EIP_mask;
+    return true;
   };
 
   // Try to decode the instruction first.
@@ -1346,7 +1349,14 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
   for (uint32 i = 0; i < instruction_length; i++)
   {
     uint8 value = 0;
-    SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, m_current_EIP + i), &value, false, false);
+    if (!SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, m_current_EIP + i), &value, false, false))
+    {
+      hex_string.AppendFormattedString(" <memory read failed at 0x%08X>",
+                                       CalculateLinearAddress(Segment_CS, m_current_EIP + i));
+      i = instruction_length;
+      break;
+    }
+
     hex_string.AppendFormattedString("%02X ", ZeroExtend32(value));
   }
   for (uint32 i = instruction_length; i < 10; i++)
@@ -3585,7 +3595,7 @@ void CPU::DumpMemory(LinearMemoryAddress start_address, uint32 size)
 
 void CPU::DumpStack()
 {
-  LinearMemoryAddress stack_top = m_registers.ESP;
+  LinearMemoryAddress stack_top = m_current_ESP;
   LinearMemoryAddress stack_bottom = 0xFFFFFFFF;
   if (m_stack_address_size == AddressSize_16)
   {
@@ -3593,7 +3603,7 @@ void CPU::DumpStack()
     stack_bottom &= 0xFFFF;
   }
 
-  std::fprintf(stderr, "Stack dump, ESP = 0x%08X\n", m_registers.ESP);
+  std::fprintf(stderr, "Stack dump, ESP = 0x%08X\n", m_current_ESP);
 
   LinearMemoryAddress stack_address = stack_top;
   for (uint32 count = 0; count < 128; count++)
