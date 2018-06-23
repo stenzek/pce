@@ -528,26 +528,6 @@ inline constexpr bool OperandMode_NeedsImmediate(OperandSize op_size, OperandMod
          op_mode == OperandMode_Memory || op_mode == OperandMode_ModRM_RM || op_mode == OperandMode_FarAddress;
 }
 
-enum AddressingMode : uint8
-{
-  AddressingMode_None,                     // operand is not present
-  AddressingMode_Immediate,                // value is contained in operand
-  AddressingMode_Register,                 // value contained in register
-  AddressingMode_SegmentRegister,          // value contained in segment register
-  AddressingMode_ControlRegister,          // value contained in control register
-  AddressingMode_DebugRegister,            // value contained in debug register
-  AddressingMode_TestRegister,             // value contained in test register
-  AddressingMode_RegisterIndirect,         // register contains address of value
-  AddressingMode_FarAddress,               // operand contains segment selector and value
-  AddressingMode_Direct,                   // operand contains address of value
-  AddressingMode_Indexed,                  // address = displacement + register
-  AddressingMode_BasedIndexed,             // address = register + register
-  AddressingMode_BasedIndexedDisplacement, // address = displacement + register + register
-  AddressingMode_Relative,                 // address = IP after instruction + displacement
-  AddressingMode_SIB,                      // address = displacement + base + index * scale
-  AddressingMode_ST,                       // floating point register
-};
-
 enum InstructionFlags : uint8
 {
   InstructionFlag_Lock = (1 << 0),

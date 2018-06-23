@@ -1,6 +1,7 @@
 #pragma once
 #include <utility>
 
+#include "pce/cpu_x86/decoder.h"
 #include "pce/cpu_x86/jitx64_backend.h"
 #include "xbyak.h"
 
@@ -18,8 +19,6 @@
 // TODO: Remove physical references when block is destroyed
 // TODO: block linking
 // TODO: memcpy-like stuff from bus for validation
-
-#if 0
 
 namespace CPU_X86 {
 
@@ -133,11 +132,10 @@ private:
   static void LoadSegmentRegisterTrampoline(CPU* cpu, uint32 segment, uint16 value);
   static void RaiseExceptionTrampoline(CPU* cpu, uint32 interrupt, uint32 error_code);
   static void SetFlagsTrampoline(CPU* cpu, uint32 flags);
-  static void SetFlags16Trampoline(CPU* cpu, uint16 flags);
   static void FarJumpTrampoline(CPU* cpu, uint16 segment_selector, uint32 offset, uint32 op_size);
   static void FarCallTrampoline(CPU* cpu, uint16 segment_selector, uint32 offset, uint32 op_size);
   static void FarReturnTrampoline(CPU* cpu, uint32 op_size, uint32 pop_count);
+  static void InterpretInstructionTrampoline(CPU* cpu, const Instruction* instruction);
 };
 
 } // namespace CPU_X86
-#endif

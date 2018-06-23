@@ -32,8 +32,6 @@ JitX64Backend::Block::~Block()
   //         Xbyak::AlignedFree(reinterpret_cast<void*>(code_pointer));
 }
 
-#if 0
-
 JitX64CodeGenerator::JitX64CodeGenerator(JitX64Backend* backend, void* code_ptr, size_t code_size)
   : Xbyak::CodeGenerator(code_size, code_ptr), m_backend(backend), m_cpu(backend->m_cpu)
 #if ABI_WIN64
@@ -108,11 +106,12 @@ std::pair<const void*, size_t> JitX64CodeGenerator::FinishBlock()
   return std::make_pair(reinterpret_cast<const void*>(getCode()), getSize());
 }
 
-bool JitX64CodeGenerator::CompileInstruction(const OldInstruction* instruction, bool is_final)
+bool JitX64CodeGenerator::CompileInstruction(const Instruction* instruction, bool is_final)
 {
   bool result;
   switch (instruction->operation)
   {
+#if 0
     case Operation_NOP:
       result = Compile_NOP(instruction);
       break;
@@ -176,6 +175,7 @@ bool JitX64CodeGenerator::CompileInstruction(const OldInstruction* instruction, 
     case Operation_STD:
       result = Compile_Flags(instruction);
       break;
+#endif
     default:
       result = Compile_Fallback(instruction);
       break;
@@ -251,16 +251,17 @@ uint32 JitX64CodeGenerator::CalculateSegmentRegisterOffset(Segment segment)
   return uint32(offsetof(CPU, m_registers.segment_selectors[0]) + (segment * sizeof(uint16)));
 }
 
-void JitX64CodeGenerator::CalculateEffectiveAddress(const OldInstruction* instruction)
+void JitX64CodeGenerator::CalculateEffectiveAddress(const Instruction* instruction)
 {
+#if 0
   for (size_t i = 0; i < countof(instruction->operands); i++)
   {
-    const OldInstruction::Operand* operand = &instruction->operands[i];
+    const Instruction::Operand* operand = &instruction->operands[i];
     switch (operand->mode)
     {
       case AddressingMode_RegisterIndirect:
       {
-        if (instruction->address_size == AddressSize_16)
+        if (instruction->GetAddressSize() == AddressSize_16)
           movzx(READDR32, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
         else
           mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)]);
@@ -268,7 +269,7 @@ void JitX64CodeGenerator::CalculateEffectiveAddress(const OldInstruction* instru
       break;
       case AddressingMode_Indexed:
       {
-        if (instruction->address_size == AddressSize_16)
+        if (instruction->GetAddressSize() == AddressSize_16)
         {
           mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->indexed.reg.reg16)]);
           if (operand->indexed.displacement != 0)
@@ -285,7 +286,7 @@ void JitX64CodeGenerator::CalculateEffectiveAddress(const OldInstruction* instru
       break;
       case AddressingMode_BasedIndexed:
       {
-        if (instruction->address_size == AddressSize_16)
+        if (instruction->GetAddressSize() == AddressSize_16)
         {
           mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.base.reg16)]);
           add(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.index.reg16)]);
@@ -300,7 +301,7 @@ void JitX64CodeGenerator::CalculateEffectiveAddress(const OldInstruction* instru
       break;
       case AddressingMode_BasedIndexedDisplacement:
       {
-        if (instruction->address_size == AddressSize_16)
+        if (instruction->GetAddressSize() == AddressSize_16)
         {
           mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.base.reg16)]);
           add(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.index.reg16)]);
@@ -319,7 +320,7 @@ void JitX64CodeGenerator::CalculateEffectiveAddress(const OldInstruction* instru
       break;
       case AddressingMode_SIB:
       {
-        Assert(instruction->address_size == AddressSize_32);
+        Assert(instruction->GetAddressSize() == AddressSize_32);
         if (operand->sib.index.reg32 != Reg32_Count)
         {
           // This one is implemented in reverse, but should evaluate to the same results. This way we don't need a
@@ -350,28 +351,29 @@ void JitX64CodeGenerator::CalculateEffectiveAddress(const OldInstruction* instru
       break;
     }
   }
+#endif
 }
 
-bool JitX64CodeGenerator::IsConstantOperand(const OldInstruction* instruction, size_t index)
+bool JitX64CodeGenerator::IsConstantOperand(const Instruction* instruction, size_t index)
 {
-  const OldInstruction::Operand* operand = &instruction->operands[index];
-  return (operand->mode == AddressingMode_Immediate);
+  const Instruction::Operand* operand = &instruction->operands[index];
+  return (operand->mode == OperandMode_Immediate);
 }
 
-uint32 JitX64CodeGenerator::GetConstantOperand(const OldInstruction* instruction, size_t index, bool sign_extend)
+uint32 JitX64CodeGenerator::GetConstantOperand(const Instruction* instruction, size_t index, bool sign_extend)
 {
-  const OldInstruction::Operand* operand = &instruction->operands[index];
-  DebugAssert(operand->mode == AddressingMode_Immediate);
+  const Instruction::Operand* operand = &instruction->operands[index];
+  DebugAssert(operand->mode == OperandMode_Immediate);
 
   switch (operand->size)
   {
     case OperandSize_8:
-      return sign_extend ? SignExtend32(operand->immediate.value8) : ZeroExtend32(operand->immediate.value8);
+      return sign_extend ? SignExtend32(instruction->data.imm8) : ZeroExtend32(instruction->data.imm8);
       break;
     case OperandSize_16:
-      return sign_extend ? SignExtend32(operand->immediate.value16) : ZeroExtend32(operand->immediate.value16);
+      return sign_extend ? SignExtend32(instruction->data.imm16) : ZeroExtend32(instruction->data.imm16);
     default:
-      return operand->immediate.value32;
+      return instruction->data.imm32;
   }
 }
 
@@ -405,10 +407,10 @@ static void WriteMemoryDWordTrampoline(CPU* cpu, uint32 segment, uint32 offset, 
   cpu->WriteMemoryDWord(static_cast<Segment>(segment), offset, value);
 }
 
-void JitX64CodeGenerator::ReadOperand(const OldInstruction* instruction, size_t index, const Xbyak::Reg& dest,
+void JitX64CodeGenerator::ReadOperand(const Instruction* instruction, size_t index, const Xbyak::Reg& dest,
                                       bool sign_extend)
 {
-  const OldInstruction::Operand* operand = &instruction->operands[index];
+  const Instruction::Operand* operand = &instruction->operands[index];
   OperandSize output_size;
   if (dest.isBit(8))
     output_size = OperandSize_8;
@@ -417,25 +419,80 @@ void JitX64CodeGenerator::ReadOperand(const OldInstruction* instruction, size_t 
   else
     output_size = OperandSize_32;
 
+  auto MakeRegisterAccess = [&](uint32 reg) {
+    switch (output_size)
+    {
+      case OperandSize_8:
+        mov(dest, byte[RCPUPTR + CalculateRegisterOffset(Reg8(reg))]);
+        break;
+
+      case OperandSize_16:
+      {
+        switch (operand->size)
+        {
+          case OperandSize_8:
+          {
+            if (sign_extend)
+              movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(Reg8(reg))]);
+            else
+              movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(Reg8(reg))]);
+          }
+          break;
+          case OperandSize_16:
+          case OperandSize_32:
+            mov(dest, word[RCPUPTR + CalculateRegisterOffset(Reg16(reg))]);
+            break;
+        }
+      }
+      break;
+
+      case OperandSize_32:
+      {
+        switch (operand->size)
+        {
+          case OperandSize_8:
+          {
+            if (sign_extend)
+              movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(Reg8(reg))]);
+            else
+              movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(Reg8(reg))]);
+          }
+          break;
+          case OperandSize_16:
+          {
+            if (sign_extend)
+              movsx(dest, word[RCPUPTR + CalculateRegisterOffset(Reg16(reg))]);
+            else
+              movzx(dest, word[RCPUPTR + CalculateRegisterOffset(Reg16(reg))]);
+          }
+          break;
+          case OperandSize_32:
+            mov(dest, dword[RCPUPTR + CalculateRegisterOffset(Reg32(reg))]);
+            break;
+        }
+      }
+      break;
+    }
+  };
+
   switch (operand->mode)
   {
-    case AddressingMode_Immediate:
+    case OperandMode_Immediate:
     {
       switch (output_size)
       {
         case OperandSize_8:
-          mov(dest, ZeroExtend32(operand->immediate.value8));
+          mov(dest, ZeroExtend32(instruction->data.imm8));
           break;
         case OperandSize_16:
         {
           switch (operand->size)
           {
             case OperandSize_8:
-              mov(dest,
-                  sign_extend ? SignExtend32(operand->immediate.value8) : ZeroExtend32(operand->immediate.value8));
+              mov(dest, sign_extend ? SignExtend32(instruction->data.imm8) : ZeroExtend32(instruction->data.imm8));
               break;
             default:
-              mov(dest, ZeroExtend32(operand->immediate.value16));
+              mov(dest, ZeroExtend32(instruction->data.imm16));
               break;
           }
         }
@@ -445,15 +502,13 @@ void JitX64CodeGenerator::ReadOperand(const OldInstruction* instruction, size_t 
           switch (operand->size)
           {
             case OperandSize_8:
-              mov(dest,
-                  sign_extend ? SignExtend32(operand->immediate.value8) : ZeroExtend32(operand->immediate.value8));
+              mov(dest, sign_extend ? SignExtend32(instruction->data.imm8) : ZeroExtend32(instruction->data.imm8));
               break;
             case OperandSize_16:
-              mov(dest,
-                  sign_extend ? SignExtend32(operand->immediate.value16) : ZeroExtend32(operand->immediate.value16));
+              mov(dest, sign_extend ? SignExtend32(instruction->data.imm16) : ZeroExtend32(instruction->data.imm16));
               break;
             default:
-              mov(dest, ZeroExtend32(operand->immediate.value32));
+              mov(dest, ZeroExtend32(instruction->data.imm32));
               break;
           }
         }
@@ -462,90 +517,38 @@ void JitX64CodeGenerator::ReadOperand(const OldInstruction* instruction, size_t 
     }
     break;
 
-    case AddressingMode_Register:
-    {
-      switch (output_size)
-      {
-        case OperandSize_8:
-          mov(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-          break;
+    case OperandMode_Register:
+      MakeRegisterAccess(operand->reg32);
+      break;
 
-        case OperandSize_16:
-        {
-          switch (operand->size)
-          {
-            case OperandSize_8:
-            {
-              if (sign_extend)
-                movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-              else
-                movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-            }
-            break;
-            case OperandSize_16:
-            case OperandSize_32:
-              mov(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-              break;
-          }
-        }
-        break;
-
-        case OperandSize_32:
-        {
-          switch (operand->size)
-          {
-            case OperandSize_8:
-            {
-              if (sign_extend)
-                movsx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-              else
-                movzx(dest, byte[RCPUPTR + CalculateRegisterOffset(operand->reg.reg8)]);
-            }
-            break;
-            case OperandSize_16:
-            {
-              if (sign_extend)
-                movsx(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-              else
-                movzx(dest, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-            }
-            break;
-            case OperandSize_32:
-              mov(dest, dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)]);
-              break;
-          }
-        }
-        break;
-      }
-    }
-    break;
-
-    case AddressingMode_SegmentRegister:
+    case OperandMode_SegmentRegister:
     {
       switch (output_size)
       {
         case OperandSize_16:
-          mov(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
+          mov(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->segreg)]);
           break;
         case OperandSize_32:
           // Segment registers are sign-extended on push/pop.
-          movsx(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->reg.sreg)]);
+          movsx(dest, word[RCPUPTR + CalculateSegmentRegisterOffset(operand->segreg)]);
           break;
       }
     }
     break;
 
-    case AddressingMode_Direct:
-    case AddressingMode_RegisterIndirect:
-    case AddressingMode_Indexed:
-    case AddressingMode_BasedIndexed:
-    case AddressingMode_BasedIndexedDisplacement:
-    case AddressingMode_SIB:
+    case OperandMode_Memory:
+    case OperandMode_ModRM_RM:
     {
+      if (operand->mode == OperandMode_ModRM_RM && instruction->ModRM_RM_IsReg())
+      {
+        MakeRegisterAccess(instruction->data.modrm_rm_register);
+        break;
+      }
+
       mov(RPARAM1_64, RCPUPTR);
-      mov(RPARAM2_32, uint32(instruction->segment));
-      if (operand->mode == AddressingMode_Direct)
-        mov(RPARAM3_32, operand->direct.address);
+      mov(RPARAM2_32, uint32(instruction->GetMemorySegment()));
+      if (operand->mode == OperandMode_Memory)
+        mov(RPARAM3_32, instruction->data.disp32);
       else
         mov(RPARAM3_32, READDR32);
 
@@ -622,9 +625,10 @@ void JitX64CodeGenerator::ReadOperand(const OldInstruction* instruction, size_t 
   }
 }
 
-void JitX64CodeGenerator::WriteOperand(const OldInstruction* instruction, size_t index, const Xbyak::Reg& src)
+void JitX64CodeGenerator::WriteOperand(const Instruction* instruction, size_t index, const Xbyak::Reg& src)
 {
-  const OldInstruction::Operand* operand = &instruction->operands[index];
+#if 0
+  const Instruction::Operand* operand = &instruction->operands[index];
   switch (operand->mode)
   {
     case AddressingMode_Register:
@@ -690,12 +694,14 @@ void JitX64CodeGenerator::WriteOperand(const OldInstruction* instruction, size_t
       Panic("Unhandled address mode");
       break;
   }
+#endif
 }
 
-void JitX64CodeGenerator::ReadFarAddressOperand(const OldInstruction* instruction, size_t index,
+void JitX64CodeGenerator::ReadFarAddressOperand(const Instruction* instruction, size_t index,
                                                 const Xbyak::Reg& dest_segment, const Xbyak::Reg& dest_offset)
 {
-  const OldInstruction::Operand* operand = &instruction->operands[index];
+#if 0
+  const Instruction::Operand* operand = &instruction->operands[index];
   if (operand->mode == AddressingMode_FarAddress)
   {
     mov(dest_segment, ZeroExtend32(operand->far_address.segment_selector));
@@ -744,6 +750,7 @@ void JitX64CodeGenerator::ReadFarAddressOperand(const OldInstruction* instructio
     CallModuleFunction(ReadMemoryWordTrampoline);
     mov(dest_segment, RRET_16);
   }
+#endif
 }
 
 void JitX64CodeGenerator::UpdateFlags(uint32 clear_mask, uint32 set_mask, uint32 host_mask)
@@ -813,13 +820,19 @@ void JitX64CodeGenerator::UpdateFlags(uint32 clear_mask, uint32 set_mask, uint32
   }
 }
 
-inline bool OperandIsESP(const OldInstruction::Operand& operand)
+inline bool OperandIsESP(const Instruction* instruction, const Instruction::Operand& operand)
 {
   // If any instructions manipulate ESP, we need to update the shadow variable for the next instruction.
-  return operand.size > OperandSize_8 && operand.mode == AddressingMode_Register && operand.reg.reg32 == Reg32_ESP;
+  if (operand.size <= OperandSize_8)
+    return false;
+
+  return (operand.mode == OperandMode_Register && operand.reg32 == Reg32_ESP) ||
+         (operand.mode == OperandMode_ModRM_Reg && instruction->GetModRM_Reg() == Reg32_ESP) ||
+         (operand.mode == OperandMode_ModRM_RM && instruction->ModRM_RM_IsReg() &&
+          instruction->data.modrm_rm_register == Reg32_ESP);
 }
 
-inline bool CanInstructionFault(const OldInstruction* instruction)
+inline bool CanInstructionFault(const Instruction* instruction)
 {
   switch (instruction->operation)
   {
@@ -846,8 +859,7 @@ inline bool CanInstructionFault(const OldInstruction* instruction)
     {
       for (uint32 i = 0; i < 2; i++)
       {
-        if (instruction->operands[i].mode != AddressingMode_Register &&
-            instruction->operands[i].mode != AddressingMode_Immediate)
+        if (!instruction->IsRegisterOperand(i) && instruction->operands[i].mode != OperandMode_Immediate)
         {
           return true;
         }
@@ -860,8 +872,7 @@ inline bool CanInstructionFault(const OldInstruction* instruction)
     case Operation_NEG:
     case Operation_NOT:
     {
-      return (instruction->operands[0].mode != AddressingMode_Register &&
-              instruction->operands[0].mode != AddressingMode_Immediate);
+      return (!instruction->IsRegisterOperand(0) && instruction->operands[0].mode != OperandMode_Immediate);
     }
 
     default:
@@ -869,9 +880,9 @@ inline bool CanInstructionFault(const OldInstruction* instruction)
   }
 }
 
-void JitX64CodeGenerator::SyncInstructionPointers(const OldInstruction* next_instruction)
+void JitX64CodeGenerator::SyncInstructionPointers(const Instruction* next_instruction)
 {
-  if (next_instruction->address_size == AddressSize_16)
+  if (next_instruction->GetAddressSize() == AddressSize_16)
   {
     if (m_delayed_eip_add > 1)
     {
@@ -906,7 +917,7 @@ void JitX64CodeGenerator::SyncInstructionPointers(const OldInstruction* next_ins
   m_delayed_cycles_add = 0;
 }
 
-void JitX64CodeGenerator::StartInstruction(const OldInstruction* instruction)
+void JitX64CodeGenerator::StartInstruction(const Instruction* instruction)
 {
 #ifndef Y_BUILD_CONFIG_RELEASE
   nop();
@@ -959,7 +970,7 @@ void JitX64CodeGenerator::StartInstruction(const OldInstruction* instruction)
   m_delayed_cycles_add = 0;
 }
 
-void JitX64CodeGenerator::EndInstruction(const OldInstruction* instruction, bool update_eip, bool update_esp)
+void JitX64CodeGenerator::EndInstruction(const Instruction* instruction, bool update_eip, bool update_esp)
 {
   if (CanInstructionFault(instruction))
   {
@@ -996,14 +1007,16 @@ void JitX64CodeGenerator::EndInstruction(const OldInstruction* instruction, bool
 #endif
 }
 
-bool JitX64CodeGenerator::Compile_NOP(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_NOP(const Instruction* instruction)
 {
   StartInstruction(instruction);
   EndInstruction(instruction);
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_LEA(const OldInstruction* instruction)
+#if 0
+
+bool JitX64CodeGenerator::Compile_LEA(const Instruction* instruction)
 {
   StartInstruction(instruction);
 
@@ -1046,7 +1059,7 @@ bool JitX64CodeGenerator::Compile_LEA(const OldInstruction* instruction)
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_MOV(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_MOV(const Instruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1082,7 +1095,7 @@ bool JitX64CodeGenerator::Compile_MOV(const OldInstruction* instruction)
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_MOV_Extended(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_MOV_Extended(const Instruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1112,7 +1125,7 @@ bool JitX64CodeGenerator::Compile_MOV_Extended(const OldInstruction* instruction
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_ALU_Binary_Update(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_ALU_Binary_Update(const Instruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1226,7 +1239,7 @@ bool JitX64CodeGenerator::Compile_ALU_Binary_Update(const OldInstruction* instru
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_ALU_Binary_Test(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_ALU_Binary_Test(const Instruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1298,7 +1311,7 @@ bool JitX64CodeGenerator::Compile_ALU_Binary_Test(const OldInstruction* instruct
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_ALU_Unary_Update(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_ALU_Unary_Update(const Instruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1394,7 +1407,7 @@ bool JitX64CodeGenerator::Compile_ALU_Unary_Update(const OldInstruction* instruc
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_ShiftRotate(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_ShiftRotate(const Instruction* instruction)
 {
   // Fast path for {shl,shr} reg, 0.
   bool is_constant_shift = IsConstantOperand(instruction, 1);
@@ -1520,7 +1533,7 @@ bool JitX64CodeGenerator::Compile_ShiftRotate(const OldInstruction* instruction)
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_DoublePrecisionShift(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_DoublePrecisionShift(const Instruction* instruction)
 {
   // Fast path for {shld,shrd} reg, reg, 0.
   bool is_constant_shift = IsConstantOperand(instruction, 2);
@@ -1612,6 +1625,8 @@ bool JitX64CodeGenerator::Compile_DoublePrecisionShift(const OldInstruction* ins
   return true;
 }
 
+#endif
+
 // Necessary due to BranchTo being a member function.
 void JitX64CodeGenerator::BranchToTrampoline(CPU* cpu, uint32 address)
 {
@@ -1653,11 +1668,6 @@ void JitX64CodeGenerator::SetFlagsTrampoline(CPU* cpu, uint32 flags)
   cpu->SetFlags(flags);
 }
 
-void JitX64CodeGenerator::SetFlags16Trampoline(CPU* cpu, uint16 flags)
-{
-  cpu->SetFlags16(flags);
-}
-
 void JitX64CodeGenerator::FarJumpTrampoline(CPU* cpu, uint16 segment_selector, uint32 offset, uint32 op_size)
 {
   cpu->FarJump(segment_selector, offset, static_cast<OperandSize>(op_size));
@@ -1673,7 +1683,7 @@ void JitX64CodeGenerator::FarReturnTrampoline(CPU* cpu, uint32 op_size, uint32 p
   cpu->FarReturn(static_cast<OperandSize>(op_size), pop_count);
 }
 
-bool JitX64CodeGenerator::Compile_JumpConditional(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_JumpConditional(const Instruction* instruction)
 {
   StartInstruction(instruction);
 
@@ -1683,7 +1693,7 @@ bool JitX64CodeGenerator::Compile_JumpConditional(const OldInstruction* instruct
   // LOOP should also test ECX.
   if (instruction->operation == Operation_LOOP)
   {
-    if (instruction->address_size == AddressSize_16)
+    if (instruction->GetAddressSize() == AddressSize_16)
     {
       dec(word[RCPUPTR + offsetof(CPU, m_registers.ECX)]);
       jz(test_fail_label);
@@ -1696,7 +1706,7 @@ bool JitX64CodeGenerator::Compile_JumpConditional(const OldInstruction* instruct
   }
 
   // The jumps here are inverted, so that the fail case can jump over the branch.
-  switch (instruction->jump_condition)
+  switch (instruction->operands[0].jump_condition)
   {
     case JumpCondition_Always:
       // Just fall through to the real jump.
@@ -1824,7 +1834,7 @@ bool JitX64CodeGenerator::Compile_JumpConditional(const OldInstruction* instruct
 
     case JumpCondition_CXZero:
     {
-      if (instruction->address_size == AddressSize_16)
+      if (instruction->GetAddressSize() == AddressSize_16)
       {
         or (word[RCPUPTR + offsetof(CPU, m_registers.ECX)], 0u);
         jnz(test_fail_label);
@@ -1843,17 +1853,17 @@ bool JitX64CodeGenerator::Compile_JumpConditional(const OldInstruction* instruct
 
   // Should use relative addressing always.
   mov(RPARAM1_64, RCPUPTR);
-  if (instruction->operand_size == OperandSize_16)
+  if (instruction->GetOperandSize() == OperandSize_16)
   {
     // Should be shorter than mov+add+and.
     mov(RPARAM2_16, word[RCPUPTR + CalculateRegisterOffset(Reg32_EIP)]);
-    add(RPARAM2_16, uint32(instruction->operands[0].relative.displacement));
+    add(RPARAM2_16, uint32(instruction->data.disp16));
     movzx(RPARAM2_32, RPARAM2_16);
   }
   else
   {
     mov(RPARAM2_32, dword[RCPUPTR + CalculateRegisterOffset(Reg32_EIP)]);
-    add(RPARAM2_32, uint32(instruction->operands[0].relative.displacement));
+    add(RPARAM2_32, uint32(instruction->data.disp32));
   }
 
   // m_current_EIP will not be correct here, but we will be at the end of the block anyway.
@@ -1867,7 +1877,7 @@ bool JitX64CodeGenerator::Compile_JumpConditional(const OldInstruction* instruct
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_JumpCallReturn(const Instruction* instruction)
 {
   StartInstruction(instruction);
   CalculateEffectiveAddress(instruction);
@@ -1882,7 +1892,7 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
       mov(RPARAM1_64, RCPUPTR);
       movzx(RPARAM2_32, RSTORE16A);
       mov(RPARAM3_32, RSTORE32B);
-      mov(RPARAM4_32, static_cast<uint32>(instruction->operand_size));
+      mov(RPARAM4_32, static_cast<uint32>(instruction->GetOperandSize()));
       CallModuleFunction((instruction->operation == Operation_JMP_Far) ? FarJumpTrampoline : FarCallTrampoline);
     }
     break;
@@ -1890,11 +1900,11 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
     case Operation_RET_Far:
     {
       // Far return also goes through a slow path.
-      if (instruction->operands[0].mode != AddressingMode_None)
+      if (instruction->operands[0].mode != OperandMode_None)
         ReadOperand(instruction, 0, RPARAM3_32, false);
       else
         xor(RPARAM3_32, RPARAM3_32);
-      mov(RPARAM2_32, static_cast<uint32>(instruction->operand_size));
+      mov(RPARAM2_32, static_cast<uint32>(instruction->GetOperandSize()));
       mov(RPARAM1_64, RCPUPTR);
       CallModuleFunction(FarReturnTrampoline);
     }
@@ -1902,20 +1912,20 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
 
     case Operation_JMP_Near:
     {
-      const OldInstruction::Operand* operand = &instruction->operands[0];
-      if (operand->mode == AddressingMode_Relative)
+      const Instruction::Operand* operand = &instruction->operands[0];
+      if (operand->mode == OperandMode_Relative)
       {
-        if (instruction->operand_size == OperandSize_16)
+        if (instruction->GetOperandSize() == OperandSize_16)
         {
           // Should be shorter than mov+add+and.
           mov(RPARAM2_16, word[RCPUPTR + CalculateRegisterOffset(Reg32_EIP)]);
-          add(RPARAM2_16, uint32(instruction->operands[0].relative.displacement));
+          add(RPARAM2_16, uint32(instruction->data.disp16));
           movzx(RPARAM2_32, RPARAM2_16);
         }
         else
         {
           mov(RPARAM2_32, dword[RCPUPTR + CalculateRegisterOffset(Reg32_EIP)]);
-          add(RPARAM2_32, uint32(instruction->operands[0].relative.displacement));
+          add(RPARAM2_32, uint32(instruction->data.disp32));
         }
         mov(RPARAM1_64, RCPUPTR);
         CallModuleFunction(BranchToTrampoline);
@@ -1931,16 +1941,16 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
 
     case Operation_CALL_Near:
     {
-      const OldInstruction::Operand* operand = &instruction->operands[0];
-      if (operand->mode == AddressingMode_Relative)
+      const Instruction::Operand* operand = &instruction->operands[0];
+      if (operand->mode == OperandMode_Relative)
       {
-        if (instruction->operand_size == OperandSize_16)
+        if (instruction->GetOperandSize() == OperandSize_16)
         {
           mov(RSTORE16A, word[RCPUPTR + CalculateRegisterOffset(Reg32_EIP)]);
           mov(RPARAM1_64, RCPUPTR);
           movzx(RPARAM2_32, RSTORE16A);
           CallModuleFunction(PushWordTrampoline);
-          add(RSTORE16A, uint32(instruction->operands[0].relative.displacement));
+          add(RSTORE16A, uint32(instruction->data.disp16));
           mov(RPARAM1_64, RCPUPTR);
           movzx(RPARAM2_32, RSTORE16A);
           CallModuleFunction(BranchToTrampoline);
@@ -1951,7 +1961,7 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
           mov(RPARAM1_64, RCPUPTR);
           mov(RPARAM2_32, RSTORE32A);
           CallModuleFunction(PushDWordTrampoline);
-          add(RSTORE32A, uint32(instruction->operands[0].relative.displacement));
+          add(RSTORE32A, uint32(instruction->data.disp32));
           mov(RPARAM1_64, RCPUPTR);
           mov(RPARAM2_32, RSTORE32A);
           CallModuleFunction(BranchToTrampoline);
@@ -1960,7 +1970,7 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
       else
       {
         // Non-relative.
-        if (instruction->operand_size == OperandSize_16)
+        if (instruction->GetOperandSize() == OperandSize_16)
         {
           ReadOperand(instruction, 0, RSTORE16A, false);
           mov(RPARAM1_64, RCPUPTR);
@@ -1987,7 +1997,7 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
     case Operation_RET_Near:
     {
       mov(RPARAM1_64, RCPUPTR);
-      if (instruction->operand_size == OperandSize_16)
+      if (instruction->GetOperandSize() == OperandSize_16)
       {
         CallModuleFunction(PopWordTrampoline);
         movzx(RPARAM2_32, RRET_16);
@@ -1998,14 +2008,14 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
         mov(RPARAM2_32, RRET_32);
       }
 
-      const OldInstruction::Operand* operand = &instruction->operands[0];
-      Assert(operand->mode == AddressingMode_None || operand->mode == AddressingMode_Immediate);
-      if (operand->mode == AddressingMode_Immediate)
+      const Instruction::Operand* operand = &instruction->operands[0];
+      Assert(operand->mode == OperandMode_None || operand->mode == OperandMode_Immediate);
+      if (operand->mode == OperandMode_Immediate)
       {
         if (m_cpu->m_stack_address_size == AddressSize_16)
-          add(word[RCPUPTR + CalculateRegisterOffset(Reg32_ESP)], operand->immediate.value32);
+          add(word[RCPUPTR + CalculateRegisterOffset(Reg32_ESP)], instruction->data.imm32);
         else
-          add(dword[RCPUPTR + CalculateRegisterOffset(Reg32_ESP)], operand->immediate.value32);
+          add(dword[RCPUPTR + CalculateRegisterOffset(Reg32_ESP)], instruction->data.imm32);
       }
 
       mov(RPARAM1_64, RCPUPTR);
@@ -2022,7 +2032,7 @@ bool JitX64CodeGenerator::Compile_JumpCallReturn(const OldInstruction* instructi
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_Stack(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_Stack(const Instruction* instruction)
 {
   // if (instruction->operands[0].mode == AddressingMode_SegmentRegister && instruction->operation == Operation_POP)
   // return Compile_Fallback(instruction);
@@ -2053,7 +2063,7 @@ bool JitX64CodeGenerator::Compile_Stack(const OldInstruction* instruction)
     case Operation_PUSH:
     {
       CalculateEffectiveAddress(instruction);
-      if (instruction->operand_size == OperandSize_16)
+      if (instruction->GetOperandSize() == OperandSize_16)
       {
         ReadOperand(instruction, 0, RTEMP16A, true);
         mov(RPARAM1_64, RCPUPTR);
@@ -2072,7 +2082,7 @@ bool JitX64CodeGenerator::Compile_Stack(const OldInstruction* instruction)
     case Operation_POP:
     {
       // Since we can pop to esp, EA calculation has to happen after the pop.
-      if (instruction->operand_size == OperandSize_16)
+      if (instruction->GetOperandSize() == OperandSize_16)
       {
         mov(RPARAM1_64, RCPUPTR);
         CallModuleFunction(PopWordTrampoline);
@@ -2091,7 +2101,7 @@ bool JitX64CodeGenerator::Compile_Stack(const OldInstruction* instruction)
 
     case Operation_PUSHF:
     {
-      if (instruction->operand_size == OperandSize_16)
+      if (instruction->GetOperandSize() == OperandSize_16)
       {
         mov(RPARAM1_64, RCPUPTR);
         movzx(RPARAM2_32, word[RCPUPTR + CalculateRegisterOffset(Reg32_EFLAGS)]);
@@ -2109,13 +2119,15 @@ bool JitX64CodeGenerator::Compile_Stack(const OldInstruction* instruction)
 
     case Operation_POPF:
     {
-      if (instruction->operand_size == OperandSize_16)
+      if (instruction->GetOperandSize() == OperandSize_16)
       {
         mov(RPARAM1_64, RCPUPTR);
         CallModuleFunction(PopWordTrampoline);
-        mov(RPARAM1_64, RCPUPTR);
-        movzx(RPARAM2_32, RRET_16);
-        CallModuleFunction(SetFlags16Trampoline);
+        movzx(RRET_32, RRET_16);
+        mov(RPARAM2_32, dword[RCPUPTR + CalculateRegisterOffset(Reg32_EFLAGS)]);
+        and(RPARAM2_32, UINT32_C(0xFFFF0000));
+        or (RPARAM2_32, RRET_32);
+        CallModuleFunction(SetFlagsTrampoline);
       }
       else
       {
@@ -2136,7 +2148,7 @@ bool JitX64CodeGenerator::Compile_Stack(const OldInstruction* instruction)
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_Flags(const OldInstruction* instruction)
+bool JitX64CodeGenerator::Compile_Flags(const Instruction* instruction)
 {
   StartInstruction(instruction);
 
@@ -2160,11 +2172,17 @@ bool JitX64CodeGenerator::Compile_Flags(const OldInstruction* instruction)
   return true;
 }
 
-bool JitX64CodeGenerator::Compile_Fallback(const OldInstruction* instruction)
+void JitX64CodeGenerator::InterpretInstructionTrampoline(CPU* cpu, const Instruction* instruction)
+{
+  std::memcpy(&cpu->idata, &instruction->data, sizeof(cpu->idata));
+  instruction->interpreter_handler(cpu);
+}
+
+bool JitX64CodeGenerator::Compile_Fallback(const Instruction* instruction)
 {
   // REP instructions are always annoying.
   std::unique_ptr<Xbyak::Label> rep_label;
-  if (instruction->flags & InstructionFlag_Rep)
+  if (instruction->data.has_rep & InstructionFlag_Rep)
   {
     SyncInstructionPointers(instruction);
     rep_label = std::make_unique<Xbyak::Label>();
@@ -2183,9 +2201,9 @@ bool JitX64CodeGenerator::Compile_Fallback(const OldInstruction* instruction)
 
   mov(RPARAM1_64, RCPUPTR);
   mov(RPARAM2_64, reinterpret_cast<size_t>(instruction));
-  CallModuleFunction(&Interpreter::ExecuteInstruction);
+  CallModuleFunction(InterpretInstructionTrampoline);
 
-  if (instruction->flags & InstructionFlag_Rep)
+  if (instruction->data.has_rep & InstructionFlag_Rep)
   {
     mov(RTEMP32A, dword[RCPUPTR + offsetof(CPU, m_current_EIP)]);
     mov(RTEMP32B, dword[RCPUPTR + offsetof(CPU, m_registers.EIP)]);
@@ -2197,5 +2215,4 @@ bool JitX64CodeGenerator::Compile_Fallback(const OldInstruction* instruction)
   EndInstruction(instruction, true, true);
   return true;
 }
-#endif
 } // namespace CPU_X86

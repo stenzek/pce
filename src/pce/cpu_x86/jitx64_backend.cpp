@@ -32,7 +32,7 @@ void JitX64Backend::Reset()
 void JitX64Backend::Execute()
 {
   // We'll jump back here when an instruction is aborted.
-  setjmp(m_jmp_buf);
+  fastjmp_set(&m_jmp_buf);
 
   // Assume each instruction takes a single cycle
   // This is totally wrong, but whatever
@@ -60,7 +60,7 @@ void JitX64Backend::AbortCurrentInstruction()
 
   // Log_WarningPrintf("Executing longjmp()");
   m_cpu->CommitPendingCycles();
-  longjmp(m_jmp_buf, 1);
+  fastjmp_jmp(&m_jmp_buf);
 }
 
 void JitX64Backend::BranchTo(uint32 new_EIP) {}
@@ -163,7 +163,6 @@ JitX64Backend::Block* JitX64Backend::CompileBlock()
     return nullptr;
   }
 
-#if 0
   // JitX64CodeGenerator codegen(this, reinterpret_cast<void*>(block->code_pointer), block->code_size);
   JitX64CodeGenerator codegen(this, m_code_space->GetFreeCodePointer(), m_code_space->GetFreeCodeSpace());
   // for (const Instruction& instruction : block->instructions)
@@ -182,7 +181,6 @@ JitX64Backend::Block* JitX64Backend::CompileBlock()
 
   block->code_pointer = reinterpret_cast<const Block::CodePointer>(code.first);
   block->code_size = code.second;
-#endif
   return block;
 }
 

@@ -36,6 +36,23 @@ struct Instruction
   AddressSize GetAddressSize() const { return data.address_size; }
   uint8 GetModRM_Reg() const { return data.GetModRM_Reg(); }
   bool ModRM_RM_IsReg() const { return data.ModRM_RM_IsReg(); }
+  bool HasSIB() const { return data.HasSIB(); }
+  Reg32 GetSIBBaseRegister() const { return data.GetSIBBaseRegister(); }
+  Reg32 GetSIBIndexRegister() const { return data.GetSIBIndexRegister(); }
+  bool HasSIBBase() const { return data.HasSIBBase(); }
+  bool HasSIBIndex() const { return data.HasSIBIndex(); }
+  uint8 GetSIBScaling() const { return data.GetSIBScaling(); }
+  uint32 GetAddressMask() const { return data.GetAddressMask(); }
+  Segment GetMemorySegment() const { return data.segment; }
+  bool Is32Bit() const { return data.Is32Bit(); }
+  bool IsRegisterOperand(size_t index) const
+  {
+    const OperandMode mode = operands[index].mode;
+    return (mode == OperandMode_Register ||
+            (mode == OperandMode_ModRM_SegmentReg || mode == OperandMode_ModRM_ControlRegister ||
+             mode == OperandMode_ModRM_DebugRegister || mode == OperandMode_ModRM_TestRegister ||
+             mode == OperandMode_ModRM_Reg || (mode == OperandMode_ModRM_RM && data.ModRM_RM_IsReg())));
+  }
 };
 
 } // namespace CPU_X86

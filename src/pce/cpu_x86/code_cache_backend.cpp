@@ -92,6 +92,7 @@ void CodeCacheBackend::ClearPhysicalPageBlockMapping()
 bool CodeCacheBackend::GetBlockKeyForCurrentState(BlockKey* key)
 {
   // TODO: Disable when trap flag is enabled.
+  // TODO: Real vs protected mode, instructions which can raise exceptions.
   // return false;
 
   // Fast path when paging isn't enabled.
@@ -271,7 +272,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
             return;
 
           // Can't span more than two pages.
-          uint32 page_span = (last_physical_page - first_physical_page) >> 12;
+          uint32 page_span = (physical_page - first_physical_page) >> 12;
           if (page_span > 1)
             return;
 
