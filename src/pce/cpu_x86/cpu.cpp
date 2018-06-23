@@ -892,6 +892,12 @@ bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, Li
   }
 #endif
 
+  return LookupPageTable(out_physical_address, linear_address, access_check, access_type, raise_page_fault);
+}
+
+bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,
+                          bool access_check, AccessType access_type, bool raise_page_fault)
+{
   // TODO: Large (4MB) pages
 
   // Permission checks only apply in usermode, except if WP bit of CR0 is set
@@ -995,6 +1001,8 @@ bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, Li
 #ifdef ENABLE_TLB_EMULATION
   // Require both directory and page permissions to access in the TLB.
   // TODO: Is this the same on the 386 and 486?
+  size_t tlb_index = GetTLBEntryIndex(linear_address);
+  TLBEntry& tlb_entry = m_tlb_entries[m_tlb_user_bit][static_cast<uint8>(access_type)][tlb_index];
   tlb_entry.linear_address = linear_address & PAGE_MASK;
   tlb_entry.physical_address = page_base_address;
 #endif
@@ -1023,7 +1031,6 @@ uint8 CPU::ReadMemoryByte(LinearMemoryAddress address)
 {
   AddMemoryCycle();
 
-  // TODO: Inline TLB check
   PhysicalMemoryAddress physical_address;
   TranslateLinearAddress(&physical_address, address, true, AccessType::Read, true);
 

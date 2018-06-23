@@ -344,6 +344,10 @@ protected:
   // Helper to check for V8086 mode
   bool InVirtual8086Mode() const;
 
+  // Full page translation - page table lookup.
+  bool LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,
+                       bool access_check, AccessType access_type, bool raise_page_fault);
+
   // Instruction fetching
   uint8 FetchInstructionByte();
   uint16 FetchInstructionWord();
