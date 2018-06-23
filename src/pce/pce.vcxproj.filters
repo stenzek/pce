@@ -279,6 +279,7 @@
     <None Include="cpu_x86\interpreter_x87.inl">
       <Filter>cpu_x86</Filter>
     </None>
+    <None Include="bus.inl" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="fastjmp.asm" />

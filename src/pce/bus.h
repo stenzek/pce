@@ -3,7 +3,6 @@
 #include <atomic>
 #include <cstring>
 #include <functional>
-#include <thread>
 #include <unordered_map>
 
 #include "YBaseLib/Barrier.h"
@@ -14,12 +13,12 @@
 #include "YBaseLib/Timer.h"
 
 #include "pce/component.h"
+#include "pce/mmio.h"
 #include "pce/types.h"
 
 class ByteStream;
 class BinaryReader;
 class BinaryWriter;
-class MMIO;
 
 class Bus : public Component
 {
@@ -90,14 +89,30 @@ public:
 
   // Reads/writes memory. Words must be within the same 4KiB page.
   // Reads of unmapped memory return -1.
-  uint8 ReadMemoryByte(PhysicalMemoryAddress address);
-  void WriteMemoryByte(PhysicalMemoryAddress address, uint8 value);
-  uint16 ReadMemoryWord(PhysicalMemoryAddress address);
-  void WriteMemoryWord(PhysicalMemoryAddress address, uint16 value);
-  uint32 ReadMemoryDWord(PhysicalMemoryAddress address);
-  void WriteMemoryDWord(PhysicalMemoryAddress address, uint32 value);
-  uint64 ReadMemoryQWord(PhysicalMemoryAddress address);
-  void WriteMemoryQWord(PhysicalMemoryAddress address, uint64 value);
+  template<typename T>
+  T ReadMemoryTyped(PhysicalMemoryAddress address);
+  template<typename T>
+  void WriteMemoryTyped(PhysicalMemoryAddress address, T value);
+
+  // Reading/writing page-aligned memory.
+  uint8 ReadMemoryByte(PhysicalMemoryAddress address) { return ReadMemoryTyped<uint8>(address); }
+  void WriteMemoryByte(PhysicalMemoryAddress address, uint8 value) { return WriteMemoryTyped<uint8>(address, value); }
+  uint16 ReadMemoryWord(PhysicalMemoryAddress address) { return ReadMemoryTyped<uint16>(address); }
+  void WriteMemoryWord(PhysicalMemoryAddress address, uint16 value) { return WriteMemoryTyped<uint16>(address, value); }
+  uint32 ReadMemoryDWord(PhysicalMemoryAddress address) { return ReadMemoryTyped<uint32>(address); }
+  void WriteMemoryDWord(PhysicalMemoryAddress address, uint32 value)
+  {
+    return WriteMemoryTyped<uint32>(address, value);
+  }
+  uint64 ReadMemoryQWord(PhysicalMemoryAddress address) { return ReadMemoryTyped<uint64>(address); }
+  void WriteMemoryQWord(PhysicalMemoryAddress address, uint64 value)
+  {
+    return WriteMemoryTyped<uint64>(address, value);
+  }
+
+  // Testing for readable/writable addresses.
+  bool IsReadableAddress(PhysicalMemoryAddress address, uint32 size) const;
+  bool IsWritableAddress(PhysicalMemoryAddress address, uint32 size) const;
 
   // Unaligned memory access is fine, can crosses a physical page.
   // Checked memory access, where bus errors and such are required.
@@ -203,3 +218,5 @@ protected:
   uint32 m_ram_size = 0;
   uint32 m_ram_assigned = 0;
 };
+
+#include "pce/bus.inl"

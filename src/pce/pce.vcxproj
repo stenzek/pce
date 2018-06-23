@@ -144,6 +144,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="bus.inl" />
     <None Include="cpu_x86\decoder.inl" />
     <None Include="cpu_x86\interpreter_x87.inl" />
     <None Include="hw\cga_font.inl" />

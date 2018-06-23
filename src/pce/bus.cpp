@@ -356,280 +356,6 @@ void Bus::ConnectIOPortWriteToPointer(uint32 port, void* owner, uint8* var)
   ConnectIOPortWrite(port, owner, std::move(write_handler));
 }
 
-#ifdef Y_COMPILER_MSVC
-#pragma warning(push)
-#pragma warning(disable : 4127) // warning C4127: conditional expression is constant
-#pragma warning(disable : 4333) // warning C4333: '>>': right shift by too large amount, data loss
-#pragma warning(disable : 4244) // warning C4244: '=': conversion from 'int' to 'uint8', possible loss of data
-#endif
-
-template<typename T, bool aligned>
-#ifdef Y_COMPILER_MSVC
-__forceinline
-#elif Y_COMPILER_GCC || Y_COMPILER_CLANG
-__attribute__((always_inline))
-#endif
-  bool
-  Bus::ReadMemoryT(PhysicalMemoryAddress address, T* value)
-{
-  if (aligned || ((address & MEMORY_PAGE_MASK) == ((address + sizeof(T) - 1) & MEMORY_PAGE_MASK)))
-  {
-    address &= m_physical_memory_address_mask;
-
-    // Since we allocate the page array based on the address mask, this should never overflow.
-    uint32 page_number = address / MEMORY_PAGE_SIZE;
-    uint32 page_offset = address % MEMORY_PAGE_SIZE;
-    DebugAssert(page_number < m_num_physical_memory_pages);
-
-    // Fast path - page is RAM.
-    const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
-    if (page.type & PhysicalMemoryPage::kReadableMemory)
-    {
-      std::memcpy(value, page.ram_ptr + page_offset, sizeof(*value));
-      return true;
-    }
-
-    // Slow path - page is MMIO.
-    if (page.type & PhysicalMemoryPage::kMemoryMappedIO && address >= page.mmio_handler->GetStartAddress() &&
-        (address + sizeof(*value) - 1) <= page.mmio_handler->GetEndAddress())
-    {
-      // Pass to MMIO
-      if (std::is_same<T, uint8>::value)
-        page.mmio_handler->ReadByte(address, reinterpret_cast<uint8*>(value));
-      else if (std::is_same<T, uint16>::value)
-        page.mmio_handler->ReadWord(address, reinterpret_cast<uint16*>(value));
-      else if (std::is_same<T, uint32>::value)
-        page.mmio_handler->ReadDWord(address, reinterpret_cast<uint32*>(value));
-      else if (std::is_same<T, uint64>::value)
-        page.mmio_handler->ReadQWord(address, reinterpret_cast<uint64*>(value));
-
-      return true;
-    }
-
-    *value = T(-1);
-    Log_WarningPrintf("Failed physical memory read of address 0x%08X", address);
-    return false;
-  }
-
-  if (std::is_same<T, uint16>::value)
-  {
-    // Do as two byte reads instead.
-    uint8 lsb = 0, msb = 0;
-    bool result = CheckedReadMemoryByte(address, &lsb);
-    result &= CheckedReadMemoryByte(address + 1, &msb);
-    *value = (ZeroExtend16(msb) << 8) | ZeroExtend16(lsb);
-    return result;
-  }
-  else if (std::is_same<T, uint32>::value)
-  {
-    // Do as two word reads instead.
-    uint16 lsb = 0, msb = 0;
-    bool result = CheckedReadMemoryWord(address, &lsb);
-    result &= CheckedReadMemoryWord(address + 2, &msb);
-    *value = (ZeroExtend32(msb) << 16) | ZeroExtend32(lsb);
-    return result;
-  }
-  else
-  {
-    // Not reached, but needed otherwise compile warnings.
-    return false;
-  }
-}
-
-template<typename T, bool aligned>
-#ifdef Y_COMPILER_MSVC
-__forceinline
-#elif Y_COMPILER_GCC || Y_COMPILER_CLANG
-__attribute__((always_inline))
-#endif
-  bool
-  Bus::WriteMemoryT(PhysicalMemoryAddress address, T value)
-{
-#if 0
-    static const uint32 check_addresses[] = {
-        //0x3AFCC, 4,
-        //0x2e9f4, 4
-        //0x12420, 4
-        //0xB3B528, 4
-        0x0015a8d0, 4
-    };
-    uint32 v_start = address;
-    uint32 v_end = address + sizeof(T);
-    for (uint32 i = 0; i < countof(check_addresses); i += 2)
-    {
-        uint32 a_start = check_addresses[i];
-        uint32 a_end = a_start + check_addresses[i + 1];
-        if ((v_start >= a_start && v_end <= a_end) ||
-            (a_start >= v_start && a_end <= v_end))
-        {
-            Log_WarningPrintf("Mem BP %08X while writing %08X (value %X)", a_start, v_start, ZeroExtend32(value));
-        }
-    }
-#endif
-
-  if (aligned || ((address & MEMORY_PAGE_MASK) == ((address + sizeof(T) - 1) & MEMORY_PAGE_MASK)))
-  {
-    address &= m_physical_memory_address_mask;
-
-    // Since we allocate the page array based on the address mask, this should never overflow.
-    uint32 page_number = address / MEMORY_PAGE_SIZE;
-    uint32 page_offset = address % MEMORY_PAGE_SIZE;
-    DebugAssert(page_number < m_num_physical_memory_pages);
-
-    // Fast path - page is RAM.
-    PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
-    if (page.type & PhysicalMemoryPage::kWritableMemory)
-    {
-      if (!(page.type & PhysicalMemoryPage::kCodeMemory))
-      {
-        std::memcpy(page.ram_ptr + page_offset, &value, sizeof(value));
-        return true;
-      }
-
-      if (std::memcmp(page.ram_ptr + page_offset, &value, sizeof(value)) == 0)
-      {
-        // Not modified, so don't fire the callback.
-        return true;
-      }
-
-      // Copy value in and fire callback.
-      std::memcpy(page.ram_ptr + page_offset, &value, sizeof(value));
-      m_code_invalidate_callback(address & MEMORY_PAGE_MASK);
-      return true;
-    }
-
-    // Slow path - page is MMIO.
-    if (page.type & PhysicalMemoryPage::kMemoryMappedIO && address >= page.mmio_handler->GetStartAddress() &&
-        (address + sizeof(value) - 1) <= page.mmio_handler->GetEndAddress())
-    {
-      // Pass to MMIO
-      if (std::is_same<T, uint8>::value)
-        page.mmio_handler->WriteByte(address, static_cast<uint8>(value));
-      else if (std::is_same<T, uint16>::value)
-        page.mmio_handler->WriteWord(address, static_cast<uint16>(value));
-      else if (std::is_same<T, uint32>::value)
-        page.mmio_handler->WriteDWord(address, static_cast<uint32>(value));
-      else if (std::is_same<T, uint64>::value)
-        page.mmio_handler->WriteQWord(address, static_cast<uint64>(value));
-
-      return true;
-    }
-
-    Log_DevPrintf("Failed physical memory write of address 0x%08X", address);
-    return false;
-  }
-
-  if (std::is_same<T, uint16>::value)
-  {
-    // Do as two byte writes instead.
-    return CheckedWriteMemoryByte(address + 0, Truncate8(value)) &
-           CheckedWriteMemoryByte(address + 1, Truncate8(value >> 8));
-  }
-  else if (std::is_same<T, uint32>::value)
-  {
-    // Do as two word writes instead.
-    return CheckedWriteMemoryWord(address + 0, Truncate16(value)) &
-           CheckedWriteMemoryWord(address + 2, Truncate16(value >> 16));
-  }
-  else
-  {
-    // Not reached, but needed otherwise compile warnings.
-    return false;
-  }
-}
-
-#ifdef Y_COMPILER_MSVC
-#pragma warning(pop)
-#endif
-
-uint8 Bus::ReadMemoryByte(PhysicalMemoryAddress address)
-{
-  uint8 value;
-  ReadMemoryT<uint8, true>(address, &value);
-  return value;
-}
-
-void Bus::WriteMemoryByte(PhysicalMemoryAddress address, uint8 value)
-{
-  WriteMemoryT<uint8, true>(address, value);
-}
-
-uint16 Bus::ReadMemoryWord(PhysicalMemoryAddress address)
-{
-  uint16 value;
-  ReadMemoryT<uint16, true>(address, &value);
-  return value;
-}
-
-void Bus::WriteMemoryWord(PhysicalMemoryAddress address, uint16 value)
-{
-  WriteMemoryT<uint16, true>(address, value);
-}
-
-uint32 Bus::ReadMemoryDWord(PhysicalMemoryAddress address)
-{
-  uint32 value;
-  ReadMemoryT<uint32, true>(address, &value);
-  return value;
-}
-
-void Bus::WriteMemoryDWord(PhysicalMemoryAddress address, uint32 value)
-{
-  WriteMemoryT<uint32, true>(address, value);
-}
-
-uint64 Bus::ReadMemoryQWord(PhysicalMemoryAddress address)
-{
-  uint64 value;
-  ReadMemoryT<uint64, true>(address, &value);
-  return value;
-}
-
-void Bus::WriteMemoryQWord(PhysicalMemoryAddress address, uint64 value)
-{
-  WriteMemoryT<uint64, true>(address, value);
-}
-
-bool Bus::CheckedReadMemoryByte(PhysicalMemoryAddress address, uint8* value)
-{
-  return ReadMemoryT<uint8, false>(address, value);
-}
-
-bool Bus::CheckedWriteMemoryByte(PhysicalMemoryAddress address, uint8 value)
-{
-  return WriteMemoryT<uint8, false>(address, value);
-}
-
-bool Bus::CheckedReadMemoryWord(PhysicalMemoryAddress address, uint16* value)
-{
-  return ReadMemoryT<uint16, false>(address, value);
-}
-
-bool Bus::CheckedWriteMemoryWord(PhysicalMemoryAddress address, uint16 value)
-{
-  return WriteMemoryT<uint16, false>(address, value);
-}
-
-bool Bus::CheckedReadMemoryDWord(PhysicalMemoryAddress address, uint32* value)
-{
-  return ReadMemoryT<uint32, false>(address, value);
-}
-
-bool Bus::CheckedWriteMemoryDWord(PhysicalMemoryAddress address, uint32 value)
-{
-  return WriteMemoryT<uint32, false>(address, value);
-}
-
-bool Bus::CheckedReadMemoryQWord(PhysicalMemoryAddress address, uint64* value)
-{
-  return ReadMemoryT<uint64, false>(address, value);
-}
-
-bool Bus::CheckedWriteMemoryQWord(PhysicalMemoryAddress address, uint64 value)
-{
-  return WriteMemoryT<uint64, false>(address, value);
-}
-
 void Bus::ReadMemoryBlock(PhysicalMemoryAddress address, uint32 length, void* destination)
 {
   byte* destination_ptr = reinterpret_cast<byte*>(destination);
@@ -1031,4 +757,166 @@ Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)
   }
 
   return XXH64_digest(&state);
+}
+
+bool Bus::IsReadableAddress(PhysicalMemoryAddress address, uint32 size) const
+{
+  const uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+  DebugAssert(page_number < m_num_physical_memory_pages);
+
+  const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
+  if (page.type & PhysicalMemoryPage::kReadableMemory)
+    return true;
+
+  if (page.type & PhysicalMemoryPage::kMemoryMappedIO && address >= page.mmio_handler->GetStartAddress() &&
+      (address + size - 1) <= page.mmio_handler->GetEndAddress())
+  {
+    return true;
+  }
+
+  return false;
+}
+
+bool Bus::IsWritableAddress(PhysicalMemoryAddress address, uint32 size) const
+{
+  const uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+  DebugAssert(page_number < m_num_physical_memory_pages);
+
+  const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
+  if (page.type & PhysicalMemoryPage::kWritableMemory)
+    return true;
+
+  if (page.type & PhysicalMemoryPage::kMemoryMappedIO && address >= page.mmio_handler->GetStartAddress() &&
+      (address + size - 1) <= page.mmio_handler->GetEndAddress())
+  {
+    return true;
+  }
+
+  return false;
+}
+
+bool Bus::CheckedReadMemoryByte(PhysicalMemoryAddress address, uint8* value)
+{
+  if (!IsReadableAddress(address, sizeof(*value)))
+  {
+    *value = UINT8_C(0xFF);
+    return false;
+  }
+
+  *value = ReadMemoryByte(address);
+  return true;
+}
+
+bool Bus::CheckedWriteMemoryByte(PhysicalMemoryAddress address, uint8 value)
+{
+  if (!IsWritableAddress(address, sizeof(value)))
+    return false;
+
+  WriteMemoryByte(address, value);
+  return true;
+}
+
+bool Bus::CheckedReadMemoryWord(PhysicalMemoryAddress address, uint16* value)
+{
+  if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(*value) - 1)) & MEMORY_PAGE_MASK))
+  {
+    uint8 b0, b1;
+    bool result = CheckedReadMemoryByte(address, &b0) & CheckedReadMemoryByte(address + 1, &b1);
+    *value = (ZeroExtend16(b1) << 8) | (ZeroExtend16(b0));
+    return result;
+  }
+
+  if (!IsReadableAddress(address, sizeof(*value)))
+  {
+    *value = UINT16_C(0xFFFF);
+    return false;
+  }
+
+  *value = ReadMemoryWord(address);
+  return true;
+}
+
+bool Bus::CheckedWriteMemoryWord(PhysicalMemoryAddress address, uint16 value)
+{
+  if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(value) - 1)) & MEMORY_PAGE_MASK))
+  {
+    return CheckedWriteMemoryByte(address, Truncate8(value)) &
+           CheckedWriteMemoryByte(address + 1, Truncate8(value >> 8));
+  }
+
+  if (!IsWritableAddress(address, sizeof(value)))
+    return false;
+
+  WriteMemoryWord(address, value);
+  return true;
+}
+
+bool Bus::CheckedReadMemoryDWord(PhysicalMemoryAddress address, uint32* value)
+{
+  if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(*value) - 1)) & MEMORY_PAGE_MASK))
+  {
+    uint16 d0, d1;
+    bool result = CheckedReadMemoryWord(address, &d0) & CheckedReadMemoryWord(address + 2, &d1);
+    *value = (ZeroExtend32(d1) << 16) | (ZeroExtend32(d0));
+    return result;
+  }
+
+  if (!IsReadableAddress(address, sizeof(*value)))
+  {
+    *value = UINT32_C(0xFFFFFFFF);
+    return false;
+  }
+
+  *value = ReadMemoryDWord(address);
+  return true;
+}
+
+bool Bus::CheckedWriteMemoryDWord(PhysicalMemoryAddress address, uint32 value)
+{
+  if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(value) - 1)) & MEMORY_PAGE_MASK))
+  {
+    return CheckedWriteMemoryWord(address, Truncate16(value)) &
+           CheckedWriteMemoryWord(address + 2, Truncate16(value >> 16));
+  }
+
+  if (!IsWritableAddress(address, sizeof(value)))
+    return false;
+
+  WriteMemoryDWord(address, value);
+  return true;
+}
+
+bool Bus::CheckedReadMemoryQWord(PhysicalMemoryAddress address, uint64* value)
+{
+  if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(*value) - 1)) & MEMORY_PAGE_MASK))
+  {
+    uint32 d0, d1;
+    bool result = CheckedReadMemoryDWord(address, &d0) & CheckedReadMemoryDWord(address + 4, &d1);
+    *value = (ZeroExtend64(d1) << 32) | (ZeroExtend32(d0));
+    return result;
+  }
+
+  if (!IsReadableAddress(address, sizeof(*value)))
+  {
+    *value = UINT64_C(0xFFFFFFFFFFFFFFFF);
+    return false;
+  }
+
+  *value = ReadMemoryQWord(address);
+  return true;
+}
+
+bool Bus::CheckedWriteMemoryQWord(PhysicalMemoryAddress address, uint64 value)
+{
+  if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(value) - 1)) & MEMORY_PAGE_MASK))
+  {
+    return CheckedWriteMemoryDWord(address, Truncate32(value)) &
+           CheckedWriteMemoryDWord(address + 4, Truncate32(value >> 32));
+  }
+
+  if (!IsWritableAddress(address, sizeof(value)))
+    return false;
+
+  WriteMemoryQWord(address, value);
+  return true;
 }
