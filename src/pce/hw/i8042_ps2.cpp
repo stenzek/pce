@@ -46,6 +46,10 @@ void i8042_PS2::Reset()
 {
   SoftReset();
 
+  m_output_port.raw = 0;
+  if (m_output_port_written_callback)
+    m_output_port_written_callback(m_output_port.raw);
+
   m_status_register.keyboard_unlocked = true;
   m_status_register.self_test_flag = false;
   m_configuration_byte.self_test_flag = false;
@@ -76,10 +80,6 @@ void i8042_PS2::SoftReset()
 
   // This should be set after boot when some time has elapsed?
   m_status_register.self_test_flag = true;
-
-  m_output_port.raw = 0;
-  if (m_output_port_written_callback)
-    m_output_port_written_callback(m_output_port.raw);
 
   m_input_buffer = 0;
   m_output_buffer = 0;
@@ -388,23 +388,23 @@ void i8042_PS2::OnCommandEvent()
   if (m_command_event->IsActive())
     m_command_event->Deactivate();
 
-  if (m_pending_keyboard_command != NO_PENDING_COMMAND)
+  if (m_pending_command != NO_PENDING_COMMAND)
+  {
+    const bool has_data = !!(m_pending_command & (1 << 8));
+    if (HandleControllerCommand(Truncate8(m_pending_command), m_input_buffer, has_data))
+      m_pending_command = NO_PENDING_COMMAND;
+  }
+  else if (m_pending_keyboard_command != NO_PENDING_COMMAND)
   {
     // keyboard command done?
     if (HandleKeyboardCommand(Truncate8(m_pending_keyboard_command), m_input_buffer, true))
       m_pending_keyboard_command = NO_PENDING_COMMAND;
   }
-  else if (m_pending_command == NO_PENDING_COMMAND)
+  else
   {
     // hold on to the command
     if (!HandleKeyboardCommand(m_input_buffer, m_input_buffer, false))
-      m_pending_keyboard_command = ZeroExtend16(m_input_buffer);
-  }
-  else // if (m_pending_command != NO_PENDING_COMMAND)
-  {
-    const bool has_data = !!(m_pending_command & (1 << 8));
-    if (HandleControllerCommand(Truncate8(m_pending_command), m_input_buffer, has_data))
-      m_pending_command = NO_PENDING_COMMAND;
+      m_pending_keyboard_command = ZeroExtend16(m_input_buffer) | (1 << 8);
   }
 }
 
@@ -609,9 +609,9 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
 
   switch (command)
   {
-    case 0x05: // ???
+    case 0xEE: // Echo
     {
-      AppendToKeyboardBuffer(0xFA);
+      AppendToKeyboardBuffer(0xEE);
       return true;
     }
 
@@ -646,10 +646,10 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
 
     case 0xF2: // Read ID
     {
-      // Log_DevPrintf("Read keyboard ID");
-      // SendACK();
-      // AppendToOutputBuffer(0xAB);
-      // AppendToOutputBuffer(0x83);
+      Log_DevPrintf("Read keyboard ID");
+      SendACK();
+      AppendToKeyboardBuffer(0xAB);
+      AppendToKeyboardBuffer(m_configuration_byte.port_1_translation ? 0x41 : 0x83);
       return true;
     }
 
@@ -691,6 +691,7 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
 
     default:
       Log_WarningPrintf("Unknown command: 0x%02X", uint32(command));
+      AppendToKeyboardBuffer(0xFE); // NACK
       return true;
   }
 }
@@ -832,6 +833,27 @@ bool i8042_PS2::HandleMouseCommand(uint8 command, uint8 data, bool has_data)
       return true;
     }
 
+    case 0xF6: // Set defaults
+    {
+      Log_DevPrintf("Set mouse defaults");
+      SendACK();
+      if (m_mouse.sample_rate != DEFAULT_MOUSE_SAMPLE_RATE)
+      {
+        m_mouse.sample_rate = DEFAULT_MOUSE_SAMPLE_RATE;
+        UpdateEvents();
+      }
+
+      // resolution_cpmm = 4
+      // scalilng = 1
+      if (!m_mouse.stream_mode)
+      {
+        m_mouse.stream_mode = true;
+        UpdateEvents();
+      }
+
+      return true;
+    }
+
     case 0xFF: // Reset keyboard
     {
       Log_DevPrintf("Mouse reset");
@@ -846,6 +868,7 @@ bool i8042_PS2::HandleMouseCommand(uint8 command, uint8 data, bool has_data)
 
     default:
       Log_WarningPrintf("Unknown command: 0x%02X", uint32(command));
+      AppendToMouseBuffer(0xFE); // NACK
       return true;
   }
 }
