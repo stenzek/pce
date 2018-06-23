@@ -330,18 +330,14 @@ void i8237_DMA::Transfer(uint32 channel_index, size_t count)
     {
       if (channel->transfer_type == DMATransferType_MemoryToDevice)
       {
-        uint16 value = 0;
-        if (!m_bus->CheckedReadMemoryWord(actual_address, &value))
-          Log_WarningPrintf("DMA failed read from linear address 0x%08X (byte)", actual_address);
-
+        uint32 value = ZeroExtend32(m_bus->ReadMemoryWord(actual_address));
         channel->write_callback(IOPortDataSize_16, value, actual_bytes_remaining);
       }
       else if (channel->transfer_type == DMATransferType_DeviceToMemory)
       {
         uint32 value = 0;
         channel->read_callback(IOPortDataSize_16, &value, actual_bytes_remaining);
-        if (!m_bus->CheckedWriteMemoryWord(actual_address, uint16(value)))
-          Log_WarningPrintf("DMA failed write to linear address 0x%08X (word 0x%04X)", actual_address, value);
+        m_bus->WriteMemoryWord(actual_address, Truncate16(value));
       }
       else if (channel->transfer_type == DMATransferType_Verify)
       {
@@ -353,18 +349,14 @@ void i8237_DMA::Transfer(uint32 channel_index, size_t count)
     {
       if (channel->transfer_type == DMATransferType_MemoryToDevice)
       {
-        uint8 value = 0;
-        if (!m_bus->CheckedReadMemoryByte(actual_address, &value))
-          Log_WarningPrintf("DMA failed read from linear address 0x%08X (byte)", actual_address);
-
+        uint8 value = m_bus->ReadMemoryByte(actual_address);
         channel->write_callback(IOPortDataSize_8, value, actual_bytes_remaining);
       }
       else if (channel->transfer_type == DMATransferType_DeviceToMemory)
       {
         uint32 value = 0;
         channel->read_callback(IOPortDataSize_8, &value, actual_bytes_remaining);
-        if (!m_bus->CheckedWriteMemoryByte(actual_address, uint8(value)))
-          Log_WarningPrintf("DMA failed write to linear address 0x%08X (byte 0x%04X)", actual_address, value);
+        m_bus->WriteMemoryByte(actual_address, Truncate8(value));
       }
       else if (channel->transfer_type == DMATransferType_Verify)
       {
