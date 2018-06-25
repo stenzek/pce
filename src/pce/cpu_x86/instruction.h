@@ -34,6 +34,7 @@ struct Instruction
   // Helper methods here.
   OperandSize GetOperandSize() const { return data.operand_size; }
   AddressSize GetAddressSize() const { return data.address_size; }
+  uint8 GetModRMByte() const { return data.modrm; }
   uint8 GetModRM_Reg() const { return data.GetModRM_Reg(); }
   bool ModRM_RM_IsReg() const { return data.ModRM_RM_IsReg(); }
   bool HasSIB() const { return data.HasSIB(); }

@@ -335,7 +335,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
 
   // print the operation suffix. this is things like jump conditions, segment names, etc.
   uint32 operand_index = 0;
-  if (operation == Operation_Jcc || operation == Operation_LOOP)
+  if (instruction->operands[0].mode == OperandMode_JumpCondition)
   {
     out_string->AppendString(jump_condition_names[instruction->operands[0].jump_condition]);
     operand_index++;
@@ -515,16 +515,27 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
             break;
             case ModRMAddressingMode::SIB:
             {
+              bool first = true;
               if (instruction->data.HasSIBBase())
+              {
                 out_string->AppendString(reg_names[instruction->data.GetSIBBaseRegister()]);
-              else
-                out_string->AppendFormattedString("%08xh", instruction->data.disp32);
+                first = false;
+              }
 
               if (instruction->data.HasSIBIndex())
               {
-                out_string->AppendFormattedString(" + %s", reg_names[instruction->data.GetSIBIndexRegister()]);
+                out_string->AppendFormattedString("%s%s", first ? "" : " + ",
+                                                  reg_names[instruction->data.GetSIBIndexRegister()]);
                 if (instruction->data.GetSIBScaling() != 0)
                   out_string->AppendFormattedString(" * %u", (1u << instruction->data.GetSIBScaling()));
+                first = false;
+              }
+
+              if (instruction->data.disp32 != 0)
+              {
+                int32 disp = int32(instruction->data.disp32);
+                out_string->AppendFormattedString("%s%xh", first ? "" : (disp < 0 ? " - " : " + "),
+                                                  (disp < 0) ? -disp : disp);
               }
             }
             break;

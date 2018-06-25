@@ -50,6 +50,9 @@ enum Reg16 : uint8
   Reg16_SI,
   Reg16_DI,
 
+  Reg16_IP,
+  Reg16_FLAGS,
+
   Reg16_Count
 };
 
@@ -613,6 +616,7 @@ struct InstructionData
   // total size: 16 bytes (2 padding)
 
   uint8 GetModRM_Reg() const { return ((modrm >> 3) & 7); }
+  uint8 GetModRM_RM() { return (modrm & 7); }
   bool ModRM_RM_IsReg() const { return (modrm_mod == 0b11); }
   bool HasSIB() const { return (modrm_mod != 0b11 && modrm_rm == 0b100); }
   Reg32 GetSIBBaseRegister() const { return static_cast<Reg32>(sib & 0x07); }
