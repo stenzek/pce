@@ -5096,9 +5096,6 @@ void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
                 "loading or storing debug register");
   static_assert(src_size == OperandSize_32 && dst_size == OperandSize_32, "source sizes are 32-bits");
 
-  CalculateEffectiveAddress<src_mode>(cpu);
-  CalculateEffectiveAddress<dst_mode>(cpu);
-
   // Requires privilege level zero
   if (cpu->GetCPL() != 0)
   {
@@ -5106,16 +5103,11 @@ void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
     return;
   }
 
-  // TODO: Is this correct?
-  DebugAssert(cpu->idata.modrm_rm_register);
-  if (!cpu->idata.modrm_rm_register)
-    RaiseInvalidOpcode(cpu);
-
   // Load test register
   uint8 tr_index = cpu->idata.GetModRM_Reg();
   if constexpr (dst_mode == OperandMode_ModRM_TestRegister)
   {
-    uint32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
+    uint32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
 
     // Validate selected register
     switch (tr_index)
@@ -5154,7 +5146,7 @@ void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
         return;
     }
 
-    WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
+    cpu->m_registers.reg32[cpu->idata.GetModRM_RM()] = value;
   }
 }
 
@@ -5167,9 +5159,6 @@ void Interpreter::Execute_Operation_MOV_DR(CPU* cpu)
                 "loading or storing debug register");
   static_assert(src_size == OperandSize_32 && dst_size == OperandSize_32, "source sizes are 32-bits");
 
-  CalculateEffectiveAddress<src_mode>(cpu);
-  CalculateEffectiveAddress<dst_mode>(cpu);
-
   // Requires privilege level zero
   if (cpu->GetCPL() != 0)
   {
@@ -5181,23 +5170,18 @@ void Interpreter::Execute_Operation_MOV_DR(CPU* cpu)
   // #UD If CR4.DE[bit 3] = 1 (debug extensions) and a MOV instruction is executed involving DR4 or DR5.
   // #DB If any debug register is accessed while the DR7.GD[bit 13] = 1.
 
-  // TODO: Is this correct?
-  DebugAssert(cpu->idata.modrm_rm_register);
-  if (!cpu->idata.modrm_rm_register)
-    RaiseInvalidOpcode(cpu);
-
   uint8 dr_index = cpu->idata.GetModRM_Reg();
   if constexpr (dst_mode == OperandMode_ModRM_DebugRegister)
   {
     // Load debug register
-    uint32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
+    uint32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
     cpu->LoadSpecialRegister(static_cast<Reg32>(Reg32_DR0 + dr_index), value);
   }
   else if constexpr (src_mode == OperandMode_ModRM_DebugRegister)
   {
     // Store debug register
     uint32 value = cpu->m_registers.reg32[Reg32_DR0 + dr_index];
-    WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
+    cpu->m_registers.reg32[cpu->idata.GetModRM_RM()] = value;
   }
 }
 
@@ -5210,9 +5194,6 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
                 "loading or storing control register");
   static_assert(src_size == OperandSize_32 && dst_size == OperandSize_32, "source sizes are 32-bits");
 
-  CalculateEffectiveAddress<src_mode>(cpu);
-  CalculateEffectiveAddress<dst_mode>(cpu);
-
   // Requires privilege level zero
   if (cpu->GetCPL() != 0)
   {
@@ -5220,17 +5201,11 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
     return;
   }
 
-  // TODO: Is this correct?
-  // TODO: No, it ignores the mod bits
-  DebugAssert(cpu->idata.modrm_rm_register);
-  if (!cpu->idata.modrm_rm_register)
-    RaiseInvalidOpcode(cpu);
-
   // Load control register
   if constexpr (dst_mode == OperandMode_ModRM_ControlRegister)
   {
     // Validate selected register
-    uint32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
+    uint32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
     switch (cpu->idata.modrm_reg)
     {
       case 0:
@@ -5292,7 +5267,7 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
         return;
     }
 
-    WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
+    cpu->m_registers.reg32[cpu->idata.GetModRM_RM()] = value;
   }
 }
 
