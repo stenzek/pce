@@ -3017,10 +3017,10 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
   // The limit should be enough for the task state
   bool current_task_is_32bit = ((current_task_descriptor.type & 8) != 0);
   uint32 current_tss_min_size = (current_task_is_32bit) ? sizeof(TASK_STATE_SEGMENT_32) : sizeof(TASK_STATE_SEGMENT_16);
-  if (current_task_descriptor.tss.GetLimit() < current_tss_min_size)
+  if (current_task_descriptor.tss.GetLimit() < (current_tss_min_size - 1))
   {
     // TODO: Is this correct?
-    Log_WarningPrintf("Outgoing task segment is too small - %u required %u", current_task_descriptor.tss.GetLimit(),
+    Log_WarningPrintf("Outgoing task segment is too small - %u required %u", current_task_descriptor.tss.GetLimit() + 1,
                       current_tss_min_size);
     RaiseException(Interrupt_InvalidTaskStateSegment, current_task_selector.ValueForException());
     return;
@@ -3066,10 +3066,10 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
   // Check the limit on the new task state
   bool new_task_is_32bit = ((new_task_descriptor.type & 8) != 0);
   uint32 new_tss_min_size = (new_task_is_32bit) ? sizeof(TASK_STATE_SEGMENT_32) : sizeof(TASK_STATE_SEGMENT_16);
-  if (new_task_descriptor.tss.GetLimit() < new_tss_min_size)
+  if (new_task_descriptor.tss.GetLimit() < (new_tss_min_size - 1))
   {
     // TODO: Is this correct?
-    Log_WarningPrintf("Incoming task segment is too small - %u required %u", new_task_descriptor.tss.GetLimit(),
+    Log_WarningPrintf("Incoming task segment is too small - %u required %u", new_task_descriptor.tss.GetLimit() + 1,
                       new_tss_min_size);
     RaiseException(Interrupt_InvalidTaskStateSegment, new_task_selector.ValueForException());
     return;
