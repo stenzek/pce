@@ -2183,7 +2183,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
       if (m_tss_location.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_16)
       {
         LinearMemoryAddress tss_stack_offset =
-          Truncate32(offsetof(TASK_STATE_SEGMENT_16, stacks[0]) + target_selector.rpl * sizeof(4));
+          Truncate32(offsetof(TASK_STATE_SEGMENT_16, stacks[0]) + target_selector.rpl * 4);
         if ((tss_stack_offset + 3) > m_tss_location.limit)
         {
           RaiseException(Interrupt_InvalidTaskStateSegment, m_registers.TR);
@@ -2199,7 +2199,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
       else
       {
         LinearMemoryAddress tss_stack_offset =
-          Truncate32(offsetof(TASK_STATE_SEGMENT_32, stacks[0]) + target_selector.rpl * sizeof(8));
+          Truncate32(offsetof(TASK_STATE_SEGMENT_32, stacks[0]) + target_selector.rpl * 8);
         if ((tss_stack_offset + 5) > m_tss_location.limit)
         {
           RaiseException(Interrupt_InvalidTaskStateSegment, m_registers.TR);
@@ -2811,7 +2811,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
       if (m_tss_location.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_16)
       {
         LinearMemoryAddress tss_stack_offset =
-          Truncate32(offsetof(TASK_STATE_SEGMENT_16, stacks[0]) + target_selector.rpl * sizeof(4));
+          Truncate32(offsetof(TASK_STATE_SEGMENT_16, stacks[0]) + target_selector.rpl * 4);
         if ((tss_stack_offset + 3) > m_tss_location.limit)
         {
           RaiseException(Interrupt_InvalidTaskStateSegment, m_registers.TR);
@@ -2827,7 +2827,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
       else
       {
         LinearMemoryAddress tss_stack_offset =
-          Truncate32(offsetof(TASK_STATE_SEGMENT_32, stacks[0]) + target_selector.rpl * sizeof(8));
+          Truncate32(offsetof(TASK_STATE_SEGMENT_32, stacks[0]) + target_selector.rpl * 8);
         if ((tss_stack_offset + 5) > m_tss_location.limit)
         {
           RaiseException(Interrupt_InvalidTaskStateSegment, m_registers.TR);
