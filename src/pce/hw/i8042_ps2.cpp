@@ -524,6 +524,17 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       return true;
     }
 
+    case 0xD2: // Write to keyboard output buffer
+    {
+      if (!has_data)
+        return false;
+
+      Log_DevPrintf("Write to keyboard buffer 0x%02X", ZeroExtend32(data));
+      AppendToKeyboardBuffer(data);
+      UpdateEvents();
+      return true;
+    }
+
     case 0xD3: // Write to aux port buffer (mouse)
     {
       if (!has_data)
