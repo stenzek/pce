@@ -859,6 +859,7 @@ union SEGMENT_SELECTOR_VALUE
   BitField<uint16, uint16, 3, 13> index; // descriptor table index
 
   uint16 ValueForException() const { return (bits & 0xFFFC); }
+  bool IsNullSelector() const { return ((bits & 0xFFFC) == 0); }
 };
 
 struct INTERRUPT_DESCRIPTOR_ENTRY

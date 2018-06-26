@@ -377,9 +377,11 @@ protected:
 
   // Reads a segment descriptor from memory, given a selector
   bool ReadDescriptorEntry(DESCRIPTOR_ENTRY* entry, const DescriptorTablePointer& table, uint32 index);
+  bool ReadDescriptorEntry(DESCRIPTOR_ENTRY* entry, const SEGMENT_SELECTOR_VALUE& selector);
 
   // Updates a segment descriptor
   bool WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const DescriptorTablePointer& table, uint32 index);
+  bool WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const SEGMENT_SELECTOR_VALUE& selector);
 
   // Checks code segment is valid for far jump/call/iret.
   bool CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 check_cpl, bool raise_exceptions);

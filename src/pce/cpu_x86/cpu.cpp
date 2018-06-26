@@ -1396,6 +1396,11 @@ bool CPU::ReadDescriptorEntry(DESCRIPTOR_ENTRY* entry, const DescriptorTablePoin
   return true;
 }
 
+bool CPU::ReadDescriptorEntry(DESCRIPTOR_ENTRY* entry, const SEGMENT_SELECTOR_VALUE& selector)
+{
+  return ReadDescriptorEntry(entry, selector.ti ? m_ldt_location : m_gdt_location, selector.index);
+}
+
 bool CPU::WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const DescriptorTablePointer& table, uint32 index)
 {
   uint32 offset = index * 8;
@@ -1407,6 +1412,11 @@ bool CPU::WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const DescriptorTa
   SafeWriteMemoryDWord(descriptor_address + 0, entry.bits0, false, true);
   SafeWriteMemoryDWord(descriptor_address + 4, entry.bits1, false, true);
   return true;
+}
+
+bool CPU::WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const SEGMENT_SELECTOR_VALUE& selector)
+{
+  return WriteDescriptorEntry(entry, selector.ti ? m_ldt_location : m_gdt_location, selector.index);
 }
 
 bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 check_cpl, bool raise_exceptions)
@@ -2138,7 +2148,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
     // Check the target of the gate is not a null selector, else GPF(0)
     SEGMENT_SELECTOR_VALUE target_selector = {descriptor.call_gate.selector};
     DESCRIPTOR_ENTRY target_descriptor;
-    if (target_selector.index == 0 ||
+    if (target_selector.IsNullSelector() ||
         !ReadDescriptorEntry(&target_descriptor, target_selector.ti ? m_ldt_location : m_gdt_location,
                              target_selector.index) ||
         !target_descriptor.IsCodeSegment())
@@ -2166,13 +2176,6 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
       target_selector.rpl = target_descriptor.dpl;
       Log_DevPrintf("Privilege raised via call gate, %u -> %u", ZeroExtend32(GetCPL()),
                     ZeroExtend32(target_selector.rpl.GetValue()));
-
-      // Check TSS validity
-      if (m_tss_location.limit == 0)
-      {
-        RaiseException(Interrupt_InvalidTaskStateSegment, m_registers.TR);
-        return;
-      }
 
       // We need to look at the current TSS to determine the stack pointer to change to
       uint32 new_ESP;
@@ -2206,6 +2209,26 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
         // Shouldn't fail, since we're bypassing access checks
         SafeReadMemoryDWord(m_tss_location.base_address + tss_stack_offset, &new_ESP, false, true);
         SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset + 4, &new_SS, false, true);
+      }
+
+      // Read stack segment descriptor.
+      // Inner SS selector must match DPL of code segment.
+      // Inner SS DPL must match DPL of code segment.
+      // SS must be data/writable and present.
+      DESCRIPTOR_ENTRY inner_ss_descriptor;
+      SEGMENT_SELECTOR_VALUE inner_ss_selector = {new_SS};
+      if (inner_ss_selector.IsNullSelector() || !ReadDescriptorEntry(&inner_ss_descriptor, inner_ss_selector) ||
+          inner_ss_descriptor.dpl != target_descriptor.dpl || !inner_ss_descriptor.IsWritableDataSegment())
+      {
+        RaiseException(Interrupt_InvalidTaskStateSegment, inner_ss_selector.ValueForException());
+        return;
+      }
+
+      // Must be present. This triggers a different exception.
+      if (!inner_ss_descriptor.IsPresent())
+      {
+        RaiseException(Interrupt_StackFault, inner_ss_selector.ValueForException());
+        return;
       }
 
       // Save the old (outer) ESP/SS before we pop the parameters off?
