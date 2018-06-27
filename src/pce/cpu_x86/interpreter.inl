@@ -3772,22 +3772,7 @@ void Interpreter::Execute_Operation_LSL(CPU* cpu)
     return;
   }
 
-  // TODO: This is the same
-  uint32 limit;
-  if (descriptor.is_memory_descriptor)
-  {
-    // TODO: Update this in load too
-    limit = descriptor.memory.GetLimit();
-    if (descriptor.memory.flags.granularity)
-      limit = (limit << 12) | 0xFFF;
-  }
-  else
-  {
-    limit = descriptor.tss.GetLimit();
-    if (descriptor.tss.granularity)
-      limit = (limit << 12) | 0xFFF;
-  }
-
+  const uint32 limit = descriptor.is_memory_descriptor ? descriptor.memory.GetLimit() : descriptor.tss.GetLimit();
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   if (actual_size == OperandSize_16)
     WriteWordOperand<dst_mode, dst_constant>(cpu, Truncate16(limit));

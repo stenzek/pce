@@ -1636,30 +1636,14 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
   }
 
   // Extract information from descriptor
+  // TODO: Mask granularity bit on 286.
+  const bool is_32bit_segment = (m_model >= MODEL_386 && descriptor.memory.flags.size);
   segment_cache->base_address = descriptor.memory.GetBase();
+  segment_cache->limit_low = descriptor.memory.GetLimitLow();
+  segment_cache->limit_high = descriptor.memory.GetLimitHigh();
   segment_cache->access.bits = descriptor.memory.access_bits;
   segment_cache->access.dpl = descriptor.dpl;
   m_registers.segment_selectors[segment] = value;
-
-  // Handle page granularity.
-  uint32 limit = descriptor.memory.GetLimit();
-  bool is_32bit_segment = (m_model >= MODEL_386 && descriptor.memory.flags.size);
-  if (m_model >= MODEL_386 && descriptor.memory.flags.granularity)
-    limit = (limit << 12) | 0xFFF;
-
-  // Expand-up segment?
-  if (descriptor.memory.access.is_code || !descriptor.memory.access.data_expand_down)
-  {
-    // limit=c000: 0 <= address <= c000.
-    segment_cache->limit_low = 0;
-    segment_cache->limit_high = limit;
-  }
-  else
-  {
-    // limit=c000: limit < address <= ffff/ffffffff
-    segment_cache->limit_low = limit + 1;
-    segment_cache->limit_high = is_32bit_segment ? 0xFFFFFFFF : 0xFFFF;
-  }
 
   // Access bits for code/data segments differ
   if (descriptor.memory.access.is_code)
@@ -2139,6 +2123,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
   }
   else if (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_16 || descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_32)
   {
+    const bool is_32bit_gate = (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_32);
     if (descriptor.dpl < GetCPL() || selector.rpl > descriptor.dpl)
     {
       RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
@@ -3806,4 +3791,5 @@ void CPU::PopFloat()
   m_fpu_registers.SW.TOP = top - 1;
 }
 #endif
+
 } // namespace CPU_X86

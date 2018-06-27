@@ -763,7 +763,40 @@ union DESCRIPTOR_ENTRY
       return base_0_15.GetValue() | (base_16_23.GetValue() << 16) | (base_24_31.GetValue() << 24);
     }
 
-    uint32 GetLimit() const { return limit_0_15.GetValue() | (limit_16_19.GetValue() << 16); }
+    uint32 GetLimit() const
+    {
+      uint32 limit = limit_0_15.GetValue() | (limit_16_19.GetValue() << 16);
+      if (flags.granularity)
+        limit = (limit << 12) | 0xFFF;
+      return limit;
+    }
+
+    uint32 GetLimitLow() const
+    {
+      // if (!access.is_code && access.data_expand_down)
+      if ((access_bits & 0b1100) == 0b0100)
+      {
+        // limit=c000: limit < address <= ffff/ffffffff
+        return GetLimit() + 1;
+      }
+      else
+      {
+        // limit=c000: 0 <= address <= c000.
+        return 0;
+      }
+    }
+
+    uint32 GetLimitHigh() const
+    {
+      if ((access_bits & 0b1100) == 0b0100)
+        return flags.size ? UINT32_C(0xFFFFFFFF) : UINT32_C(0xFFFF);
+      else
+        return GetLimit();
+    }
+
+    AddressSize GetAddressSize() const { return flags.size ? AddressSize_32 : AddressSize_16; }
+    OperandSize GetOperandSize() const { return flags.size ? OperandSize_32 : OperandSize_16; }
+    bool Is32BitSegment() const { return flags.size; }
 
     bool IsConformingCodeSegment() const { return (access.is_code.GetValue() & access.code_conforming.GetValue()); }
 
