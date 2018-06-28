@@ -2307,45 +2307,49 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
           caller_parameters[(parameter_count - 1) - i] = PopDWord();
       }
 
-      // Load the new code segment early, since this can fail without side-effects
-      LoadSegmentRegister(Segment_CS, target_selector.bits);
-
-      // Load the new stack segment. If any of the pushes following this fail, we are in trouble.
-      // TODO: Perhaps we should save the SS as well as the ESP in case of exceptions?
-      LoadSegmentRegister(Segment_SS, new_SS);
-      m_registers.ESP = new_ESP;
-
-      // Push parameters to target procedure
-      if (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_16)
+      // Make sure we have space in the new stack for the parameters, and outer SS/ESP/CS/EIP.
+      TemporaryStack inner_stack(this, new_ESP, new_SS, inner_ss_descriptor);
+      if (!(is_32bit_gate ? inner_stack.CanPushDWords(parameter_count + 4) :
+                            inner_stack.CanPushWords(parameter_count + 4)))
       {
-        PushWord(outer_SS);
-        PushWord(Truncate16(outer_ESP));
+        RaiseException(Interrupt_StackFault, 0);
+        return;
+      }
+
+      // Write values to the new stack. This can still page fault, which will raise an exception in the calling context.
+      if (!is_32bit_gate)
+      {
+        inner_stack.PushWord(outer_SS);
+        inner_stack.PushWord(Truncate16(outer_ESP));
         for (uint32 i = 0; i < parameter_count; i++)
-          PushWord(Truncate16(caller_parameters[i]));
-        PushWord(outer_CS);
-        PushWord(Truncate16(outer_EIP));
+          inner_stack.PushWord(Truncate16(caller_parameters[i]));
+        inner_stack.PushWord(outer_CS);
+        inner_stack.PushWord(Truncate16(outer_EIP));
       }
       else
       {
-        PushDWord(ZeroExtend32(outer_SS));
-        PushDWord(outer_ESP);
+        inner_stack.PushDWord(ZeroExtend32(outer_SS));
+        inner_stack.PushDWord(outer_ESP);
         for (uint32 i = 0; i < parameter_count; i++)
-          PushDWord(caller_parameters[i]);
-        PushDWord(ZeroExtend32(outer_CS));
-        PushDWord(outer_EIP);
+          inner_stack.PushDWord(caller_parameters[i]);
+        inner_stack.PushDWord(ZeroExtend32(outer_CS));
+        inner_stack.PushDWord(outer_EIP);
       }
 
-      // Finally transfer control
-      uint32 new_EIP = descriptor.call_gate.GetOffset();
-      if (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_16)
-        new_EIP &= 0xFFFF;
-      BranchTo(new_EIP);
+      // Load the new code segment early, since this can fail without side-effects
+      LoadSegmentRegister(Segment_CS, target_selector.bits);
+
+      // Load the new stack segment. This should succeed because we checked everything before.
+      inner_stack.SwitchTo();
+
+      // Finally transfer control.
+      BranchTo(is_32bit_gate ? descriptor.call_gate.GetOffset() : (descriptor.call_gate.GetOffset() & 0xFFFF));
     }
     else
     {
       // Call gate to same privilege
       target_selector.rpl = GetCPL();
-      if (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_16)
+      if (!is_32bit_gate)
         MemorySegmentCall(target_selector.bits, descriptor.call_gate.GetOffset(), OperandSize_16);
       else
         MemorySegmentCall(target_selector.bits, descriptor.call_gate.GetOffset(), OperandSize_32);
