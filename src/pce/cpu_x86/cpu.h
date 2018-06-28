@@ -228,6 +228,33 @@ public:
     DESCRIPTOR_TYPE type;
   };
 
+  struct TemporaryStack
+  {
+    CPU* cpu;
+    uint32 ESP;
+    uint32 base_address;
+    uint32 limit_low;
+    uint32 limit_high;
+    AddressSize address_size;
+    uint16 SS;
+
+    TemporaryStack(CPU* cpu_, uint32 ESP_, uint16 SS_, uint32 base_address_, uint32 limit_low_, uint32 limit_high_,
+                   AddressSize address_size_);
+    TemporaryStack(CPU* cpu_, uint32 ESP_, uint16 SS_, const DESCRIPTOR_ENTRY& dentry);
+    TemporaryStack(CPU* cpu_, uint32 ESP_, uint16 SS_);
+
+    bool CanPushBytes(uint32 num_bytes) const;
+    bool CanPushWords(uint32 num_words) const;
+    bool CanPushDWords(uint32 num_dwords) const;
+
+    void PushWord(uint16 value);
+    void PushDWord(uint32 value);
+    uint16 PopWord();
+    uint32 PopDWord();
+
+    void SwitchTo();
+  };
+
   // Interrupt hook callback
   using InterruptHookCallback = std::function<bool(uint32 interrupt, Registers* registers)>;
 

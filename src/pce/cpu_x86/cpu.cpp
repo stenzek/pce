@@ -702,6 +702,76 @@ uint32 CPU::PopDWord()
 
   return ReadMemoryDWord(linear_address);
 }
+CPU::TemporaryStack::TemporaryStack(CPU* cpu_, uint32 ESP_, uint16 SS_, uint32 base_address_, uint32 limit_low_,
+                                    uint32 limit_high_, AddressSize address_size_)
+  : cpu(cpu_), ESP(ESP_), base_address(base_address_), limit_low(limit_low_), limit_high(limit_high_),
+    address_size(address_size_), SS(SS_)
+{
+}
+
+CPU::TemporaryStack::TemporaryStack(CPU* cpu_, uint32 ESP_, uint16 SS_, const DESCRIPTOR_ENTRY& dentry)
+  : cpu(cpu_), ESP(ESP_), base_address(dentry.memory.GetBase()), limit_low(dentry.memory.GetLimitLow()),
+    limit_high(dentry.memory.GetLimitHigh()), address_size(dentry.memory.GetAddressSize()), SS(SS_)
+{
+}
+
+CPU::TemporaryStack::TemporaryStack(CPU* cpu_, uint32 ESP_, uint16 SS_) : cpu(cpu_), ESP(ESP_), SS(SS_)
+{
+  SEGMENT_SELECTOR_VALUE selector = {SS};
+  DESCRIPTOR_ENTRY dentry = {};
+  cpu->ReadDescriptorEntry(&dentry, selector);
+  base_address = dentry.memory.GetBase();
+  limit_low = dentry.memory.GetLimitLow();
+  limit_high = dentry.memory.GetLimitHigh();
+  address_size = dentry.memory.GetAddressSize();
+}
+
+bool CPU::TemporaryStack::CanPushBytes(uint32 num_bytes) const
+{
+  return (ESP >= num_bytes && (ESP - num_bytes) >= limit_low && (ESP - 1) <= limit_high);
+}
+
+bool CPU::TemporaryStack::CanPushWords(uint32 num_words) const
+{
+  return CanPushBytes(num_words * sizeof(uint16));
+}
+
+bool CPU::TemporaryStack::CanPushDWords(uint32 num_dwords) const
+{
+  return CanPushBytes(num_dwords * sizeof(uint32));
+}
+
+void CPU::TemporaryStack::PushWord(uint16 value)
+{
+  ESP = (address_size == AddressSize_16) ? ((ESP - sizeof(uint16)) & UINT32_C(0xFFFF)) : (ESP - sizeof(uint16));
+  cpu->WriteMemoryWord(base_address + ESP, value);
+}
+
+void CPU::TemporaryStack::PushDWord(uint32 value)
+{
+  ESP = (address_size == AddressSize_16) ? ((ESP - sizeof(uint32)) & UINT32_C(0xFFFF)) : (ESP - sizeof(uint32));
+  cpu->WriteMemoryDWord(base_address + ESP, value);
+}
+
+uint16 CPU::TemporaryStack::PopWord()
+{
+  uint16 value = cpu->ReadMemoryWord(base_address + ESP);
+  ESP = (address_size == AddressSize_16) ? ((ESP + sizeof(uint16)) & UINT32_C(0xFFFF)) : (ESP + sizeof(uint16));
+  return value;
+}
+
+uint32 CPU::TemporaryStack::PopDWord()
+{
+  uint32 value = cpu->ReadMemoryDWord(base_address + ESP);
+  ESP = (address_size == AddressSize_16) ? ((ESP + sizeof(uint32)) & UINT32_C(0xFFFF)) : (ESP + sizeof(uint32));
+  return value;
+}
+
+void CPU::TemporaryStack::SwitchTo()
+{
+  cpu->LoadSegmentRegister(Segment_SS, SS);
+  cpu->m_registers.ESP = ESP;
+}
 
 void CPU::SetFlags(uint32 value)
 {
