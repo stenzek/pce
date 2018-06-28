@@ -1,8 +1,8 @@
+#include "pce/hw/cdrom.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
-#include "pce/hw/cdrom.h"
 #include "pce/system.h"
 #include <functional>
 Log_SetChannel(HW::CDROM);
@@ -488,13 +488,19 @@ void CDROM::HandleRequestSenseCommand()
 
 void CDROM::HandleReadCapacityCommand()
 {
-  Log_WarningPrintf("CDROM read capacity");
+  Log_DevPrintf("CDROM read capacity - %u blocks", m_media.stream ? Truncate32(m_media.total_sectors) : 0);
 
   if (!HasMedia())
   {
     AbortCommand(SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
     return;
   }
+
+  AllocateData(8, 8);
+  WriteDataBufferDWord(0, Truncate32(m_media.total_sectors));
+  WriteDataBufferDWord(4, 2048); // sector size
+  UpdateSenseInfo(SENSE_NO_STATUS, 0);
+  CompleteCommand();
 }
 
 void CDROM::HandleReadTOCCommand()
