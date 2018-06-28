@@ -3692,7 +3692,11 @@ void CPU::DumpStack()
     stack_bottom &= 0xFFFF;
   }
 
-  std::fprintf(stderr, "Stack dump, ESP = 0x%08X\n", m_current_ESP);
+  std::fprintf(stderr, "Stack dump, ESP = 0x%08X (linear 0x%08X)\n", stack_top,
+               CalculateLinearAddress(Segment_SS, stack_top));
+
+  stack_top = CalculateLinearAddress(Segment_SS, stack_top);
+  stack_bottom = CalculateLinearAddress(Segment_SS, stack_bottom);
 
   LinearMemoryAddress stack_address = stack_top;
   for (uint32 count = 0; count < 128; count++)
