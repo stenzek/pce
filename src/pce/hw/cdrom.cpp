@@ -9,7 +9,11 @@ Log_SetChannel(HW::CDROM);
 
 namespace HW {
 
-CDROM::CDROM() : m_clock("CDROM", 1000000.0f) {}
+CDROM::CDROM()
+  : m_clock("CDROM", 1000000.0f), m_vendor_id_string("POTATO"), m_model_id_string("POTATOROM"),
+    m_firmware_version_string("1.00")
+{
+}
 
 CDROM::~CDROM() {}
 
@@ -293,6 +297,15 @@ bool CDROM::BeginCommand()
       return true;
     }
 
+    case SCSI_CMD_INQUIRY:
+    {
+      if (m_command_buffer.size() < 12)
+        return false;
+
+      QueueCommand(1);
+      return true;
+    }
+
     case SCSI_CMD_READ_CAPACITY:
     {
       if (m_command_buffer.size() < 12)
@@ -385,6 +398,10 @@ void CDROM::ExecuteCommand()
 
     case SCSI_CMD_REQUEST_SENSE:
       HandleRequestSenseCommand();
+      break;
+
+    case SCSI_CMD_INQUIRY:
+      HandleInquiryCommand();
       break;
 
     case SCSI_CMD_READ_CAPACITY:
@@ -487,6 +504,36 @@ void CDROM::HandleRequestSenseCommand()
   if (m_sense.key == SENSE_UNIT_ATTENTION)
     m_sense.key = SENSE_NO_STATUS;
 
+  CompleteCommand();
+}
+
+void CDROM::HandleInquiryCommand()
+{
+  Log_DevPrintf("CDROM identify");
+
+  AllocateData(36, m_command_buffer[4]);
+  WriteDataBufferByte(0, 0x05); // CD-ROM
+  WriteDataBufferByte(1, 0x80); // Removable
+  WriteDataBufferByte(2, 0x00); // Version
+  WriteDataBufferByte(3, 0x21); // ATAPI-2
+  WriteDataBufferByte(4, 31);   // Length following
+  WriteDataBufferByte(5, 0);
+  WriteDataBufferByte(6, 0);
+  WriteDataBufferByte(7, 0);
+
+  auto PutString = [this](uint32 offset, const std::string& str, uint32 write_length) {
+    uint32 i;
+    for (i = 0; i < write_length && i < str.length(); i++)
+      WriteDataBufferByte(offset + i, str[i]);
+    for (; i < write_length; i++)
+      WriteDataBufferByte(offset + i, ' ');
+  };
+
+  PutString(8, m_vendor_id_string, 8);
+  PutString(16, m_model_id_string, 16);
+  PutString(32, m_firmware_version_string, 4);
+
+  UpdateSenseInfo(SENSE_NO_STATUS, 0);
   CompleteCommand();
 }
 
@@ -893,5 +940,4 @@ bool CDROM::TransferNextSector()
 
   return true;
 }
-
 } // namespace HW

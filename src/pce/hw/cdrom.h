@@ -19,6 +19,10 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
+  const std::string& GetVendorIDString() const { return m_vendor_id_string; }
+  const std::string& GetModelIDString() const { return m_model_id_string; }
+  const std::string& GetFirmwareVersionString() const { return m_firmware_version_string; }
+
   bool IsBusy() const { return m_busy; }
   bool HasError() const { return m_error; }
   bool HasMedia() const { return (m_media.stream != nullptr); }
@@ -154,6 +158,7 @@ private:
   void HandleTestUnitReadyCommand();
   void HandlePreventMediumRemovalCommand();
   void HandleRequestSenseCommand();
+  void HandleInquiryCommand();
   void HandleReadCapacityCommand();
   void HandleReadTOCCommand();
   void HandleReadSubChannelCommand();
@@ -161,6 +166,9 @@ private:
   void HandleReadCommand();
 
   Clock m_clock;
+  std::string m_vendor_id_string;
+  std::string m_model_id_string;
+  std::string m_firmware_version_string;
 
   CommandBuffer m_command_buffer;
   DataBuffer m_data_buffer;

@@ -1082,7 +1082,8 @@ void HDC::HandleATAPIIdentify()
   response.dword_io_supported = 0;
   response.support = (1 << 9);
   response.pio_timing_mode = 0x200;
-  PutIdentifyString(response.model, sizeof(response.model), "POTATOROM");
+  PutIdentifyString(response.model, sizeof(response.model),
+                    m_atapi_devices[GetCurrentDriveIndex()]->GetModelIDString().c_str());
   for (size_t i = 0; i < countof(response.pio_cycle_time); i++)
     response.pio_cycle_time[i] = 120;
   response.word_80 = (1 << 4);
@@ -1379,6 +1380,11 @@ void HDC::HandleATASetFeatures()
 
   switch (m_feature_select)
   {
+    case 0x66: // Use current settings as default
+      Log_DevPrintf("ATA use current settings as default");
+      CompleteCommand();
+      return;
+
     default:
       Log_ErrorPrintf("Unknown feature 0x%02X", ZeroExtend32(m_feature_select));
       AbortCommand();
