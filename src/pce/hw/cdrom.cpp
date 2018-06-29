@@ -73,6 +73,7 @@ bool CDROM::LoadState(BinaryReader& reader)
   result &= reader.SafeReadCString(&m_media.filename);
   result &= reader.SafeReadUInt64(&m_media.total_sectors);
   result &= reader.SafeReadUInt64(&m_current_lba);
+  result &= reader.SafeReadUInt32(&m_remaining_sectors);
   result &= reader.SafeReadBool(&m_tray_locked);
 
   if (!result)
@@ -117,6 +118,7 @@ bool CDROM::SaveState(BinaryWriter& writer)
   result &= writer.SafeWriteCString(m_media.filename);
   result &= writer.SafeWriteUInt64(m_media.total_sectors);
   result &= writer.SafeWriteUInt64(m_current_lba);
+  result &= writer.SafeWriteUInt32(m_remaining_sectors);
   result &= writer.SafeWriteBool(m_tray_locked);
   return result;
 }
@@ -343,7 +345,7 @@ bool CDROM::BeginCommand()
         return true;
       }
 
-      QueueCommand(CalculateSeekTime(m_current_lba, lba) + CalculateReadTime(lba, sector_count));
+      QueueCommand(CalculateSeekTime(m_current_lba, lba) + CalculateReadTime(lba, 1));
       return true;
     }
   }
@@ -416,6 +418,7 @@ void CDROM::CompleteCommand()
   m_command_buffer.clear();
   m_busy = false;
   m_error = false;
+  m_remaining_sectors = 0;
 
   if (m_command_completed_callback)
     m_command_completed_callback();
@@ -427,6 +430,7 @@ void CDROM::AbortCommand(SENSE_KEY key, uint8 asc)
   m_command_buffer.clear();
   m_busy = false;
   m_error = true;
+  m_remaining_sectors = 0;
 
   if (m_command_completed_callback)
     m_command_completed_callback();
@@ -817,7 +821,7 @@ void CDROM::HandleReadCommand()
   uint32 sector_count =
     (m_command_buffer[0] == SCSI_CMD_READ_10) ? ZeroExtend32(ReadCommandBufferWord(7)) : ReadCommandBufferDWord(6);
 
-  Log_DevPrintf("CDROM read %u sectors at LBA %u", lba, sector_count);
+  Log_DevPrintf("CDROM read %u sectors at LBA %u", sector_count, lba);
 
   if (!HasMedia())
   {
@@ -826,6 +830,7 @@ void CDROM::HandleReadCommand()
   }
 
   // Transfers of length zero are fine.
+  m_remaining_sectors = sector_count;
   if (sector_count == 0)
   {
     UpdateSenseInfo(SENSE_NO_STATUS, 0);
@@ -833,20 +838,60 @@ void CDROM::HandleReadCommand()
     return;
   }
 
-  // TODO: What if sector_count is really large..
-  const uint32 read_size = sector_count * SECTOR_SIZE;
-  AllocateData(read_size, read_size);
-  if (!m_media.stream->SeekAbsolute(lba * uint64(SECTOR_SIZE)) ||
-      !m_media.stream->Read2(m_data_buffer.data(), read_size))
+  // Read a single sector at a time.
+  AllocateData(SECTOR_SIZE, SECTOR_SIZE);
+  if (!m_media.stream->SeekAbsolute(lba * uint64(m_data_response_size)) ||
+      !m_media.stream->Read2(m_data_buffer.data(), m_data_response_size))
   {
     Log_ErrorPrintf("CDROM read error at LBA %u", uint32(lba));
     AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_MEDIUM_NOT_PRESENT);
     return;
   }
 
-  m_current_lba = lba + sector_count;
   UpdateSenseInfo(SENSE_NO_STATUS, 0);
-  CompleteCommand();
+  m_current_lba = lba + 1;
+  m_remaining_sectors--;
+
+  // Single sector transfer?
+  if (m_remaining_sectors == 0)
+  {
+    CompleteCommand();
+    return;
+  }
+
+  // Multiple sector transfer. Keep the busy flag set.
+  m_error = false;
+  m_busy = true;
+  if (m_command_completed_callback)
+    m_command_completed_callback();
+}
+
+bool CDROM::TransferNextSector()
+{
+  // Read next sector.
+  AllocateData(SECTOR_SIZE, SECTOR_SIZE);
+  if (!m_media.stream->Read2(m_data_buffer.data(), m_data_response_size))
+  {
+    Log_ErrorPrintf("CDROM read error at LBA %u", uint32(m_current_lba));
+    AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_MEDIUM_NOT_PRESENT);
+    return false;
+  }
+
+  m_current_lba++;
+  m_remaining_sectors--;
+
+  // Done?
+  if (m_remaining_sectors == 0)
+  {
+    CompleteCommand();
+    return true;
+  }
+
+  // >1 remaining sector.
+  if (m_command_completed_callback)
+    m_command_completed_callback();
+
+  return true;
 }
 
 } // namespace HW

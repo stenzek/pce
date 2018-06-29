@@ -1013,9 +1013,9 @@ void HDC::HandleATAIdentify()
   DebugAssert(drive);
 
   ATA_IDENTIFY_RESPONSE response = {};
-  //response.flags |= (1 << 10); // >10mbit/sec transfer speed
-  response.flags |= (1 << 6);  // Fixed drive
-  //response.flags |= (1 << 2);  // Soft sectored
+  // response.flags |= (1 << 10); // >10mbit/sec transfer speed
+  response.flags |= (1 << 6); // Fixed drive
+  // response.flags |= (1 << 2);  // Soft sectored
   response.cylinders = Truncate16(drive->num_cylinders);
   response.heads = Truncate16(drive->num_heads);
   response.unformatted_bytes_per_track = Truncate16(SECTOR_SIZE * drive->num_sectors);
@@ -1028,7 +1028,7 @@ void HDC::HandleATAIdentify()
   PutIdentifyString(response.firmware_revision, sizeof(response.firmware_revision), "HURR101");
 
   // Temporarily disabled as it seems to be broken.
-  //response.readwrite_multiple_supported = 0x8000 | 16; // this is actually the number of sectors, tweak it
+  // response.readwrite_multiple_supported = 0x8000 | 16; // this is actually the number of sectors, tweak it
   response.readwrite_multiple_supported = 0;
 
   response.dword_io_supported = 1;
@@ -1496,8 +1496,9 @@ void HDC::HandleATAPICommandCompleted(uint32 drive_index)
   device->ClearDataBuffer();
 
   // Clear the busy flag, and raise interrupt.
-  m_status_register &= ~(ATA_SR_BSY | ATA_SR_ERR);
-  m_status_register |= ATA_SR_DRDY | ATA_SR_DRQ;
+  m_status_register = (m_status_register & ~(ATA_SR_BSY | ATA_SR_ERR)) | ATA_SR_DRQ;
+  if (device->GetRemainingSectors() == 0)
+    m_status_register |= ATA_SR_DRDY;
   m_error_register = 0;
   RaiseInterrupt();
 }
@@ -1578,6 +1579,8 @@ void HDC::UpdateTransferBuffer()
     return;
 
   // End of current sector
+  m_current_transfer.buffer_position = 0;
+
   // If we're writing we need to flush this sector to the backend
   uint32 sectors_transferred = std::min(m_current_transfer.remaining_sectors, m_current_transfer.sectors_per_block);
   if (m_current_transfer.is_write)
@@ -1594,11 +1597,25 @@ void HDC::UpdateTransferBuffer()
   if (m_current_transfer.remaining_sectors == 0)
   {
     if (m_current_transfer.is_packet_data)
+    {
+      auto* dev = m_atapi_devices[m_current_transfer.drive_index];
+      if (dev->GetRemainingSectors() > 0)
+      {
+        // TODO: ATAPI writes
+        DebugAssert(!m_current_transfer.is_write);
+        dev->TransferNextSector();
+        return;
+      }
+
       m_drives[m_current_transfer.drive_index]->SetATAPIInterruptReason(true, true, false);
+    }
 
     CompleteCommand();
     return;
   }
+
+  // Set busy flag for the next read.
+  m_status_register = (m_status_register & ~(ATA_SR_DRDY | ATA_SR_DRQ)) | ATA_SR_BSY;
 
   // If we're reading, we need to populate the sector buffer
   uint32 sectors_in_block = std::min(m_current_transfer.remaining_sectors, m_current_transfer.sectors_per_block);
@@ -1617,9 +1634,8 @@ void HDC::UpdateTransferBuffer()
     PrepareWriteBuffer(m_current_transfer.drive_index, sectors_in_block);
   }
 
-  m_current_transfer.buffer_position = 0;
-  m_status_register |= ATA_SR_DRDY;
-  m_status_register |= ATA_SR_DRQ;
+  // Next read ready.
+  m_status_register = (m_status_register & ~(ATA_SR_BSY)) | ATA_SR_DRQ;
 
   // Raise interrupt if enabled
   RaiseInterrupt();

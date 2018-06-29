@@ -42,6 +42,10 @@ public:
   // Media changing.
   bool InsertMedia(const char* filename);
 
+  // Transfer next sector for multiple sector transfers.
+  uint32 GetRemainingSectors() const { return m_remaining_sectors; }
+  bool TransferNextSector();
+
 private:
   static const uint32 SECTOR_SIZE = 2048;
   static const uint32 AUDIO_SECTOR_SIZE = 2352;
@@ -190,6 +194,7 @@ private:
 
   // Current head position
   uint64 m_current_lba = 0;
+  uint32 m_remaining_sectors = 0;
   bool m_tray_locked = false;
 };
 } // namespace HW
