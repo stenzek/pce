@@ -80,6 +80,30 @@ bool Bus::SaveState(BinaryWriter& writer)
   return true;
 }
 
+void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write)
+{
+#if 0
+  static const uint32 check_addresses[] = {0x17c0c, 4, 0x1233cc, 4};
+
+  uint32 v_start = address;
+  uint32 v_end = address + size;
+
+  for (uint32 i = 0; i < countof(check_addresses); i += 2)
+  {
+    uint32 a_start = check_addresses[i];
+    uint32 a_end = a_start + check_addresses[i + 1];
+
+    if ((v_start >= a_start && v_end <= a_end) || (a_start >= v_start && a_end <= v_end))
+    {
+      Log_WarningPrintf("Mem BP %08X while %s %08X", a_start, is_write ? "writing" : "reading", v_start);
+      //m_system->SetState(System::State::Paused);
+      break;
+    }
+  }
+
+#endif
+}
+
 Bus::IOPortConnection* Bus::GetIOPortConnectionForOwner(uint32 port, void* owner)
 {
   auto range = m_ioport_handlers.equal_range(port);

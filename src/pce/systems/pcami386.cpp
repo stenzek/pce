@@ -176,10 +176,8 @@ void PC_AMI_386::AddComponents()
   AddComponent(m_hdd_controller);
 
   // Connect channel 0 of the PIT to the interrupt controller
-  m_timer->SetChannelOutputChangeCallback(0, [this](bool value) {
-    if (value)
-      m_interrupt_controller->TriggerInterrupt(0);
-  });
+  m_timer->SetChannelOutputChangeCallback(0,
+                                          [this](bool value) { m_interrupt_controller->SetInterruptState(0, value); });
 
   m_speaker = new HW::PCSpeaker();
   AddComponent(m_speaker);

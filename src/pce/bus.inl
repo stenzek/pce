@@ -12,6 +12,10 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
   T value;
   address &= m_physical_memory_address_mask;
 
+#if defined(Y_BUILD_CONFIG_DEBUG) || defined(Y_BUILD_CONFIG_DEBUGFAST)
+  CheckForMemoryBreakpoint(address, sizeof(T), false);
+#endif
+
   // Since we allocate the page array based on the address mask, this should never overflow.
   uint32 page_number = address / MEMORY_PAGE_SIZE;
   uint32 page_offset = address % MEMORY_PAGE_SIZE;
@@ -57,6 +61,10 @@ template<typename T>
 void Bus::WriteMemoryTyped(PhysicalMemoryAddress address, T value)
 {
   address &= m_physical_memory_address_mask;
+
+#if defined(Y_BUILD_CONFIG_DEBUG) || defined(Y_BUILD_CONFIG_DEBUGFAST)
+  CheckForMemoryBreakpoint(address, sizeof(T), true);
+#endif
 
   // Since we allocate the page array based on the address mask, this should never overflow.
   uint32 page_number = address / MEMORY_PAGE_SIZE;

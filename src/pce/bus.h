@@ -193,6 +193,9 @@ protected:
   template<typename T, bool aligned>
   bool WriteMemoryT(PhysicalMemoryAddress address, T value);
 
+  // Memory breakpoints
+  void CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write);
+
   // Obtain IO port connection for owner.
   IOPortConnection* GetIOPortConnectionForOwner(uint32 port, void* owner);
   IOPortConnection* CreateIOPortConnectionEntry(uint32 port, void* owner);

@@ -17,12 +17,8 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
-  uint32 GetPendingInterruptNumber() const override;
-  void TriggerInterrupt(uint32 interrupt) override;
-  void RaiseInterrupt(uint32 interrupt) override;
-  void LowerInterrupt(uint32 interrupt) override;
-  void AcknowledgeInterrupt(uint32 interrupt) override;
-  void InterruptServiced(uint32 interrupt) override;
+  uint32 GetInterruptNumber() override;
+  void SetInterruptState(uint32 interrupt, bool active) override;
 
 private:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '9');
@@ -39,6 +35,9 @@ private:
   static const uint32 IOPORT_SLAVE_DATA = 0xA1;
 
   static const uint8 NUM_ICW_VALUES = 4;
+
+  // Slave PIC is connected to IRQ 2 on the master.
+  static const uint8 SLAVE_IRQ_ON_MASTER = 2;
 
   enum ICW_FLAGS : uint8
   {
@@ -66,11 +65,10 @@ private:
   };
 
   void ConnectIOPorts(Bus* bus);
-  void CommandPortReadHandler(uint32 port, uint8* value);
-  void CommandPortWriteHandler(uint32 port, uint8 value);
-  void DataPortWriteHandler(uint32 port, uint8 value);
-  void UpdateCPUInterruptLineState();
-  void UpdateCPUInterruptLineState(uint32 triggered_interrupt);
+  void CommandPortReadHandler(uint32 pic_index, uint8* value);
+  void CommandPortWriteHandler(uint32 pic_index, uint8 value);
+  void DataPortWriteHandler(uint32 pic_index, uint8 value);
+  void UpdateInterruptRequest();
 
   System* m_system = nullptr;
 
@@ -79,17 +77,13 @@ private:
     uint8 request_register = 0;    // IRR
     uint8 in_service_register = 0; // ISR
     uint8 mask_register = 0;       // IMR
+    uint8 level_triggered = 0;
 
     // Offset for interrupt numbers
     uint8 vector_offset = 0;
 
     // Interrupt line status
     uint8 interrupt_line_status = 0;
-
-    // Interrupt trigger state, this is edge sensitive.
-    // We need this because raised -> triggered -> EOI shouldn't re-trigger the
-    // interrupt until the line goes low and high again.
-    uint8 interrupt_active_status = 0;
 
     // ICW bytes
     union
@@ -103,10 +97,15 @@ private:
     uint8 icw_index = NUM_ICW_VALUES;
 
     // Latched data byte for read-backs
-    uint8 latch = 0;
-  } m_state[2];
+    bool read_isr = 0;
 
-  PICState* GetPICForVector(uint32 interrupt, uint32* irq);
+    // Helpers
+    uint8 GetHighestPriorityInterruptRequest() const;
+    uint8 GetHighestPriorityInServiceInterrupt() const;
+    bool HasInterruptRequest() const;
+    bool IsAutoEOI() const;
+    bool IsLevelTriggered(uint8 irq) const;
+  } m_state[2];
 };
 
 } // namespace HW

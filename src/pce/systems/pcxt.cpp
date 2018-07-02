@@ -84,10 +84,8 @@ void PCXT::AddComponents()
 void PCXT::ConnectSystemIOPorts()
 {
   // Connect channel 0 of the PIT to the interrupt controller
-  m_timer->SetChannelOutputChangeCallback(0, [this](bool value) {
-    if (value)
-      m_interrupt_controller->TriggerInterrupt(0);
-  });
+  m_timer->SetChannelOutputChangeCallback(0,
+                                          [this](bool value) { m_interrupt_controller->SetInterruptState(0, value); });
 
   // Connect channel 2 of the PIT to the speaker
   m_timer->SetChannelOutputChangeCallback(2, [this](bool value) { m_speaker->SetLevel(value); });

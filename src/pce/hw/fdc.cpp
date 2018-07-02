@@ -557,7 +557,13 @@ enum Command : uint8
   CMD_RECALIBRATE = 0x07,
   CMD_SENSE_INTERRUPT = 0x08,
   CMD_READ_ID = 0x0A,
-  CMD_SEEK = 0x0F
+  CMD_SEEK = 0x0F,
+
+  // Enhanced drive
+  CMD_DUMP_REGISTERS = 0x0E,
+  CMD_VERSION = 0x10,
+  CMD_UNLOCK = 0x14,
+  CMD_LOCK = 0x94,
 };
 
 void FDC::BeginCommand()

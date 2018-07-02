@@ -1898,9 +1898,8 @@ void CPU::DispatchExternalInterrupt()
   m_current_EIP = m_registers.EIP;
   m_current_ESP = m_registers.ESP;
 
-  // Request interrupt number from the PIC. In reality this is done by the PIC placing a CALL instruction on the bus.
-  uint32 interrupt_number = m_system->GetInterruptController()->GetPendingInterruptNumber();
-  m_system->GetInterruptController()->AcknowledgeInterrupt(interrupt_number);
+  // Request interrupt number from the PIC.
+  const uint32 interrupt_number = m_system->GetInterruptController()->GetInterruptNumber();
   SetupInterruptCall(interrupt_number, false, false, 0, m_registers.EIP);
 }
 

@@ -1,10 +1,10 @@
-#include "pce/systems/pcbochs.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"
+#include "pce/systems/pcbochs.h"
 Log_SetChannel(Systems::PCBochs);
 
 namespace Systems {
@@ -216,10 +216,8 @@ void PCBochs::AddComponents()
   AddComponent(m_hdd_controller);
 
   // Connect channel 0 of the PIT to the interrupt controller
-  m_timer->SetChannelOutputChangeCallback(0, [this](bool value) {
-    if (value)
-      m_interrupt_controller->TriggerInterrupt(0);
-  });
+  m_timer->SetChannelOutputChangeCallback(0,
+                                          [this](bool value) { m_interrupt_controller->SetInterruptState(0, value); });
 
   m_speaker = new HW::PCSpeaker();
   AddComponent(m_speaker);
@@ -354,6 +352,9 @@ void PCBochs::SetCMOSVariables()
     m_cmos->SetVariable(0x3D, 0x02);
   else
     m_cmos->SetVariable(0x3D, 0x01);
+
+  // Skip IPL validity check
+  m_cmos->SetVariable(0x38, 0x01);
 
   // HDD information
   m_cmos->SetVariable(0x12, 0);
