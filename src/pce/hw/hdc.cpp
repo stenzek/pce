@@ -904,6 +904,10 @@ void HDC::HandleATACommand(uint8 command)
     {
       switch (command)
       {
+        case ATA_CMD_IDENTIFY:
+          HandleATAIdentify();
+          break;
+
         case ATA_CMD_IDENTIFY_PACKET:
           HandleATAPIIdentify();
           break;
@@ -1011,6 +1015,13 @@ void HDC::HandleATAIdentify()
   Log_DevPrintf("ATA identify drive %u", ZeroExtend32(GetCurrentDriveIndex()));
   DriveState* drive = GetCurrentDrive();
   DebugAssert(drive);
+
+  // ATAPI devices should set their signature, then abort.
+  if (drive->type == DRIVE_TYPE_ATAPI)
+  {
+    SetSignature(drive);
+    return;
+  }
 
   ATA_IDENTIFY_RESPONSE response = {};
   // response.flags |= (1 << 10); // >10mbit/sec transfer speed
