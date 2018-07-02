@@ -621,6 +621,14 @@ void FDC::BeginCommand()
         return;
       }
 
+      // Check for out-of-range reads.
+      if (cylinder_number >= m_drives[m_current_drive].num_cylinders ||
+          sector_number > m_drives[m_current_drive].num_sectors)
+      {
+        EndTransfer(m_current_drive, ST0_IC_AT, ST1_ND, 0);
+        return;
+      }
+
       // TODO: Properly validate ranges
       DebugAssert(sector_type == 0x02);
       DebugAssert(cylinder_number < m_drives[m_current_drive].num_cylinders);
@@ -793,8 +801,8 @@ void FDC::BeginCommand()
     break;
 
     default:
-      Log_WarningPrintf("Unknown floppy command 0x%02X, MT=%u, MF=%u, SK=%u", uint32(command), uint32(mt), uint32(mf),
-                        uint32(sk));
+      Log_ErrorPrintf("Unknown floppy command 0x%02X, MT=%u, MF=%u, SK=%u", uint32(command), uint32(mt), uint32(mf),
+                      uint32(sk));
       break;
   }
 }
