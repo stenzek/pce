@@ -231,7 +231,7 @@ MainWindow::SystemThread::SystemThread(System* system, DisplayWidget* display_wi
 void MainWindow::SystemThread::run()
 {
   // Run the system simulation, sleeping when paused.
-  m_system->Initialize();
+  m_system->Start(true);
   m_system->SetState(m_initial_state);
   m_system->Run(false);
 

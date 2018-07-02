@@ -47,6 +47,7 @@ void i8042_PS2::Reset()
   SoftReset();
 
   m_output_port.raw = 0;
+  m_output_port.a20_gate = true;
   if (m_output_port_written_callback)
     m_output_port_written_callback(m_output_port.raw);
 

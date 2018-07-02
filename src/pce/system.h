@@ -65,12 +65,6 @@ public:
   // Pointer ownership is transferred
   void AddComponent(Component* component);
 
-  // Initialize all components, no need to call reset when starting for the first time
-  virtual void Initialize();
-
-  // Reset all components
-  virtual void Reset();
-
   // Clears the simulation thread ID. Call this when moving simulation from one thread to another.
   void ClearSimulationThreadID();
 
@@ -123,9 +117,16 @@ public:
   bool SetCPUBackend(CPUBackendType backend);
 
 protected:
+  // Initialize all components, no need to call reset when starting for the first time
+  virtual void Initialize();
+
+  // Reset all components
+  virtual void Reset();
+
+  // Shutdown stuff
+  void Cleanup();
+
   // State loading/saving
-  void InternalReset();
-  void InternalCleanup();
   bool LoadState(BinaryReader& reader);
   bool SaveState(BinaryWriter& writer);
   virtual bool LoadSystemState(BinaryReader& reader);

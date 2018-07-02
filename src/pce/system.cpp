@@ -138,24 +138,12 @@ void System::Initialize()
   m_throttle_event =
     m_timing_manager.CreateFrequencyEvent("Throttle Event", 60, std::bind(&System::ThrottleEventCallback, this));
 
-  // Reset all components to a known state.
-  InternalReset();
-
   // We're now ready to go. Start in the paused state.
   m_state = State::Paused;
   m_pending_state.store(State::Paused);
 }
 
 void System::Reset()
-{
-  // Always run after exiting the current simulation slice.
-  QueueExternalEvent([this]() {
-    InternalReset();
-    m_host_interface->ReportMessage("System reset.");
-  });
-}
-
-void System::InternalReset()
 {
   m_host_interface->Reset();
   m_cpu->Reset();
@@ -164,7 +152,7 @@ void System::InternalReset()
     component->Reset();
 }
 
-void System::InternalCleanup()
+void System::Cleanup()
 {
   // This should be called on the simulation thread.
   m_host_interface->Cleanup();
@@ -241,7 +229,7 @@ void System::Run(bool return_on_pause)
   }
 
   if (m_state == State::Stopped)
-    InternalCleanup();
+    Cleanup();
 }
 
 void System::Start(bool start_paused /* = false */)
@@ -250,6 +238,7 @@ void System::Start(bool start_paused /* = false */)
   Assert(!m_thread.joinable() && m_state == State::Uninitialized);
   m_thread = std::thread([this, start_paused]() {
     Initialize();
+    Reset();
     SetState(start_paused ? State::Paused : State::Running);
     Run(false);
   });
@@ -260,7 +249,7 @@ void System::Stop()
   if (IsOnSimulationThread())
   {
     SetState(State::Stopped);
-    InternalCleanup();
+    Cleanup();
     return;
   }
 
@@ -269,10 +258,11 @@ void System::Stop()
 
 void System::ExternalReset()
 {
-  if (IsOnSimulationThread())
+  // Always run after exiting the current simulation slice.
+  QueueExternalEvent([this]() {
+    m_host_interface->ReportMessage("System reset.");
     Reset();
-  else
-    QueueExternalEvent([this]() { Reset(); });
+  });
 }
 
 bool System::IsOnSimulationThread() const
@@ -439,8 +429,8 @@ void System::LoadState(ByteStream* stream)
     else
     {
       // Stream load failed, reset system, as it is now in an unknown state.
-      InternalReset();
       m_host_interface->ReportMessage("Load state failed, resetting system.");
+      Reset();
     }
 
     stream->Release();

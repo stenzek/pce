@@ -102,7 +102,7 @@ private:
     uint8 raw = 0;
 
     // BitField<uint8, bool, 0, 1> system_reset;
-    // BitField<uint8, bool, 1, 1> a20_gate;
+    BitField<uint8, bool, 1, 1> a20_gate;
     BitField<uint8, bool, 4, 1> port_1_interrupt_requested;
     BitField<uint8, bool, 5, 1> port_2_interrupt_requested;
     // BitField<uint8, bool, 6, 1> keyboard_data_output;

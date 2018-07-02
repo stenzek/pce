@@ -40,7 +40,6 @@ void CPU::Initialize(System* system, Bus* bus)
   m_system = system;
   m_bus = bus;
   CreateBackend();
-  Reset();
 }
 
 void CPU::Reset()

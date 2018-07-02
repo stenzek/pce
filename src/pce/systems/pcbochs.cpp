@@ -1,10 +1,10 @@
+#include "pce/systems/pcbochs.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"
-#include "pce/systems/pcbochs.h"
 Log_SetChannel(Systems::PCBochs);
 
 namespace Systems {
@@ -27,7 +27,6 @@ void PCBochs::Initialize()
 
   ConnectSystemIOPorts();
   SetCMOSVariables();
-  UpdateKeyboardControllerOutputPort();
 }
 
 void PCBochs::Reset()
