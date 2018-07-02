@@ -48,12 +48,6 @@ constexpr TReturn SignExtend(TValue value)
   return static_cast<TReturn>(
     static_cast<typename std::make_signed<TReturn>::type>(static_cast<typename std::make_signed<TValue>::type>(value)));
 }
-// Truncating helper
-template<typename TReturn, typename TValue>
-constexpr TReturn TruncateBits(TValue value)
-{
-  return static_cast<TReturn>(value & ~static_cast<TReturn>(0));
-}
 
 // Type-specific helpers
 template<typename TValue>
@@ -89,17 +83,17 @@ constexpr uint64 SignExtend64(TValue value)
 template<typename TValue>
 constexpr uint8 Truncate8(TValue value)
 {
-  return TruncateBits<uint8, TValue>(value);
+  return static_cast<uint8>(static_cast<std::make_unsigned<decltype(value)>::type>(value));
 }
 template<typename TValue>
 constexpr uint16 Truncate16(TValue value)
 {
-  return TruncateBits<uint16, TValue>(value);
+  return static_cast<uint16>(static_cast<std::make_unsigned<decltype(value)>::type>(value));
 }
 template<typename TValue>
 constexpr uint32 Truncate32(TValue value)
 {
-  return TruncateBits<uint32, TValue>(value);
+  return static_cast<uint32>(static_cast<std::make_unsigned<decltype(value)>::type>(value));
 }
 
 // BCD helpers
