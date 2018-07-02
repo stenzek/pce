@@ -272,24 +272,20 @@ void i8259_PIC::CommandPortWriteHandler(uint32 pic_index, uint8 value)
         interrupt = value & 0x07;
         if (!(pic->in_service_register & (UINT8_C(1) << interrupt)))
         {
-          // TODO: If PIC is 0, IRQ 2 is the cascaded one, implement this properly.
-          if (interrupt != 2)
-          {
-            Log_WarningPrintf("Specific EOI %u received on PIC %u without ISR set", ZeroExtend32(interrupt), pic_index);
-          }
+          Log_WarningPrintf("Specific EOI %u received on PIC %u without ISR set", ZeroExtend32(interrupt), pic_index);
           return;
         }
       }
       else
       {
         // Find the highest priority interrupt, this will be the one being EOI'ed
-        uint32 bit;
-        if (!Y_bitscanforward(pic->in_service_register, &bit))
+        if (pic->in_service_register == 0)
         {
-          Log_WarningPrintf("EOI received on PIC %u without ISR set", pic_index);
+          Log_WarningPrintf("Auto EOI received on PIC %u without ISR set", pic_index);
           return;
         }
-        interrupt = Truncate8(bit);
+
+        interrupt = pic->GetHighestPriorityInServiceInterrupt();
       }
 
       Log_TracePrintf("EOI interrupt %u", ZeroExtend32(interrupt));
