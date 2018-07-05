@@ -1882,6 +1882,23 @@ void CPU::LoadTaskSegment(uint16 value)
                 ZeroExtend32(selector.index.GetValue()), m_tss_location.base_address, m_tss_location.limit);
 }
 
+void CPU::ClearInaccessibleSegmentSelectors()
+{
+  // Validate segments ES,FS,GS,DS so the kernel doesn't leak them
+  static const Segment validate_segments[] = {Segment_ES, Segment_FS, Segment_GS, Segment_DS};
+  for (uint32 i = 0; i < countof(validate_segments); i++)
+  {
+    Segment validate_segment = validate_segments[i];
+    const SegmentCache* validate_segment_cache = &m_segment_cache[validate_segment];
+    if ((!validate_segment_cache->access.is_code || !validate_segment_cache->access.code_confirming) &&
+        validate_segment_cache->access.dpl < GetCPL())
+    {
+      // If data or non-conforming code, set null selector
+      LoadSegmentRegister(validate_segment, 0);
+    }
+  }
+}
+
 bool CPU::HasExternalInterrupt() const
 {
   // TODO: NMI interrupts.
@@ -2464,23 +2481,10 @@ void CPU::FarReturn(OperandSize operand_size, uint32 pop_byte_count)
       // TODO: We really should check the stack segment validity here rather than in Load..
       LoadSegmentRegister(Segment_CS, return_CS);
       LoadSegmentRegister(Segment_SS, return_SS);
-      m_registers.ESP = return_ESP;
-
-      // Validate segments ES,FS,GS,DS so the kernel doesn't leak them
-      static const Segment validate_segments[] = {Segment_ES, Segment_FS, Segment_GS, Segment_DS};
-      for (uint32 i = 0; i < countof(validate_segments); i++)
-      {
-        Segment validate_segment = validate_segments[i];
-        const SegmentCache* validate_segment_cache = &m_segment_cache[validate_segment];
-        if ((!validate_segment_cache->access.is_code || !validate_segment_cache->access.code_confirming) &&
-            validate_segment_cache->access.dpl < target_selector.rpl)
-        {
-          // If data or non-conforming code, set null selector
-          LoadSegmentRegister(validate_segment, 0);
-        }
-      }
+      ClearInaccessibleSegmentSelectors();
 
       // Release parameters from caller's stack
+      m_registers.ESP = return_ESP;
       if (m_stack_address_size == AddressSize_16)
         m_registers.SP += Truncate16(pop_byte_count);
       else
@@ -2684,21 +2688,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
       // Finally now that we can't fail, sort out the registers
       // m_registers.ESP = outer_ESP;
       SetFlags(return_EFLAGS);
-
-      // Validate segments ES,FS,GS,DS so the kernel doesn't leak them
-      static const Segment validate_segments[] = {Segment_ES, Segment_FS, Segment_GS, Segment_DS};
-      for (uint32 i = 0; i < countof(validate_segments); i++)
-      {
-        Segment validate_segment = validate_segments[i];
-        const SegmentCache* validate_segment_cache = &m_segment_cache[validate_segment];
-        if ((!validate_segment_cache->access.is_code || !validate_segment_cache->access.code_confirming) &&
-            validate_segment_cache->access.dpl < target_selector.rpl)
-        {
-          // If data or non-conforming code, set null selector
-          LoadSegmentRegister(validate_segment, 0);
-        }
-      }
-
+      ClearInaccessibleSegmentSelectors();
       BranchTo(return_EIP);
     }
     else

@@ -422,6 +422,9 @@ protected:
   void LoadLocalDescriptorTable(uint16 value);
   void LoadTaskSegment(uint16 value);
 
+  // Clears inaccessible segment selectors, based on the current privilege level.
+  void ClearInaccessibleSegmentSelectors();
+
   // Throws an exception, leaving IP containing the address of the current instruction
   void RaiseException(uint32 interrupt, uint32 error_code = 0);
 
