@@ -2425,7 +2425,7 @@ void CPU::FarReturn(OperandSize operand_size, uint32 pop_byte_count)
   {
     SEGMENT_SELECTOR_VALUE target_selector = {return_CS};
     DESCRIPTOR_ENTRY target_descriptor;
-    if (target_selector.index == 0) // Check for non-null segment
+    if (target_selector.IsNullSelector()) // Check for non-null segment
     {
       RaiseException(Interrupt_GeneralProtectionFault, 0);
       return;
