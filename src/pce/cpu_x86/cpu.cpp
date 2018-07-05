@@ -996,12 +996,12 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
   // Permissions for directory
   // U bit set implies userspace can access it
   // R bit implies userspace can write to it
-  uint8 directory_permissions = (0x05 << 3);                   // supervisor=read,execute
-  directory_permissions |= (directory_entry.bits << 3) & 0x10; // supervisor=write from R/W bit
-  directory_permissions |= (directory_entry.bits >> 2) & 0x01; // user=read from U/S bit
-  directory_permissions |= (directory_entry.bits) & 0x04;      // user=execute from U/S bit
-  directory_permissions |= (directory_entry.bits) & 0x02;      // user=write from R/W bit
-  directory_permissions |= (directory_entry.bits >> 1) & 0x02; // user=write from U/S bit
+  uint8 directory_permissions = (0x05 << 3);                            // supervisor=read,execute
+  directory_permissions |= (directory_entry.bits << 3) & 0x10;          // supervisor=write from R/W bit
+  directory_permissions |= (directory_entry.bits >> 2) & 0x01;          // user=read from U/S bit
+  directory_permissions |= (directory_entry.bits) & 0x04;               // user=execute from U/S bit
+  directory_permissions |= (directory_entry.bits) & 0x02;               // user=write from R/W bit
+  directory_permissions &= 0x3D | ((directory_entry.bits >> 1) & 0x02); // user=write from U/S bit
 
   // Obtain the address of the page table. Address in the directory is 4KB aligned. Bits 12-21 index the page table.
   LinearMemoryAddress table_base_address = (directory_entry.page_table_address << 12);
@@ -1025,12 +1025,12 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
   // Check for table permissions
   // U bit set implies userspace can access it
   // R bit implies userspace can write to it
-  uint8 table_permissions = (0x05 << 3);               // supervisor=read,execute
-  table_permissions |= (table_entry.bits << 3) & 0x10; // supervisor=write from R/W bit
-  table_permissions |= (table_entry.bits >> 2) & 0x01; // user=read from U/S bit
-  table_permissions |= (table_entry.bits) & 0x04;      // user=execute from U/S bit
-  table_permissions |= (table_entry.bits) & 0x02;      // user=write from R/W bit
-  table_permissions |= (table_entry.bits >> 1) & 0x02; // user=write from U/S bit
+  uint8 table_permissions = (0x05 << 3);                        // supervisor=read,execute
+  table_permissions |= (table_entry.bits << 3) & 0x10;          // supervisor=write from R/W bit
+  table_permissions |= (table_entry.bits >> 2) & 0x01;          // user=read from U/S bit
+  table_permissions |= (table_entry.bits) & 0x04;               // user=execute from U/S bit
+  table_permissions |= (table_entry.bits) & 0x02;               // user=write from R/W bit
+  table_permissions &= 0x3D | ((table_entry.bits >> 1) & 0x02); // user=write from U/S bit
 
   // Check access, requires both directory and page access
   if (do_access_check && (access_mask & directory_permissions & table_permissions) == 0)
