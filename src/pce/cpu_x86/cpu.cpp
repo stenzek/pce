@@ -2478,9 +2478,10 @@ void CPU::FarReturn(OperandSize operand_size, uint32 pop_byte_count)
         return_SS = Truncate16(PopDWord());
       }
 
-      // TODO: We really should check the stack segment validity here rather than in Load..
-      LoadSegmentRegister(Segment_CS, return_CS);
+      // Update privilege level for SS check, see InterruptReturn.
+      SetCPL(target_selector.rpl);
       LoadSegmentRegister(Segment_SS, return_SS);
+      LoadSegmentRegister(Segment_CS, return_CS);
       ClearInaccessibleSegmentSelectors();
 
       // Release parameters from caller's stack
@@ -2672,29 +2673,26 @@ void CPU::InterruptReturn(OperandSize operand_size)
         outer_SS = Truncate16(PopDWord());
       }
 
-      // Change code segment and CPL
+      // Switch CPL to outer level, so the privilege of SS will be checked.
+      SetCPL(target_selector.rpl);
+
+      // Switch outer stack segment before switching CS, otherwise CS:IP will be invalid when it raises exceptions.
+      LoadSegmentRegister(Segment_SS, outer_SS);
       LoadSegmentRegister(Segment_CS, return_CS);
 
-      // Load the outer stack, we can do this here because an exception will reload CS
-      LoadSegmentRegister(Segment_SS, outer_SS);
-
-      // ESP leak, undocumented
+      // Finally now that we can't fail, sort out the registers
+      // Higher-order bits of ESP leak, undocumented
       if (m_stack_address_size == AddressSize_16)
         m_registers.SP = Truncate16(outer_ESP);
       else
         m_registers.ESP = outer_ESP;
-      // outer_ESP = (m_registers.ESP & 0xFFFF0000 | outer_ESP & 0xFFFF);
 
-      // Finally now that we can't fail, sort out the registers
-      // m_registers.ESP = outer_ESP;
       SetFlags(return_EFLAGS);
       ClearInaccessibleSegmentSelectors();
       BranchTo(return_EIP);
     }
     else
     {
-      Assert(target_selector.rpl == GetCPL());
-
       // Returning to the same privilege level
       LoadSegmentRegister(Segment_CS, return_CS);
       SetFlags(return_EFLAGS);
