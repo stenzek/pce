@@ -2314,6 +2314,9 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
         return;
       }
 
+      // The stack writes should be done with supervisor privileges.
+      SetCPL(target_selector.rpl);
+
       // Write values to the new stack. This can still page fault, which will raise an exception in the calling context.
       if (!is_32bit_gate)
       {
