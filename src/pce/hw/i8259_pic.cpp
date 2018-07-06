@@ -13,10 +13,11 @@ i8259_PIC::i8259_PIC() {}
 
 i8259_PIC::~i8259_PIC() {}
 
-void i8259_PIC::Initialize(System* system, Bus* bus)
+bool i8259_PIC::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   ConnectIOPorts(bus);
+  return true;
 }
 
 void i8259_PIC::Reset()

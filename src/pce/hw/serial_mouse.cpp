@@ -20,12 +20,13 @@ SerialMouse::~SerialMouse()
     m_system->GetHostInterface()->RemoveAllCallbacks(this);
 }
 
-void SerialMouse::Initialize(System* system, Bus* bus)
+bool SerialMouse::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_clock.SetManager(system->GetTimingManager());
   m_update_event = m_clock.NewEvent("Update", 1, std::bind(&SerialMouse::SendUpdate, this), false);
   ConnectCallbacks();
+  return true;
 }
 
 bool SerialMouse::LoadState(BinaryReader& reader)

@@ -48,15 +48,17 @@ TestPCSystem::~TestPCSystem()
   m_host_interface = nullptr;
 }
 
-void TestPCSystem::Initialize()
+bool TestPCSystem::Initialize()
 {
-  System::Initialize();
+  if (!System::Initialize())
+    return false;
 
   // Fill memory regions.
   m_bus->CreateRAMRegion(uint32(0), uint32(0xFFFFFFFF));
 
   // Remove the throttle event, it's not needed for the test cases.
   m_throttle_event->Deactivate();
+  return true;
 }
 
 bool TestPCSystem::AddROMFromFile(const char* filename, PhysicalMemoryAddress address)

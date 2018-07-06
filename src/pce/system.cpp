@@ -109,7 +109,7 @@ void System::AddComponent(Component* component)
   m_components.Add(component);
 }
 
-void System::Initialize()
+bool System::Initialize()
 {
   Assert(m_state == State::Uninitialized);
 
@@ -128,7 +128,13 @@ void System::Initialize()
   m_bus->Initialize(this, nullptr);
   m_cpu->Initialize(this, m_bus);
   for (Component* component : m_components)
-    component->Initialize(this, m_bus);
+  {
+    if (!component->Initialize(this, m_bus))
+    {
+      Panic("Component failed to initialize.");
+      return false;
+    }
+  }
 
   // Add audio mix event, render audio every 40ms (25hz).
   /*m_audio_render_event = m_timing_manager.CreateFrequencyEvent("Audio Mix/Render Event", float(Audio::MixFrequency),
@@ -141,6 +147,7 @@ void System::Initialize()
   // We're now ready to go. Start in the paused state.
   m_state = State::Paused;
   m_pending_state.store(State::Paused);
+  return true;
 }
 
 void System::Reset()

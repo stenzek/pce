@@ -32,7 +32,7 @@ public:
 
   const char* GetSystemName() const override { return "IBM XT"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
-  void Initialize() override;
+  bool Initialize() override;
   void Reset() override;
 
   auto GetPPI() const { return m_ppi; }

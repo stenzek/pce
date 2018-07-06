@@ -35,7 +35,7 @@ Serial::Serial(InterruptController* interrupt_controller, Model model, uint32 ba
 
 Serial::~Serial() {}
 
-void Serial::Initialize(System* system, Bus* bus)
+bool Serial::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_clock.SetManager(system->GetTimingManager());
@@ -45,6 +45,8 @@ void Serial::Initialize(System* system, Bus* bus)
   // Create transfer event, but leave it deactivated by default.
   m_transfer_event =
     m_clock.NewEvent("Transfer", 1, std::bind(&Serial::HandleTransferEvent, this, std::placeholders::_2), false);
+
+  return true;
 }
 
 void Serial::Reset()

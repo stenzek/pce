@@ -33,7 +33,7 @@ public:
   YMF262(Mode mode, const char* clock_prefix = "");
   ~YMF262();
 
-  void Initialize(System* system);
+  bool Initialize(System* system);
   bool LoadState(BinaryReader& reader);
   bool SaveState(BinaryWriter& writer) const;
   void Reset();

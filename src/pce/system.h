@@ -118,7 +118,7 @@ public:
 
 protected:
   // Initialize all components, no need to call reset when starting for the first time
-  virtual void Initialize();
+  virtual bool Initialize();
 
   // Reset all components
   virtual void Reset();

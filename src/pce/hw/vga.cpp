@@ -49,7 +49,7 @@ bool VGA::SetBIOSROM(ByteStream* stream)
   return true;
 }
 
-void VGA::Initialize(System* system, Bus* bus)
+bool VGA::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_bus = bus;
@@ -62,6 +62,7 @@ void VGA::Initialize(System* system, Bus* bus)
 
   // Retrace event will be scheduled after timing is calculated.
   m_retrace_event = m_clock.NewEvent("Retrace", 1, std::bind(&VGA::Render, this), false);
+  return true;
 }
 
 void VGA::Reset()

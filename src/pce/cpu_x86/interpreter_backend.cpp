@@ -70,7 +70,7 @@ void InterpreterBackend::ExecuteInstruction(CPU* cpu)
 
 #if 0
   LinearMemoryAddress linear_address = cpu->CalculateLinearAddress(Segment_CS, cpu->m_registers.EIP);
-  if (linear_address == 0xC0029A30 && cpu->m_registers.EDX == 0x00001698)
+  if (linear_address == 0xFFE53DC6)
     TRACE_EXECUTION = true;
 #endif
 

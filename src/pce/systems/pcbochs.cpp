@@ -21,12 +21,14 @@ PCBochs::PCBochs(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X8
 
 PCBochs::~PCBochs() {}
 
-void PCBochs::Initialize()
+bool PCBochs::Initialize()
 {
-  PCBase::Initialize();
+  if (!PCBase::Initialize())
+    return false;
 
   ConnectSystemIOPorts();
   SetCMOSVariables();
+  return true;
 }
 
 void PCBochs::Reset()

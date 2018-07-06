@@ -4,10 +4,10 @@
 #include <vector>
 
 #include "pce/cpu_x86/cpu.h"
+#include "pce/hw/i8042_ps2.h"
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
-#include "pce/hw/i8042_ps2.h"
 #include "pce/systems/pcbase.h"
 
 class ByteStream;
@@ -26,7 +26,7 @@ public:
   const char* GetSystemName() const override { return "Test Harness PC"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
 
-  virtual void Initialize() override;
+  bool Initialize() override;
 
   CPU_X86::CPU* GetX86CPU() const { return static_cast<CPU_X86::CPU*>(m_cpu); }
 

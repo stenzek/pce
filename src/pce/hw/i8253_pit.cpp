@@ -17,7 +17,7 @@ i8253_PIT::i8253_PIT() : m_clock("i8253 PIT", CLOCK_FREQUENCY) {}
 
 i8253_PIT::~i8253_PIT() {}
 
-void i8253_PIT::Initialize(System* system, Bus* bus)
+bool i8253_PIT::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_clock.SetManager(system->GetTimingManager());
@@ -26,6 +26,8 @@ void i8253_PIT::Initialize(System* system, Bus* bus)
   // Create the tick event.
   m_tick_event =
     m_clock.NewEvent("Tick Event", GetDowncount(), std::bind(&i8253_PIT::TickTimers, this, std::placeholders::_2));
+
+  return true;
 }
 
 void i8253_PIT::TickTimers(CycleCount cycles)

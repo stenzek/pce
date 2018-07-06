@@ -13,7 +13,7 @@ class Component
 public:
   virtual ~Component() {}
 
-  virtual void Initialize(System* system, Bus* bus) {}
+  virtual bool Initialize(System* system, Bus* bus) { return true; }
   virtual void Reset() {}
 
   virtual bool LoadState(BinaryReader& reader) { return true; }

@@ -14,7 +14,7 @@ CMOS::CMOS() : m_rtc_clock("CMOS", 32768) {}
 
 CMOS::~CMOS() {}
 
-void CMOS::Initialize(System* system, Bus* bus)
+bool CMOS::Initialize(System* system, Bus* bus)
 {
   std::fill(m_data.begin(), m_data.end(), uint8(0));
 
@@ -56,6 +56,7 @@ void CMOS::Initialize(System* system, Bus* bus)
   m_data[0x0A] |= (2 << 4);
   m_data[0x0A] |= 6;
   UpdateRTCFrequency();
+  return true;
 }
 
 void CMOS::Reset()

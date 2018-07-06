@@ -16,7 +16,7 @@ PCSpeaker::~PCSpeaker()
     m_system->GetHostInterface()->GetAudioMixer()->RemoveChannel(m_output_channel);
 }
 
-void PCSpeaker::Initialize(System* system, Bus* bus)
+bool PCSpeaker::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_clock.SetManager(system->GetTimingManager());
@@ -29,6 +29,8 @@ void PCSpeaker::Initialize(System* system, Bus* bus)
   // Render samples every 100ms, or when the level changes.
   m_render_sample_event = m_clock.NewEvent("Render Samples", CycleCount(OUTPUT_FREQUENCY / Audio::MixFrequency),
                                            std::bind(&PCSpeaker::RenderSampleEvent, this, std::placeholders::_2));
+
+  return true;
 }
 
 bool PCSpeaker::LoadState(BinaryReader& reader)

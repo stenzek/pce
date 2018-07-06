@@ -29,15 +29,15 @@ public:
   i8237_DMA();
   ~i8237_DMA();
 
-  virtual void Initialize(System* system, Bus* bus) override;
-  virtual void Reset() override;
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  bool Initialize(System* system, Bus* bus) override;
+  void Reset() override;
+  bool LoadState(BinaryReader& reader) override;
+  bool SaveState(BinaryWriter& writer) override;
 
-  virtual bool ConnectDMAChannel(uint32 channel_index, DMAReadCallback&& read_callback,
-                                 DMAWriteCallback&& write_callback) override;
-  virtual bool GetDMAState(uint32 channel_index) override;
-  virtual void SetDMAState(uint32 channel_index, bool request) override;
+  bool ConnectDMAChannel(uint32 channel_index, DMAReadCallback&& read_callback,
+                         DMAWriteCallback&& write_callback) override;
+  bool GetDMAState(uint32 channel_index) override;
+  void SetDMAState(uint32 channel_index, bool request) override;
 
 private:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '3', '7');

@@ -17,10 +17,11 @@ CDROM::CDROM()
 
 CDROM::~CDROM() {}
 
-void CDROM::Initialize(System* system, Bus* bus)
+bool CDROM::Initialize(System* system, Bus* bus)
 {
   m_clock.SetManager(system->GetTimingManager());
   m_command_event = m_clock.NewEvent("CDROM Command Event", 1, std::bind(&CDROM::ExecuteCommand, this), false);
+  return true;
 }
 
 void CDROM::Reset()

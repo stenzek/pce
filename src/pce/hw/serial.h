@@ -33,10 +33,10 @@ public:
          uint32 irq_number = 4, int32 base_rate = 1843200);
   ~Serial();
 
-  virtual void Initialize(System* system, Bus* bus) override;
-  virtual void Reset() override;
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  bool Initialize(System* system, Bus* bus) override;
+  void Reset() override;
+  bool LoadState(BinaryReader& reader) override;
+  bool SaveState(BinaryWriter& writer) override;
 
   // Checks if there is data in the external write buffer.
   size_t GetDataSize() const { return m_output_buffer_size; }

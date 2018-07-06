@@ -18,13 +18,15 @@ XT_PPI::XT_PPI() {}
 
 XT_PPI::~XT_PPI() {}
 
-void XT_PPI::Initialize(System* system, Bus* bus)
+bool XT_PPI::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   ConnectIOPorts(bus);
 
   m_system->GetHostInterface()->AddKeyboardCallback(
     this, std::bind(&XT_PPI::AddScanCode, this, std::placeholders::_1, std::placeholders::_2));
+
+  return true;
 }
 
 void XT_PPI::Reset()

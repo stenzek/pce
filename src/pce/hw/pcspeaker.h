@@ -19,7 +19,7 @@ public:
   PCSpeaker();
   ~PCSpeaker();
 
-  void Initialize(System* system, Bus* bus) override;
+  bool Initialize(System* system, Bus* bus) override;
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
   void Reset() override;

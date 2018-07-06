@@ -35,11 +35,12 @@ CPU::CPU(Model model, float frequency, CPUBackendType backend_type) : CPUBase(fr
 
 CPU::~CPU() {}
 
-void CPU::Initialize(System* system, Bus* bus)
+bool CPU::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_bus = bus;
   CreateBackend();
+  return true;
 }
 
 void CPU::Reset()

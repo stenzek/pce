@@ -16,10 +16,12 @@ namespace HW {
 HDC::HDC(CHANNEL channel) : m_channel(channel) {}
 
 HDC::~HDC() {}
-void HDC::Initialize(System* system, Bus* bus)
+
+bool HDC::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   ConnectIOPorts(bus);
+  return true;
 }
 
 void HDC::Reset()

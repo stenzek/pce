@@ -19,10 +19,10 @@ public:
   CMOS();
   ~CMOS();
 
-  virtual void Initialize(System* system, Bus* bus) override;
-  virtual void Reset() override;
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  bool Initialize(System* system, Bus* bus) override;
+  void Reset() override;
+  bool LoadState(BinaryReader& reader) override;
+  bool SaveState(BinaryWriter& writer) override;
 
   uint8 GetVariable(uint8 index) const { return m_data[index]; }
   void SetVariable(uint8 index, uint8 value) { m_data[index] = value; }

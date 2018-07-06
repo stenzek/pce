@@ -4,11 +4,11 @@
 #include "pce/hw/cmos.h"
 #include "pce/hw/fdc.h"
 #include "pce/hw/hdc.h"
+#include "pce/hw/i8042_ps2.h"
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
 #include "pce/hw/pcspeaker.h"
-#include "pce/hw/i8042_ps2.h"
 #include "pce/systems/pcbase.h"
 
 class ByteStream;
@@ -28,7 +28,7 @@ public:
 
   const char* GetSystemName() const override { return "AMI 386"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
-  void Initialize() override;
+  bool Initialize() override;
   void Reset() override;
 
   auto GetFDDController() const { return m_fdd_controller; }

@@ -113,13 +113,14 @@ FDC::FDC(DMAController* dma) : m_dma(dma), m_clock("Floppy Controller", CLOCK_FR
 
 FDC::~FDC() {}
 
-void FDC::Initialize(System* system, Bus* bus)
+bool FDC::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_clock.SetManager(system->GetTimingManager());
   ConnectIOPorts(bus);
 
   m_command_event = m_clock.NewEvent("Floppy Command", 1, std::bind(&FDC::EndCommand, this), false);
+  return true;
 }
 
 void FDC::Reset()

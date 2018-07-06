@@ -17,10 +17,10 @@ public:
   i8253_PIT();
   ~i8253_PIT();
 
-  virtual void Initialize(System* system, Bus* bus) override;
-  virtual void Reset() override;
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  bool Initialize(System* system, Bus* bus) override;
+  void Reset() override;
+  bool LoadState(BinaryReader& reader) override;
+  bool SaveState(BinaryWriter& writer) override;
 
   // Gets the gate input state of a channel.
   bool GetChannelGateInput(size_t channel_index);

@@ -34,9 +34,10 @@ Bus::~Bus()
   delete[] m_ram_ptr;
 }
 
-void Bus::Initialize(System* system, Bus* bus)
+bool Bus::Initialize(System* system, Bus* bus)
 {
   m_system = system;
+  return true;
 }
 
 void Bus::Reset()

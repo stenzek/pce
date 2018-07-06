@@ -29,10 +29,10 @@ public:
 
   bool SetBIOSROM(ByteStream* stream);
 
-  virtual void Initialize(System* system, Bus* bus) override;
-  virtual void Reset() override;
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  bool Initialize(System* system, Bus* bus) override;
+  void Reset() override;
+  bool LoadState(BinaryReader& reader) override;
+  bool SaveState(BinaryWriter& writer) override;
 
 private:
   void ConnectIOPorts();

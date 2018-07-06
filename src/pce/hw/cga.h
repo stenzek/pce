@@ -34,10 +34,10 @@ public:
   const uint8* GetVRAM() const { return m_vram; }
   uint8* GetVRAM() { return m_vram; }
 
-  virtual void Initialize(System* system, Bus* bus) override;
-  virtual void Reset() override;
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  bool Initialize(System* system, Bus* bus) override;
+  void Reset() override;
+  bool LoadState(BinaryReader& reader) override;
+  bool SaveState(BinaryWriter& writer) override;
 
 private:
   uint32 GetBorderColor() const;

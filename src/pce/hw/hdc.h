@@ -93,10 +93,10 @@ public:
   HDC(CHANNEL channel);
   ~HDC();
 
-  virtual void Initialize(System* system, Bus* bus) override;
-  virtual void Reset() override;
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  bool Initialize(System* system, Bus* bus) override;
+  void Reset() override;
+  bool LoadState(BinaryReader& reader) override;
+  bool SaveState(BinaryWriter& writer) override;
 
   bool IsDrivePresent(uint32 number) const { return (number < MAX_DRIVES && m_drives[number]); }
   uint32 GetDriveCount() const;

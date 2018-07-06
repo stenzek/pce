@@ -21,12 +21,14 @@ PC_AMI_386::PC_AMI_386(HostInterface* host_interface, CPU_X86::Model model /* = 
 
 PC_AMI_386::~PC_AMI_386() {}
 
-void PC_AMI_386::Initialize()
+bool PC_AMI_386::Initialize()
 {
-  PCBase::Initialize();
+  if (!PCBase::Initialize())
+    return false;
 
   ConnectSystemIOPorts();
   SetCMOSVariables();
+  return true;
 }
 
 void PC_AMI_386::Reset()

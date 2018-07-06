@@ -18,7 +18,7 @@ i8042_PS2::i8042_PS2() : m_clock("8042 Keyboard Controller", 1000000.0f) {}
 
 i8042_PS2::~i8042_PS2() {}
 
-void i8042_PS2::Initialize(System* system, Bus* bus)
+bool i8042_PS2::Initialize(System* system, Bus* bus)
 {
   m_system = system;
 
@@ -40,6 +40,8 @@ void i8042_PS2::Initialize(System* system, Bus* bus)
     this, std::bind(&i8042_PS2::OnHostMousePositionChanged, this, std::placeholders::_1, std::placeholders::_2));
   m_system->GetHostInterface()->AddMouseButtonChangeCallback(
     this, std::bind(&i8042_PS2::OnHostMouseButtonChanged, this, std::placeholders::_1, std::placeholders::_2));
+
+  return true;
 }
 
 void i8042_PS2::Reset()

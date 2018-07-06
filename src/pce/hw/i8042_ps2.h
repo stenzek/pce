@@ -16,7 +16,7 @@ public:
   i8042_PS2();
   ~i8042_PS2();
 
-  void Initialize(System* system, Bus* bus) override;
+  bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;

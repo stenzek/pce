@@ -62,12 +62,13 @@ SoundBlaster::SoundBlaster(DMAController* dma_controller, Type type /* = Type::S
 
 SoundBlaster::~SoundBlaster() {}
 
-void SoundBlaster::Initialize(System* system, Bus* bus)
+bool SoundBlaster::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_clock.SetManager(system->GetTimingManager());
 
-  m_ymf262.Initialize(system);
+  if (!m_ymf262.Initialize(system))
+    return false;
 
   // IO port connections
   // Present in all sound blaster models
@@ -130,6 +131,8 @@ void SoundBlaster::Initialize(System* system, Bus* bus)
                                         std::bind(&SoundBlaster::DMAWriteCallback, this, std::placeholders::_1,
                                                   std::placeholders::_2, std::placeholders::_3, true));
   }
+
+  return true;
 }
 
 void SoundBlaster::Reset()

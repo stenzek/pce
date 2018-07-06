@@ -49,7 +49,7 @@ bool ET4000::SetBIOSROM(ByteStream* stream)
   return true;
 }
 
-void ET4000::Initialize(System* system, Bus* bus)
+bool ET4000::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_bus = bus;
@@ -61,6 +61,7 @@ void ET4000::Initialize(System* system, Bus* bus)
 
   // Retrace event will be scheduled after timing is calculated.
   m_retrace_event = m_clock.NewEvent("Retrace", 1, std::bind(&ET4000::Render, this), false);
+  return true;
 }
 
 void ET4000::Reset()

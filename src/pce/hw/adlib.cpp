@@ -14,9 +14,10 @@ AdLib::AdLib() : m_chip(YMF262::Mode::OPL2, "AdLib ") {}
 
 AdLib::~AdLib() {}
 
-void AdLib::Initialize(System* system, Bus* bus)
+bool AdLib::Initialize(System* system, Bus* bus)
 {
-  m_chip.Initialize(system);
+  if (!m_chip.Initialize(system))
+    return false;
 
   // IO port connections
   for (uint32 i = 0x0388; i <= 0x0399; i++)
@@ -25,6 +26,8 @@ void AdLib::Initialize(System* system, Bus* bus)
     bus->ConnectIOPortWrite(i, this,
                             std::bind(&AdLib::IOPortWrite, this, std::placeholders::_1, std::placeholders::_2));
   }
+
+  return true;
 }
 
 void AdLib::Reset()

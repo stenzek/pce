@@ -17,7 +17,7 @@ i8237_DMA::i8237_DMA() : m_clock("i8237 DMA Controller", 4772726) // 4.773 MHz
 
 i8237_DMA::~i8237_DMA() {}
 
-void i8237_DMA::Initialize(System* system, Bus* bus)
+bool i8237_DMA::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_bus = bus;
@@ -44,6 +44,7 @@ void i8237_DMA::Initialize(System* system, Bus* bus)
     RescheduleTickEvent();
   };
   m_tick_event = m_clock.NewEvent("Tick", 1, std::move(tick_callback), HasActiveTransfer());
+  return true;
 }
 
 void i8237_DMA::Reset()

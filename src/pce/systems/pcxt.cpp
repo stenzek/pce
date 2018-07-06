@@ -21,12 +21,14 @@ PCXT::PCXT(HostInterface* host_interface, float cpu_frequency /* = 1000000.0f */
 
 PCXT::~PCXT() {}
 
-void PCXT::Initialize()
+bool PCXT::Initialize()
 {
-  PCBase::Initialize();
+  if (!PCBase::Initialize())
+    return false;
 
   ConnectSystemIOPorts();
   SetSwitches();
+  return true;
 }
 
 void PCXT::Reset()

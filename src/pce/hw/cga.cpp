@@ -19,7 +19,7 @@ CGA::CGA() : m_clock("CGA", 3579545) {}
 
 CGA::~CGA() {}
 
-void CGA::Initialize(System* system, Bus* bus)
+bool CGA::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_display = system->GetHostInterface()->GetDisplay();
@@ -27,6 +27,7 @@ void CGA::Initialize(System* system, Bus* bus)
   ConnectIOPorts(bus);
 
   m_line_event = m_clock.NewEvent("Tick", 1, std::bind(&CGA::RenderLineEvent, this, std::placeholders::_2));
+  return true;
 }
 
 void CGA::Reset()

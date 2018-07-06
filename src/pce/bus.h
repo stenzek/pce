@@ -34,7 +34,7 @@ public:
   Bus(uint32 memory_address_bits);
   ~Bus();
 
-  void Initialize(System* system, Bus* bus) override;
+  bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
 
   bool LoadState(BinaryReader& reader) override;

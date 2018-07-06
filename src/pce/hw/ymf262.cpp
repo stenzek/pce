@@ -29,7 +29,7 @@ YMF262::~YMF262()
     m_system->GetHostInterface()->GetAudioMixer()->RemoveChannel(m_output_channel);
 }
 
-void YMF262::Initialize(System* system)
+bool YMF262::Initialize(System* system)
 {
   m_system = system;
   m_clock.SetManager(system->GetTimingManager());
@@ -37,7 +37,10 @@ void YMF262::Initialize(System* system)
   m_output_channel = m_system->GetHostInterface()->GetAudioMixer()->CreateChannel(
     "YMF262", OUTPUT_FREQUENCY, Audio::SampleFormat::Signed16, IsStereo() ? 2 : 1);
   if (!m_output_channel)
+  {
     Panic("Failed to create YMF262 output channel");
+    return false;
+  }
 
   // Render samples every 100ms, or when the level changes.
   m_render_sample_event = m_clock.NewEvent("Render Samples", CycleCount(OUTPUT_FREQUENCY / Audio::MixFrequency),
@@ -57,6 +60,8 @@ void YMF262::Initialize(System* system)
 #ifdef YMF262_USE_THREAD
   m_worker_thread.Initialize(TaskQueue::DefaultQueueSize, 1);
 #endif
+
+  return true;
 }
 
 void YMF262::Reset()

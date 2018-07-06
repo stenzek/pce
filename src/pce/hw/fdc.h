@@ -54,10 +54,10 @@ public:
   FDC(DMAController* dma);
   ~FDC();
 
-  virtual void Initialize(System* system, Bus* bus) override;
-  virtual void Reset() override;
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  bool Initialize(System* system, Bus* bus) override;
+  void Reset() override;
+  bool LoadState(BinaryReader& reader) override;
+  bool SaveState(BinaryWriter& writer) override;
 
   // Renamed due to winapi conflicts
   DriveType GetDriveType_(uint32 drive) { return m_drives[drive].drive_type; }
