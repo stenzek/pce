@@ -880,6 +880,11 @@ union DESCRIPTOR_ENTRY
   {
     return (is_memory_descriptor && memory.access.is_code && memory.access.code_conforming);
   }
+
+  bool IsReadableSegment() const
+  {
+    return (is_memory_descriptor && ((memory.access.is_code && memory.access.code_readable) || !memory.access.is_code));
+  }
 };
 
 // Visible segment register portion in protected mode

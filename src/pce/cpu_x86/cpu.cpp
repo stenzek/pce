@@ -1767,17 +1767,9 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
 
 void CPU::LoadLocalDescriptorTable(uint16 value)
 {
-  //     // We can't change task segments when CPL != 0
-  //     // TODO: This causes issues when nested in task switches
-  //     if (GetCPL() != 0)
-  //     {
-  //         RaiseException(Interrupt_GeneralProtectionFault, 0);
-  //         return;
-  //     }
-
   // If it's a null descriptor, just clear out the fields. LDT entries can't be used after this.
   SEGMENT_SELECTOR_VALUE selector = {value};
-  if (selector.index == 0)
+  if (selector.IsNullSelector())
   {
     m_ldt_location.base_address = 0;
     m_ldt_location.limit = 0;
@@ -1823,14 +1815,6 @@ void CPU::LoadLocalDescriptorTable(uint16 value)
 
 void CPU::LoadTaskSegment(uint16 value)
 {
-  //     // We can't change task segments when CPL != 0
-  //     // TODO: This causes issues when nested in task switches
-  //     if (GetCPL() != 0)
-  //     {
-  //         RaiseException(Interrupt_GeneralProtectionFault, 0);
-  //         return;
-  //     }
-
   // Has to be a GDT selector, and not a null selector
   SEGMENT_SELECTOR_VALUE selector = {value};
   if (selector.ti || selector.index == 0)
@@ -3247,31 +3231,20 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
       Panic("Failed to update descriptor entry that was successfully read");
   }
 
-  // Checks that should be performed:
-  // http://www.intel.com/design/pentium/MANUALS/24143004.pdf page 342.
-  // Also note:
-  //   Any errors detected in this step occur in the context of the new task. To an
-  //   exception handler, the first instruction of the new task appears not to have executed.
+  // Update TR with the new task
+  m_registers.TR = new_task;
+  m_tss_location.base_address = new_task_descriptor.tss.GetBase();
+  m_tss_location.limit = new_task_descriptor.tss.GetLimit();
+  m_tss_location.type = static_cast<DESCRIPTOR_TYPE>(new_task_descriptor.type.GetValue());
 
-  // Now we can load the new task in
-  // TODO: Validate segment descriptors before loading them
-  // TODO: set all segments to zero first?
-  // TODO: Loading LDT when not present should raise invalid TSS, not #NP.
+  // Load registers from TSS.
   uint32 new_EIP;
   if (new_task_is_32bit)
   {
-    // TODO: Flags should be loaded before segment registers because of V8086.
-    // CS has to be loaded first, because the other segments descriptor levels depend on it.
-    // This would cause a TLB flush.
-    LoadSpecialRegister(Reg32_CR3, new_task_state.ts32.CR3);
-    LoadLocalDescriptorTable(new_task_state.ts32.LDTR);
-    LoadSegmentRegister(Segment_CS, new_task_state.ts32.CS);
-    LoadSegmentRegister(Segment_ES, new_task_state.ts32.ES);
-    LoadSegmentRegister(Segment_SS, new_task_state.ts32.SS);
-    LoadSegmentRegister(Segment_DS, new_task_state.ts32.DS);
-    LoadSegmentRegister(Segment_FS, new_task_state.ts32.FS);
-    LoadSegmentRegister(Segment_GS, new_task_state.ts32.GS);
-    SetFlags(new_task_state.ts32.EFLAGS);
+    // CR3 is only loaded when paging is enabled.
+    if (IsPagingEnabled())
+      LoadSpecialRegister(Reg32_CR3, new_task_state.ts32.CR3);
+
     m_registers.EAX = new_task_state.ts32.EAX;
     m_registers.ECX = new_task_state.ts32.ECX;
     m_registers.EDX = new_task_state.ts32.EDX;
@@ -3280,18 +3253,21 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     m_registers.EBP = new_task_state.ts32.EBP;
     m_registers.ESI = new_task_state.ts32.ESI;
     m_registers.EDI = new_task_state.ts32.EDI;
-    new_EIP = new_task_state.ts32.EIP;
+    m_registers.LDTR = new_task_state.ts32.LDTR;
+    m_registers.CS = new_task_state.ts32.CS;
+    m_registers.ES = new_task_state.ts32.ES;
+    m_registers.SS = new_task_state.ts32.SS;
+    m_registers.DS = new_task_state.ts32.DS;
+    m_registers.FS = new_task_state.ts32.FS;
+    m_registers.GS = new_task_state.ts32.GS;
+    new_EIP = m_registers.EIP = new_task_state.ts32.EIP;
+
+    // We have to bring in the V8086 flag here.
+    m_registers.EFLAGS.VM = (new_task_state.ts32.EFLAGS & Flag_VM) != 0;
+    SetFlags(new_task_state.ts32.EFLAGS);
   }
   else
   {
-    LoadLocalDescriptorTable(new_task_state.ts16.LDTR);
-    LoadSegmentRegister(Segment_CS, new_task_state.ts16.CS);
-    LoadSegmentRegister(Segment_ES, new_task_state.ts16.ES);
-    LoadSegmentRegister(Segment_SS, new_task_state.ts16.SS);
-    LoadSegmentRegister(Segment_DS, new_task_state.ts16.DS);
-    LoadSegmentRegister(Segment_FS, 0);
-    LoadSegmentRegister(Segment_GS, 0);
-    SetFlags(ZeroExtend32(new_task_state.ts16.FLAGS));
     m_registers.EAX = UINT32_C(0xFFFF0000) | ZeroExtend32(new_task_state.ts16.AX);
     m_registers.ECX = UINT32_C(0xFFFF0000) | ZeroExtend32(new_task_state.ts16.CX);
     m_registers.EDX = UINT32_C(0xFFFF0000) | ZeroExtend32(new_task_state.ts16.DX);
@@ -3300,14 +3276,18 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     m_registers.EBP = UINT32_C(0xFFFF0000) | ZeroExtend32(new_task_state.ts16.BP);
     m_registers.ESI = UINT32_C(0xFFFF0000) | ZeroExtend32(new_task_state.ts16.SI);
     m_registers.EDI = UINT32_C(0xFFFF0000) | ZeroExtend32(new_task_state.ts16.DI);
-    new_EIP = ZeroExtend32(new_task_state.ts16.IP);
-  }
+    m_registers.LDTR = new_task_state.ts16.LDTR;
+    m_registers.CS = new_task_state.ts16.CS;
+    m_registers.ES = new_task_state.ts16.ES;
+    m_registers.SS = new_task_state.ts16.SS;
+    m_registers.DS = new_task_state.ts16.DS;
+    m_registers.FS = 0;
+    m_registers.GS = 0;
+    new_EIP = m_registers.EIP = ZeroExtend32(new_task_state.ts16.IP);
 
-  // Update TR with the new task
-  m_registers.TR = new_task;
-  m_tss_location.base_address = new_task_descriptor.tss.GetBase();
-  m_tss_location.limit = new_task_descriptor.tss.GetLimit();
-  m_tss_location.type = static_cast<DESCRIPTOR_TYPE>(new_task_descriptor.type.GetValue());
+    // Keep upper bits of flags. TODO: Is this correct?
+    SetFlags((m_registers.EFLAGS.bits & UINT32_C(0xFFFF0000)) | ZeroExtend32(new_task_state.ts16.FLAGS));
+  }
 
   // Set NT flag if we're nesting
   if (nested_task)
@@ -3323,6 +3303,149 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
   // task, as the outgoing task's registers are meaningless now.
   m_current_EIP = new_EIP;
   m_current_ESP = m_registers.ESP;
+
+  // Checks that should be performed:
+  // http://www.intel.com/design/pentium/MANUALS/24143004.pdf page 342.
+  // Also note:
+  //   Any errors detected in this step occur in the context of the new task. To an exception handler, the first
+  //   instruction of the new task appears not to have executed.
+  //
+  // We reorder some of the steps here for simplicity, and it is implementation-defined anyway.
+  // If we hit an exception here, the system will be in a pretty bad state anyway. "If an unrecoverable error occurs in
+  // step 12, architectural state may be corrupted, but an attempt will be made to handle the error in the prior
+  // execution environment." (Intel SDM Vol. 3A, 7-10)
+
+  // (5) LDTR is the first which is loaded/validated, since the others depend on it.
+  // (10) LDT of new task is present in memory.
+  SEGMENT_SELECTOR_VALUE ldt_selector = {m_registers.LDTR};
+  DESCRIPTOR_ENTRY ldt_descriptor;
+  if (!ldt_selector.IsNullSelector() &&
+      (ldt_selector.ti || !ReadDescriptorEntry(&ldt_descriptor, m_gdt_location, ldt_selector.index) ||
+       !ldt_descriptor.IsPresent() || !ldt_descriptor.IsSystemSegment() || ldt_descriptor.type != DESCRIPTOR_TYPE_LDT))
+  {
+    RaiseException(Interrupt_InvalidTaskStateSegment, ldt_selector.ValueForException());
+    return;
+  }
+  m_ldt_location.base_address = ldt_descriptor.ldt.GetBase();
+  m_ldt_location.limit = ldt_descriptor.ldt.GetLimit();
+
+  // (6) Code segment DPL matches selector RPL.
+  // NOTE: This doesn't mention conforming code segments. We'll handle them anyway.
+  SEGMENT_SELECTOR_VALUE segment_selectors[Segment_Count] = {{m_registers.ES}, {m_registers.CS}, {m_registers.SS},
+                                                             {m_registers.DS}, {m_registers.FS}, {m_registers.GS}};
+  DESCRIPTOR_ENTRY segment_descriptors[Segment_Count];
+  const SEGMENT_SELECTOR_VALUE& cs_selector = segment_selectors[Segment_CS];
+  DESCRIPTOR_ENTRY& cs_descriptor = segment_descriptors[Segment_CS];
+  if (cs_selector.IsNullSelector() || !ReadDescriptorEntry(&cs_descriptor, cs_selector) ||
+      (!cs_descriptor.IsConformingCodeSegment() && cs_selector.rpl != cs_descriptor.dpl))
+  {
+    RaiseException(Interrupt_InvalidTaskStateSegment, cs_selector.ValueForException());
+    return;
+  }
+
+  // (7) SS segment is valid.
+  const SEGMENT_SELECTOR_VALUE& ss_selector = segment_selectors[Segment_SS];
+  DESCRIPTOR_ENTRY& ss_descriptor = segment_descriptors[Segment_SS];
+  if (ss_selector.IsNullSelector() || !ReadDescriptorEntry(&ss_descriptor, ss_selector) ||
+      !ss_descriptor.IsWritableDataSegment())
+  {
+    RaiseException(Interrupt_InvalidTaskStateSegment, ss_selector.ValueForException());
+    return;
+  }
+
+  // (8) Stack segment is present in memory.
+  if (!ss_descriptor.IsPresent())
+  {
+    RaiseException(Interrupt_StackFault, ss_selector.ValueForException());
+    return;
+  }
+
+  // (9) Stack segment DPL matches CPL.
+  if (ss_descriptor.dpl != cs_selector.rpl)
+  {
+    RaiseException(Interrupt_InvalidTaskStateSegment, ss_selector.ValueForException());
+    return;
+  }
+
+  // (11) CS selector is valid.
+  if (!cs_descriptor.IsCodeSegment())
+  {
+    RaiseException(Interrupt_InvalidTaskStateSegment, cs_selector.ValueForException());
+    return;
+  }
+
+  // (12) Code segment is present in memory.
+  if (!cs_descriptor.IsPresent())
+  {
+    RaiseException(Interrupt_SegmentNotPresent, cs_selector.ValueForException());
+    return;
+  }
+
+  // (13) Stack segment DPL matches selector RPL.
+  if (ss_descriptor.dpl != ss_selector.rpl)
+  {
+    RaiseException(Interrupt_InvalidTaskStateSegment, ss_selector.ValueForException());
+    return;
+  }
+
+  // At this point, CS and SS are safe to load. This way we can get the updated CPL.
+  LoadSegmentRegister(Segment_CS, cs_selector.bits);
+  LoadSegmentRegister(Segment_SS, ss_selector.bits);
+
+  // (14) DS, ES, FS, GS selectors are valid.
+  static const Segment data_segments[] = {Segment_DS, Segment_ES, Segment_FS, Segment_GS};
+  for (Segment segment : data_segments)
+  {
+    const SEGMENT_SELECTOR_VALUE& selector = segment_selectors[segment];
+    DESCRIPTOR_ENTRY& descriptor = segment_descriptors[segment];
+    if (!selector.IsNullSelector() && !ReadDescriptorEntry(&descriptor, selector))
+    {
+      RaiseException(Interrupt_InvalidTaskStateSegment, selector.ValueForException());
+      return;
+    }
+  }
+
+  // (14) DS, ES, FS, GS segments are readable.
+  for (Segment segment : data_segments)
+  {
+    const SEGMENT_SELECTOR_VALUE& selector = segment_selectors[segment];
+    const DESCRIPTOR_ENTRY& descriptor = segment_descriptors[segment];
+    if (!selector.IsNullSelector() && !descriptor.IsReadableSegment())
+    {
+      RaiseException(Interrupt_InvalidTaskStateSegment, selector.ValueForException());
+      return;
+    }
+  }
+
+  // (15) DS, ES, FS, GS segments are present in memory.
+  for (Segment segment : data_segments)
+  {
+    const SEGMENT_SELECTOR_VALUE& selector = segment_selectors[segment];
+    const DESCRIPTOR_ENTRY& descriptor = segment_descriptors[segment];
+    if (!selector.IsNullSelector() && !descriptor.IsPresent())
+    {
+      RaiseException(Interrupt_SegmentNotPresent, selector.ValueForException());
+      return;
+    }
+  }
+
+  // (15) DS, ES, FS, GS segment DPL greater than or equal to CPL (unless conforming).
+  for (Segment segment : data_segments)
+  {
+    const SEGMENT_SELECTOR_VALUE& selector = segment_selectors[segment];
+    const DESCRIPTOR_ENTRY& descriptor = segment_descriptors[segment];
+    if (!selector.IsNullSelector() && descriptor.dpl < cs_selector.rpl && !descriptor.IsConformingCodeSegment())
+    {
+      RaiseException(Interrupt_InvalidTaskStateSegment, selector.ValueForException());
+      return;
+    }
+  }
+
+  // Now we can load the data segments. This should not fail.
+  LoadSegmentRegister(Segment_DS, m_registers.DS);
+  LoadSegmentRegister(Segment_ES, m_registers.ES);
+  LoadSegmentRegister(Segment_FS, m_registers.FS);
+  LoadSegmentRegister(Segment_GS, m_registers.GS);
 
   // Push error codes for task switches on exceptions.
   if (push_error_code)
