@@ -111,7 +111,7 @@ bool MainWindow::createTestSystem(uint32 cpu_model, uint32 ram_mb, const char* b
     new Systems::PCBochs(m_host_interface.get(), real_cpu_model, real_cpu_frequency, ram_mb * 1024 * 1024));
 
   if (!LoadBIOS(bios_filename, [this](ByteStream* stream) {
-        return m_system->AddROM(0xF0000, stream) && m_system->AddROM(0xFFFF0000u, stream);
+        return m_system->AddMMIOROMFromStream(0xF0000, stream) && m_system->AddMMIOROMFromStream(0xFFFF0000u, stream);
       }))
   {
     return false;

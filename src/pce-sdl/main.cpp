@@ -644,8 +644,6 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // LoadBIOS("romimages\\PCXTBIOS.BIN", [&system](ByteStream* s) { return system->AddROM(0xFE000, s); });
   // LoadBIOS("romimages\\386_ami.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });
   // LoadBIOS("romimages\\ami386.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });
-  LoadBIOS("romimages\\BIOS-bochs-legacy",
-           [&system](ByteStream* s) { return system->AddROM(0xF0000, s) && system->AddROM(0xFFFF0000u, s); });
 
   // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS33.img", 41, 16, 63);
   LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);

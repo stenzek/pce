@@ -30,7 +30,7 @@ public:
 
   CPU_X86::CPU* GetX86CPU() const { return static_cast<CPU_X86::CPU*>(m_cpu); }
 
-  bool AddROMFromFile(const char* filename, PhysicalMemoryAddress address);
+  bool AddMMIOROMFromFile(const char* filename, PhysicalMemoryAddress address);
 
 private:
   void AddComponents();

@@ -16,7 +16,7 @@ PCBase::~PCBase()
     it.mmio->Release();
 }
 
-bool PCBase::AddROM(PhysicalMemoryAddress address, ByteStream* stream)
+bool PCBase::AddMMIOROMFromStream(PhysicalMemoryAddress address, ByteStream* stream)
 {
   uint32 length = uint32(stream->GetSize());
   ROMBlock* rom = AllocateROM(address, length);
@@ -30,7 +30,30 @@ bool PCBase::AddROM(PhysicalMemoryAddress address, ByteStream* stream)
   return true;
 }
 
-bool PCBase::AddInterleavedROM(PhysicalMemoryAddress address, ByteStream* low_stream, ByteStream* high_stream)
+bool PCBase::AddMMIOROMFromFile(PhysicalMemoryAddress address, const char* filename, uint32 expected_size /* = 0 */)
+{
+  ByteStream* stream;
+  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
+  {
+    Log_ErrorPrintf("Failed to open ROM file: %s", filename);
+    return false;
+  }
+
+  const uint32 size = Truncate32(stream->GetSize());
+  if (expected_size != 0 && stream->GetSize() != expected_size)
+  {
+    Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);
+    stream->Release();
+    return false;
+  }
+
+  bool result = AddMMIOROMFromStream(address, stream);
+  stream->Release();
+  return result;
+}
+
+bool PCBase::AddInterleavedMMIOROMFromFile(PhysicalMemoryAddress address, ByteStream* low_stream,
+                                           ByteStream* high_stream)
 {
   uint32 low_length = uint32(low_stream->GetSize());
   uint32 high_length = uint32(high_stream->GetSize());
@@ -86,7 +109,7 @@ PhysicalMemoryAddress PCBase::GetTotalMemorySize() const
   return m_bus->GetTotalRAMInPageRange(0, m_bus->GetMemoryPageCount());
 }
 
-void PCBase::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory)
+void PCBase::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, bool reserve_uma)
 {
   // Allocate RAM
   DebugAssert(ram_size > 0);
@@ -96,6 +119,10 @@ void PCBase::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory)
 
   // Allocate 640KiB conventional memory at 0x00000000-0x0009FFFF
   MAKE_RAM_REGION(0x00000000, 0x0009FFFF);
+
+  // Is UMA reserved?
+  if (!reserve_uma)
+    MAKE_RAM_REGION(0x000A0000, 0x000FFFFF);
 
   // High memory area from 0x00100000 - 0x00EFFFFF (14MiB)
   MAKE_RAM_REGION(0x00100000, 0x00EFFFFF);

@@ -162,6 +162,11 @@ public:
   void SetCodeInvalidationCallback(CodeInvalidateCallback callback);
   void ClearCodeInvalidationCallback();
 
+  // Change page types.
+  void SetPageMemoryState(PhysicalMemoryAddress page_address, bool readable_memory, bool writable_memory);
+  void SetPagesMemoryState(PhysicalMemoryAddress start_address, uint32 size, bool readable_memory,
+                           bool writable_memory);
+
 protected:
   struct PhysicalMemoryPage
   {
@@ -169,16 +174,15 @@ protected:
     {
       kReadableMemory = 1,
       kWritableMemory = 2,
-      kCodeMemory = 4,
-      kMemoryMappedIO = 8,
+      kReadableMMIO = 4,
+      kWritableMMIO = 8,
       kRAMRegion = 16,
       kROMRegion = 32,
+      kCachedCode = 64
     };
-    union
-    {
-      byte* ram_ptr;
-      MMIO* mmio_handler;
-    };
+
+    byte* ram_ptr;
+    MMIO* mmio_handler;
     uint8 type;
   };
 

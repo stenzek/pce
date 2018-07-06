@@ -244,7 +244,12 @@ void System::Start(bool start_paused /* = false */)
   // We shouldn't be running when this is called.
   Assert(!m_thread.joinable() && m_state == State::Uninitialized);
   m_thread = std::thread([this, start_paused]() {
-    Initialize();
+    if (!Initialize())
+    {
+      Panic("System initialization failed.");
+      SetState(State::Uninitialized);
+      return;
+    }
     Reset();
     SetState(start_paused ? State::Paused : State::Running);
     Run(false);

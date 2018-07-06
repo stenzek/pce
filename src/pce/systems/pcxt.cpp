@@ -15,7 +15,7 @@ PCXT::PCXT(HostInterface* host_interface, float cpu_frequency /* = 1000000.0f */
 {
   m_cpu = new CPU_X86::CPU(CPU_X86::MODEL_8086, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
-  AllocatePhysicalMemory(memory_size, true);
+  AllocatePhysicalMemory(memory_size, true, true);
   AddComponents();
 }
 

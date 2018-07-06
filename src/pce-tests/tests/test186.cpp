@@ -9,7 +9,7 @@ static bool RunTest(CPUBackendType backend, const char* code_file, const char* e
 {
   auto system = std::make_unique<TestPCSystem>(CPU_X86::MODEL_186, 1000000.0f, backend, 1024 * 1024);
 
-  if (!system->AddROMFromFile(code_file, 0xF0000))
+  if (!system->AddMMIOROMFromFile(code_file, 0xF0000))
     return false;
 
   PODArray<byte> expected_buffer;

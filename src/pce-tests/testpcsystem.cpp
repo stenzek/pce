@@ -61,7 +61,7 @@ bool TestPCSystem::Initialize()
   return true;
 }
 
-bool TestPCSystem::AddROMFromFile(const char* filename, PhysicalMemoryAddress address)
+bool TestPCSystem::AddMMIOROMFromFile(const char* filename, PhysicalMemoryAddress address)
 {
   ByteStream* stream;
   if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))

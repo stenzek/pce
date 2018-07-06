@@ -83,8 +83,8 @@ bool Bus::SaveState(BinaryWriter& writer)
 
 void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write)
 {
-#if 0
-  static const uint32 check_addresses[] = {0x17c0c, 4, 0x1233cc, 4};
+#if 1
+  static const uint32 check_addresses[] = {0x0003A99D, 4};
 
   uint32 v_start = address;
   uint32 v_end = address + size;
@@ -97,7 +97,7 @@ void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, b
     if ((v_start >= a_start && v_end <= a_end) || (a_start >= v_start && a_end <= v_end))
     {
       Log_WarningPrintf("Mem BP %08X while %s %08X", a_start, is_write ? "writing" : "reading", v_start);
-      //m_system->SetState(System::State::Paused);
+      // m_system->SetState(System::State::Paused);
       break;
     }
   }
@@ -403,7 +403,7 @@ void Bus::ReadMemoryBlock(PhysicalMemoryAddress address, uint32 length, void* de
       continue;
     }
 
-    if (page.type & PhysicalMemoryPage::kMemoryMappedIO)
+    if (page.type & PhysicalMemoryPage::kReadableMMIO)
     {
       // Slow path for MMIO.
       MMIO* const handler = page.mmio_handler;
@@ -480,7 +480,7 @@ void Bus::WriteMemoryBlock(PhysicalMemoryAddress address, uint32 length, const v
       continue;
     }
 
-    if (page.type & PhysicalMemoryPage::kMemoryMappedIO)
+    if (page.type & PhysicalMemoryPage::kWritableMMIO)
     {
       // Slow path for MMIO.
       MMIO* const handler = page.mmio_handler;
@@ -615,7 +615,6 @@ byte* Bus::CreateROMRegion(PhysicalMemoryAddress address, uint32 size)
   for (uint32 current_page = start_page; current_page < end_page; current_page++)
   {
     PhysicalMemoryPage* page = &m_physical_memory_pages[current_page];
-    Assert(!page->ram_ptr);
     page->ram_ptr = rom_current_ptr;
     page->type = PhysicalMemoryPage::kReadableMemory | PhysicalMemoryPage::kROMRegion;
     rom_current_ptr += MEMORY_PAGE_SIZE;
@@ -638,6 +637,7 @@ bool Bus::CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress ad
   if (expected_size != 0 && stream->GetSize() != expected_size)
   {
     Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);
+    stream->Release();
     return false;
   }
 
@@ -647,9 +647,11 @@ bool Bus::CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress ad
   if (!stream->Read2(ptr, size))
   {
     Log_ErrorPrintf("Failed to read %u bytes from ROM file %s", size, filename);
+    stream->Release();
     return false;
   }
 
+  stream->Release();
   return true;
 }
 
@@ -708,7 +710,7 @@ void Bus::RegisterMMIO(MMIO* mmio)
   Assert((mmio->GetSize() & uint32(sizeof(uint32) - 1)) == 0);
 
   auto callback = [this, mmio](uint32 page_number, PhysicalMemoryPage* page) {
-    if (page->type == PhysicalMemoryPage::kMemoryMappedIO)
+    if (page->mmio_handler)
     {
       MMIO* splitter = CreateMMIOSplitter(page->mmio_handler, mmio);
       page->mmio_handler->Release();
@@ -716,10 +718,13 @@ void Bus::RegisterMMIO(MMIO* mmio)
       return;
     }
 
-    if (page->type & PhysicalMemoryPage::kReadableMemory)
-      Log_WarningPrintf("Removing RAM page at address 0x%08X for MMIO page", unsigned(page_number * MEMORY_PAGE_SIZE));
+    if (page->type & (PhysicalMemoryPage::kReadableMemory | PhysicalMemoryPage::kWritableMemory))
+    {
+      Log_WarningPrintf("Unmapping RAM page at address 0x%08X for MMIO page", unsigned(page_number * MEMORY_PAGE_SIZE));
+      page->type &= ~(PhysicalMemoryPage::kReadableMemory | PhysicalMemoryPage::kWritableMemory);
+    }
 
-    page->type = PhysicalMemoryPage::kMemoryMappedIO;
+    page->type |= PhysicalMemoryPage::kReadableMMIO | PhysicalMemoryPage::kWritableMMIO;
     page->mmio_handler = mmio;
     mmio->AddRef();
   };
@@ -732,7 +737,7 @@ bool Bus::IsCachablePage(const PhysicalMemoryPage& page)
   if (page.type & PhysicalMemoryPage::kReadableMemory)
     return true;
 
-  if (page.type & PhysicalMemoryPage::kMemoryMappedIO)
+  if (page.type & PhysicalMemoryPage::kReadableMMIO)
     return page.mmio_handler->IsCachable();
 
   return false;
@@ -747,7 +752,7 @@ bool Bus::IsCachablePage(PhysicalMemoryAddress address) const
 
 bool Bus::IsWritablePage(const PhysicalMemoryPage& page)
 {
-  if (page.type & (PhysicalMemoryPage::kWritableMemory | PhysicalMemoryPage::kMemoryMappedIO))
+  if (page.type & (PhysicalMemoryPage::kWritableMemory | PhysicalMemoryPage::kWritableMMIO))
     return true;
 
   return false;
@@ -764,20 +769,20 @@ void Bus::MarkPageAsCode(PhysicalMemoryAddress address)
 {
   uint32 page_number = address / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
-  m_physical_memory_pages[page_number].type |= PhysicalMemoryPage::kCodeMemory;
+  m_physical_memory_pages[page_number].type |= PhysicalMemoryPage::kCachedCode;
 }
 
 void Bus::UnmarkPageAsCode(PhysicalMemoryAddress address)
 {
   uint32 page_number = address / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
-  m_physical_memory_pages[page_number].type &= ~PhysicalMemoryPage::kCodeMemory;
+  m_physical_memory_pages[page_number].type &= ~PhysicalMemoryPage::kCachedCode;
 }
 
 void Bus::ClearPageCodeFlags()
 {
   for (uint32 i = 0; i < m_num_physical_memory_pages; i++)
-    m_physical_memory_pages[i].type &= ~PhysicalMemoryPage::kCodeMemory;
+    m_physical_memory_pages[i].type &= ~PhysicalMemoryPage::kCachedCode;
 }
 
 void Bus::SetCodeInvalidationCallback(CodeInvalidateCallback callback)
@@ -788,6 +793,55 @@ void Bus::SetCodeInvalidationCallback(CodeInvalidateCallback callback)
 void Bus::ClearCodeInvalidationCallback()
 {
   m_code_invalidate_callback = [](PhysicalMemoryAddress) {};
+}
+
+void Bus::SetPageMemoryState(PhysicalMemoryAddress page_address, bool readable_memory, bool writable_memory)
+{
+  PhysicalMemoryPage& page = m_physical_memory_pages[page_address / MEMORY_PAGE_SIZE];
+  DebugAssert((page_address % MEMORY_PAGE_SIZE) == 0);
+
+  // If it's code, we need to invalidate it.
+  // TODO: This is only really required if we change states..
+  if (page.type & PhysicalMemoryPage::kCachedCode)
+    m_code_invalidate_callback(page_address & MEMORY_PAGE_MASK);
+
+  if (readable_memory)
+  {
+    page.type &= ~(PhysicalMemoryPage::kReadableMMIO);
+    if (page.ram_ptr && page.type & (PhysicalMemoryPage::kRAMRegion | PhysicalMemoryPage::kROMRegion))
+      page.type |= PhysicalMemoryPage::kReadableMemory;
+  }
+  else
+  {
+    page.type &= ~(PhysicalMemoryPage::kReadableMemory);
+    if (page.mmio_handler)
+      page.type |= PhysicalMemoryPage::kReadableMMIO;
+  }
+
+  if (writable_memory)
+  {
+    // Only enable writes if it's RAM, not virtual ROM.
+    page.type &= ~(PhysicalMemoryPage::kWritableMMIO);
+    if (page.ram_ptr && page.type & PhysicalMemoryPage::kRAMRegion)
+      page.type |= PhysicalMemoryPage::kWritableMemory;
+  }
+  else
+  {
+    page.type &= ~(PhysicalMemoryPage::kWritableMemory);
+    if (page.mmio_handler)
+      page.type |= PhysicalMemoryPage::kWritableMMIO;
+  }
+}
+
+void Bus::SetPagesMemoryState(PhysicalMemoryAddress start_address, uint32 size, bool readable_memory,
+                              bool writable_memory)
+{
+  const uint32 num_pages = (size + (MEMORY_PAGE_SIZE - 1)) / MEMORY_PAGE_SIZE;
+  DebugAssert((start_address % MEMORY_PAGE_SIZE) == 0);
+
+  uint32 current_page = start_address & MEMORY_PAGE_MASK;
+  for (uint32 i = 0; i < num_pages; i++, current_page += MEMORY_PAGE_SIZE)
+    SetPageMemoryState(current_page, readable_memory, writable_memory);
 }
 
 Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)
@@ -813,7 +867,7 @@ Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)
       continue;
     }
 
-    if (page.type & PhysicalMemoryPage::kMemoryMappedIO)
+    if (page.type & PhysicalMemoryPage::kReadableMMIO)
     {
       // Slow path for MMIO.
       MMIO* const handler = page.mmio_handler;
@@ -877,7 +931,7 @@ bool Bus::IsReadableAddress(PhysicalMemoryAddress address, uint32 size) const
   if (page.type & PhysicalMemoryPage::kReadableMemory)
     return true;
 
-  if (page.type & PhysicalMemoryPage::kMemoryMappedIO && address >= page.mmio_handler->GetStartAddress() &&
+  if (page.type & PhysicalMemoryPage::kReadableMMIO && address >= page.mmio_handler->GetStartAddress() &&
       (address + size - 1) <= page.mmio_handler->GetEndAddress())
   {
     return true;
@@ -895,7 +949,7 @@ bool Bus::IsWritableAddress(PhysicalMemoryAddress address, uint32 size) const
   if (page.type & PhysicalMemoryPage::kWritableMemory)
     return true;
 
-  if (page.type & PhysicalMemoryPage::kMemoryMappedIO && address >= page.mmio_handler->GetStartAddress() &&
+  if (page.type & PhysicalMemoryPage::kWritableMMIO && address >= page.mmio_handler->GetStartAddress() &&
       (address + size - 1) <= page.mmio_handler->GetEndAddress())
   {
     return true;

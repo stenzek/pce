@@ -15,7 +15,7 @@ PCBochs::PCBochs(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X8
 {
   m_cpu = new CPU_X86::CPU(model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
-  AllocatePhysicalMemory(memory_size, false);
+  AllocatePhysicalMemory(memory_size, false, true);
   AddComponents();
 }
 

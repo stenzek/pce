@@ -16,8 +16,8 @@ static void RunTest386(CPUBackendType cpu_backend)
 
   auto system = std::make_unique<TestPCSystem>(CPU_X86::MODEL_386, 4000000.0f, cpu_backend, 1024 * 1024);
 
-  EXPECT_TRUE(system->AddROMFromFile(image_file, 0xf0000u));
-  EXPECT_TRUE(system->AddROMFromFile(image_file, 0xffff0000u));
+  EXPECT_TRUE(system->AddMMIOROMFromFile(image_file, 0xf0000u));
+  EXPECT_TRUE(system->AddMMIOROMFromFile(image_file, 0xffff0000u));
 
   // POST Code Port
   system->GetBus()->ConnectIOPortWrite(
