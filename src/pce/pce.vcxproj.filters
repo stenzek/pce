@@ -111,6 +111,9 @@
     <ClCompile Include="hw\i8042_ps2.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="systems\pcali1429.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -247,6 +250,9 @@
     </ClInclude>
     <ClInclude Include="hw\i8042_ps2.h">
       <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\pcali1429.h">
+      <Filter>systems</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

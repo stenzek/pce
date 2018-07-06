@@ -47,6 +47,7 @@
     <ClCompile Include="hw\soundblaster.cpp" />
     <ClCompile Include="hw\xt_ppi.cpp" />
     <ClCompile Include="systems\pcami386.cpp" />
+    <ClCompile Include="systems\pcali1429.cpp" />
     <ClCompile Include="thirdparty\dosbox\dbopl.cpp" />
     <ClCompile Include="timing.cpp" />
     <ClCompile Include="host_interface.cpp" />
@@ -102,6 +103,7 @@
     <ClInclude Include="hw\soundblaster.h" />
     <ClInclude Include="hw\xt_ppi.h" />
     <ClInclude Include="systems\pcami386.h" />
+    <ClInclude Include="systems\pcali1429.h" />
     <ClInclude Include="thirdparty\dosbox\dbopl.h" />
     <ClInclude Include="timing.h" />
     <ClInclude Include="host_interface.h" />

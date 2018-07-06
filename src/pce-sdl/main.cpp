@@ -33,6 +33,7 @@
 #include "pce/hw/vga.h"
 #include "pce/mmio.h"
 #include "pce/system.h"
+#include "pce/systems/pcali1429.h"
 #include "pce/systems/pcami386.h"
 #include "pce/systems/pcat.h"
 #include "pce/systems/pcbochs.h"
@@ -587,11 +588,12 @@ static void TestBIOS(SDLHostInterface* host_interface)
 {
   // Systems::PCXT* system = new Systems::PCXT(host_interface, 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
   // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 1000000, 32 * 1024 * 1024);
-  Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 10000000, 32 * 1024 * 1024);
+  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 10000000, 32 * 1024 * 1024);
   // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 20000000, 32 * 1024 * 1024);
   // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 40000000, 32 * 1024 * 1024);
   // Systems::PC_AMI_386* system = new Systems::PC_AMI_386(host_interface, CPU_X86::MODEL_386, 4000000, 4 * 1024 *
   // 1024);
+  Systems::PCALI1429* system = new Systems::PCALI1429(host_interface, CPU_X86::MODEL_486, 10000000, 16 * 1024 * 1024);
 
   system->GetCPU()->SetBackend(CPUBackendType::Interpreter);
   // system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
@@ -610,7 +612,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
   system->AddComponent(vga);
 #endif
 
-#if 1
+#if 0
   // Adding a serial mouse to COM1, because why not
   HW::Serial* serial_port_COM1 = new HW::Serial(system->GetInterruptController(), HW::Serial::Model_16550);
   HW::SerialMouse* serial_mouse = new HW::SerialMouse(serial_port_COM1);
@@ -625,6 +627,14 @@ static void TestBIOS(SDLHostInterface* host_interface)
 #if 0
   // Sound blaster card
   system->AddComponent(new HW::SoundBlaster(system->GetDMAController(), HW::SoundBlaster::Type::SoundBlaster16));
+#endif
+#if 0
+  // cdrom
+  HW::CDROM* cdrom = new HW::CDROM();
+  system->AddComponent(cdrom);
+  system->GetHDDController()->AttachATAPIDevice(1, cdrom);
+  host_interface->AddDeviceFileCallback(
+    "CDROM", [&system, cdrom](const std::string& filename) { cdrom->InsertMedia(filename.c_str()); });
 #endif
 
   // system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_5_25);
@@ -671,14 +681,12 @@ static void TestBIOS(SDLHostInterface* host_interface)
 
   {
     ByteStream* stream;
-    if (ByteStream_OpenFileStream("savestate.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
+    if (ByteStream_OpenFileStream("savestate_4.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
     {
       Log_InfoPrintf("Loading state...");
       system->LoadState(stream);
       system->QueueExternalEvent([&]() { system->SetState(System::State::Running); });
-      host_interface->InjectKeyEvent(GenScanCode_LeftControl, false);
-      host_interface->InjectKeyEvent(GenScanCode_LeftAlt, false);
-      host_interface->InjectKeyEvent(GenScanCode_Y, true);
+      //host_interface->InjectKeyEvent(GenScanCode_Return, true);
       stream->Release();
     }
   }
@@ -721,7 +729,8 @@ int main(int argc, char* argv[])
   // set log flags
   // g_pLog->SetConsoleOutputParams(true);
   g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_PROFILE);
-  g_pLog->SetConsoleOutputParams(true, "CPU_X86::CPU Bus HW::Serial", LOGLEVEL_PROFILE);
+  // g_pLog->SetConsoleOutputParams(true, "Bus HW::Serial", LOGLEVEL_PROFILE);
+  // g_pLog->SetConsoleOutputParams(true, "CPU_X86::CPU Bus HW::Serial", LOGLEVEL_PROFILE);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_INFO);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_WARNING);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_ERROR);
