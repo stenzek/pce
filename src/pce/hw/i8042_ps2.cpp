@@ -486,6 +486,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     {
       Log_DevPrintf("KBC disable keyboard");
       m_configuration_byte.port_1_clock_disable = true;
+      UpdateEvents();
       return true;
     }
 
@@ -493,6 +494,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     {
       Log_DevPrintf("KBC enable keyboard");
       m_configuration_byte.port_1_clock_disable = false;
+      UpdateEvents();
       return true;
     }
 
