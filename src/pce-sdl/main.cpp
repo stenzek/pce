@@ -23,10 +23,10 @@
 #include "pce/hw/cmos.h"
 #include "pce/hw/et4000.h"
 #include "pce/hw/fdc.h"
+#include "pce/hw/i8042_ps2.h"
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
-#include "pce/hw/ps2.h"
 #include "pce/hw/serial.h"
 #include "pce/hw/serial_mouse.h"
 #include "pce/hw/soundblaster.h"
@@ -476,11 +476,31 @@ void SDLHostInterface::RenderImGui()
 
     if (ImGui::BeginMenu("Devices"))
     {
+      if (ImGui::MenuItem("Capture Mouse") && !IsMouseGrabbed())
+        GrabMouse();
+
+      ImGui::Separator();
+
+      if (ImGui::MenuItem("Send CTRL+ALT+DEL"))
+      {
+        // This has no delay, but the scancodes will still get enqueued.
+        InjectKeyEvent(GenScanCode_LeftControl, true);
+        InjectKeyEvent(GenScanCode_LeftAlt, true);
+        InjectKeyEvent(GenScanCode_Delete, true);
+        InjectKeyEvent(GenScanCode_LeftControl, false);
+        InjectKeyEvent(GenScanCode_LeftAlt, false);
+        InjectKeyEvent(GenScanCode_Delete, false);
+        ReportMessage("Sent CTRL+ALT+DEL to machine.");
+      }
+
+      ImGui::Separator();
+
       for (const DeviceFileEntry& dfe : m_device_files)
       {
         if (ImGui::MenuItem(dfe.title))
           m_current_device_file = &dfe;
       }
+
       ImGui::EndMenu();
     }
 
