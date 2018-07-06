@@ -53,7 +53,18 @@ public:
   // Returns the amount of RAM allocated to this region.
   // Start and end have to be page-aligned.
   uint32 CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end);
-  void MirrorRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end, PhysicalMemoryAddress mirror_start);
+
+  // Creates an empty ROM region, and returns the pointer.
+  byte* CreateROMRegion(PhysicalMemoryAddress address, uint32 size);
+
+  // Creates a ROM region from an external file. Set size to 0 if the size is dynamic.
+  bool CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size = 0);
+
+  // Creates a ROM region from a buffer.
+  bool CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address);
+
+  // Creates a mirror of RAM/ROM. Currently does not work for MMIO.
+  void MirrorRegion(PhysicalMemoryAddress start, uint32 size, PhysicalMemoryAddress mirror_start);
 
   // IO port read/write callbacks
   using IOPortReadByteHandler = std::function<void(uint32 port, uint8* value)>;
@@ -159,7 +170,9 @@ protected:
       kReadableMemory = 1,
       kWritableMemory = 2,
       kCodeMemory = 4,
-      kMemoryMappedIO = 8
+      kMemoryMappedIO = 8,
+      kRAMRegion = 16,
+      kROMRegion = 32,
     };
     union
     {
@@ -220,6 +233,16 @@ protected:
   byte* m_ram_ptr = nullptr;
   uint32 m_ram_size = 0;
   uint32 m_ram_assigned = 0;
+
+  // List of ROM regions allocated.
+  // This does not include mirrors.
+  struct ROMRegion
+  {
+    std::unique_ptr<byte[]> data;
+    PhysicalMemoryAddress mapped_address;
+    uint32 size;
+  };
+  std::vector<ROMRegion> m_rom_regions;
 };
 
 #include "pce/bus.inl"

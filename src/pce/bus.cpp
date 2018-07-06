@@ -558,7 +558,7 @@ PhysicalMemoryAddress Bus::GetTotalRAMInPageRange(uint32 start_page, uint32 end_
   for (uint32 i = start_page; i < end_page; i++)
   {
     const PhysicalMemoryPage& page = m_physical_memory_pages[i];
-    if (page.type & PhysicalMemoryPage::kReadableMemory)
+    if (page.type & PhysicalMemoryPage::kRAMRegion)
       size += MEMORY_PAGE_SIZE;
   }
 
@@ -588,13 +588,97 @@ uint32 Bus::CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress e
     PhysicalMemoryPage* page = &m_physical_memory_pages[current_page];
     Assert(!page->ram_ptr && remaining_ram >= MEMORY_PAGE_SIZE);
     page->ram_ptr = m_ram_ptr + m_ram_assigned;
-    page->type = PhysicalMemoryPage::kReadableMemory | PhysicalMemoryPage::kWritableMemory;
+    page->type =
+      PhysicalMemoryPage::kReadableMemory | PhysicalMemoryPage::kWritableMemory | PhysicalMemoryPage::kRAMRegion;
     m_ram_assigned += MEMORY_PAGE_SIZE;
     allocated_ram += MEMORY_PAGE_SIZE;
     remaining_ram -= MEMORY_PAGE_SIZE;
   }
 
   return allocated_ram;
+}
+
+byte* Bus::CreateROMRegion(PhysicalMemoryAddress address, uint32 size)
+{
+  // Round size up to next page boundary.
+  Assert((address % MEMORY_PAGE_SIZE) == 0);
+  ROMRegion rr;
+  rr.mapped_address = address;
+  rr.size = (size + (MEMORY_PAGE_SIZE - 1)) & ~(MEMORY_PAGE_SIZE - 1);
+  rr.data = std::make_unique<byte[]>(rr.size);
+
+  // Map to address space.
+  uint32 start_page = rr.mapped_address / MEMORY_PAGE_SIZE;
+  uint32 end_page = Truncate32((uint64(rr.mapped_address) + uint64(rr.size) + uint64(1)) / MEMORY_PAGE_SIZE);
+  byte* rom_start_ptr = rr.data.get();
+  byte* rom_current_ptr = rr.data.get();
+  for (uint32 current_page = start_page; current_page < end_page; current_page++)
+  {
+    PhysicalMemoryPage* page = &m_physical_memory_pages[current_page];
+    Assert(!page->ram_ptr);
+    page->ram_ptr = rom_current_ptr;
+    page->type = PhysicalMemoryPage::kReadableMemory | PhysicalMemoryPage::kROMRegion;
+    rom_current_ptr += MEMORY_PAGE_SIZE;
+  }
+
+  m_rom_regions.push_back(std::move(rr));
+  return rom_start_ptr;
+}
+
+bool Bus::CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size)
+{
+  ByteStream* stream;
+  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
+  {
+    Log_ErrorPrintf("Failed to open ROM file: %s", filename);
+    return false;
+  }
+
+  const uint32 size = Truncate32(stream->GetSize());
+  if (expected_size != 0 && stream->GetSize() != expected_size)
+  {
+    Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);
+    return false;
+  }
+
+  byte* ptr = CreateROMRegion(address, size);
+  AssertMsg(ptr, "allocating ROM region");
+
+  if (!stream->Read2(ptr, size))
+  {
+    Log_ErrorPrintf("Failed to read %u bytes from ROM file %s", size, filename);
+    return false;
+  }
+
+  return true;
+}
+
+bool Bus::CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address)
+{
+  byte* ptr = CreateROMRegion(address, size);
+  AssertMsg(ptr, "allocating ROM region");
+  std::memcpy(ptr, buffer, size);
+  return true;
+}
+
+void Bus::MirrorRegion(PhysicalMemoryAddress start, uint32 size, PhysicalMemoryAddress mirror_start)
+{
+  uint32 start_page = start / MEMORY_PAGE_SIZE;
+  uint32 end_page = Truncate32((uint64(start) + uint64(size) + uint64(1)) / MEMORY_PAGE_SIZE);
+  uint32 mirror_start_page = mirror_start / MEMORY_PAGE_SIZE;
+
+  for (uint32 current_src_page = start_page, current_dst_page = mirror_start_page; current_src_page < end_page;
+       current_src_page++, current_dst_page++)
+  {
+    PhysicalMemoryPage* src_page = &m_physical_memory_pages[current_src_page];
+    PhysicalMemoryPage* dst_page = &m_physical_memory_pages[current_dst_page];
+    if ((src_page->type & (PhysicalMemoryPage::kRAMRegion | PhysicalMemoryPage::kROMRegion)) == 0)
+      continue;
+
+    Assert(dst_page->type == 0);
+    dst_page->type = src_page->type;
+    dst_page->ram_ptr = src_page->ram_ptr;
+  }
 }
 
 template<typename T>
@@ -645,13 +729,13 @@ void Bus::RegisterMMIO(MMIO* mmio)
 
 bool Bus::IsCachablePage(const PhysicalMemoryPage& page)
 {
-  if (page.type & (PhysicalMemoryPage::kReadableMemory | PhysicalMemoryPage::kWritableMemory))
+  if (page.type & PhysicalMemoryPage::kReadableMemory)
     return true;
 
   if (page.type & PhysicalMemoryPage::kMemoryMappedIO)
     return page.mmio_handler->IsCachable();
 
-  return true;
+  return false;
 }
 
 bool Bus::IsCachablePage(PhysicalMemoryAddress address) const
