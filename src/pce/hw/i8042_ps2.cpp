@@ -465,6 +465,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     {
       Log_DevPrintf("KBC disable mouse");
       m_configuration_byte.port_2_clock_disable = true;
+      UpdateEvents();
       return true;
     }
 
@@ -472,6 +473,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     {
       Log_DevPrintf("KBC enable mouse");
       m_configuration_byte.port_2_clock_disable = false;
+      UpdateEvents();
       return true;
     }
 
