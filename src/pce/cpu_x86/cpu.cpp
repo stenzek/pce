@@ -954,6 +954,19 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
     }
     break;
 
+    case Reg32_TR3:
+    case Reg32_TR4:
+    case Reg32_TR5:
+    case Reg32_TR6:
+    case Reg32_TR7:
+    {
+      if (m_registers.reg32[reg] != value)
+        Log_DevPrintf("TR%u <- 0x%08X", uint32(reg - Reg32_TR3), value);
+
+      m_registers.reg32[reg] = value;
+    }
+    break;
+
     default:
       UnreachableCode();
       break;
