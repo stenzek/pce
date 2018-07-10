@@ -70,9 +70,9 @@ static bool ParseArguments(int argc, char* argv[])
     {
       const char* arg = argv[++i];
       if (arg[0] == '0' && arg[1] == 'x')
-        origin_address = Truncate32(strtol(arg, nullptr, 10));
+        origin_address = Truncate32(strtol(arg + 2, nullptr, 16));
       else
-        origin_address = Truncate32(strtol(arg, nullptr, 16));
+        origin_address = Truncate32(strtol(arg, nullptr, 10));
     }
     else if (CHECK_ARG_PARAM("-hex"))
     {
@@ -106,27 +106,31 @@ static bool ParseArguments(int argc, char* argv[])
   return true;
 }
 
-static void PrintInstruction(const CPU_X86::Instruction* instruction)
+static void PrintInstruction(const uint32 offset, const CPU_X86::Instruction* instruction)
 {
   SmallString hex_string;
   SmallString instr_string;
 
-  uint32 instruction_length = (instruction) ? instruction->length : 6;
-  for (uint32 i = 0; i < instruction_length && (instruction->address + i) < input_code.GetSize(); i++)
-    hex_string.AppendFormattedString("%02X ", ZeroExtend32(input_code[instruction->address + i]));
+  uint32 instruction_length = (instruction) ? instruction->length : 16;
+  for (uint32 i = 0; i < instruction_length && (offset + i) < input_code.GetSize(); i++)
+    hex_string.AppendFormattedString("%02X ", ZeroExtend32(input_code[offset + i]));
   for (uint32 i = instruction_length; i < 6; i++)
     hex_string.AppendString("   ");
 
   if (instruction)
   {
     CPU_X86::Decoder::DisassembleToString(instruction, &instr_string);
-    fprintf(stdout, "0x%08X | %s | %s\n", instruction->address, hex_string.GetCharArray(), instr_string.GetCharArray());
   }
   else
   {
-    fprintf(stderr, "Failed to decode instruction at offset 0x%08X\n", instruction->address);
+    fprintf(stderr, "Failed to decode instruction at address 0x%08X (offset 0x%08X)\n", origin_address + offset,
+            offset);
     fprintf(stderr, "Bytes at failure point: %s\n", hex_string.GetCharArray());
+    instr_string = "<decode error>";
   }
+
+  fprintf(stdout, "0x%08X | %s | %s\n", origin_address + offset, hex_string.GetCharArray(),
+          instr_string.GetCharArray());
 }
 
 static bool RunDisassembler()
@@ -144,16 +148,19 @@ static bool RunDisassembler()
 
   while (memory_stream->GetPosition() < memory_stream->GetSize() && !memory_stream->InErrorState())
   {
+    uint64 instruction_offset = memory_stream->GetPosition();
+
     CPU_X86::Instruction instruction;
     if (CPU_X86::Decoder::DecodeInstruction(&instruction, address_size, operand_size,
-                                            Truncate32(memory_stream->GetPosition()), memory_stream))
+                                            origin_address + Truncate32(instruction_offset), memory_stream))
     {
-      PrintInstruction(&instruction);
+      PrintInstruction(Truncate32(instruction_offset), &instruction);
     }
     else
     {
       // Skip one byte and try again
-      PrintInstruction(nullptr);
+      PrintInstruction(Truncate32(instruction_offset), nullptr);
+      memory_stream->SeekAbsolute(instruction_offset + 1);
       error = true;
     }
   }
