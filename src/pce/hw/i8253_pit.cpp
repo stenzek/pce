@@ -276,12 +276,12 @@ void i8253_PIT::WriteDataPort(uint32 channel_index, uint8 value)
   switch (channel->write_mode)
   {
     case ChannelAccessModeLSBOnly:
-      channel->reload_value = (channel->reload_value & 0xFF00) | ZeroExtend16(value);
+      channel->reload_value = ZeroExtend16(value);
       SetChannelReloadRegister(channel_index, channel->reload_value);
       break;
 
     case ChannelAccessModeMSBOnly:
-      channel->reload_value = (channel->reload_value & 0x00FF) | (ZeroExtend16(value) << 8);
+      channel->reload_value = ZeroExtend16(value) << 8;
       SetChannelReloadRegister(channel_index, channel->reload_value);
       break;
 
