@@ -115,6 +115,28 @@ void CPU::Reset()
   if (m_model >= MODEL_486)
     m_registers.CR0 |= CR0Bit_CD | CR0Bit_NW | CR0Bit_ET;
 
+  // Initial values of EDX.
+  switch (m_model)
+  {
+    case MODEL_386:
+      // 386SX - 2308, 386DX - 308
+      m_registers.EDX = 0x00000000;
+      break;
+
+    case MODEL_486:
+      // 486SX - 42A, 486SX2 - 45B, 486DX - 404, 486DX2 - 430, 486DX4 - 481
+      m_registers.EDX = 0x00000430;
+      break;
+
+    case MODEL_PENTIUM:
+      // P75/P90 - 524, P100 - 525, P120 - 526, P133-200 - 52C, PMMX - 543
+      m_registers.EDX = 0x0000052C;
+      break;
+
+    default:
+      break;
+  }
+
   // Start at privilege level 0
   SetCPL(0);
   m_halted = false;
