@@ -12,10 +12,6 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
   T value;
   address &= m_physical_memory_address_mask;
 
-#if defined(Y_BUILD_CONFIG_DEBUG) || defined(Y_BUILD_CONFIG_DEBUGFAST)
-  CheckForMemoryBreakpoint(address, sizeof(T), false);
-#endif
-
   // Since we allocate the page array based on the address mask, this should never overflow.
   uint32 page_number = address / MEMORY_PAGE_SIZE;
   uint32 page_offset = address % MEMORY_PAGE_SIZE;
@@ -26,11 +22,9 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
   if (page.type & PhysicalMemoryPage::kReadableMemory)
   {
     std::memcpy(&value, page.ram_ptr + page_offset, sizeof(T));
-    return value;
   }
-
   // Slow path - page is MMIO.
-  if (page.type & PhysicalMemoryPage::kReadableMMIO && address >= page.mmio_handler->GetStartAddress() &&
+  else if (page.type & PhysicalMemoryPage::kReadableMMIO && address >= page.mmio_handler->GetStartAddress() &&
       (address + sizeof(T) - 1) <= page.mmio_handler->GetEndAddress())
   {
 
@@ -45,11 +39,17 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
       page.mmio_handler->ReadQWord(address, reinterpret_cast<uint64*>(&value));
     else
       static_assert(false && "unknown type");
-
-    return value;
+  }
+  else
+  {
+    value = T(-1);
   }
 
-  return T(-1);
+#if defined(Y_BUILD_CONFIG_DEBUG) || defined(Y_BUILD_CONFIG_DEBUGFAST)
+  CheckForMemoryBreakpoint(address, sizeof(T), false, static_cast<uint32>(value));
+#endif
+
+  return value;
 }
 
 template<typename T>
@@ -63,7 +63,7 @@ void Bus::WriteMemoryTyped(PhysicalMemoryAddress address, T value)
   address &= m_physical_memory_address_mask;
 
 #if defined(Y_BUILD_CONFIG_DEBUG) || defined(Y_BUILD_CONFIG_DEBUGFAST)
-  CheckForMemoryBreakpoint(address, sizeof(T), true);
+  CheckForMemoryBreakpoint(address, sizeof(T), true, static_cast<uint32>(value));
 #endif
 
   // Since we allocate the page array based on the address mask, this should never overflow.

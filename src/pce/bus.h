@@ -211,7 +211,7 @@ protected:
   bool WriteMemoryT(PhysicalMemoryAddress address, T value);
 
   // Memory breakpoints
-  void CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write);
+  void CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write, uint32 value);
 
   // Obtain IO port connection for owner.
   IOPortConnection* GetIOPortConnectionForOwner(uint32 port, void* owner);

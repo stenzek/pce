@@ -81,10 +81,10 @@ bool Bus::SaveState(BinaryWriter& writer)
   return true;
 }
 
-void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write)
+void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write, uint32 value)
 {
-#if 1
-  static const uint32 check_addresses[] = {0x0003A99D, 4};
+#if 0
+  static const uint32 check_addresses[] = {0x00000f34, 2, 0xF96, 2};
 
   uint32 v_start = address;
   uint32 v_end = address + size;
@@ -96,7 +96,10 @@ void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, b
 
     if ((v_start >= a_start && v_end <= a_end) || (a_start >= v_start && a_end <= v_end))
     {
-      Log_WarningPrintf("Mem BP %08X while %s %08X", a_start, is_write ? "writing" : "reading", v_start);
+      if (is_write)
+        Log_WarningPrintf("Mem BP %08X while writing %08X (value 0x%08X)", a_start, v_start, value);
+      else
+        Log_WarningPrintf("Mem BP %08X while reading %08X (value 0x%08X)", a_start, v_start, value);
       // m_system->SetState(System::State::Paused);
       break;
     }
