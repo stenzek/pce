@@ -22,7 +22,7 @@ public:
   bool SaveState(BinaryWriter& writer) override;
 
   // Input/output port updating from outside
-  using OutputPortWrittenCallback = std::function<void(uint8)>;
+  using OutputPortWrittenCallback = std::function<void(uint8, uint8, bool)>;
   void SetInputPort(uint8 value) { m_input_port = value; }
   uint8 GetOutputPort() const { return m_output_port.raw; }
   void SetOutputPort(uint8 value) { m_output_port.raw = value; }

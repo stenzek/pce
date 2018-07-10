@@ -51,7 +51,7 @@ void i8042_PS2::Reset()
   m_output_port.raw = 0;
   m_output_port.a20_gate = true;
   if (m_output_port_written_callback)
-    m_output_port_written_callback(m_output_port.raw);
+    m_output_port_written_callback(m_output_port.raw, 0, false);
 
   m_status_register.keyboard_unlocked = true;
   m_status_register.self_test_flag = false;
@@ -521,12 +521,13 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       if (!has_data)
         return false;
 
-      Log_DevPrintf("KBC write output port = 0x%02X", ZeroExtend32(data));
+      const uint8 old_value = m_output_port.raw;
+      Log_DevPrintf("KBC write output port: 0x%02X -> 0x%02X", ZeroExtend32(old_value), ZeroExtend32(data));
       m_output_port.raw = data;
 
       // This can control the A20 gate as a legacy method, so pass it to the system.
       if (m_output_port_written_callback)
-        m_output_port_written_callback(m_output_port.raw);
+        m_output_port_written_callback(m_output_port.raw, old_value, false);
 
       return true;
     }
@@ -605,10 +606,10 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       if (m_output_port_written_callback)
       {
         uint8 mask = (m_pending_command & 0x0F);
-        uint8 pulse_value = m_output_port.raw & ~mask;
+        uint8 pulse_value = m_output_port.raw | ~mask;
         uint8 restore_value = m_output_port.raw;
-        m_output_port_written_callback(pulse_value);
-        m_output_port_written_callback(restore_value);
+        m_output_port_written_callback(pulse_value, restore_value, true);
+        m_output_port_written_callback(restore_value, pulse_value, true);
       }
 
       return true;

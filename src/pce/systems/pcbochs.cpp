@@ -75,7 +75,7 @@ void PCBochs::ConnectSystemIOPorts()
   m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&PCBochs::IOWriteSystemControlPortB, this, std::placeholders::_2));
 
   // Connect the keyboard controller output port to the lower 2 bits of system control port A.
-  m_keyboard_controller->SetOutputPortWrittenCallback([this](uint8 value) {
+  m_keyboard_controller->SetOutputPortWrittenCallback([this](uint8 value, uint8 old_value, bool pulse) {
     // We're doing something wrong here, the BIOS resets the CPU almost immediately after booting?
     value &= ~uint8(0x01);
     IOWriteSystemControlPortA(value & 0x03);
@@ -188,7 +188,7 @@ void PCBochs::IOReadSystemControlPortB(uint8* value)
 
 void PCBochs::IOWriteSystemControlPortB(uint8 value)
 {
-  Log_DevPrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
+  Log_DevPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
 
   m_timer->SetChannelGateInput(2, !!(value & (1 << 0))); // Timer 2 gate input
   m_speaker->SetOutputEnabled(!!(value & (1 << 1)));     // Speaker data enable
