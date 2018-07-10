@@ -442,6 +442,10 @@ void CPU::ExecuteCycles(CycleCount cycles)
     // Execute instructions in the backend.
     m_backend->Execute();
   }
+
+  // If we had a long-running instruction (e.g. a long REP), set downcount to zero, as it'll likely be negative.
+  // This is safe, as any time-dependent events occur during CommitPendingCycles();
+  m_execution_downcount = std::max(m_execution_downcount, CycleCount(0));
 }
 
 void CPU::CommitPendingCycles()
