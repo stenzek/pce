@@ -13,6 +13,9 @@ public:
   virtual bool InitializePCIDevice(uint32 pci_bus_number, uint32 pci_device_number);
   virtual void Reset();
 
+  virtual bool LoadState(BinaryReader& reader) override;
+  virtual bool SaveState(BinaryWriter& writer) override;
+
   uint8 ReadConfigRegister(uint32 function, uint8 reg, uint8 index);
   void WriteConfigRegister(uint32 function, uint8 reg, uint8 index, uint8 value);
 
@@ -32,4 +35,7 @@ protected:
   };
 
   std::vector<ConfigSpace> m_config_space;
+
+private:
+  static const uint32 SERIALIZATION_ID = MakeSerializationID('P', 'C', 'I', '-');
 };

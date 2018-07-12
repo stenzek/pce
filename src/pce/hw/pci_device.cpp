@@ -1,4 +1,6 @@
 #include "pce/hw/pci_device.h"
+#include "YBaseLib/BinaryReader.h"
+#include "YBaseLib/BinaryWriter.h"
 
 PCIDevice::PCIDevice(uint16 vendor_id, uint16 device_id, uint32 num_functions /* = 1 */)
   : m_num_functions(num_functions)
@@ -28,6 +30,35 @@ void PCIDevice::Reset()
     for (uint32 j = 1; j < NUM_CONFIG_REGISTERS; j++)
       m_config_space[i].dwords[j] = 0;
   }
+}
+
+bool PCIDevice::LoadState(BinaryReader& reader)
+{
+  uint32 serialization_id;
+  if (!reader.SafeReadUInt32(&serialization_id) || serialization_id != SERIALIZATION_ID)
+    return false;
+
+  uint32 num_functions;
+  if (!reader.SafeReadUInt32(&num_functions) || num_functions != m_num_functions)
+    return false;
+
+  bool result = true;
+  for (uint32 i = 0; i < m_num_functions; i++)
+    result &= reader.SafeReadBytes(m_config_space[i].bytes, sizeof(m_config_space[i].bytes));
+
+  return result;
+}
+
+bool PCIDevice::SaveState(BinaryWriter& writer)
+{
+  bool result = true;
+  result &= writer.SafeWriteUInt32(SERIALIZATION_ID);
+  result &= writer.SafeWriteUInt32(m_num_functions);
+
+  for (uint32 i = 0; i < m_num_functions; i++)
+    result &= writer.SafeWriteBytes(m_config_space[i].bytes, sizeof(m_config_space[i].bytes));
+
+  return result;
 }
 
 uint8 PCIDevice::ReadConfigRegister(uint32 function, uint8 reg, uint8 index)
