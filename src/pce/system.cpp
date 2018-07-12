@@ -612,3 +612,32 @@ bool System::SetCPUBackend(CPUBackendType backend)
   QueueExternalEvent([this, backend]() { m_cpu->SetBackend(backend); });
   return true;
 }
+
+std::pair<std::unique_ptr<byte[]>, uint32> System::ReadFileToBuffer(const char* filename, uint32 expected_size)
+{
+  ByteStream* stream;
+  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
+  {
+    Log_ErrorPrintf("Failed to open ROM file: %s", filename);
+    return std::make_pair(std::unique_ptr<byte[]>(), 0);
+  }
+
+  const uint32 size = Truncate32(stream->GetSize());
+  if (expected_size != 0 && size != expected_size)
+  {
+    Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);
+    stream->Release();
+    return std::make_pair(std::unique_ptr<byte[]>(), 0);
+  }
+
+  std::unique_ptr<byte[]> data = std::make_unique<byte[]>(size);
+  if (!stream->Read2(data.get(), size))
+  {
+    Log_ErrorPrintf("Failed to read %u bytes from ROM file %s", size, filename);
+    stream->Release();
+    return std::make_pair(std::unique_ptr<byte[]>(), 0);
+  }
+
+  stream->Release();
+  return std::make_pair(std::move(data), size);
+}

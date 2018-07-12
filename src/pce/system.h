@@ -3,8 +3,10 @@
 #include <atomic>
 #include <cstring>
 #include <functional>
+#include <memory>
 #include <thread>
 #include <unordered_map>
+#include <utility>
 
 #include "YBaseLib/Barrier.h"
 #include "YBaseLib/Common.h"
@@ -115,6 +117,10 @@ public:
   // Safely changes CPU backend.
   // This change is done asynchronously.
   bool SetCPUBackend(CPUBackendType backend);
+
+  // Helper for reading a file to a buffer.
+  // TODO: Find a better place for this.. result is pair<ptr, size>.
+  static std::pair<std::unique_ptr<byte[]>, uint32> ReadFileToBuffer(const char* filename, uint32 expected_size);
 
 protected:
   // Initialize all components, no need to call reset when starting for the first time
