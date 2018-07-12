@@ -55,6 +55,9 @@ private:
     bool InitializePCIDevice(uint32 pci_bus_number, uint32 pci_device_number) override;
     void Reset() override;
 
+    bool LoadState(BinaryReader& reader) override;
+    bool SaveState(BinaryWriter& writer) override;
+
   protected:
     uint8 HandleReadConfigRegister(uint32 function, uint8 offset);
     void HandleWriteConfigRegister(uint32 function, uint8 offset, uint8 value);

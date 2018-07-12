@@ -239,6 +239,22 @@ void i430FX::SB82437FX::Reset()
     UpdatePAMMapping(PAM_BASE_OFFSET + i);
 }
 
+bool i430FX::SB82437FX::LoadState(BinaryReader& reader)
+{
+  if (!PCIDevice::LoadState(reader))
+    return false;
+
+  for (uint8 i = 0; i < NUM_PAM_REGISTERS; i++)
+    UpdatePAMMapping(PAM_BASE_OFFSET + i);
+
+  return true;
+}
+
+bool i430FX::SB82437FX::SaveState(BinaryWriter& writer)
+{
+  return PCIDevice::SaveState(writer);
+}
+
 uint8 i430FX::SB82437FX::HandleReadConfigRegister(uint32 function, uint8 offset)
 {
   return PCIDevice::HandleReadConfigRegister(function, offset);
