@@ -172,7 +172,9 @@ void CachedInterpreterBackend::FlushAllBlocks()
 {
   for (auto& it : m_blocks)
   {
-    if (it.second == m_current_block)
+    if (!it.second)
+      continue;
+    else if (it.second == m_current_block)
       m_current_block_flushed = true;
     else
       DestroyBlock(it.second);
@@ -196,6 +198,9 @@ void CachedInterpreterBackend::FlushBlock(const BlockKey& key, bool was_invalida
   }
 
   m_blocks.erase(block_iter);
+  if (!block)
+    return;
+
   if (m_current_block == block)
     m_current_block_flushed = true;
   else
