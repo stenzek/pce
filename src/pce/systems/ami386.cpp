@@ -11,7 +11,7 @@ namespace Systems {
 
 AMI386::AMI386(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X86::MODEL_486 */,
                float cpu_frequency /* = 8000000.0f */, uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : ISAPC(host_interface)
+  : ISAPC(host_interface), m_bios_file_path("romimages/ami386.bin")
 {
   m_cpu = new CPU_X86::CPU(model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
@@ -24,6 +24,9 @@ AMI386::~AMI386() {}
 bool AMI386::Initialize()
 {
   if (!ISAPC::Initialize())
+    return false;
+
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
     return false;
 
   ConnectSystemIOPorts();

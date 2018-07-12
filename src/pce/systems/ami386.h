@@ -26,6 +26,8 @@ public:
          uint32 memory_size = 16 * 1024 * 1024);
   ~AMI386();
 
+  void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
+
   const char* GetSystemName() const override { return "AMI 386"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
   bool Initialize() override;
@@ -51,6 +53,8 @@ private:
   void IOReadSystemControlPortB(uint8* value);
   void IOWriteSystemControlPortB(uint8 value);
   void UpdateKeyboardControllerOutputPort();
+
+  std::string m_bios_file_path;
 
   HW::i8042_PS2* m_keyboard_controller = nullptr;
   HW::i8237_DMA* m_dma_controller = nullptr;
