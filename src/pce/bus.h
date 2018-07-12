@@ -63,6 +63,12 @@ public:
   // Creates a ROM region from a buffer.
   bool CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address);
 
+  // Creates a MMIO ROM region from an external file.
+  bool CreateMMIOROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size = 0);
+
+  // Creates a MMIO ROM region from a buffer.
+  bool CreateMMIOROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address);
+
   // Creates a mirror of RAM/ROM. Currently does not work for MMIO.
   void MirrorRegion(PhysicalMemoryAddress start, uint32 size, PhysicalMemoryAddress mirror_start);
 
@@ -243,6 +249,7 @@ protected:
   struct ROMRegion
   {
     std::unique_ptr<byte[]> data;
+    MMIO* mmio_handler;
     PhysicalMemoryAddress mapped_address;
     uint32 size;
   };

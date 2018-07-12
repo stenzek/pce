@@ -30,6 +30,9 @@ Bus::Bus(uint32 memory_address_bits)
 
 Bus::~Bus()
 {
+  for (auto& it : m_rom_regions)
+    SAFE_RELEASE(it.mmio_handler);
+
   delete[] m_physical_memory_pages;
   delete[] m_ram_ptr;
 }
@@ -663,6 +666,57 @@ bool Bus::CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMem
   byte* ptr = CreateROMRegion(address, size);
   AssertMsg(ptr, "allocating ROM region");
   std::memcpy(ptr, buffer, size);
+  return true;
+}
+
+bool Bus::CreateMMIOROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size /*= 0*/)
+{
+  ByteStream* stream;
+  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
+  {
+    Log_ErrorPrintf("Failed to open ROM file: %s", filename);
+    return false;
+  }
+
+  const uint32 size = Truncate32(stream->GetSize());
+  if (expected_size != 0 && stream->GetSize() != expected_size)
+  {
+    Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);
+    stream->Release();
+    return false;
+  }
+
+  ROMRegion rr;
+  rr.data = std::make_unique<byte[]>(size);
+  rr.size = size;
+  rr.mapped_address = address;
+  if (!stream->Read2(rr.data.get(), size))
+  {
+    Log_ErrorPrintf("Failed to read %u bytes from ROM file %s", size, filename);
+    stream->Release();
+    return false;
+  }
+
+  rr.mmio_handler = MMIO::CreateDirect(address, size, rr.data.get(), true, false, true);
+  RegisterMMIO(rr.mmio_handler);
+  m_rom_regions.push_back(std::move(rr));
+
+  stream->Release();
+  return true;
+}
+
+bool Bus::CreateMMIOROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address)
+{
+  ROMRegion rr;
+  rr.data = std::make_unique<byte[]>(size);
+  rr.size = size;
+  rr.mapped_address = address;
+  std::memcpy(rr.data.get(), buffer, size);
+
+  rr.mmio_handler = MMIO::CreateDirect(address, size, rr.data.get(), true, false, true);
+  RegisterMMIO(rr.mmio_handler);
+
+  m_rom_regions.push_back(std::move(rr));
   return true;
 }
 
