@@ -172,30 +172,21 @@ void i430FX::AddComponents()
   m_sb82437fx = new SB82437FX(this, m_bus);
   AddPCIDeviceToLocation(m_sb82437fx, 0, 0);
 
-  m_keyboard_controller = new HW::i8042_PS2();
-  m_dma_controller = new HW::i8237_DMA();
-  m_timer = new HW::i8253_PIT();
-  m_interrupt_controller = new HW::i8259_PIC();
-  m_cmos = new HW::CMOS();
+  AddComponent(m_interrupt_controller = new HW::i8259_PIC());
+  AddComponent(m_dma_controller = new HW::i8237_DMA());
+  AddComponent(m_timer = new HW::i8253_PIT());
+  AddComponent(m_keyboard_controller = new HW::i8042_PS2());
+  AddComponent(m_cmos = new HW::CMOS());
 
-  AddComponent(m_interrupt_controller);
-  AddComponent(m_dma_controller);
-  AddComponent(m_timer);
-  AddComponent(m_keyboard_controller);
-  AddComponent(m_cmos);
-
-  m_fdd_controller = new HW::FDC(m_dma_controller);
-  m_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_PRIMARY);
-
-  AddComponent(m_fdd_controller);
-  AddComponent(m_hdd_controller);
+  AddComponent(m_fdd_controller = new HW::FDC(m_dma_controller));
+  AddComponent(m_primary_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_PRIMARY));
+  AddComponent(m_secondary_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_SECONDARY));
 
   // Connect channel 0 of the PIT to the interrupt controller
   m_timer->SetChannelOutputChangeCallback(0,
                                           [this](bool value) { m_interrupt_controller->SetInterruptState(0, value); });
 
-  m_speaker = new HW::PCSpeaker();
-  AddComponent(m_speaker);
+  AddComponent(m_speaker = new HW::PCSpeaker());
 
   // Connect channel 2 of the PIT to the speaker
   m_timer->SetChannelOutputChangeCallback(2, [this](bool value) { m_speaker->SetLevel(value); });
