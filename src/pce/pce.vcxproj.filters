@@ -114,6 +114,9 @@
     <ClCompile Include="systems\pcali1429.cpp">
       <Filter>systems</Filter>
     </ClCompile>
+    <ClCompile Include="systems\pcum498f.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -252,6 +255,9 @@
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="systems\pcali1429.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\pcum498f.h">
       <Filter>systems</Filter>
     </ClInclude>
   </ItemGroup>
