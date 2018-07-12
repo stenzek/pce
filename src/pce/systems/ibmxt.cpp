@@ -11,7 +11,7 @@ namespace Systems {
 
 IBMXT::IBMXT(HostInterface* host_interface, float cpu_frequency /* = 1000000.0f */,
              uint32 memory_size /* = 640 * 1024 */, VideoType video_type /* = VideoType::Other */)
-  : ISAPC(host_interface), m_video_type(video_type)
+  : ISAPC(host_interface), m_bios_file_path("romimages/PCXTBIOS.BIN"), m_video_type(video_type)
 {
   m_cpu = new CPU_X86::CPU(CPU_X86::MODEL_8086, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
@@ -24,6 +24,9 @@ IBMXT::~IBMXT() {}
 bool IBMXT::Initialize()
 {
   if (!ISAPC::Initialize())
+    return false;
+
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS_8K, 8192))
     return false;
 
   ConnectSystemIOPorts();

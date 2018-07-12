@@ -30,6 +30,8 @@ public:
         VideoType video_type = VideoType::Other);
   ~IBMXT();
 
+  void SetLowBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
+
   const char* GetSystemName() const override { return "IBM XT"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
   bool Initialize() override;
@@ -54,6 +56,8 @@ private:
   // IO read/write handlers
   void HandlePortRead(uint32 port, uint8* value);
   void HandlePortWrite(uint32 port, uint8 value);
+
+  std::string m_bios_file_path;
 
   HW::i8237_DMA* m_dma_controller = nullptr;
   HW::i8253_PIT* m_timer = nullptr;
