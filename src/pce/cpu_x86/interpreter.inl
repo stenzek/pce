@@ -257,7 +257,7 @@ void Interpreter::CalculateEffectiveAddress(CPU* cpu)
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
-VirtualMemoryAddress CPU_X86::Interpreter::CalculateJumpTarget(CPU* cpu)
+VirtualMemoryAddress Interpreter::CalculateJumpTarget(CPU* cpu)
 {
   static_assert(dst_mode == OperandMode_Relative || dst_mode == OperandMode_ModRM_RM,
                 "Operand mode is relative or indirect");
@@ -399,7 +399,7 @@ uint32 Interpreter::ReadDWordOperand(CPU* cpu)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-uint16 CPU_X86::Interpreter::ReadSignExtendedWordOperand(CPU* cpu)
+uint16 Interpreter::ReadSignExtendedWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
@@ -445,7 +445,7 @@ uint16 CPU_X86::Interpreter::ReadSignExtendedWordOperand(CPU* cpu)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-uint32 CPU_X86::Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
+uint32 Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
@@ -523,7 +523,7 @@ uint32 CPU_X86::Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-uint16 CPU_X86::Interpreter::ReadZeroExtendedWordOperand(CPU* cpu)
+uint16 Interpreter::ReadZeroExtendedWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
@@ -572,7 +572,7 @@ uint16 CPU_X86::Interpreter::ReadZeroExtendedWordOperand(CPU* cpu)
 }
 
 template<OperandSize size, OperandMode mode, uint32 constant>
-uint32 CPU_X86::Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
+uint32 Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
@@ -656,7 +656,7 @@ uint32 CPU_X86::Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
 }
 
 template<OperandMode mode, uint32 constant>
-void CPU_X86::Interpreter::WriteByteOperand(CPU* cpu, uint8 value)
+void Interpreter::WriteByteOperand(CPU* cpu, uint8 value)
 {
   switch (mode)
   {
@@ -687,7 +687,7 @@ void CPU_X86::Interpreter::WriteByteOperand(CPU* cpu, uint8 value)
 }
 
 template<OperandMode mode, uint32 constant>
-void CPU_X86::Interpreter::WriteWordOperand(CPU* cpu, uint16 value)
+void Interpreter::WriteWordOperand(CPU* cpu, uint16 value)
 {
   switch (mode)
   {
@@ -718,7 +718,7 @@ void CPU_X86::Interpreter::WriteWordOperand(CPU* cpu, uint16 value)
 }
 
 template<OperandMode mode, uint32 constant>
-void CPU_X86::Interpreter::WriteDWordOperand(CPU* cpu, uint32 value)
+void Interpreter::WriteDWordOperand(CPU* cpu, uint32 value)
 {
   switch (mode)
   {
@@ -750,8 +750,8 @@ void CPU_X86::Interpreter::WriteDWordOperand(CPU* cpu, uint32 value)
 }
 
 template<OperandMode mode>
-void CPU_X86::Interpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, uint16* segment_selector,
-                                                 VirtualMemoryAddress* address)
+void Interpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, uint16* segment_selector,
+                                        VirtualMemoryAddress* address)
 {
   // Can either be far immediate, or memory
   switch (mode)
@@ -834,7 +834,7 @@ void Interpreter::WriteQWordOperand(CPU* cpu, uint64 value)
 }
 
 template<JumpCondition condition>
-bool CPU_X86::Interpreter::TestJumpCondition(CPU* cpu)
+bool Interpreter::TestJumpCondition(CPU* cpu)
 {
   switch (condition)
   {
