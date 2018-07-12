@@ -798,6 +798,41 @@ void CPU_X86::Interpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, uin
   }
 }
 
+template<OperandMode mode, uint32 constant>
+uint64 Interpreter::ReadQWordOperand(CPU* cpu)
+{
+  // Only possible for memory operands.
+  static_assert(mode == OperandMode_Memory || mode == OperandMode_ModRM_RM);
+
+  uint32 address;
+  if constexpr (mode == OperandMode_Memory)
+    address = cpu->idata.disp32;
+  else
+    address = cpu->m_effective_address;
+
+  // TODO: Is the masking here correct?
+  uint32 qword_low = cpu->ReadMemoryDWord(cpu->idata.segment, address);
+  uint32 qword_high = cpu->ReadMemoryDWord(cpu->idata.segment, (address + 4) & cpu->idata.GetAddressMask());
+  return (ZeroExtend64(qword_high) << 32) | ZeroExtend64(qword_low);
+}
+
+template<OperandMode mode, uint32 constant>
+void Interpreter::WriteQWordOperand(CPU* cpu, uint64 value)
+{
+  // Only possible for memory operands.
+  static_assert(mode == OperandMode_Memory || mode == OperandMode_ModRM_RM);
+
+  uint32 address;
+  if constexpr (mode == OperandMode_Memory)
+    address = cpu->idata.disp32;
+  else
+    address = cpu->m_effective_address;
+
+  // TODO: Is the masking here correct?
+  cpu->WriteMemoryDWord(cpu->idata.segment, address, Truncate32(value));
+  cpu->WriteMemoryDWord(cpu->idata.segment, (address + 4) & cpu->idata.GetAddressMask(), Truncate32(value >> 32));
+}
+
 template<JumpCondition condition>
 bool CPU_X86::Interpreter::TestJumpCondition(CPU* cpu)
 {
@@ -4271,6 +4306,37 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
   {
     DebugUnreachableCode();
     return;
+  }
+}
+
+template<OperandSize mem_size, OperandMode mem_mode, uint32 mem_constant>
+void Interpreter::Execute_Operation_CMPXCHG8B(CPU* cpu)
+{
+  static_assert(mem_size == OperandSize_64, "operands is 64-bit");
+  CalculateEffectiveAddress<mem_mode>(cpu);
+
+  // If r/m is is register, #UD.
+  if (cpu->idata.modrm_rm_register)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
+  uint64 temp = ReadQWordOperand<mem_mode, mem_constant>(cpu);
+  uint64 edx_eax = (ZeroExtend64(cpu->m_registers.EDX) << 32) | ZeroExtend64(cpu->m_registers.EAX);
+  if (edx_eax == temp)
+  {
+    uint64 ecx_ebx = (ZeroExtend64(cpu->m_registers.ECX) << 32) | ZeroExtend64(cpu->m_registers.EBX);
+    WriteQWordOperand<mem_mode, mem_constant>(cpu, ecx_ebx);
+    cpu->m_registers.EFLAGS.ZF = true;
+  }
+  else
+  {
+    // NOTE: Memory write occurs regardless, as part of the LOCK bus cycle.
+    WriteQWordOperand<mem_mode, mem_constant>(cpu, temp);
+    cpu->m_registers.EDX = Truncate32(temp >> 32);
+    cpu->m_registers.EAX = Truncate32(temp);
+    cpu->m_registers.EFLAGS.ZF = false;
   }
 }
 

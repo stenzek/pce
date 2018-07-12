@@ -378,6 +378,7 @@ enum Operation : uint8
   // Pentium+
   Operation_CPUID,
   Operation_RDTSC,
+  Operation_CMPXCHG8B,
 
   // 8087+
   Operation_F2XM1,

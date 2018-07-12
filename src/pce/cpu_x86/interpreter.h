@@ -223,6 +223,8 @@ public:
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant>
   static inline void Execute_Operation_CMPXCHG(CPU* cpu);
+  template<OperandSize mem_size, OperandMode mem_mode, uint32 mem_constant>
+  static inline void Execute_Operation_CMPXCHG8B(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant>
   static inline void Execute_Operation_XADD(CPU* cpu);
@@ -324,6 +326,8 @@ public:
   static inline uint16 ReadWordOperand(CPU* cpu);
   template<OperandMode mode, uint32 constant>
   static inline uint32 ReadDWordOperand(CPU* cpu);
+  template<OperandMode mode, uint32 constant>
+  static inline uint64 ReadQWordOperand(CPU* cpu);
   // Zero-extending/sign-extending, uee when size is unconfirmed
   template<OperandSize size, OperandMode mode, uint32 constant>
   static inline uint16 ReadZeroExtendedWordOperand(CPU* cpu);
@@ -339,6 +343,8 @@ public:
   static inline void WriteWordOperand(CPU* cpu, uint16 value);
   template<OperandMode mode, uint32 constant>
   static inline void WriteDWordOperand(CPU* cpu, uint32 value);
+  template<OperandMode mode, uint32 constant>
+  static inline void WriteQWordOperand(CPU* cpu, uint64 value);
 
   template<OperandMode mode>
   static inline void ReadFarAddressOperand(CPU* cpu, OperandSize size, uint16* segment_selector,

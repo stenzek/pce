@@ -165,6 +165,7 @@ static const char* operation_names[Operation_Count] = {"<invalid>",
 
                                                        "cpuid",
                                                        "rdtsc",
+                                                       "cmpxchg8b",
 
                                                        "f2xm1",
                                                        "fabs",

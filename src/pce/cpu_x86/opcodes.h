@@ -536,7 +536,7 @@ MakeInvalidOpcode(0xC3) \
 MakeInvalidOpcode(0xC4) \
 MakeInvalidOpcode(0xC5) \
 MakeInvalidOpcode(0xC6) \
-MakeInvalidOpcode(0xC7) \
+MakeOneOperand(0xC7, Operation_CMPXCHG8B, Mq) /* Pentium+ */ \
 MakeOneOperand(0xC8, Operation_BSWAP, EAX) \
 MakeOneOperand(0xC9, Operation_BSWAP, ECX) \
 MakeOneOperand(0xCA, Operation_BSWAP, EDX) \
