@@ -12,17 +12,28 @@ namespace Systems {
 
 IBMAT::IBMAT(HostInterface* host_interface, float cpu_frequency /* = 2000000.0f */,
              uint32 memory_size /* = 1024 * 1024 */)
-  : ISAPC(host_interface)
+  : ISAPC(host_interface), m_low_bios_file_path("romimages/Bi286-l.bin"), m_high_bios_file_path("romimages/Bi286-h.bin")
 {
   m_cpu = new CPU_X86::CPU(CPU_X86::MODEL_286, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
   AllocatePhysicalMemory(memory_size, true, true);
-  ConnectSystemIOPorts();
   AddComponents();
-  SetCMOSVariables();
 }
 
 IBMAT::~IBMAT() {}
+
+bool IBMAT::Initialize()
+{
+  if (!ISAPC::Initialize())
+    return false;
+
+  if (!LoadInterleavedROM(BIOS_ROM_ADDRESS, m_low_bios_file_path.c_str(), m_high_bios_file_path.c_str()))
+    return false;
+
+  ConnectSystemIOPorts();
+  SetCMOSVariables();
+  return true;
+}
 
 void IBMAT::Reset()
 {

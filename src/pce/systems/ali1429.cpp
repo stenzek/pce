@@ -28,7 +28,7 @@ bool ALi1429::Initialize()
 
   // We have to use MMIO ROMs, because the shadowed region can only be RAM or ROM, not both.
   // The upper binding is okay to keep as a ROM region, though, since we don't shadow it.
-  if (!AddMMIOROMFromFile(BIOS_ROM_ADDRESS, m_bios_file_path.c_str(), BIOS_ROM_SIZE) ||
+  if (!m_bus->CreateMMIOROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE) ||
       !m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_MIRROR_ADDRESS, BIOS_ROM_SIZE))
   {
     return false;

@@ -23,9 +23,11 @@ public:
   IBMAT(HostInterface* host_interface, float cpu_frequency = 2000000.0f, uint32 memory_size = 1024 * 1024);
   ~IBMAT();
 
+  void SetLowBIOSFilePath(const std::string& path) { m_low_bios_file_path = path; }
+  void SetHighBIOSFilePath(const std::string& path) { m_high_bios_file_path = path; }
+
   const char* GetSystemName() const override { return "IBM AT"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
-  void Reset() override;
 
   auto GetFDDController() const { return m_fdd_controller; }
   auto GetHDDController() const { return m_hdd_controller; }
@@ -38,11 +40,17 @@ private:
   virtual bool LoadSystemState(BinaryReader& reader) override;
   virtual bool SaveSystemState(BinaryWriter& writer) override;
 
+  bool Initialize() override;
+  void Reset() override;
+
   void ConnectSystemIOPorts();
   void AddComponents();
   void SetCMOSVariables();
 
   void IOWriteSystemControlPortA(uint8 value);
+
+  std::string m_low_bios_file_path;
+  std::string m_high_bios_file_path;
 
   HW::i8042_PS2* m_keyboard_controller = nullptr;
   HW::i8237_DMA* m_dma_controller = nullptr;

@@ -10,68 +10,34 @@ namespace Systems {
 
 ISAPC::ISAPC(HostInterface* host_interface) : System(host_interface) {}
 
-ISAPC::~ISAPC()
-{
-  for (const auto& it : m_roms)
-    it.mmio->Release();
-}
+ISAPC::~ISAPC() {}
 
-bool ISAPC::AddMMIOROMFromStream(PhysicalMemoryAddress address, ByteStream* stream)
+bool ISAPC::LoadInterleavedROM(PhysicalMemoryAddress address, const char* low_filename, const char* high_filename)
 {
-  uint32 length = uint32(stream->GetSize());
-  ROMBlock* rom = AllocateROM(address, length);
-
-  if (!stream->SeekAbsolute(0) || !stream->Read2(rom->data.get(), length))
+  ByteStream* low_stream;
+  ByteStream* high_stream;
+  if (!ByteStream_OpenFileStream(low_filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &low_stream))
   {
-    Log_ErrorPrintf("Failed to read BIOS image");
+    Log_ErrorPrintf("Failed to open code file %s", low_filename);
+    return false;
+  }
+  if (!ByteStream_OpenFileStream(high_filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &high_stream))
+  {
+    Log_ErrorPrintf("Failed to open code file %s", high_filename);
+    low_stream->Release();
     return false;
   }
 
-  return true;
-}
-
-bool ISAPC::AddMMIOROMFromFile(PhysicalMemoryAddress address, const char* filename, uint32 expected_size /* = 0 */)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
-  {
-    Log_ErrorPrintf("Failed to open ROM file: %s", filename);
-    return false;
-  }
-
-  const uint32 size = Truncate32(stream->GetSize());
-  if (expected_size != 0 && stream->GetSize() != expected_size)
-  {
-    Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);
-    stream->Release();
-    return false;
-  }
-
-  bool result = AddMMIOROMFromStream(address, stream);
-  stream->Release();
-  return result;
-}
-
-bool ISAPC::AddInterleavedMMIOROMFromFile(PhysicalMemoryAddress address, ByteStream* low_stream,
-                                          ByteStream* high_stream)
-{
-  uint32 low_length = uint32(low_stream->GetSize());
-  uint32 high_length = uint32(high_stream->GetSize());
+  const uint32 low_length = uint32(low_stream->GetSize());
+  const uint32 high_length = uint32(high_stream->GetSize());
   if (low_length != high_length)
   {
     Log_ErrorPrintf("Invalid BIOS image, differing sizes (%u and %u bytes)", low_length, high_length);
     return false;
   }
 
-  ROMBlock* rom = AllocateROM(address, low_length + high_length);
-
-  if (!high_stream->SeekAbsolute(0) || !high_stream->SeekAbsolute(0))
-  {
-    Log_ErrorPrintf("Failed to read BIOS image");
-    return false;
-  }
-
   // Interleave even and odd bytes, this compensates for the 8-bit data bus per chip
+  std::vector<byte> data(low_length + high_length);
   for (uint32 i = 0; i < low_length; i++)
   {
     byte even_byte, odd_byte;
@@ -81,11 +47,14 @@ bool ISAPC::AddInterleavedMMIOROMFromFile(PhysicalMemoryAddress address, ByteStr
       return false;
     }
 
-    rom->data[i * 2 + 0] = even_byte;
-    rom->data[i * 2 + 1] = odd_byte;
+    data[i * 2 + 0] = even_byte;
+    data[i * 2 + 1] = odd_byte;
   }
 
-  return true;
+  high_stream->Release();
+  low_stream->Release();
+
+  return m_bus->CreateROMRegionFromBuffer(data.data(), low_length + high_length, address);
 }
 
 PhysicalMemoryAddress ISAPC::GetBaseMemorySize() const
@@ -135,20 +104,6 @@ void ISAPC::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, boo
   MAKE_RAM_REGION(0x01000000, 0x7FFFFFFFu);
 
 #undef MAKE_RAM_REGION
-}
-
-ISAPC::ROMBlock* ISAPC::AllocateROM(PhysicalMemoryAddress address, uint32 size)
-{
-  m_roms.emplace_back(ROMBlock());
-
-  ROMBlock& rom = m_roms.back();
-  rom.data = std::make_unique<byte[]>(size);
-  Y_memzero(rom.data.get(), size);
-
-  rom.mmio = MMIO::CreateDirect(address, size, rom.data.get(), true, false);
-  m_bus->RegisterMMIO(rom.mmio);
-
-  return &rom;
 }
 
 bool ISAPC::GetA20State() const
