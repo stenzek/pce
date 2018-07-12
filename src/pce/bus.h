@@ -55,7 +55,7 @@ public:
   uint32 CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end);
 
   // Creates an empty ROM region, and returns the pointer.
-  byte* CreateROMRegion(PhysicalMemoryAddress address, uint32 size);
+  byte* CreateROMRegion(PhysicalMemoryAddress address, uint32 size, std::unique_ptr<byte[]> data);
 
   // Creates a ROM region from an external file. Set size to 0 if the size is dynamic.
   bool CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size = 0);

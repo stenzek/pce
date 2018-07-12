@@ -604,14 +604,14 @@ uint32 Bus::CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress e
   return allocated_ram;
 }
 
-byte* Bus::CreateROMRegion(PhysicalMemoryAddress address, uint32 size)
+byte* Bus::CreateROMRegion(PhysicalMemoryAddress address, uint32 size, std::unique_ptr<byte[]> data)
 {
   // Round size up to next page boundary.
   Assert((address % MEMORY_PAGE_SIZE) == 0);
   ROMRegion rr;
   rr.mapped_address = address;
   rr.size = (size + (MEMORY_PAGE_SIZE - 1)) & ~(MEMORY_PAGE_SIZE - 1);
-  rr.data = std::make_unique<byte[]>(rr.size);
+  rr.data = std::move(data);
 
   // Map to address space.
   uint32 start_page = rr.mapped_address / MEMORY_PAGE_SIZE;
@@ -632,38 +632,18 @@ byte* Bus::CreateROMRegion(PhysicalMemoryAddress address, uint32 size)
 
 bool Bus::CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size)
 {
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
-  {
-    Log_ErrorPrintf("Failed to open ROM file: %s", filename);
+  auto data = System::ReadFileToBuffer(filename, expected_size);
+  if (!data.first)
     return false;
-  }
 
-  const uint32 size = Truncate32(stream->GetSize());
-  if (expected_size != 0 && stream->GetSize() != expected_size)
-  {
-    Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);
-    stream->Release();
-    return false;
-  }
-
-  byte* ptr = CreateROMRegion(address, size);
+  byte* ptr = CreateROMRegion(address, data.second, std::move(data.first));
   AssertMsg(ptr, "allocating ROM region");
-
-  if (!stream->Read2(ptr, size))
-  {
-    Log_ErrorPrintf("Failed to read %u bytes from ROM file %s", size, filename);
-    stream->Release();
-    return false;
-  }
-
-  stream->Release();
   return true;
 }
 
 bool Bus::CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address)
 {
-  byte* ptr = CreateROMRegion(address, size);
+  byte* ptr = CreateROMRegion(address, size, std::make_unique<byte[]>(size));
   AssertMsg(ptr, "allocating ROM region");
   std::memcpy(ptr, buffer, size);
   return true;
@@ -671,37 +651,17 @@ bool Bus::CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMem
 
 bool Bus::CreateMMIOROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size /*= 0*/)
 {
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
-  {
-    Log_ErrorPrintf("Failed to open ROM file: %s", filename);
+  auto data = System::ReadFileToBuffer(filename, expected_size);
+  if (!data.first)
     return false;
-  }
-
-  const uint32 size = Truncate32(stream->GetSize());
-  if (expected_size != 0 && stream->GetSize() != expected_size)
-  {
-    Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);
-    stream->Release();
-    return false;
-  }
 
   ROMRegion rr;
-  rr.data = std::make_unique<byte[]>(size);
-  rr.size = size;
+  rr.data = std::move(data.first);
+  rr.size = data.second;
   rr.mapped_address = address;
-  if (!stream->Read2(rr.data.get(), size))
-  {
-    Log_ErrorPrintf("Failed to read %u bytes from ROM file %s", size, filename);
-    stream->Release();
-    return false;
-  }
-
-  rr.mmio_handler = MMIO::CreateDirect(address, size, rr.data.get(), true, false, true);
+  rr.mmio_handler = MMIO::CreateDirect(address, rr.size, rr.data.get(), true, false, true);
   RegisterMMIO(rr.mmio_handler);
   m_rom_regions.push_back(std::move(rr));
-
-  stream->Release();
   return true;
 }
 
