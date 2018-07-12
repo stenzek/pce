@@ -466,6 +466,9 @@ protected:
   // Update IR/B flags in status word when a new status word is loaded.
   void UpdateFPUSummaryException();
 
+  // Handle CPUID instruction.
+  void ExecuteCPUIDInstruction();
+
   // Switches to the task segment selected by the parameter.
   // Optionally sets nested task flag and backlink field.
   // This assumes that new_task is a valid descriptor and is not busy.

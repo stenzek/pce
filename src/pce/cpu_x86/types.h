@@ -376,6 +376,7 @@ enum Operation : uint8
   Operation_XADD,
 
   // Pentium+
+  Operation_CPUID,
   Operation_RDTSC,
 
   // 8087+

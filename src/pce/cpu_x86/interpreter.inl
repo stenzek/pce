@@ -5288,6 +5288,18 @@ void Interpreter::Execute_Operation_WBINVD(CPU* cpu)
   // Log_WarningPrintf("WBINVD instruction");
 }
 
+void Interpreter::Execute_Operation_CPUID(CPU* cpu)
+{
+  // TODO: Support on Intel DX4+.
+  if (cpu->m_model < MODEL_PENTIUM)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
+  cpu->ExecuteCPUIDInstruction();
+}
+
 void Interpreter::Execute_Operation_RDTSC(CPU* cpu)
 {
   // TSD flag in CR4 controls whether this is privileged or unprivileged

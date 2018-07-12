@@ -302,6 +302,7 @@ public:
   static inline void Execute_Operation_CWD(CPU* cpu);
   static inline void Execute_Operation_XLAT(CPU* cpu);
   static inline void Execute_Operation_WAIT(CPU* cpu);
+  static inline void Execute_Operation_CPUID(CPU* cpu);
   static inline void Execute_Operation_RDTSC(CPU* cpu);
 
   static inline void Execute_Operation_AAA(CPU* cpu);

@@ -26,6 +26,27 @@ bool TRACE_EXECUTION = false;
 #endif
 uint32 TRACE_EXECUTION_LAST_EIP = 0;
 
+static uint32 GetCPUIDModel(Model model)
+{
+  // 386SX - 2308, 386DX - 308
+  switch (model)
+  {
+    case MODEL_386:
+      return 0x308;
+
+    case MODEL_486:
+      // 486SX - 42A, 486SX2 - 45B, 486DX - 404, 486DX2 - 430, 486DX4 - 481
+      return 0x430;
+
+    case MODEL_PENTIUM:
+      // P75/P90 - 524, P100 - 525, P120 - 526, P133-200 - 52C, PMMX - 543
+      return 0x524;
+
+    default:
+      return 0;
+  }
+}
+
 CPU::CPU(Model model, float frequency, CPUBackendType backend_type) : CPUBase(frequency, backend_type), m_model(model)
 {
 #ifdef ENABLE_TLB_EMULATION
@@ -53,13 +74,18 @@ void CPU::Reset()
 
   // IOPL NT, reserved are 1 on 8086
   m_registers.EFLAGS.bits = 0;
+  m_registers.EFLAGS.bits |= Flag_Reserved;
   if (m_model == MODEL_8086)
   {
     m_registers.EFLAGS.bits |= Flag_IOPL;
     m_registers.EFLAGS.bits |= Flag_NT;
     m_registers.EFLAGS.bits |= (1 << 15);
   }
-  m_registers.EFLAGS.bits |= Flag_Reserved;
+  if (m_model >= MODEL_PENTIUM)
+  {
+    // Pentium+ supports CPUID.
+    m_registers.EFLAGS.bits |= Flag_ID;
+  }
 
   // Load default GDT/IDT locations
   m_idt_location.base_address = 0x0000;
@@ -116,26 +142,8 @@ void CPU::Reset()
     m_registers.CR0 |= CR0Bit_CD | CR0Bit_NW | CR0Bit_ET;
 
   // Initial values of EDX.
-  switch (m_model)
-  {
-    case MODEL_386:
-      // 386SX - 2308, 386DX - 308
-      m_registers.EDX = 0x00000000;
-      break;
-
-    case MODEL_486:
-      // 486SX - 42A, 486SX2 - 45B, 486DX - 404, 486DX2 - 430, 486DX4 - 481
-      m_registers.EDX = 0x00000430;
-      break;
-
-    case MODEL_PENTIUM:
-      // P75/P90 - 524, P100 - 525, P120 - 526, P133-200 - 52C, PMMX - 543
-      m_registers.EDX = 0x0000052C;
-      break;
-
-    default:
-      break;
-  }
+  if (m_model >= MODEL_486)
+    m_registers.EDX = GetCPUIDModel(m_model);
 
   // Start at privilege level 0
   SetCPL(0);
@@ -3735,6 +3743,92 @@ void CPU::UpdateFPUSummaryException()
     m_fpu_registers.SW.IR = m_fpu_registers.SW.B = true;
   else
     m_fpu_registers.SW.IR = m_fpu_registers.SW.B = false;
+}
+
+void CPU::ExecuteCPUIDInstruction()
+{
+  enum CPUID_FLAG : uint32
+  {
+    CPUID_FLAG_FPU = (1 << 0),
+    CPUID_FLAG_VME = (1 << 1),
+    CPUID_FLAG_DE = (1 << 2), // Debug extensions (I/O Breakpoints)
+    CPUID_FLAG_PSE = (1 << 3),
+    CPUID_FLAG_TSC = (1 << 4),
+    CPUID_FLAG_MSR = (1 << 5),
+    CPUID_FLAG_PAE = (1 << 6),
+    CPUID_FLAG_CX8 = (1 << 8),
+    CPUID_FLAG_APIC = (1 << 9),
+    CPUID_FLAG_SYSENTER = (1 << 11),
+    CPUID_FLAG_MTRR = (1 << 12),
+    CPUID_FLAG_PTE_GLOBAL = (1 << 13),
+    CPUID_FLAG_MCA = (1 << 14), // Machine check architecture
+    CPUID_FLAG_CMOV = (1 << 15),
+    CPUID_FLAG_PAT = (1 << 16), // Page attribute table
+    CPUID_FLAG_PSE36 = (1 << 17),
+    CPUID_FLAG_PSN = (1 << 18),
+    CPUID_FLAG_CLFLUSH = (1 << 19),
+    CPUID_FLAG_DS = (1 << 21), // Debug store
+    CPUID_FLAG_ACPI = (1 << 22),
+    CPUID_FLAG_MMX = (1 << 23),
+    CPUID_FLAG_FXSR = (1 << 24),
+    CPUID_FLAG_SSE = (1 << 25),
+    CPUID_FLAG_SSE2 = (1 << 26)
+  };
+
+  Log_DevPrintf("Executing CPUID with EAX=%08X", m_registers.EAX);
+
+  switch (m_registers.EAX)
+  {
+    case 0:
+    {
+      m_registers.EAX = UINT32_C(0x00000001); // Maximum CPUID leaf supported.
+      m_registers.EBX = UINT32_C(0x756E6547); // Genu
+      m_registers.EDX = UINT32_C(0x49656E69); // ineI
+      m_registers.ECX = UINT32_C(0x6C65746E); // ntel
+    }
+    break;
+
+    case 1:
+    {
+      m_registers.EAX = GetCPUIDModel(m_model);
+      m_registers.EBX = 0;
+      m_registers.ECX = 0;
+
+      switch (m_model)
+      {
+        case MODEL_486:
+          m_registers.EDX = CPUID_FLAG_FPU /* | CPUID_FLAG_VME*/; // TODO: DX4 should support VME.
+          break;
+
+        case MODEL_PENTIUM:
+          m_registers.EDX = CPUID_FLAG_FPU /*| CPUID_FLAG_DE */ /*| CPUID_FLAG_VME*/ /*| CPUID_FLAG_PSE*/
+                            /*| CPUID_FLAG_TSC*/                                     /* | CPUID_FLAG_MSR*/
+                            |
+                            /*| CPUID_FLAG_MCE */ CPUID_FLAG_CX8;
+          break;
+      }
+    }
+    break;
+
+      //     case 2:
+      //       {
+      //         // Dummy cache info.
+      //         m_registers.EAX = UINT32_C(0x03020101);
+      //         m_registers.EBX = UINT32_C(0x00000000);
+      //         m_registers.ECX = UINT32_C(0x00000000);
+      //         m_registers.EDX = UINT32_C(0x0C040843);
+      //       }
+      //       break;
+
+    default:
+    {
+      m_registers.EAX = 0;
+      m_registers.EBX = 0;
+      m_registers.ECX = 0;
+      m_registers.EDX = 0;
+    }
+    break;
+  }
 }
 
 void CPU::DumpPageTable()

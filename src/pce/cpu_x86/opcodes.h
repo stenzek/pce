@@ -499,7 +499,7 @@ MakeOneOperandCC(0x9E, Operation_SETcc, JumpCondition_LessOrEqual, Eb) \
 MakeOneOperandCC(0x9F, Operation_SETcc, JumpCondition_Greater, Eb) \
 MakeOneOperand(0xA0, Operation_PUSH_Sreg, FS) \
 MakeOneOperand(0xA1, Operation_POP_Sreg, FS) \
-MakeInvalidOpcode(0xA2) \
+MakeNoOperands(0xA2, Operation_CPUID) \
 MakeTwoOperands(0xA3, Operation_BT, Ev, Gv) \
 MakeThreeOperands(0xA4, Operation_SHLD, Ev, Gv, Ib) \
 MakeThreeOperands(0xA5, Operation_SHLD, Ev, Gv, CL) \
