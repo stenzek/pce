@@ -27,6 +27,8 @@ public:
         uint32 memory_size = 16 * 1024 * 1024);
   ~Bochs();
 
+  void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
+
   const char* GetSystemName() const override { return "Bochs PC"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
   bool Initialize() override;

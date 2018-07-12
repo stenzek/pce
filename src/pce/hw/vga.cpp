@@ -13,40 +13,11 @@ Log_SetChannel(HW::VGA);
 
 namespace HW {
 
-VGA::VGA() : m_clock("VGA Retrace", 25175000) {}
+VGA::VGA() : m_clock("VGA Retrace", 25175000), m_bios_file_path("romimages\\VGABIOS-lgpl-latest") {}
 
 VGA::~VGA()
 {
-  if (m_bus)
-  {
-    m_bios_mmio->Release();
-    m_vram_mmio->Release();
-  }
-}
-
-bool VGA::SetBIOSROM(ByteStream* stream)
-{
-  Assert(!m_bios);
-  DebugAssert(!m_bus);
-
-  uint32 size = uint32(stream->GetSize());
-  if (size > MAX_BIOS_SIZE)
-  {
-    Log_ErrorPrintf("Invalid bios size, %u is larger than %u", size, MAX_BIOS_SIZE);
-    return false;
-  }
-
-  m_bios = std::make_unique<byte[]>(size);
-  if (!stream->SeekAbsolute(0) || !stream->Read2(m_bios.get(), size))
-  {
-    Log_ErrorPrintf("Failed to read BIOS image");
-    m_bios.reset();
-    return false;
-  }
-
-  Log_DevPrintf("Loaded VGA bios image (%u bytes)", size);
-  m_bios_size = size;
-  return true;
+  SAFE_RELEASE(m_vram_mmio);
 }
 
 bool VGA::Initialize(System* system, Bus* bus)
@@ -56,8 +27,10 @@ bool VGA::Initialize(System* system, Bus* bus)
   m_display = system->GetHostInterface()->GetDisplay();
   m_clock.SetManager(system->GetTimingManager());
 
+  if (!LoadBIOSROM())
+    return false;
+
   ConnectIOPorts();
-  RegisterBIOSMMIO();
   RegisterVRAMMMIO();
 
   // Retrace event will be scheduled after timing is calculated.
@@ -259,12 +232,10 @@ void VGA::ConnectIOPorts()
   m_bus->ConnectIOPortWrite(0x03C9, this, std::bind(&VGA::IODACDataRegisterWrite, this, std::placeholders::_2));
 }
 
-void VGA::RegisterBIOSMMIO()
+bool VGA::LoadBIOSROM()
 {
-  PhysicalMemoryAddress bios_load_location = 0xC0000;
-  m_bios_mmio = MMIO::CreateDirect(bios_load_location, m_bios_size, m_bios.get(), true, false);
-  m_bus->RegisterMMIO(m_bios_mmio);
-  Log_DevPrintf("Mapped VGA bios image at 0x%08X (%u bytes)", bios_load_location, m_bios_size);
+  const PhysicalMemoryAddress bios_load_location = 0xC0000;
+  return m_bus->CreateMMIOROMRegionFromFile(m_bios_file_path.c_str(), bios_load_location, MAX_BIOS_SIZE);
 }
 
 void VGA::Render()

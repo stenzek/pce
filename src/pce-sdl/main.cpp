@@ -42,45 +42,6 @@
 #include <cstdio>
 Log_SetChannel(Main);
 
-static bool LoadBIOS(const char* filename, std::function<bool(ByteStream*)> callback)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
-  {
-    Log_ErrorPrintf("Failed to open code file %s", filename);
-    return false;
-  }
-
-  bool result = callback(stream);
-  stream->Release();
-  return result;
-}
-
-#if 0
-static bool LoadATBios(const char* u27_filename, const char* u47_filename,
-                       std::function<bool(ByteStream*, ByteStream*)> callback)
-{
-  ByteStream* u27_stream;
-  ByteStream* u47_stream;
-  if (!ByteStream_OpenFileStream(u27_filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &u27_stream))
-  {
-    Log_ErrorPrintf("Failed to open code file %s", u27_filename);
-    return false;
-  }
-  if (!ByteStream_OpenFileStream(u47_filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &u47_stream))
-  {
-    Log_ErrorPrintf("Failed to open code file %s", u47_filename);
-    u27_stream->Release();
-    return false;
-  }
-
-  bool result = callback(u27_stream, u47_stream);
-  u47_stream->Release();
-  u27_stream->Release();
-  return result;
-}
-#endif
-
 static bool LoadFloppy(HW::FDC* fdc, uint32 disk, const char* path)
 {
   ByteStream* stream;
@@ -597,16 +558,11 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // system->GetCPU()->SetBackend(CPUBackendType::Recompiler);
 
 #if 0
-  HW::CGA* cga = new HW::CGA();
-  system->AddComponent(cga);
-#elif 0
-  HW::VGA* vga = new HW::VGA();
-  LoadBIOS("romimages\\VGABIOS-lgpl-latest", [vga](ByteStream* s) { return vga->SetBIOSROM(s); });
-  system->AddComponent(vga);
+  system->AddComponent(new HW::CGA());
+#elif 1
+  system->AddComponent(new HW::VGA());
 #else
-  HW::ET4000* vga = new HW::ET4000();
-  LoadBIOS("romimages\\et4000.bin", [vga](ByteStream* s) { return vga->SetBIOSROM(s); });
-  system->AddComponent(vga);
+  system->AddComponent(new HW::ET4000());
 #endif
 
 #if 0
@@ -648,10 +604,6 @@ static void TestBIOS(SDLHostInterface* host_interface)
     LoadFloppy(system->GetFDDController(), 1, filename.c_str());
   });
 
-  // LoadBIOS("romimages\\PCXTBIOS.BIN", [&system](ByteStream* s) { return system->AddROM(0xFE000, s); });
-  // LoadBIOS("romimages\\386_ami.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });
-  // LoadBIOS("romimages\\ami386.bin", [&system](ByteStream* s) { return system->AddROM(0xF0000, s); });
-
   // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS33.img", 41, 16, 63);
   LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\hd10meg.img", 306, 4, 17);
@@ -660,13 +612,6 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // LoadHDD(system->GetHDDController(), 0, "images\\win98.img", 609, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\c.img", 81, 16, 63);
   // LoadHDD(system->GetHDDController(), 1, "images\\utils.img", 162, 16, 63);
-
-#if 1
-  // cdrom
-  HW::CDROM* cdrom = new HW::CDROM();
-  system->AddComponent(cdrom);
-  system->GetHDDController()->AttachATAPIDevice(1, cdrom);
-#endif
 
 #if 0
   system->Start(true);

@@ -16,20 +16,6 @@
 #include <QtWidgets/QMessageBox>
 Log_SetChannel(MainWindow);
 
-static bool LoadBIOS(const char* filename, std::function<bool(ByteStream*)> callback)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
-  {
-    Log_ErrorPrintf("Failed to open code file %s", filename);
-    return false;
-  }
-
-  bool result = callback(stream);
-  stream->Release();
-  return result;
-}
-
 static bool LoadFloppy(HW::FDC* fdc, uint32 disk, const char* path)
 {
   ByteStream* stream;
@@ -110,17 +96,7 @@ bool MainWindow::createTestSystem(uint32 cpu_model, uint32 ram_mb, const char* b
   m_system = std::unique_ptr<Systems::Bochs>(
     new Systems::Bochs(m_host_interface.get(), real_cpu_model, real_cpu_frequency, ram_mb * 1024 * 1024));
 
-  if (!LoadBIOS(bios_filename, [this](ByteStream* stream) {
-        return m_system->AddMMIOROMFromStream(0xF0000, stream) && m_system->AddMMIOROMFromStream(0xFFFF0000u, stream);
-      }))
-  {
-    return false;
-  }
-
-  HW::VGA* vga = new HW::VGA();
-  m_system->AddComponent(vga);
-  if (!LoadBIOS(vgabios_filename, [vga](ByteStream* stream) { return vga->SetBIOSROM(stream); }))
-    return false;
+  m_system->AddComponent(new HW::VGA());
 
   m_display_widget->SetDisplayAspectRatio(4, 3);
   return true;

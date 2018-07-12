@@ -6,6 +6,7 @@
 #include "pce/system.h"
 #include <array>
 #include <memory>
+#include <string>
 
 class Display;
 class ByteStream;
@@ -24,10 +25,10 @@ public:
   VGA();
   ~VGA();
 
+  void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
+
   const uint8* GetVRAM() const { return m_vram; }
   uint8* GetVRAM() { return m_vram; }
-
-  bool SetBIOSROM(ByteStream* stream);
 
   bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
@@ -36,9 +37,7 @@ public:
 
 private:
   void ConnectIOPorts();
-  void RegisterBIOSMMIO();
-
-  void RetraceEvent();
+  bool LoadBIOSROM();
 
   uint32 CRTCReadVRAMPlanes(uint32 address_counter, uint32 row_scan_counter) const;
   uint32 CRTCWrapAddress(uint32 address_counter, uint32 row_scan_counter) const;
@@ -312,14 +311,7 @@ private:
   void IODACDataRegisterWrite(uint8 value);
 
   Clock m_clock;
-
-  std::unique_ptr<byte[]> m_bios;
-  MMIO* m_bios_mmio = nullptr;
-  uint32 m_bios_size = 0;
-
-  // MMIO* m_mmio_B8000 = nullptr;
-  // MMIO* m_mmio_BC000 = nullptr;
-  // MMIO* m_mmio_A0000 = nullptr;
+  std::string m_bios_file_path;
 
   // The 4 planes of 64KB (256KB) VRAM is interleaved here.
   // Array Offset | Plane | Offset
