@@ -13,40 +13,12 @@ Log_SetChannel(HW::ET4000);
 
 namespace HW {
 
-ET4000::ET4000() : m_clock("ET4000 Retrace", 25175000) {}
+ET4000::ET4000() : m_clock("ET4000 Retrace", 25175000), m_bios_file_path("romimages/et4000.bin") {}
 
 ET4000::~ET4000()
 {
-  if (m_bus)
-  {
-    m_bios_mmio->Release();
-    m_vram_mmio->Release();
-  }
-}
-
-bool ET4000::SetBIOSROM(ByteStream* stream)
-{
-  Assert(!m_bios);
-  DebugAssert(!m_bus);
-
-  uint32 size = uint32(stream->GetSize());
-  if (size > MAX_BIOS_SIZE)
-  {
-    Log_ErrorPrintf("Invalid bios size, %u is larger than %u", size, MAX_BIOS_SIZE);
-    return false;
-  }
-
-  m_bios = std::make_unique<byte[]>(size);
-  if (!stream->SeekAbsolute(0) || !stream->Read2(m_bios.get(), size))
-  {
-    Log_ErrorPrintf("Failed to read BIOS image");
-    m_bios.reset();
-    return false;
-  }
-
-  Log_DevPrintf("Loaded ET4000 bios image (%u bytes)", size);
-  m_bios_size = size;
-  return true;
+  SAFE_RELEASE(m_bios_mmio);
+  SAFE_RELEASE(m_vram_mmio);
 }
 
 bool ET4000::Initialize(System* system, Bus* bus)
@@ -55,6 +27,9 @@ bool ET4000::Initialize(System* system, Bus* bus)
   m_bus = bus;
   m_display = system->GetHostInterface()->GetDisplay();
   m_clock.SetManager(system->GetTimingManager());
+
+  if (!LoadBIOSROM())
+    return false;
 
   ConnectIOPorts();
   RegisterVRAMMMIO();
@@ -804,10 +779,6 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
   }
 }
 
-void ET4000::HandleBIOSRead(uint32 offset, uint8* value) {}
-
-void ET4000::HandleBIOSWrite(uint32 offset, uint8 value) {}
-
 bool ET4000::IsBIOSAddressMapped(uint32 offset, uint32 size)
 {
   uint32 last_byte = (offset + size - 1);
@@ -833,6 +804,17 @@ bool ET4000::IsBIOSAddressMapped(uint32 offset, uint32 size)
     default:
       return true;
   }
+}
+
+bool ET4000::LoadBIOSROM()
+{
+  auto data = System::ReadFileToBuffer(m_bios_file_path.c_str(), MAX_BIOS_SIZE);
+  if (!data.first)
+    return false;
+
+  m_bios_rom = std::move(data.first);
+  m_bios_size = data.second;
+  return true;
 }
 
 void ET4000::RegisterVRAMMMIO()
@@ -879,18 +861,18 @@ void ET4000::RegisterVRAMMMIO()
   // BIOS region
   handlers = {};
   handlers.read_byte = [this](uint32 offset, uint8* value) {
-    *value = IsBIOSAddressMapped(offset, 1) ? m_bios[offset] : 0xFF;
+    *value = IsBIOSAddressMapped(offset, 1) ? m_bios_rom[offset] : 0xFF;
   };
   handlers.read_word = [this](uint32 offset, uint16* value) {
     if (IsBIOSAddressMapped(offset, 2))
     {
-      std::memcpy(value, &m_bios[offset], 2);
+      std::memcpy(value, &m_bios_rom[offset], 2);
     }
   };
   handlers.read_dword = [this](uint32 offset, uint32* value) {
     if (IsBIOSAddressMapped(offset, 4))
     {
-      std::memcpy(value, &m_bios[offset], 4);
+      std::memcpy(value, &m_bios_rom[offset], 4);
     }
   };
   handlers.IgnoreWrites();

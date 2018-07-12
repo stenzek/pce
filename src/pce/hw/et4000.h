@@ -6,6 +6,7 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <string>
 
 class Display;
 class ByteStream;
@@ -27,10 +28,10 @@ public:
   ET4000();
   ~ET4000();
 
+  void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
+
   const uint8* GetVRAM() const { return m_vram; }
   uint8* GetVRAM() { return m_vram; }
-
-  bool SetBIOSROM(ByteStream* stream);
 
   bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
@@ -501,19 +502,18 @@ private:
   // uint8 m_mc6845_compat_reg_mono_mode_control = 0;
 
   Clock m_clock;
-
-  std::unique_ptr<byte[]> m_bios;
+  std::string m_bios_file_path;
+  std::unique_ptr<byte[]> m_bios_rom;
   uint32 m_bios_size = 0;
+  MMIO* m_bios_mmio = nullptr;
 
   uint8 m_vram[VRAM_SIZE];
   MMIO* m_vram_mmio = nullptr;
-  MMIO* m_bios_mmio = nullptr;
   bool MapToVRAMOffset(uint32* offset);
   void HandleVRAMRead(uint32 offset, uint8* value);
   void HandleVRAMWrite(uint32 offset, uint8 value);
-  void HandleBIOSRead(uint32 offset, uint8* value);
-  void HandleBIOSWrite(uint32 offset, uint8 value);
   bool IsBIOSAddressMapped(uint32 offset, uint32 size);
+  bool LoadBIOSROM();
   void RegisterVRAMMMIO();
 
   // latch for vram reads
