@@ -17,8 +17,7 @@ static bool RunTest(CPUBackendType backend, const char* code_file, const char* e
   if (!ReadFileToArray(&expected_buffer, expected_ouput_file))
     return false;
 
-  system->Initialize();
-  system->SetState(System::State::Running);
+  EXPECT_TRUE(system->Ready()) << "system did not initialize successfully";
 
   // Put a cap on the number of cycles, a runtime of 10 seconds should do.
   CycleCount remaining_cycles = CycleCount(system->GetCPU()->GetFrequency() * 10);

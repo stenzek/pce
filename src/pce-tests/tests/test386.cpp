@@ -51,8 +51,7 @@ static void RunTest386(CPUBackendType cpu_backend)
     }
   });
 
-  system->Initialize();
-  system->SetState(System::State::Running);
+  EXPECT_TRUE(system->Ready()) << "system did not initialize successfully";
 
   // Put a cap on the number of cycles, a runtime of 2 minutes should do.
   CycleCount remaining_cycles = CycleCount(system->GetCPU()->GetFrequency() * 120);
