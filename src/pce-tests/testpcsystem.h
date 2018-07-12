@@ -4,15 +4,12 @@
 #include <vector>
 
 #include "pce/cpu_x86/cpu.h"
-#include "pce/hw/i8042_ps2.h"
-#include "pce/hw/i8237_dma.h"
-#include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
-#include "pce/systems/pcbase.h"
+#include "pce/system.h"
 
 class ByteStream;
 
-class TestPCSystem : public Systems::PCBase
+class TestPCSystem : public System
 {
 public:
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
@@ -26,13 +23,15 @@ public:
   const char* GetSystemName() const override { return "Test Harness PC"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
 
-  bool Initialize() override;
-
   CPU_X86::CPU* GetX86CPU() const { return static_cast<CPU_X86::CPU*>(m_cpu); }
 
   bool AddMMIOROMFromFile(const char* filename, PhysicalMemoryAddress address);
 
+  bool Ready();
+
 private:
+  bool Initialize() override;
+
   void AddComponents();
 
   HW::i8259_PIC* m_interrupt_controller = nullptr;
