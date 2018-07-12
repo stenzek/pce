@@ -114,6 +114,15 @@
     <ClCompile Include="systems\isapc.cpp">
       <Filter>systems</Filter>
     </ClCompile>
+    <ClCompile Include="systems\i430fx.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\pcipc.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\pci_device.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -253,6 +262,15 @@
     </ClInclude>
     <ClInclude Include="systems\isapc.h">
       <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\i430fx.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\pcipc.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\pci_device.h">
+      <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
