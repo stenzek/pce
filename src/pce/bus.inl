@@ -25,7 +25,7 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
   }
   // Slow path - page is MMIO.
   else if (page.type & PhysicalMemoryPage::kReadableMMIO && address >= page.mmio_handler->GetStartAddress() &&
-      (address + sizeof(T) - 1) <= page.mmio_handler->GetEndAddress())
+           (address + sizeof(T) - 1) <= page.mmio_handler->GetEndAddress())
   {
 
     // Pass to MMIO

@@ -1,17 +1,17 @@
-#include "pce/systems/pcxt.h"
+#include "pce/systems/ibmxt.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/cpu_x86/cpu.h"
-Log_SetChannel(Systems::PCBase);
+Log_SetChannel(Systems::ISAPC);
 
 namespace Systems {
 
-PCXT::PCXT(HostInterface* host_interface, float cpu_frequency /* = 1000000.0f */, uint32 memory_size /* = 640 * 1024 */,
-           VideoType video_type /* = VideoType::Other */)
-  : PCBase(host_interface), m_video_type(video_type)
+IBMXT::IBMXT(HostInterface* host_interface, float cpu_frequency /* = 1000000.0f */,
+             uint32 memory_size /* = 640 * 1024 */, VideoType video_type /* = VideoType::Other */)
+  : ISAPC(host_interface), m_video_type(video_type)
 {
   m_cpu = new CPU_X86::CPU(CPU_X86::MODEL_8086, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
@@ -19,11 +19,11 @@ PCXT::PCXT(HostInterface* host_interface, float cpu_frequency /* = 1000000.0f */
   AddComponents();
 }
 
-PCXT::~PCXT() {}
+IBMXT::~IBMXT() {}
 
-bool PCXT::Initialize()
+bool IBMXT::Initialize()
 {
-  if (!PCBase::Initialize())
+  if (!ISAPC::Initialize())
     return false;
 
   ConnectSystemIOPorts();
@@ -31,9 +31,9 @@ bool PCXT::Initialize()
   return true;
 }
 
-void PCXT::Reset()
+void IBMXT::Reset()
 {
-  PCBase::Reset();
+  ISAPC::Reset();
 
   m_nmi_mask = 0;
 
@@ -41,9 +41,9 @@ void PCXT::Reset()
   m_dma_controller->SetDMAState(0, true);
 }
 
-bool PCXT::LoadSystemState(BinaryReader& reader)
+bool IBMXT::LoadSystemState(BinaryReader& reader)
 {
-  if (!PCBase::LoadSystemState(reader))
+  if (!ISAPC::LoadSystemState(reader))
     return false;
 
   if (reader.ReadUInt32() != SERIALIZATION_ID)
@@ -54,9 +54,9 @@ bool PCXT::LoadSystemState(BinaryReader& reader)
   return !reader.GetErrorState();
 }
 
-bool PCXT::SaveSystemState(BinaryWriter& writer)
+bool IBMXT::SaveSystemState(BinaryWriter& writer)
 {
-  if (!PCBase::SaveSystemState(writer))
+  if (!ISAPC::SaveSystemState(writer))
     return false;
 
   writer.WriteUInt32(SERIALIZATION_ID);
@@ -66,7 +66,7 @@ bool PCXT::SaveSystemState(BinaryWriter& writer)
   return !writer.InErrorState();
 }
 
-void PCXT::AddComponents()
+void IBMXT::AddComponents()
 {
   m_dma_controller = new HW::i8237_DMA();
   m_timer = new HW::i8253_PIT();
@@ -83,7 +83,7 @@ void PCXT::AddComponents()
   AddComponent(m_fdd_controller);
 }
 
-void PCXT::ConnectSystemIOPorts()
+void IBMXT::ConnectSystemIOPorts()
 {
   // Connect channel 0 of the PIT to the interrupt controller
   m_timer->SetChannelOutputChangeCallback(0,
@@ -108,7 +108,7 @@ void PCXT::ConnectSystemIOPorts()
   // m_timer->SetChannelOutputChangeCallback(1, [this](bool value) { m_dma_controller->SetDMAState(0, value); });
 }
 
-void PCXT::SetSwitches()
+void IBMXT::SetSwitches()
 {
   // Switch settings.
   bool boot_loop = false;
@@ -184,7 +184,7 @@ void PCXT::SetSwitches()
   }
 }
 
-void PCXT::HandlePortRead(uint32 port, uint8* value)
+void IBMXT::HandlePortRead(uint32 port, uint8* value)
 {
   switch (port)
   {
@@ -195,7 +195,7 @@ void PCXT::HandlePortRead(uint32 port, uint8* value)
   }
 }
 
-void PCXT::HandlePortWrite(uint32 port, uint8 value)
+void IBMXT::HandlePortWrite(uint32 port, uint8 value)
 {
   switch (port)
   {

@@ -9,7 +9,7 @@
 #include "pce/cpu_x86/cpu.h"
 #include "pce/debugger_interface.h"
 #include "pce/hw/vga.h"
-#include "pce/systems/pcbochs.h"
+#include "pce/systems/bochs.h"
 #include <QtGui/QKeyEvent>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QFileDialog>
@@ -107,8 +107,8 @@ bool MainWindow::createTestSystem(uint32 cpu_model, uint32 ram_mb, const char* b
     real_cpu_frequency = 8000000.0f;
   }
 
-  m_system = std::unique_ptr<Systems::PCBochs>(
-    new Systems::PCBochs(m_host_interface.get(), real_cpu_model, real_cpu_frequency, ram_mb * 1024 * 1024));
+  m_system = std::unique_ptr<Systems::Bochs>(
+    new Systems::Bochs(m_host_interface.get(), real_cpu_model, real_cpu_frequency, ram_mb * 1024 * 1024));
 
   if (!LoadBIOS(bios_filename, [this](ByteStream* stream) {
         return m_system->AddMMIOROMFromStream(0xF0000, stream) && m_system->AddMMIOROMFromStream(0xFFFF0000u, stream);

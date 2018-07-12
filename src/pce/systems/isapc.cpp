@@ -1,22 +1,22 @@
-#include "pce/systems/pcbase.h"
+#include "pce/systems/isapc.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "YBaseLib/Memory.h"
 #include "pce/bus.h"
 #include "pce/mmio.h"
-Log_SetChannel(Systems::PCBase);
+Log_SetChannel(Systems::ISAPC);
 
 namespace Systems {
 
-PCBase::PCBase(HostInterface* host_interface) : System(host_interface) {}
+ISAPC::ISAPC(HostInterface* host_interface) : System(host_interface) {}
 
-PCBase::~PCBase()
+ISAPC::~ISAPC()
 {
   for (const auto& it : m_roms)
     it.mmio->Release();
 }
 
-bool PCBase::AddMMIOROMFromStream(PhysicalMemoryAddress address, ByteStream* stream)
+bool ISAPC::AddMMIOROMFromStream(PhysicalMemoryAddress address, ByteStream* stream)
 {
   uint32 length = uint32(stream->GetSize());
   ROMBlock* rom = AllocateROM(address, length);
@@ -30,7 +30,7 @@ bool PCBase::AddMMIOROMFromStream(PhysicalMemoryAddress address, ByteStream* str
   return true;
 }
 
-bool PCBase::AddMMIOROMFromFile(PhysicalMemoryAddress address, const char* filename, uint32 expected_size /* = 0 */)
+bool ISAPC::AddMMIOROMFromFile(PhysicalMemoryAddress address, const char* filename, uint32 expected_size /* = 0 */)
 {
   ByteStream* stream;
   if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
@@ -52,8 +52,8 @@ bool PCBase::AddMMIOROMFromFile(PhysicalMemoryAddress address, const char* filen
   return result;
 }
 
-bool PCBase::AddInterleavedMMIOROMFromFile(PhysicalMemoryAddress address, ByteStream* low_stream,
-                                           ByteStream* high_stream)
+bool ISAPC::AddInterleavedMMIOROMFromFile(PhysicalMemoryAddress address, ByteStream* low_stream,
+                                          ByteStream* high_stream)
 {
   uint32 low_length = uint32(low_stream->GetSize());
   uint32 high_length = uint32(high_stream->GetSize());
@@ -88,7 +88,7 @@ bool PCBase::AddInterleavedMMIOROMFromFile(PhysicalMemoryAddress address, ByteSt
   return true;
 }
 
-PhysicalMemoryAddress PCBase::GetBaseMemorySize() const
+PhysicalMemoryAddress ISAPC::GetBaseMemorySize() const
 {
   uint32 start_page = 0x00000000 / Bus::MEMORY_PAGE_SIZE;
   uint32 end_page = 0x000A0000 / Bus::MEMORY_PAGE_SIZE;
@@ -96,7 +96,7 @@ PhysicalMemoryAddress PCBase::GetBaseMemorySize() const
   return m_bus->GetTotalRAMInPageRange(start_page, end_page);
 }
 
-PhysicalMemoryAddress PCBase::GetExtendedMemorySize() const
+PhysicalMemoryAddress ISAPC::GetExtendedMemorySize() const
 {
   uint32 start_page = 0x00100000 / Bus::MEMORY_PAGE_SIZE;
   uint32 end_page = m_bus->GetMemoryPageCount();
@@ -104,12 +104,12 @@ PhysicalMemoryAddress PCBase::GetExtendedMemorySize() const
   return m_bus->GetTotalRAMInPageRange(start_page, end_page);
 }
 
-PhysicalMemoryAddress PCBase::GetTotalMemorySize() const
+PhysicalMemoryAddress ISAPC::GetTotalMemorySize() const
 {
   return m_bus->GetTotalRAMInPageRange(0, m_bus->GetMemoryPageCount());
 }
 
-void PCBase::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, bool reserve_uma)
+void ISAPC::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, bool reserve_uma)
 {
   // Allocate RAM
   DebugAssert(ram_size > 0);
@@ -137,23 +137,7 @@ void PCBase::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, bo
 #undef MAKE_RAM_REGION
 }
 
-bool PCBase::LoadSystemState(BinaryReader& reader)
-{
-  if (!System::LoadSystemState(reader))
-    return false;
-
-  return true;
-}
-
-bool PCBase::SaveSystemState(BinaryWriter& writer)
-{
-  if (!System::SaveSystemState(writer))
-    return false;
-
-  return true;
-}
-
-PCBase::ROMBlock* PCBase::AllocateROM(PhysicalMemoryAddress address, uint32 size)
+ISAPC::ROMBlock* ISAPC::AllocateROM(PhysicalMemoryAddress address, uint32 size)
 {
   m_roms.emplace_back(ROMBlock());
 
@@ -167,12 +151,12 @@ PCBase::ROMBlock* PCBase::AllocateROM(PhysicalMemoryAddress address, uint32 size
   return &rom;
 }
 
-bool PCBase::GetA20State() const
+bool ISAPC::GetA20State() const
 {
   return (m_bus->GetMemoryAddressMask() & A20_BIT) != 0;
 }
 
-void PCBase::SetA20State(bool state)
+void ISAPC::SetA20State(bool state)
 {
   if (GetA20State() == state)
     return;

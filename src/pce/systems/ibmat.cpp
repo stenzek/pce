@@ -1,4 +1,4 @@
-#include "pce/systems/pcat.h"
+#include "pce/systems/ibmat.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
@@ -6,13 +6,13 @@
 #include "pce/bus.h"
 #include "pce/cpu.h"
 #include "pce/cpu_x86/cpu.h"
-Log_SetChannel(Systems::PCAT);
+Log_SetChannel(Systems::IBMAT);
 
 namespace Systems {
 
-PCAT::PCAT(HostInterface* host_interface, float cpu_frequency /* = 2000000.0f */,
-           uint32 memory_size /* = 1024 * 1024 */)
-  : PCBase(host_interface)
+IBMAT::IBMAT(HostInterface* host_interface, float cpu_frequency /* = 2000000.0f */,
+             uint32 memory_size /* = 1024 * 1024 */)
+  : ISAPC(host_interface)
 {
   m_cpu = new CPU_X86::CPU(CPU_X86::MODEL_286, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
@@ -22,38 +22,38 @@ PCAT::PCAT(HostInterface* host_interface, float cpu_frequency /* = 2000000.0f */
   SetCMOSVariables();
 }
 
-PCAT::~PCAT() {}
+IBMAT::~IBMAT() {}
 
-void PCAT::Reset()
+void IBMAT::Reset()
 {
-  PCBase::Reset();
+  ISAPC::Reset();
 
   // Default gate A20 to on
   IOWriteSystemControlPortA((1 << 1));
 }
 
-bool PCAT::LoadSystemState(BinaryReader& reader)
+bool IBMAT::LoadSystemState(BinaryReader& reader)
 {
-  if (!PCBase::LoadSystemState(reader))
+  if (!ISAPC::LoadSystemState(reader))
     return false;
 
   reader.SafeReadUInt8(&m_system_control_port_a.raw);
   return true;
 }
 
-bool PCAT::SaveSystemState(BinaryWriter& writer)
+bool IBMAT::SaveSystemState(BinaryWriter& writer)
 {
-  if (!PCBase::SaveSystemState(writer))
+  if (!ISAPC::SaveSystemState(writer))
     return false;
 
   writer.SafeWriteUInt8(m_system_control_port_a.raw);
   return true;
 }
 
-void PCAT::ConnectSystemIOPorts()
+void IBMAT::ConnectSystemIOPorts()
 {
   m_bus->ConnectIOPortReadToPointer(0x0092, this, &m_system_control_port_a.raw);
-  m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&PCAT::IOWriteSystemControlPortA, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&IBMAT::IOWriteSystemControlPortA, this, std::placeholders::_2));
 
   //     // NFI what this is...
   m_bus->ConnectIOPortRead(0x0061, this, [](uint32 port, uint8* value) {
@@ -63,7 +63,7 @@ void PCAT::ConnectSystemIOPorts()
   });
 }
 
-void PCAT::IOWriteSystemControlPortA(uint8 value)
+void IBMAT::IOWriteSystemControlPortA(uint8 value)
 {
   m_system_control_port_a.raw = value;
   SetA20State(m_system_control_port_a.a20_gate);
@@ -79,7 +79,7 @@ if (!m_system_control_port_a.system_reset)
 #endif // 0
 }
 
-void PCAT::AddComponents()
+void IBMAT::AddComponents()
 {
   m_keyboard_controller = new HW::i8042_PS2();
   m_dma_controller = new HW::i8237_DMA();
@@ -100,7 +100,7 @@ void PCAT::AddComponents()
   AddComponent(m_hdd_controller);
 }
 
-void PCAT::SetCMOSVariables()
+void IBMAT::SetCMOSVariables()
 {
   PhysicalMemoryAddress base_memory = GetBaseMemorySize();
   PhysicalMemoryAddress extended_memory = GetExtendedMemorySize();

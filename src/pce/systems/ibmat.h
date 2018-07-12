@@ -3,25 +3,25 @@
 #include "pce/hw/cmos.h"
 #include "pce/hw/fdc.h"
 #include "pce/hw/hdc.h"
+#include "pce/hw/i8042_ps2.h"
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
-#include "pce/hw/i8042_ps2.h"
-#include "pce/systems/pcbase.h"
+#include "pce/systems/isapc.h"
 
 class ByteStream;
 
 namespace Systems {
 
-class PCAT : public PCBase
+class IBMAT : public ISAPC
 {
 public:
   static const uint32 PHYSICAL_MEMORY_BITS = 24;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
   static const uint32 BIOS_ROM_SIZE = 65536;
 
-  PCAT(HostInterface* host_interface, float cpu_frequency = 2000000.0f, uint32 memory_size = 1024 * 1024);
-  ~PCAT();
+  IBMAT(HostInterface* host_interface, float cpu_frequency = 2000000.0f, uint32 memory_size = 1024 * 1024);
+  ~IBMAT();
 
   const char* GetSystemName() const override { return "IBM AT"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }

@@ -33,11 +33,11 @@
 #include "pce/hw/vga.h"
 #include "pce/mmio.h"
 #include "pce/system.h"
-#include "pce/systems/pcali1429.h"
-#include "pce/systems/pcami386.h"
-#include "pce/systems/pcat.h"
-#include "pce/systems/pcbochs.h"
-#include "pce/systems/pcxt.h"
+#include "pce/systems/ali1429.h"
+#include "pce/systems/ami386.h"
+#include "pce/systems/bochs.h"
+#include "pce/systems/ibmat.h"
+#include "pce/systems/ibmxt.h"
 #include <SDL.h>
 #include <cstdio>
 Log_SetChannel(Main);
@@ -586,14 +586,11 @@ void SDLHostInterface::DoSaveState(uint32 index)
 
 static void TestBIOS(SDLHostInterface* host_interface)
 {
-  // Systems::PCXT* system = new Systems::PCXT(host_interface, 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 1000000, 32 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 10000000, 32 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 20000000, 32 * 1024 * 1024);
-  // Systems::PCBochs* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 40000000, 32 * 1024 * 1024);
-  // Systems::PC_AMI_386* system = new Systems::PC_AMI_386(host_interface, CPU_X86::MODEL_386, 4000000, 4 * 1024 *
-  // 1024);
-  Systems::PCALI1429* system = new Systems::PCALI1429(host_interface, CPU_X86::MODEL_486, 10000000, 16 * 1024 * 1024);
+  // auto* system = new Systems::PCXT(host_interface, 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
+  // auto* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 1000000, 32 * 1024 * 1024);
+  auto* system = new Systems::Bochs(host_interface, CPU_X86::MODEL_PENTIUM, 10000000, 32 * 1024 * 1024);
+  // auto* system = new Systems::PC_AMI_386(host_interface, CPU_X86::MODEL_386, 4000000, 4 * 1024 * 1024);
+  // auto* system = new Systems::PCALI1429(host_interface, CPU_X86::MODEL_486, 1000000, 16 * 1024 * 1024);
 
   system->GetCPU()->SetBackend(CPUBackendType::Interpreter);
   // system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);

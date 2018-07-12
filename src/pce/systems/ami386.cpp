@@ -1,17 +1,17 @@
-#include "pce/systems/pcbochs.h"
+#include "pce/systems/ami386.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"
-Log_SetChannel(Systems::PCBochs);
+Log_SetChannel(Systems::AMI386);
 
 namespace Systems {
 
-PCBochs::PCBochs(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X86::MODEL_486 */,
-                 float cpu_frequency /* = 8000000.0f */, uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : PCBase(host_interface), m_bios_file_path("romimages/BIOS-bochs-legacy")
+AMI386::AMI386(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X86::MODEL_486 */,
+               float cpu_frequency /* = 8000000.0f */, uint32 memory_size /* = 16 * 1024 * 1024 */)
+  : ISAPC(host_interface)
 {
   m_cpu = new CPU_X86::CPU(model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
@@ -19,60 +19,61 @@ PCBochs::PCBochs(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X8
   AddComponents();
 }
 
-PCBochs::~PCBochs() {}
+AMI386::~AMI386() {}
 
-bool PCBochs::Initialize()
+bool AMI386::Initialize()
 {
-  if (!PCBase::Initialize())
+  if (!ISAPC::Initialize())
     return false;
-
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
-    return false;
-
-  // Mirror BIOS from FFFF0000 to 000F0000.
-  m_bus->MirrorRegion(BIOS_ROM_ADDRESS, BIOS_ROM_SIZE, BIOS_ROM_MIRROR_ADDRESS);
 
   ConnectSystemIOPorts();
   SetCMOSVariables();
   return true;
 }
 
-void PCBochs::Reset()
+void AMI386::Reset()
 {
-  PCBase::Reset();
+  ISAPC::Reset();
 
+  m_cmos_lock = false;
   m_refresh_bit = false;
 
-  // Default gate A20 to on
+  // Set keyboard controller input port up.
+  // b7 = Keyboard not inhibited, b5 = POST loop inactive
+  m_keyboard_controller->SetInputPort(0xA0);
+
+  // Start with A20 line on
   SetA20State(true);
   UpdateKeyboardControllerOutputPort();
 }
 
-bool PCBochs::LoadSystemState(BinaryReader& reader)
+bool AMI386::LoadSystemState(BinaryReader& reader)
 {
-  if (!PCBase::LoadSystemState(reader))
+  if (!ISAPC::LoadSystemState(reader))
     return false;
 
+  reader.SafeReadBool(&m_cmos_lock);
   reader.SafeReadBool(&m_refresh_bit);
   return !reader.GetErrorState();
 }
 
-bool PCBochs::SaveSystemState(BinaryWriter& writer)
+bool AMI386::SaveSystemState(BinaryWriter& writer)
 {
-  if (!PCBase::SaveSystemState(writer))
+  if (!ISAPC::SaveSystemState(writer))
     return false;
 
+  writer.SafeWriteBool(m_cmos_lock);
   writer.SafeWriteBool(m_refresh_bit);
   return !writer.InErrorState();
 }
 
-void PCBochs::ConnectSystemIOPorts()
+void AMI386::ConnectSystemIOPorts()
 {
   // System control ports
-  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&PCBochs::IOReadSystemControlPortA, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&PCBochs::IOWriteSystemControlPortA, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&PCBochs::IOReadSystemControlPortB, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&PCBochs::IOWriteSystemControlPortB, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&AMI386::IOReadSystemControlPortA, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&AMI386::IOWriteSystemControlPortA, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&AMI386::IOReadSystemControlPortB, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&AMI386::IOWriteSystemControlPortB, this, std::placeholders::_2));
 
   // Connect the keyboard controller output port to the lower 2 bits of system control port A.
   m_keyboard_controller->SetOutputPortWrittenCallback([this](uint8 value, uint8 old_value, bool pulse) {
@@ -82,65 +83,14 @@ void PCBochs::ConnectSystemIOPorts()
     IOReadSystemControlPortA(&value);
     m_keyboard_controller->SetOutputPort(value);
   });
-
-  // PCI stuff
-  m_bus->ConnectIOPortReadDWord(0x0CF8, this, [](uint32 port, uint32* value) { *value = 0xFFFFFFFF; });
-  m_bus->ConnectIOPortReadDWord(0x0CFA, this, [](uint32 port, uint32* value) { *value = 0xFFFFFFFF; });
-  m_bus->ConnectIOPortReadWord(0x0CFC, this, [](uint32 port, uint16* value) { *value = 0xFFFF; });
-  m_bus->ConnectIOPortReadWord(0x0CFD, this, [](uint32 port, uint16* value) { *value = 0xFFFF; });
-  m_bus->ConnectIOPortWriteDWord(0x0CF8, this, [](uint32 port, uint32 value) {});
-  m_bus->ConnectIOPortWriteDWord(0x0CFA, this, [](uint32 port, uint32 value) {});
-  m_bus->ConnectIOPortWriteWord(0x0CFC, this, [](uint32 port, uint16 value) {});
-  m_bus->ConnectIOPortWriteWord(0x0CFD, this, [](uint32 port, uint16 value) {});
-
-  String* blah = new String();
-  m_bus->ConnectIOPortWrite(0x0500, this, [blah](uint32 port, uint8 value) {
-    // Log_DevPrintf("Debug port: %u: %c", uint32(value), value);
-    if (value == '\n')
-    {
-      Log_DevPrintf("Debug message 0500: %s", blah->GetCharArray());
-      blah->Clear();
-    }
-    else
-    {
-      blah->AppendCharacter(char(value));
-    }
-  });
-
-  String* blah2 = new String();
-  m_bus->ConnectIOPortWrite(0x0402, this, [blah2](uint32 port, uint8 value) {
-    // Log_DevPrintf("Debug port: %u: %c", uint32(value), value);
-    if (value == '\n')
-    {
-      Log_DevPrintf("Debug message 0402: %s", blah2->GetCharArray());
-      blah2->Clear();
-    }
-    else
-    {
-      blah2->AppendCharacter(char(value));
-    }
-  });
-  String* blah3 = new String();
-  m_bus->ConnectIOPortWrite(0x0403, this, [blah3](uint32 port, uint8 value) {
-    // Log_DevPrintf("Debug port: %u: %c", uint32(value), value);
-    if (value == '\n')
-    {
-      Log_DevPrintf("Debug message 0403: %s", blah3->GetCharArray());
-      blah3->Clear();
-    }
-    else
-    {
-      blah3->AppendCharacter(char(value));
-    }
-  });
 }
 
-void PCBochs::IOReadSystemControlPortA(uint8* value)
+void AMI386::IOReadSystemControlPortA(uint8* value)
 {
-  *value = (BoolToUInt8(GetA20State()) << 1);
+  *value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
 }
 
-void PCBochs::IOWriteSystemControlPortA(uint8 value)
+void AMI386::IOWriteSystemControlPortA(uint8 value)
 {
   Log_DevPrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
 
@@ -152,6 +102,7 @@ void PCBochs::IOWriteSystemControlPortA(uint8 value)
   // b1 - A20 Active
   // b0 - System Reset
 
+  bool cmos_security_lock = !!(value & (1 << 2));
   bool new_a20_state = !!(value & (1 << 1));
   bool system_reset = !!(value & (1 << 0));
 
@@ -161,6 +112,8 @@ void PCBochs::IOWriteSystemControlPortA(uint8 value)
     SetA20State(new_a20_state);
     UpdateKeyboardControllerOutputPort();
   }
+
+  m_cmos_lock = cmos_security_lock;
 
   // System reset?
   // We do this last as it's going to destroy everything.
@@ -172,7 +125,7 @@ void PCBochs::IOWriteSystemControlPortA(uint8 value)
   }
 }
 
-void PCBochs::IOReadSystemControlPortB(uint8* value)
+void AMI386::IOReadSystemControlPortB(uint8* value)
 {
   *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
            (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
@@ -186,7 +139,7 @@ void PCBochs::IOReadSystemControlPortB(uint8* value)
   m_refresh_bit ^= true;
 }
 
-void PCBochs::IOWriteSystemControlPortB(uint8 value)
+void AMI386::IOWriteSystemControlPortB(uint8 value)
 {
   Log_DevPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
 
@@ -194,7 +147,7 @@ void PCBochs::IOWriteSystemControlPortB(uint8 value)
   m_speaker->SetOutputEnabled(!!(value & (1 << 1)));     // Speaker data enable
 }
 
-void PCBochs::UpdateKeyboardControllerOutputPort()
+void AMI386::UpdateKeyboardControllerOutputPort()
 {
   uint8 value = m_keyboard_controller->GetOutputPort();
   value &= ~uint8(0x03);
@@ -202,7 +155,7 @@ void PCBochs::UpdateKeyboardControllerOutputPort()
   m_keyboard_controller->SetOutputPort(value);
 }
 
-void PCBochs::AddComponents()
+void AMI386::AddComponents()
 {
   m_keyboard_controller = new HW::i8042_PS2();
   m_dma_controller = new HW::i8237_DMA();
@@ -233,54 +186,33 @@ void PCBochs::AddComponents()
   m_timer->SetChannelOutputChangeCallback(2, [this](bool value) { m_speaker->SetLevel(value); });
 }
 
-void PCBochs::SetCMOSVariables()
+void AMI386::SetCMOSVariables()
 {
-  // Bochs CMOS map
-  //
-  // Idx  Len   Description
-  // 0x10   1   floppy drive types
-  // 0x11   1   configuration bits
-  // 0x12   1   harddisk types
-  // 0x13   1   advanced configuration bits
-  // 0x15   2   base memory in 1k
-  // 0x17   2   memory size above 1M in 1k
-  // 0x19   2   extended harddisk types
-  // 0x1b   9   harddisk configuration (hd0)
-  // 0x24   9   harddisk configuration (hd1)
-  // 0x2d   1   boot sequence (fd/hd)
-  // 0x30   2   memory size above 1M in 1k
-  // 0x34   2   memory size above 16M in 64k
-  // 0x38   1   eltorito boot sequence (#3) + bootsig check
-  // 0x39   2   ata translation policy (ata0...ata3)
-  // 0x3d   1   eltorito boot sequence (#1 + #2)
-  //
-  // Qemu CMOS map
-  //
-  // Idx  Len   Description
-  // 0x5b   3   extra memory above 4GB
-  // 0x5f   1   number of processors
+  static const uint8 cmos_defaults[][2] = {
+    {0x0E, 0x00}, {0x0F, 0x00}, {0x10, 0x24}, {0x11, 0x3B}, {0x12, 0xF0}, {0x13, 0x30}, {0x14, 0x4D}, {0x15, 0x80},
+    {0x16, 0x02}, {0x17, 0x80}, {0x18, 0x0D}, {0x19, 0x2F}, {0x1A, 0x00}, {0x1B, 0x7B}, {0x1C, 0x00}, {0x1D, 0x2D},
+    {0x1E, 0x06}, {0x1F, 0x00}, {0x20, 0x08}, {0x21, 0x07}, {0x22, 0x00}, {0x23, 0x08}, {0x24, 0x00}, {0x25, 0x00},
+    {0x26, 0x00}, {0x27, 0x00}, {0x28, 0x00}, {0x29, 0x00}, {0x2A, 0x00}, {0x2B, 0x00}, {0x2C, 0x00}, {0x2D, 0x7A},
+    {0x2E, 0x04}, {0x2F, 0x49}, {0x30, 0x80}, {0x31, 0x0D}, {0x34, 0x00}, {0x35, 0x0F}, {0x36, 0x20}, {0x37, 0x80},
+    {0x38, 0x1B}, {0x39, 0x7B}, {0x3A, 0x21}, {0x3B, 0x00}, {0x3C, 0x00}, {0x3D, 0x00}, {0x3E, 0x0D}, {0x3F, 0x0B},
+    {0x40, 0x00}, {0x41, 0x82}, {0x42, 0x00}, {0x43, 0x00}, {0x44, 0x00}, {0x45, 0x05}, {0x46, 0x00}, {0x47, 0x04},
+    {0x48, 0x02}, {0x49, 0x01}, {0x4A, 0x00}, {0x4B, 0x00}, {0x4C, 0x00}, {0x4D, 0xFF}, {0x4E, 0xFF}, {0x4F, 0xFF},
+    {0x50, 0xC0}, {0x51, 0x9C}, {0x52, 0xD0}, {0x53, 0x98}, {0x54, 0xD0}, {0x55, 0x98}, {0x56, 0xF0}, {0x57, 0x98},
+    {0x58, 0x00}, {0x59, 0x04}, {0x5A, 0xF7}, {0x5B, 0xF7}, {0x5C, 0x00}, {0x5D, 0x00}, {0x5E, 0x00}, {0x5F, 0x00},
+    {0x60, 0x00}, {0x61, 0x10}, {0x62, 0x00}, {0x63, 0x00}, {0x64, 0x00}, {0x65, 0x00}, {0x66, 0x00}, {0x67, 0x00},
+    {0x68, 0x00}, {0x69, 0x00}, {0x6A, 0x01}, {0x6B, 0x40}, {0x6C, 0x00}, {0x6D, 0x00}, {0x6E, 0x00}, {0x6F, 0x00},
+    {0x70, 0x0A}, {0x71, 0x06}, {0x72, 0x0C}, {0x73, 0x07}, {0x74, 0x00}, {0x75, 0x00}, {0x76, 0x00}, {0x77, 0x00},
+    {0x78, 0x00}, {0x79, 0x00}};
+
+  for (size_t i = 0; i < countof(cmos_defaults); i++)
+    m_cmos->SetVariable(cmos_defaults[i][0], cmos_defaults[i][1]);
 
   PhysicalMemoryAddress base_memory_in_k = GetBaseMemorySize() / 1024;
   m_cmos->SetWordVariable(0x15, Truncate16(base_memory_in_k));
   Log_DevPrintf("Base memory in KB: %u", Truncate32(base_memory_in_k));
 
-  PhysicalMemoryAddress extended_memory_in_k = GetTotalMemorySize() / 1024 - 1024;
-  if (extended_memory_in_k > 0xFC00)
-    extended_memory_in_k = 0xFC00;
-  m_cmos->SetWordVariable(0x17, Truncate16(extended_memory_in_k));
-  m_cmos->SetWordVariable(0x30, Truncate16(extended_memory_in_k));
+  PhysicalMemoryAddress extended_memory_in_k = GetExtendedMemorySize() / 1024;
   Log_DevPrintf("Extended memory in KB: %u", Truncate32(extended_memory_in_k));
-
-  PhysicalMemoryAddress extended_memory_in_64k = GetTotalMemorySize() / 1024; // TODO: Fix this
-  if (extended_memory_in_64k > 16384)
-    extended_memory_in_64k = (extended_memory_in_64k - 16384) / 64;
-  else
-    extended_memory_in_64k = 0;
-  if (extended_memory_in_64k > 0xBF00)
-    extended_memory_in_64k = 0xBF00;
-
-  m_cmos->SetWordVariable(0x34, Truncate16(extended_memory_in_64k));
-  Log_DevPrintf("Extended memory above 16MB in KB: %u", Truncate32(extended_memory_in_64k * 64));
 
   uint32 fdd_drive_type_variable = 0;
   for (uint32 i = 0; i < HW::FDC::MAX_DRIVES; i++)
@@ -304,8 +236,10 @@ void PCBochs::SetCMOSVariables()
           case HW::FDC::DiskType_360K:
           case HW::FDC::DiskType_640K:
           case HW::FDC::DiskType_1220K:
-          default:
             cmos_type = 2;
+            break;
+          default:
+            cmos_type = 0;
             break;
         }
       }
@@ -315,13 +249,15 @@ void PCBochs::SetCMOSVariables()
       {
         switch (disk_type)
         {
+          case HW::FDC::DiskType_720K:
+          case HW::FDC::DiskType_1440K:
+            cmos_type = 4;
+            break;
           case HW::FDC::DiskType_2880K:
             cmos_type = 5;
             break;
-          case HW::FDC::DiskType_720K:
-          case HW::FDC::DiskType_1440K:
           default:
-            cmos_type = 4;
+            cmos_type = 0;
             break;
         }
       }
@@ -341,8 +277,7 @@ void PCBochs::SetCMOSVariables()
 
   // Equipment byte
   uint8 equipment_byte = 0;
-  equipment_byte |= (1 << 1); // coprocessor installed
-  equipment_byte |= (1 << 2); // ps/2 device/mouse installed
+  // equipment_byte |= (1 << 1);     // coprocessor installed
   if (m_fdd_controller->GetDriveCount() > 0)
   {
     equipment_byte |= (1 << 0); // disk available for boot
@@ -354,14 +289,6 @@ void PCBochs::SetCMOSVariables()
   // Boot from HDD first
   // Legacy - 0 - C: -> A:, 1 - A: -> C:
   m_cmos->SetVariable(0x2D, (0 << 5));
-  // 0x00 - undefined, 0x01 - first floppy, 0x02 - first HDD, 0x03 - first cdrom
-  if (m_hdd_controller->GetDriveCount() > 0)
-    m_cmos->SetVariable(0x3D, 0x02);
-  else
-    m_cmos->SetVariable(0x3D, 0x01);
-
-  // Skip IPL validity check
-  m_cmos->SetVariable(0x38, 0x01);
 
   // HDD information
   m_cmos->SetVariable(0x12, 0);
@@ -382,7 +309,7 @@ void PCBochs::SetCMOSVariables()
   if (m_hdd_controller->IsDrivePresent(1))
   {
     m_cmos->SetVariable(0x12, m_cmos->GetVariable(0x12) | 0x0F);
-    m_cmos->SetVariable(0x1A, 47); // user-defined type
+    m_cmos->SetVariable(0x1A, 48); // user-defined type
     m_cmos->SetVariable(0x24, Truncate8(m_hdd_controller->GetDriveCylinders(1)));
     m_cmos->SetVariable(0x25, Truncate8(m_hdd_controller->GetDriveCylinders(1) >> 8));
     m_cmos->SetVariable(0x26, Truncate8(m_hdd_controller->GetDriveHeads(1)));
@@ -393,6 +320,13 @@ void PCBochs::SetCMOSVariables()
     m_cmos->SetVariable(0x2B, m_cmos->GetVariable(0x1C));
     m_cmos->SetVariable(0x2C, Truncate8(m_hdd_controller->GetDriveSectors(1)));
   }
+
+  // Adjust CMOS checksum over 10-2D
+  uint16 checksum = 0;
+  for (uint8 i = 0x10; i <= 0x2D; i++)
+    checksum += ZeroExtend16(m_cmos->GetVariable(i));
+  m_cmos->SetVariable(0x2E, Truncate8(checksum >> 8));
+  m_cmos->SetVariable(0x2F, Truncate8(checksum));
 }
 
 } // namespace Systems

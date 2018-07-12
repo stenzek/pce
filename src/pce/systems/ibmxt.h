@@ -5,13 +5,13 @@
 #include "pce/hw/i8259_pic.h"
 #include "pce/hw/pcspeaker.h"
 #include "pce/hw/xt_ppi.h"
-#include "pce/systems/pcbase.h"
+#include "pce/systems/isapc.h"
 
 class ByteStream;
 
 namespace Systems {
 
-class PCXT : public PCBase
+class IBMXT : public ISAPC
 {
 public:
   enum class VideoType
@@ -26,9 +26,9 @@ public:
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_8K = 0xFE000;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_32K = 0xF8000;
 
-  PCXT(HostInterface* host_interface, float cpu_frequency = 1000000.0f, uint32 memory_size = 640 * 1024,
-       VideoType video_type = VideoType::Other);
-  ~PCXT();
+  IBMXT(HostInterface* host_interface, float cpu_frequency = 1000000.0f, uint32 memory_size = 640 * 1024,
+        VideoType video_type = VideoType::Other);
+  ~IBMXT();
 
   const char* GetSystemName() const override { return "IBM XT"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }

@@ -5,11 +5,11 @@
 
 namespace Systems {
 
-class PCBase : public System
+class ISAPC : public System
 {
 public:
-  PCBase(HostInterface* host_interface);
-  virtual ~PCBase();
+  ISAPC(HostInterface* host_interface);
+  virtual ~ISAPC();
 
   bool AddMMIOROMFromStream(PhysicalMemoryAddress address, ByteStream* stream);
   bool AddMMIOROMFromFile(PhysicalMemoryAddress address, const char* filename, uint32 expected_size = 0);
@@ -23,9 +23,6 @@ protected:
   static constexpr PhysicalMemoryAddress A20_BIT = (1 << 20);
 
   void AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, bool reserve_uma);
-
-  virtual bool LoadSystemState(BinaryReader& reader) override;
-  virtual bool SaveSystemState(BinaryWriter& writer) override;
 
   // ROM space
   struct ROMBlock

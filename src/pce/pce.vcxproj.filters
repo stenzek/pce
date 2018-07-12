@@ -26,20 +26,8 @@
     <ClCompile Include="hw\cmos.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="systems\pcxt.cpp">
-      <Filter>systems</Filter>
-    </ClCompile>
-    <ClCompile Include="systems\pcbase.cpp">
-      <Filter>systems</Filter>
-    </ClCompile>
-    <ClCompile Include="systems\pcat.cpp">
-      <Filter>systems</Filter>
-    </ClCompile>
     <ClCompile Include="hw\vga.cpp">
       <Filter>hw</Filter>
-    </ClCompile>
-    <ClCompile Include="systems\pcbochs.cpp">
-      <Filter>systems</Filter>
     </ClCompile>
     <ClCompile Include="audio.cpp" />
     <ClCompile Include="hw\pcspeaker.cpp">
@@ -70,9 +58,6 @@
     </ClCompile>
     <ClCompile Include="thirdparty\dosbox\dbopl.cpp">
       <Filter>thirdparty</Filter>
-    </ClCompile>
-    <ClCompile Include="systems\pcami386.cpp">
-      <Filter>systems</Filter>
     </ClCompile>
     <ClCompile Include="hw\soundblaster.cpp">
       <Filter>hw</Filter>
@@ -111,7 +96,22 @@
     <ClCompile Include="hw\i8042_ps2.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="systems\pcali1429.cpp">
+    <ClCompile Include="systems\ibmxt.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\ibmat.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\ami386.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\ali1429.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\bochs.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="systems\isapc.cpp">
       <Filter>systems</Filter>
     </ClCompile>
   </ItemGroup>
@@ -147,24 +147,12 @@
     <ClInclude Include="hw\cmos.h">
       <Filter>hw</Filter>
     </ClInclude>
-    <ClInclude Include="systems\pcxt.h">
-      <Filter>systems</Filter>
-    </ClInclude>
-    <ClInclude Include="systems\pcbase.h">
-      <Filter>systems</Filter>
-    </ClInclude>
-    <ClInclude Include="systems\pcat.h">
-      <Filter>systems</Filter>
-    </ClInclude>
     <ClInclude Include="hw\vga.h">
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="scancodes.h" />
     <ClInclude Include="save_state_version.h" />
     <ClInclude Include="debugger_interface.h" />
-    <ClInclude Include="systems\pcbochs.h">
-      <Filter>systems</Filter>
-    </ClInclude>
     <ClInclude Include="audio.h" />
     <ClInclude Include="hw\pcspeaker.h">
       <Filter>hw</Filter>
@@ -200,9 +188,6 @@
     </ClInclude>
     <ClInclude Include="thirdparty\dosbox\dbopl.h">
       <Filter>thirdparty</Filter>
-    </ClInclude>
-    <ClInclude Include="systems\pcami386.h">
-      <Filter>systems</Filter>
     </ClInclude>
     <ClInclude Include="hw\soundblaster.h">
       <Filter>hw</Filter>
@@ -251,7 +236,22 @@
     <ClInclude Include="hw\i8042_ps2.h">
       <Filter>hw</Filter>
     </ClInclude>
-    <ClInclude Include="systems\pcali1429.h">
+    <ClInclude Include="systems\ibmxt.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\ibmat.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\ami386.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\ali1429.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\bochs.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="systems\isapc.h">
       <Filter>systems</Filter>
     </ClInclude>
   </ItemGroup>

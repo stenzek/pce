@@ -9,24 +9,25 @@
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
 #include "pce/hw/pcspeaker.h"
-#include "pce/systems/pcbase.h"
+#include "pce/systems/isapc.h"
 
 class ByteStream;
 
 namespace Systems {
 
-class PC_AMI_386 : public PCBase
+class Bochs : public ISAPC
 {
 public:
   static const uint32 PHYSICAL_MEMORY_BITS = 32;
-  static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
+  static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xFFFF0000;
+  static const PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xF0000;
   static const uint32 BIOS_ROM_SIZE = 65536;
 
-  PC_AMI_386(HostInterface* host_interface, CPU_X86::Model model = CPU_X86::MODEL_386, float cpu_frequency = 4000000.0f,
-             uint32 memory_size = 16 * 1024 * 1024);
-  ~PC_AMI_386();
+  Bochs(HostInterface* host_interface, CPU_X86::Model model = CPU_X86::MODEL_486, float cpu_frequency = 8000000.0f,
+        uint32 memory_size = 16 * 1024 * 1024);
+  ~Bochs();
 
-  const char* GetSystemName() const override { return "AMI 386"; }
+  const char* GetSystemName() const override { return "Bochs PC"; }
   InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
   bool Initialize() override;
   void Reset() override;
@@ -39,8 +40,8 @@ public:
   auto GetCMOS() const { return m_cmos; }
 
 private:
-  virtual bool LoadSystemState(BinaryReader& reader) override;
-  virtual bool SaveSystemState(BinaryWriter& writer) override;
+  bool LoadSystemState(BinaryReader& reader) override;
+  bool SaveSystemState(BinaryWriter& writer) override;
 
   void ConnectSystemIOPorts();
   void AddComponents();
@@ -51,6 +52,8 @@ private:
   void IOReadSystemControlPortB(uint8* value);
   void IOWriteSystemControlPortB(uint8 value);
   void UpdateKeyboardControllerOutputPort();
+
+  std::string m_bios_file_path;
 
   HW::i8042_PS2* m_keyboard_controller = nullptr;
   HW::i8237_DMA* m_dma_controller = nullptr;
@@ -64,7 +67,6 @@ private:
   HW::FDC* m_fdd_controller = nullptr;
   HW::HDC* m_hdd_controller = nullptr;
 
-  bool m_cmos_lock = false;
   bool m_refresh_bit = false;
 };
 

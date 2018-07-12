@@ -46,8 +46,8 @@
     <ClCompile Include="hw\keyboard_scancodes.cpp" />
     <ClCompile Include="hw\soundblaster.cpp" />
     <ClCompile Include="hw\xt_ppi.cpp" />
-    <ClCompile Include="systems\pcami386.cpp" />
-    <ClCompile Include="systems\pcali1429.cpp" />
+    <ClCompile Include="systems\ami386.cpp" />
+    <ClCompile Include="systems\ali1429.cpp" />
     <ClCompile Include="thirdparty\dosbox\dbopl.cpp" />
     <ClCompile Include="timing.cpp" />
     <ClCompile Include="host_interface.cpp" />
@@ -66,10 +66,10 @@
     <ClCompile Include="display.cpp" />
     <ClCompile Include="mmio.cpp" />
     <ClCompile Include="system.cpp" />
-    <ClCompile Include="systems\pcbochs.cpp" />
-    <ClCompile Include="systems\pcat.cpp" />
-    <ClCompile Include="systems\pcbase.cpp" />
-    <ClCompile Include="systems\pcxt.cpp" />
+    <ClCompile Include="systems\bochs.cpp" />
+    <ClCompile Include="systems\ibmat.cpp" />
+    <ClCompile Include="systems\isapc.cpp" />
+    <ClCompile Include="systems\ibmxt.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="audio.h" />
@@ -102,8 +102,8 @@
     <ClInclude Include="hw\keyboard_scancodes.h" />
     <ClInclude Include="hw\soundblaster.h" />
     <ClInclude Include="hw\xt_ppi.h" />
-    <ClInclude Include="systems\pcami386.h" />
-    <ClInclude Include="systems\pcali1429.h" />
+    <ClInclude Include="systems\ami386.h" />
+    <ClInclude Include="systems\ali1429.h" />
     <ClInclude Include="thirdparty\dosbox\dbopl.h" />
     <ClInclude Include="timing.h" />
     <ClInclude Include="host_interface.h" />
@@ -125,10 +125,10 @@
     <ClInclude Include="save_state_version.h" />
     <ClInclude Include="scancodes.h" />
     <ClInclude Include="system.h" />
-    <ClInclude Include="systems\pcbochs.h" />
-    <ClInclude Include="systems\pcat.h" />
-    <ClInclude Include="systems\pcbase.h" />
-    <ClInclude Include="systems\pcxt.h" />
+    <ClInclude Include="systems\bochs.h" />
+    <ClInclude Include="systems\ibmat.h" />
+    <ClInclude Include="systems\isapc.h" />
+    <ClInclude Include="systems\ibmxt.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>

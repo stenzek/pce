@@ -1,42 +1,53 @@
-#include "pce/systems/pcami386.h"
+#include "pce/systems/ali1429.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"
-Log_SetChannel(Systems::PC_AMI_386);
+Log_SetChannel(Systems::ALi1429);
 
 namespace Systems {
 
-PC_AMI_386::PC_AMI_386(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X86::MODEL_486 */,
-                       float cpu_frequency /* = 8000000.0f */, uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : PCBase(host_interface)
+ALi1429::ALi1429(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X86::MODEL_486 */,
+                 float cpu_frequency /* = 8000000.0f */, uint32 memory_size /* = 16 * 1024 * 1024 */)
+  : ISAPC(host_interface), m_bios_file_path("romimages/4alp001.bin")
 {
   m_cpu = new CPU_X86::CPU(model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
-  AllocatePhysicalMemory(memory_size, false, true);
+  AllocatePhysicalMemory(memory_size, false, false);
   AddComponents();
 }
 
-PC_AMI_386::~PC_AMI_386() {}
+ALi1429::~ALi1429() {}
 
-bool PC_AMI_386::Initialize()
+bool ALi1429::Initialize()
 {
-  if (!PCBase::Initialize())
+  if (!ISAPC::Initialize())
     return false;
+
+  // We have to use MMIO ROMs, because the shadowed region can only be RAM or ROM, not both.
+  // The upper binding is okay to keep as a ROM region, though, since we don't shadow it.
+  if (!AddMMIOROMFromFile(BIOS_ROM_ADDRESS, m_bios_file_path.c_str(), BIOS_ROM_SIZE) ||
+      !m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_MIRROR_ADDRESS, BIOS_ROM_SIZE))
+  {
+    return false;
+  }
 
   ConnectSystemIOPorts();
   SetCMOSVariables();
   return true;
 }
 
-void PC_AMI_386::Reset()
+void ALi1429::Reset()
 {
-  PCBase::Reset();
+  ISAPC::Reset();
 
   m_cmos_lock = false;
   m_refresh_bit = false;
+
+  std::fill(m_ali1429_registers.begin(), m_ali1429_registers.end(), uint8(0));
+  m_ali1429_index_register = 0;
 
   // Set keyboard controller input port up.
   // b7 = Keyboard not inhibited, b5 = POST loop inactive
@@ -45,11 +56,12 @@ void PC_AMI_386::Reset()
   // Start with A20 line on
   SetA20State(true);
   UpdateKeyboardControllerOutputPort();
+  UpdateShadowRAM();
 }
 
-bool PC_AMI_386::LoadSystemState(BinaryReader& reader)
+bool ALi1429::LoadSystemState(BinaryReader& reader)
 {
-  if (!PCBase::LoadSystemState(reader))
+  if (!ISAPC::LoadSystemState(reader))
     return false;
 
   reader.SafeReadBool(&m_cmos_lock);
@@ -57,9 +69,9 @@ bool PC_AMI_386::LoadSystemState(BinaryReader& reader)
   return !reader.GetErrorState();
 }
 
-bool PC_AMI_386::SaveSystemState(BinaryWriter& writer)
+bool ALi1429::SaveSystemState(BinaryWriter& writer)
 {
-  if (!PCBase::SaveSystemState(writer))
+  if (!ISAPC::SaveSystemState(writer))
     return false;
 
   writer.SafeWriteBool(m_cmos_lock);
@@ -67,32 +79,85 @@ bool PC_AMI_386::SaveSystemState(BinaryWriter& writer)
   return !writer.InErrorState();
 }
 
-void PC_AMI_386::ConnectSystemIOPorts()
+void ALi1429::ConnectSystemIOPorts()
 {
+  m_bus->ConnectIOPortRead(0x0022, this, std::bind(&ALi1429::IOReadALI1429IndexRegister, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x0022, this,
+                            std::bind(&ALi1429::IOWriteALI1429IndexRegister, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0023, this, std::bind(&ALi1429::IOReadALI1429DataRegister, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x0023, this, std::bind(&ALi1429::IOWriteALI1429DataRegister, this, std::placeholders::_2));
   // System control ports
-  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&PC_AMI_386::IOReadSystemControlPortA, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x0092, this,
-                            std::bind(&PC_AMI_386::IOWriteSystemControlPortA, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&PC_AMI_386::IOReadSystemControlPortB, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x0061, this,
-                            std::bind(&PC_AMI_386::IOWriteSystemControlPortB, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&ALi1429::IOReadSystemControlPortA, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&ALi1429::IOWriteSystemControlPortA, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&ALi1429::IOReadSystemControlPortB, this, std::placeholders::_2));
+  m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&ALi1429::IOWriteSystemControlPortB, this, std::placeholders::_2));
 
   // Connect the keyboard controller output port to the lower 2 bits of system control port A.
   m_keyboard_controller->SetOutputPortWrittenCallback([this](uint8 value, uint8 old_value, bool pulse) {
-    // We're doing something wrong here, the BIOS resets the CPU almost immediately after booting?
-    value &= ~uint8(0x01);
+    if (!pulse)
+      value &= ~uint8(0x01);
     IOWriteSystemControlPortA(value & 0x03);
     IOReadSystemControlPortA(&value);
     m_keyboard_controller->SetOutputPort(value);
   });
 }
 
-void PC_AMI_386::IOReadSystemControlPortA(uint8* value)
+void ALi1429::IOReadALI1429IndexRegister(uint8* value)
+{
+  *value = m_ali1429_index_register;
+}
+
+void ALi1429::IOWriteALI1429IndexRegister(uint8 value)
+{
+  m_ali1429_index_register = value;
+}
+
+void ALi1429::IOReadALI1429DataRegister(uint8* value)
+{
+  *value = m_ali1429_registers[m_ali1429_index_register];
+}
+
+void ALi1429::IOWriteALI1429DataRegister(uint8 value)
+{
+  m_ali1429_registers[m_ali1429_index_register] = value;
+
+  if (m_ali1429_index_register == 0x13 || m_ali1429_index_register == 0x14)
+  {
+    // Recalculate shadowing.
+    UpdateShadowRAM();
+  }
+}
+
+void ALi1429::UpdateShadowRAM()
+{
+  for (uint32 i = 0; i < 8; i++)
+  {
+    uint32 base = UINT32_C(0xC0000) + (i << 15);
+    if (m_ali1429_registers[0x13] & (1 << i))
+    {
+      // Shadowing enabled for this region.
+      const uint32 flag = m_ali1429_registers[0x14] & 0x03;
+      const bool readable_memory = !!(flag & 1);
+      const bool writable_memory = !!(flag & 2);
+      Log_DevPrintf("Shadowing ENABLED for 0x%08X-0x%08X (type %u, readable=%s, writable=%s)", base,
+                    base + SHADOW_REGION_SIZE - 1, flag, readable_memory ? "yes" : "no",
+                    writable_memory ? "yes" : "no");
+      m_bus->SetPagesMemoryState(base, SHADOW_REGION_SIZE, readable_memory, writable_memory);
+    }
+    else
+    {
+      Log_DevPrintf("Shadowing DISABLED for 0x%08X-0x%08X", base, base + SHADOW_REGION_SIZE - 1);
+      m_bus->SetPagesMemoryState(base, SHADOW_REGION_SIZE, false, false);
+    }
+  }
+}
+
+void ALi1429::IOReadSystemControlPortA(uint8* value)
 {
   *value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
 }
 
-void PC_AMI_386::IOWriteSystemControlPortA(uint8 value)
+void ALi1429::IOWriteSystemControlPortA(uint8 value)
 {
   Log_DevPrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
 
@@ -127,7 +192,7 @@ void PC_AMI_386::IOWriteSystemControlPortA(uint8 value)
   }
 }
 
-void PC_AMI_386::IOReadSystemControlPortB(uint8* value)
+void ALi1429::IOReadSystemControlPortB(uint8* value)
 {
   *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
            (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
@@ -141,7 +206,7 @@ void PC_AMI_386::IOReadSystemControlPortB(uint8* value)
   m_refresh_bit ^= true;
 }
 
-void PC_AMI_386::IOWriteSystemControlPortB(uint8 value)
+void ALi1429::IOWriteSystemControlPortB(uint8 value)
 {
   Log_DevPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
 
@@ -149,7 +214,7 @@ void PC_AMI_386::IOWriteSystemControlPortB(uint8 value)
   m_speaker->SetOutputEnabled(!!(value & (1 << 1)));     // Speaker data enable
 }
 
-void PC_AMI_386::UpdateKeyboardControllerOutputPort()
+void ALi1429::UpdateKeyboardControllerOutputPort()
 {
   uint8 value = m_keyboard_controller->GetOutputPort();
   value &= ~uint8(0x03);
@@ -157,7 +222,7 @@ void PC_AMI_386::UpdateKeyboardControllerOutputPort()
   m_keyboard_controller->SetOutputPort(value);
 }
 
-void PC_AMI_386::AddComponents()
+void ALi1429::AddComponents()
 {
   m_keyboard_controller = new HW::i8042_PS2();
   m_dma_controller = new HW::i8237_DMA();
@@ -188,7 +253,7 @@ void PC_AMI_386::AddComponents()
   m_timer->SetChannelOutputChangeCallback(2, [this](bool value) { m_speaker->SetLevel(value); });
 }
 
-void PC_AMI_386::SetCMOSVariables()
+void ALi1429::SetCMOSVariables()
 {
   static const uint8 cmos_defaults[][2] = {
     {0x0E, 0x00}, {0x0F, 0x00}, {0x10, 0x24}, {0x11, 0x3B}, {0x12, 0xF0}, {0x13, 0x30}, {0x14, 0x4D}, {0x15, 0x80},

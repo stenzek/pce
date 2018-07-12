@@ -4,7 +4,7 @@
 #include "pce/cpu.h"
 #include "pce/host_interface.h"
 #include "pce/system.h"
-#include "pce/systems/pcbochs.h"
+#include "pce/systems/bochs.h"
 #include <QtCore/QThread>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QMainWindow>
@@ -65,7 +65,7 @@ private:
   DebuggerInterface* m_debugger_interface = nullptr;
   std::unique_ptr<DebuggerWindow> m_debugger_window;
 
-  std::unique_ptr<Systems::PCBochs> m_system;
+  std::unique_ptr<Systems::Bochs> m_system;
   std::unique_ptr<SystemThread> m_system_thread;
 
   class HostInterface : public ::HostInterface
