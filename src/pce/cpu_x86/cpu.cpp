@@ -3093,7 +3093,8 @@ inline constexpr bool IsBusyTaskDescriptorType(uint8 type)
 
 void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool push_error_code, uint32 error_code)
 {
-  Log_DevPrintf("Switching to task %02X%s", ZeroExtend32(new_task), nested_task ? " (nested)" : "");
+  Log_DevPrintf("Switching from task %02X to task %02X%s", ZeroExtend32(m_registers.TR), ZeroExtend32(new_task),
+                nested_task ? " (nested)" : "");
 
   // Read the current task descriptor. This should never fail.
   SEGMENT_SELECTOR_VALUE current_task_selector = {m_registers.TR};

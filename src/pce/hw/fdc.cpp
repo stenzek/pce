@@ -109,7 +109,7 @@ FDC::DriveType FDC::GetDriveTypeForDiskType(DiskType type)
   return DriveType_None;
 }
 
-FDC::FDC(DMAController* dma) : m_dma(dma), m_clock("Floppy Controller", CLOCK_FREQUENCY) {}
+FDC::FDC(Model model, DMAController* dma) : m_dma(dma), m_clock("Floppy Controller", CLOCK_FREQUENCY), m_model(model) {}
 
 FDC::~FDC() {}
 
@@ -125,32 +125,40 @@ bool FDC::Initialize(System* system, Bus* bus)
 
 void FDC::Reset()
 {
-  m_main_status_register.ClearActivity();
-  m_main_status_register.command_busy = false;
-  if (m_command_event->IsActive())
-    m_command_event->Deactivate();
+  Reset(false);
+}
 
-  TransitionToCommandPhase();
-
-  // Interrupts start enabled always.
-  m_interrupt_enable = true;
-  LowerInterrupt();
-
-  m_motor_on.fill(false);
-  m_nreset = false;
-
-  m_step_rate_time = 0;
-  m_head_load_time = 0;
-  m_head_unload_time = 0;
-  m_pio_mode = false;
-
-  m_data_rate_index = 0;
-
-  // Abort any transfers
+void FDC::Reset(bool software_reset)
+{
+  m_current_command.Clear();
+  m_command_event->SetActive(false);
   if (m_current_transfer.active)
   {
-    m_current_transfer.active = false;
+    m_current_transfer.Clear();
     m_dma->SetDMAState(DMA_CHANNEL, false);
+  }
+
+  m_DOR.bits = 0;
+  m_DOR.ndmagate = true;
+  m_DOR.nreset = true;
+  m_MSR.bits = 0;
+  m_MSR.request_for_master = true;
+  TransitionToCommandPhase();
+  LowerInterrupt();
+
+  if (!software_reset || !m_specify_lock)
+  {
+    m_data_rate_index = 0;
+    m_step_rate_time = 0;
+    m_head_load_time = 0;
+    m_head_unload_time = 0;
+    m_pio_mode = false;
+    m_fifo_threshold = 1;
+    m_implied_seeks = false;
+    m_fifo_disabled = true;
+    m_polling_disabled = false;
+    m_precompensation_start_track = 0;
+    m_perpendicular_mode = 0;
   }
 
   // Reset disk states
@@ -160,6 +168,17 @@ void FDC::Reset()
     drive.data_was_written = false;
     drive.direction = false;
     drive.step_latch = false;
+  }
+
+  if (software_reset)
+  {
+    // Require sense interrupt for software reset.
+    RaiseInterrupt();
+    m_reset_sense_interrupt_count = 4;
+  }
+  else
+  {
+    m_specify_lock = false;
   }
 }
 
@@ -190,27 +209,35 @@ bool FDC::LoadState(BinaryReader& reader)
     reader.SafeReadBool(&drive->direction);
   }
 
-  reader.SafeReadUInt8(&m_current_drive);
-  for (size_t i = 0; i < m_motor_on.size(); i++)
-    reader.SafeReadBool(&m_motor_on[i]);
-  reader.SafeReadBool(&m_interrupt_enable);
-  reader.SafeReadBool(&m_interrupt_pending);
-  reader.SafeReadBool(&m_nreset);
+  reader.SafeReadUInt8(&m_DOR.bits);
+  reader.SafeReadUInt8(&m_MSR.bits);
 
-  reader.SafeReadUInt8(&m_main_status_register.bits);
   reader.SafeReadUInt8(&m_data_rate_index);
-  reader.SafeReadBytes(m_fifo.data(), Truncate32(m_fifo.size()));
-  reader.SafeReadUInt32(&m_fifo_command_position);
+  reader.SafeReadBool(&m_interrupt_pending);
+  reader.SafeReadBool(&m_disk_change_flag);
+  reader.SafeReadBool(&m_specify_lock);
+
+  reader.SafeReadUInt8(&m_reset_sense_interrupt_count);
+  reader.SafeReadInt64(&m_reset_begin_time);
+
+  reader.SafeReadBytes(m_fifo, sizeof(m_fifo));
   reader.SafeReadUInt32(&m_fifo_result_size);
   reader.SafeReadUInt32(&m_fifo_result_position);
-  reader.SafeReadUInt8(&m_reset_sense_interrupt_count);
-  reader.SafeReadUInt8(&m_current_drive);
-  reader.SafeReadBool(&m_interrupt_pending);
-  reader.SafeReadUInt8(&m_reset_sense_interrupt_count);
+
   reader.SafeReadUInt8(&m_step_rate_time);
   reader.SafeReadUInt8(&m_head_load_time);
   reader.SafeReadUInt8(&m_head_unload_time);
   reader.SafeReadBool(&m_pio_mode);
+  reader.SafeReadBool(&m_implied_seeks);
+  reader.SafeReadBool(&m_polling_disabled);
+  reader.SafeReadBool(&m_fifo_disabled);
+  reader.SafeReadUInt8(&m_fifo_threshold);
+  reader.SafeReadUInt8(&m_precompensation_start_track);
+  reader.SafeReadUInt8(&m_perpendicular_mode);
+
+  reader.SafeReadBytes(m_current_command.buf, sizeof(m_current_command.buf));
+  reader.SafeReadUInt8(&m_current_command.command_length);
+
   reader.SafeReadBool(&m_current_transfer.active);
   reader.SafeReadBool(&m_current_transfer.multi_track);
   reader.SafeReadUInt8(&m_current_transfer.drive);
@@ -218,6 +245,7 @@ bool FDC::LoadState(BinaryReader& reader)
   reader.SafeReadUInt32(&m_current_transfer.sectors_per_track);
   reader.SafeReadUInt32(&m_current_transfer.sector_offset);
   reader.SafeReadBytes(m_current_transfer.sector_buffer, sizeof(m_current_transfer.sector_buffer));
+
   reader.SafeReadUInt8(&m_st0);
   reader.SafeReadUInt8(&m_st1);
   reader.SafeReadUInt8(&m_st2);
@@ -259,27 +287,34 @@ bool FDC::SaveState(BinaryWriter& writer)
     writer.SafeWriteBool(drive->direction);
   }
 
-  writer.SafeWriteUInt8(m_current_drive);
-  for (size_t i = 0; i < m_motor_on.size(); i++)
-    writer.SafeWriteBool(m_motor_on[i]);
-  writer.SafeWriteBool(m_interrupt_enable);
-  writer.SafeWriteBool(m_interrupt_pending);
-  writer.SafeWriteBool(m_nreset);
-
-  writer.SafeWriteUInt8(m_main_status_register.bits);
+  writer.SafeWriteUInt8(m_DOR.bits);
+  writer.SafeWriteUInt8(m_MSR.bits);
   writer.SafeWriteUInt8(m_data_rate_index);
-  writer.SafeWriteBytes(m_fifo.data(), Truncate32(m_fifo.size()));
-  writer.SafeWriteUInt32(m_fifo_command_position);
+  writer.SafeWriteBool(m_interrupt_pending);
+  writer.SafeWriteBool(m_disk_change_flag);
+  writer.SafeWriteBool(m_specify_lock);
+
+  writer.SafeWriteUInt8(m_reset_sense_interrupt_count);
+  writer.SafeWriteInt64(m_reset_begin_time);
+
+  writer.SafeWriteBytes(m_fifo, sizeof(m_fifo));
   writer.SafeWriteUInt32(m_fifo_result_size);
   writer.SafeWriteUInt32(m_fifo_result_position);
-  writer.SafeWriteUInt8(m_reset_sense_interrupt_count);
-  writer.SafeWriteUInt8(m_current_drive);
-  writer.SafeWriteBool(m_interrupt_pending);
-  writer.SafeWriteUInt8(m_reset_sense_interrupt_count);
+
   writer.SafeWriteUInt8(m_step_rate_time);
   writer.SafeWriteUInt8(m_head_load_time);
   writer.SafeWriteUInt8(m_head_unload_time);
   writer.SafeWriteBool(m_pio_mode);
+  writer.SafeWriteBool(m_implied_seeks);
+  writer.SafeWriteBool(m_polling_disabled);
+  writer.SafeWriteBool(m_fifo_disabled);
+  writer.SafeWriteUInt8(m_fifo_threshold);
+  writer.SafeWriteUInt8(m_precompensation_start_track);
+  writer.SafeWriteUInt8(m_perpendicular_mode);
+
+  writer.SafeWriteBytes(m_current_command.buf, sizeof(m_current_command.buf));
+  writer.SafeWriteUInt8(m_current_command.command_length);
+
   writer.SafeWriteBool(m_current_transfer.active);
   writer.SafeWriteBool(m_current_transfer.multi_track);
   writer.SafeWriteUInt8(m_current_transfer.drive);
@@ -393,7 +428,6 @@ void FDC::RemoveDisk(uint32 drive)
 
 void FDC::ClearFIFO()
 {
-  m_fifo_command_position = 0;
   m_fifo_result_position = 0;
   m_fifo_result_size = 0;
 }
@@ -487,153 +521,162 @@ bool FDC::WriteSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector,
   return true;
 }
 
-//////////////////////////////////////////////////////////////////////////
-// LLE stuff
-//////////////////////////////////////////////////////////////////////////
-
-void FDC::SoftReset()
+uint8 FDC::CurrentCommand::GetExpectedParameterCount() const
 {
-  ClearFIFO();
-
-  // Reset status register
-  m_main_status_register.command_busy = false;
-  m_main_status_register.ClearActivity();
-  if (m_command_event->IsActive())
-    m_command_event->Deactivate();
-  TransitionToCommandPhase();
-
-  // Reset disk states
-  for (DriveState& drive : m_drives)
-  {
-    drive.data_was_read = false;
-    drive.data_was_written = false;
-    drive.direction = false;
-    drive.step_latch = false;
-  }
-
-  // Cancel any DMA requests
-  if (m_current_transfer.active)
-  {
-    m_current_transfer.active = false;
-    m_dma->SetDMAState(DMA_CHANNEL, false);
-  }
-
-  // Reset interrupt line
-  LowerInterrupt();
-  RaiseInterrupt();
-  m_reset_sense_interrupt_count = 4;
-  // m_reset_sense_interrupt_count = 0;
-}
-
-uint8 FDC::GetCurrentCommandLength()
-{
-  uint8 command = m_fifo[0] & 0x1F;
-
   switch (command)
   {
-    case 0x03: // Specify
-      return 3;
-    case 0x05: // Write Data
-    case 0x06: // Read Data
-      return 9;
-    case 0x07: // Recalibrate
+    case CMD_SPECIFY:
       return 2;
-    case 0x08: // Sense Interrupt
+    case CMD_WRITE_DATA:
+    case CMD_READ_DATA:
+      return 8;
+    case CMD_RECALIBRATE:
       return 1;
-    case 0x0A: // Read ID
+    case CMD_SEEK:
       return 2;
-    case 0x0F: // Seek
+    case CMD_SENSE_INTERRUPT:
+      return 0;
+    case CMD_SENSE_STATUS:
+      return 1;
+    case CMD_READ_ID:
+      return 1;
+    case CMD_LOCK:
+    case CMD_UNLOCK:
+      return 0;
+    case CMD_PERPENDICULAR_MODE:
+      return 1;
+    case CMD_CONFIGURE:
       return 3;
     default:
-      return 1;
+      return 0;
   }
 }
-
-enum Command : uint8
-{
-  CMD_SPECIFY = 0x03,
-  CMD_SENSE_STATUS = 0x04,
-  CMD_WRITE_DATA = 0x05,
-  CMD_READ_DATA = 0x06,
-  CMD_RECALIBRATE = 0x07,
-  CMD_SENSE_INTERRUPT = 0x08,
-  CMD_READ_ID = 0x0A,
-  CMD_SEEK = 0x0F,
-
-  // Enhanced drive
-  CMD_DUMP_REGISTERS = 0x0E,
-  CMD_VERSION = 0x10,
-  CMD_UNLOCK = 0x14,
-  CMD_LOCK = 0x94,
-};
 
 void FDC::BeginCommand()
 {
-  uint8 command = m_fifo[0] & 0x1F;
-  bool sk = !!((m_fifo[0] >> 5) & 0x01);
-  bool mf = !!((m_fifo[0] >> 6) & 0x01);
-  bool mt = !!((m_fifo[0] >> 7) & 0x01);
-  Log_DevPrintf("Floppy command 0x%02X MT=%u,MF=%u,SK=%u", uint32(command), uint32(mt), uint32(mf), uint32(sk));
+  CurrentCommand& cmd = m_current_command;
+  Log_DevPrintf("Floppy command 0x%02X MT=%s,MF=%s,SK=%s", cmd.command.GetValue(), cmd.mt.GetValue() ? "yes" : "no",
+                cmd.mf.GetValue() ? "yes" : "no", cmd.sk.GetValue() ? "yes" : "no");
 
-  switch (command)
+  switch (m_current_command.command)
   {
     case CMD_SPECIFY: // Specify
     {
-      DebugAssert(m_fifo_command_position >= 3);
-
-      m_step_rate_time = (m_fifo[1] >> 4) & 0b1111;
-      m_head_unload_time = (m_fifo[1]) & 0b1111;
-      m_head_load_time = (m_fifo[2] >> 1) & 0b1111;
-      m_pio_mode = !!(m_fifo[2] & 0b1);
+      m_step_rate_time = (cmd.params[0] >> 4) & 0b1111;
+      m_head_unload_time = (cmd.params[0]) & 0b1111;
+      m_head_load_time = (cmd.params[1] >> 1) & 0b1111;
+      m_pio_mode = !!(cmd.params[1] & 0b1);
 
       // No result bytes or interrupt
       TransitionToCommandPhase();
     }
     break;
 
-    case CMD_WRITE_DATA: // Write Data
-    case CMD_READ_DATA:  // Read Data
+    case CMD_RECALIBRATE: // Recalibrate
     {
-      DebugAssert(m_fifo_command_position >= 9);
+      const uint8 drive_number = cmd.params[0] & 0x03;
+      Log_DevPrintf("Recalibrate drive %u", ZeroExtend32(drive_number));
 
-      // Update drive number
-      m_current_drive = m_fifo[1] & 0x03;
-      if (!IsDrivePresent(m_current_drive) || !IsDiskPresent(m_current_drive))
+      // Calculate seek time.
+      CycleCount seek_time = 1;
+      if (IsDiskPresent(drive_number))
       {
-        Log_DevPrintf("Write: drive/disk not present");
+        seek_time = CalculateHeadSeekTime(m_drives[drive_number].current_cylinder, 0);
+
+        // We actually seek the drive here, rather than in the End handler.
+        if (!SeekDrive(drive_number, 0, 0, 1))
+        {
+          Panic("Recalibrate host seek failed.");
+          HangController();
+          return;
+        }
+      }
+
+      m_MSR.request_for_master = false;
+      m_MSR.SetActivity(drive_number);
+      m_command_event->Queue(seek_time);
+    }
+    break;
+
+    case CMD_SEEK: // Seek
+    {
+      const uint8 drive_number = (cmd.params[0] & 0b11);
+      const uint8 head_number = (cmd.params[0] >> 2);
+      const uint8 cylinder_number = (cmd.params[1]);
+      Log_DevPrintf("Floppy seek drive %u head %u cylinder %u", drive_number, head_number, cylinder_number);
+
+      if (!IsDiskPresent(drive_number))
+      {
         HangController();
         return;
       }
 
-      bool is_write = (command == 0x05);
-      uint8 head_number2 = (m_fifo[1] >> 2);
-      uint8 cylinder_number = (m_fifo[2]);
-      uint8 head_number = (m_fifo[3]);
-      uint8 sector_number = (m_fifo[4]);
-      uint8 sector_type = (m_fifo[5]);
-      uint8 end_of_track = (m_fifo[6]);
-      // uint8 gap1_size = (m_fifo[7]);
-      uint8 sector_type2 = (m_fifo[8]);
+      // Ensure the cylinder/head is in range.
+      DriveState* drive = &m_drives[drive_number];
+      if (cylinder_number >= drive->num_cylinders || head_number >= drive->num_heads)
+      {
+        EndTransfer(drive_number, ST0_IC_AT, ST1_ND, 0);
+        return;
+      }
+
+      // Calculate time to seek.
+      CycleCount seek_time = CalculateHeadSeekTime(drive->current_cylinder, cylinder_number);
+
+      // We actually seek the drive here, rather than in the End handler.
+      if (!SeekDrive(drive_number, cylinder_number, head_number, 1))
+      {
+        Panic("Host seek failed.");
+        HangController();
+        return;
+      }
+
+      // The End handler just pretty much has to send the result now.
+      m_MSR.request_for_master = false;
+      m_MSR.SetActivity(drive_number);
+      m_command_event->Queue(seek_time);
+    }
+    break;
+
+    case CMD_WRITE_DATA: // Write Data
+    case CMD_READ_DATA:  // Read Data
+    {
+      const bool is_write = (cmd.command == CMD_WRITE_DATA);
+      const uint8 drive_number = (cmd.params[0] & 0x03);
+      const uint8 head_number2 = (cmd.params[0] >> 2);
+      const uint8 cylinder_number = (cmd.params[1]);
+      const uint8 head_number = (cmd.params[2]);
+      const uint8 sector_number = (cmd.params[3]);
+      const uint8 sector_type = (cmd.params[4]);
+      const uint8 end_of_track = (cmd.params[5]);
+      // const uint8 gap1_size = (cmd.params[6]);
+      const uint8 sector_type2 = (cmd.params[7]);
+
+      if (!IsDiskPresent(drive_number))
+      {
+        Log_DevPrintf("Write: Medium not present");
+        HangController();
+        return;
+      }
 
       // Header number in bit2 should equal head_number
       if (head_number2 != head_number)
       {
-        EndTransfer(m_current_drive, ST0_IC_AT, ST1_ND, 0);
+        EndTransfer(drive_number, ST0_IC_AT, ST1_ND, 0);
         return;
       }
 
       // Check for out-of-range reads.
-      if (cylinder_number >= m_drives[m_current_drive].num_cylinders ||
-          sector_number > m_drives[m_current_drive].num_sectors)
+      DriveState* drive = &m_drives[drive_number];
+      if (cylinder_number >= drive->num_cylinders || sector_number == 0 || sector_number > drive->num_sectors)
       {
-        EndTransfer(m_current_drive, ST0_IC_AT, ST1_ND, 0);
+        EndTransfer(drive_number, ST0_IC_AT, ST1_ND, 0);
         return;
       }
 
       // TODO: Properly validate ranges
       DebugAssert(sector_type == 0x02);
-      DebugAssert(cylinder_number < m_drives[m_current_drive].num_cylinders);
-      DebugAssert(sector_number <= m_drives[m_current_drive].num_sectors);
+      DebugAssert(cylinder_number < drive->num_cylinders);
+      DebugAssert(sector_number <= drive->num_sectors);
       if (sector_type == 0)
       {
         // sector type 2 means the number of bytes is specified in the last command byte
@@ -645,59 +688,36 @@ void FDC::BeginCommand()
       }
 
       m_current_transfer.active = true;
-      m_current_transfer.multi_track = mt;
+      m_current_transfer.multi_track = cmd.mt;
       m_current_transfer.is_write = is_write;
       m_current_transfer.sectors_per_track = end_of_track;
-      m_current_transfer.drive = m_current_drive;
+      m_current_transfer.drive = drive_number;
       m_current_transfer.sector_offset = 0;
 
       // TODO: Non-dma transfer
-      m_main_status_register.pio_mode = false;
+      m_MSR.pio_mode = false;
 
       Log_DevPrintf("Floppy start %s %u/%u/%u", is_write ? "write" : "read", cylinder_number, head_number,
                     sector_number);
 
-      // Clear RFM bit and wait for transfer to finish
-      m_main_status_register.request_for_master = false;
-      m_main_status_register.data_direction = !is_write;
-      m_main_status_register.command_busy = true;
+      // Clear RFM bit. The direction bit is set after the seek.
+      m_MSR.request_for_master = false;
+      m_MSR.SetActivity(drive_number);
 
-      // Already on the correct track?
-      if (m_drives[m_current_drive].current_cylinder != cylinder_number)
+      // We need to seek to the correct track/cylinder.
+      CycleCount seek_time = CalculateHeadSeekTime(drive->current_cylinder, cylinder_number);
+      if (!SeekDrive(drive_number, cylinder_number, head_number, sector_number))
       {
-        // We need to seek to the correct sector.
-        CycleCount seek_time = CalculateHeadSeekTime(m_drives[m_current_drive].current_cylinder, cylinder_number);
-        SeekDrive(m_current_drive, cylinder_number, head_number, sector_number);
-        m_command_event->Queue(seek_time);
-      }
-      else
-      {
-        // Start reading sectors. Still need to seek to the starting sector.
-        SeekDrive(m_current_drive, cylinder_number, head_number, sector_number);
-        m_command_event->Queue(CalculateSectorReadTime());
-      }
-    }
-    break;
-
-    case CMD_RECALIBRATE: // Recalibrate
-    {
-      DebugAssert(m_fifo_command_position >= 2);
-
-      uint8 drive = m_fifo[1] & 0x03;
-      Log_DevPrintf("Recalibrate drive %u", ZeroExtend32(drive));
-
-      // TODO: Set errors
-      if (!IsDrivePresent(drive))
-      {
-        HangController();
+        EndTransfer(drive_number, ST0_IC_AT, ST1_ND, 0);
         return;
       }
 
-      // Calculate time to seek.
-      CycleCount seek_time = CalculateHeadSeekTime(m_drives[drive].current_cylinder, 0);
-      m_main_status_register.command_busy = true;
-      m_main_status_register.SetActivity(drive);
-      m_command_event->Queue(seek_time);
+      // Calculate time to read sector for reads, immediate for writes.
+      CycleCount read_time = 1;
+      if (!is_write)
+        read_time += CalculateSectorReadTime() * sector_number;
+
+      m_command_event->Queue(seek_time + read_time);
     }
     break;
 
@@ -707,17 +727,24 @@ void FDC::BeginCommand()
 
       if (m_reset_sense_interrupt_count > 0)
       {
-        WriteToFIFO(0xC0 | (4 - m_reset_sense_interrupt_count));
-        WriteToFIFO(Truncate8(m_drives[m_current_drive].current_cylinder));
+        const uint8 drive_number = (4 - m_reset_sense_interrupt_count);
+        WriteToFIFO(GetST0(drive_number, ST0_IC_SC));
+        WriteToFIFO(Truncate8(IsDiskPresent(drive_number) ? m_drives[drive_number].current_cylinder : 0));
 
         TransitionToResultPhase();
         m_reset_sense_interrupt_count--;
       }
+      else if (m_interrupt_pending)
+      {
+        WriteToFIFO(m_st0);
+        WriteToFIFO(Truncate8(GetCurrentDrive()->current_cylinder));
+
+        TransitionToResultPhase();
+      }
       else
       {
-        WriteToFIFO(m_st0 | (m_interrupt_pending ? ST0_IC_NT : ST0_IC_IC));
-        WriteToFIFO(Truncate8(m_drives[m_current_drive].current_cylinder));
-
+        m_st0 = GetST0(GetCurrentDriveIndex(), ST0_IC_IC);
+        WriteToFIFO(m_st0);
         TransitionToResultPhase();
       }
     }
@@ -725,8 +752,8 @@ void FDC::BeginCommand()
 
     case CMD_SENSE_STATUS: // Get Status
     {
-      uint8 drive_number = m_fifo[1] & 0x03;
-      uint8 head = (m_fifo[1] >> 2) & 0x01;
+      const uint8 drive_number = cmd.params[0] & 0x03;
+      const uint8 head = (cmd.params[0] >> 2) & 0x01;
       SeekDrive(drive_number, m_drives[drive_number].current_cylinder, head, m_drives[drive_number].current_sector);
 
       // Writes ST3 to the result, but does not raise an interrupt.
@@ -738,86 +765,147 @@ void FDC::BeginCommand()
 
     case CMD_READ_ID: // Read ID
     {
-      DebugAssert(m_fifo_command_position >= 2);
+      const uint8 drive_number = cmd.params[0] & 0x03;
+      const uint8 head = (cmd.params[0] >> 2) & 0x01;
 
-      m_current_drive = m_fifo[1] & 0x03;
-      uint8 head = (m_fifo[1] >> 2) & 0x01;
-
-      if (!m_motor_on[m_current_drive])
+      if (!IsDiskPresent(drive_number) || m_DOR.IsMotorOn(drive_number))
       {
-        Log_DevPrintf("Motor not on");
-        HangController();
-        return;
-      }
-      if (!IsDrivePresent(m_current_drive))
-      {
-        Log_DevPrintf("Invalid drive number");
-        HangController();
-        return;
-      }
-      if (!IsDiskPresent(m_current_drive))
-      {
-        Log_DevPrintf("Media not present");
+        Log_DevPrintf("Read ID: disk not present or motor not on");
         HangController();
         return;
       }
 
       // TODO: Check data rate
-      if (!SeekDrive(m_current_drive, m_drives[m_current_drive].current_cylinder, head,
-                     m_drives[m_current_drive].current_sector))
+      DriveState* drive = &m_drives[drive_number];
+      if (!SeekDrive(drive_number, drive->current_cylinder, head, drive->current_sector))
       {
         // Head not valid.
-        EndTransfer(m_current_drive, ST0_IC_AT, ST1_MA, 0);
+        EndTransfer(drive_number, ST0_IC_AT, ST1_MA, 0);
         return;
       }
 
-      m_main_status_register.command_busy = true;
-      m_main_status_register.SetActivity(m_current_drive);
+      m_MSR.request_for_master = false;
+      m_MSR.SetActivity(drive_number);
       m_command_event->Queue(CalculateSectorReadTime());
     }
     break;
 
-    case CMD_SEEK: // Seek
+    case CMD_VERSION:
     {
-      DebugAssert(m_fifo_command_position >= 3);
-
-      uint8 drive_number = (m_fifo[1] & 0b11);
-      uint8 head_number = (m_fifo[1] >> 2);
-      uint8 cylinder_number = (m_fifo[2]);
-      Log_DevPrintf("Floppy seek drive %u head %u cylinder %u", drive_number, head_number, cylinder_number);
-
-      m_current_drive = drive_number;
-      if (!IsDrivePresent(drive_number) || !IsDiskPresent(drive_number))
+      if (m_model < Model_82077)
       {
-        HangController();
+        HandleUnsupportedCommand();
         return;
       }
 
-      // Calculate time to seek.
-      CycleCount seek_time = CalculateHeadSeekTime(m_drives[drive_number].current_cylinder, cylinder_number);
-      m_main_status_register.command_busy = true;
-      m_main_status_register.SetActivity(drive_number);
-      m_command_event->Queue(seek_time);
+      ClearFIFO();
+      WriteToFIFO(0x90);
+      TransitionToResultPhase();
+    }
+    break;
+
+    case CMD_DUMP_REGISTERS:
+    {
+      if (m_model < Model_82072)
+      {
+        HandleUnsupportedCommand();
+        return;
+      }
+
+      ClearFIFO();
+      for (uint32 i = 0; i < MAX_DRIVES; i++)
+        WriteToFIFO(Truncate8(m_drives[i].current_cylinder));
+      WriteToFIFO((m_step_rate_time << 4) | m_head_unload_time);
+      WriteToFIFO((m_head_load_time << 1) | (m_MSR.pio_mode ? 1 : 0));
+      WriteToFIFO(m_drives[GetCurrentDriveIndex()].step_latch);                    // EOT
+      WriteToFIFO((m_specify_lock ? 0x80 : 0x00) | (m_perpendicular_mode & 0x7F)); // lock << 7 | perp_mode
+      WriteToFIFO(m_fifo_threshold | (m_implied_seeks ? 0x10 : 0x00) | (m_fifo_disabled ? 0x20 : 0x00) |
+                  (m_polling_disabled ? 0x40 : 0x00)); // config
+      WriteToFIFO(m_precompensation_start_track);      // pretrk
+      TransitionToResultPhase();
+    }
+    break;
+
+    case CMD_LOCK:
+    case CMD_UNLOCK:
+    {
+      if (m_model < Model_82077)
+      {
+        HandleUnsupportedCommand();
+        return;
+      }
+
+      m_specify_lock = (cmd.command & 0x80) != 0;
+      ClearFIFO();
+      WriteToFIFO(BoolToUInt8(m_specify_lock) << 4);
+      TransitionToResultPhase();
+    }
+    break;
+
+    case CMD_PERPENDICULAR_MODE:
+    {
+      if (m_model < Model_82077)
+      {
+        HandleUnsupportedCommand();
+        return;
+      }
+
+      // Not supported, so let's just ignore it for now.
+      Log_WarningPrintf("Perpendicular mode configure 0x02X", cmd.params[0]);
+      m_perpendicular_mode = cmd.params[0];
+      TransitionToCommandPhase();
+    }
+    break;
+
+    case CMD_CONFIGURE:
+    {
+      if (m_model < Model_82072)
+      {
+        HandleUnsupportedCommand();
+        return;
+      }
+
+      m_fifo_threshold = cmd.params[1] & 0x0F;       // FIFOTHR
+      m_implied_seeks = !!(cmd.params[1] & 0x10);    // EIS
+      m_fifo_disabled = !!(cmd.params[1] & 0x20);    // EFIFO
+      m_polling_disabled = !!(cmd.params[1] & 0x40); // POLL
+      m_precompensation_start_track = cmd.params[2]; // PRETRK
+      TransitionToCommandPhase();
     }
     break;
 
     default:
-      Log_ErrorPrintf("Unknown floppy command 0x%02X, MT=%u, MF=%u, SK=%u", uint32(command), uint32(mt), uint32(mf),
-                      uint32(sk));
+      HandleUnsupportedCommand();
       break;
   }
 }
 
+void FDC::HandleUnsupportedCommand()
+{
+  CurrentCommand& cmd = m_current_command;
+  Log_ErrorPrintf("Unknown floppy command 0x%02X MT=%s,MF=%s,SK=%s", cmd.command.GetValue(),
+                  cmd.mt.GetValue() ? "yes" : "no", cmd.mf.GetValue() ? "yes" : "no", cmd.sk.GetValue() ? "yes" : "no");
+
+  ClearFIFO();
+  WriteToFIFO(ST0_IC_IC);
+  TransitionToResultPhase();
+}
+
 void FDC::EndCommand()
 {
-  const uint8 command = m_fifo[0] & 0x1F;
-  switch (command)
+  CurrentCommand& cmd = m_current_command;
+
+  switch (m_current_command.command)
   {
     case CMD_RECALIBRATE:
     {
-      const uint8 drive_number = m_fifo[1] & 0x03;
-      SeekDrive(drive_number, 0, 0, 1);
-      m_st0 = ST0_SE;
+      const uint8 drive_number = cmd.params[0] & 0x03;
+
+      // Calculate seek status.
+      if (!IsDiskPresent(drive_number))
+        m_st0 = GetST0(drive_number, ST0_IC_IC | ST0_IC_AT | ST0_SE);
+      else
+        m_st0 = GetST0(drive_number, ST0_SE);
 
       // No result bytes, but sends interrupt
       m_command_event->Deactivate();
@@ -828,13 +916,8 @@ void FDC::EndCommand()
 
     case CMD_SEEK: // Seek
     {
-      DebugAssert(m_fifo_command_position >= 3);
-
-      uint8 drive_number = (m_fifo[1] & 0b11);
-      uint8 head_number = (m_fifo[1] >> 2);
-      uint8 cylinder_number = (m_fifo[2]);
-      SeekDrive(drive_number, cylinder_number, head_number, 1);
-      m_st0 = ST0_SE;
+      const uint8 drive_number = cmd.params[0] & 0x03;
+      m_st0 = GetST0(drive_number, ST0_SE);
 
       // No result bytes, but sends interrupt
       m_command_event->Deactivate();
@@ -846,7 +929,8 @@ void FDC::EndCommand()
     case CMD_READ_ID:
     {
       // EndTransfer will cancel the event.
-      EndTransfer(m_current_drive, ST0_IC_NT, 0, 0);
+      const uint8 drive_number = cmd.params[0] & 0x03;
+      EndTransfer(drive_number, ST0_IC_NT, 0, 0);
     }
     break;
 
@@ -864,10 +948,11 @@ void FDC::EndCommand()
 
 void FDC::HangController()
 {
-  m_main_status_register.ClearActivity();
-  m_main_status_register.command_busy = true;
-  m_main_status_register.data_direction = false;
-  m_main_status_register.request_for_master = false;
+  // Leave the command in place, this way writes are ignored.
+  m_MSR.ClearActivity();
+  m_MSR.command_busy = true;
+  m_MSR.data_direction = false;
+  m_MSR.request_for_master = false;
 
   if (m_command_event->IsActive())
     m_command_event->Deactivate();
@@ -881,21 +966,23 @@ void FDC::HangController()
 
 void FDC::TransitionToCommandPhase()
 {
+  m_current_command.Clear();
   ClearFIFO();
   LowerInterrupt();
 
-  m_main_status_register.command_busy = false;
-  m_main_status_register.data_direction = false;
-  m_main_status_register.request_for_master = true;
-  m_main_status_register.ClearActivity();
+  m_MSR.command_busy = false;
+  m_MSR.data_direction = false;
+  m_MSR.request_for_master = true;
+  m_MSR.ClearActivity();
 }
 
 void FDC::TransitionToResultPhase()
 {
-  m_main_status_register.command_busy = false;
-  m_main_status_register.data_direction = true;
-  m_main_status_register.request_for_master = true;
-  m_main_status_register.ClearActivity();
+  m_current_command.Clear();
+  m_MSR.command_busy = true;
+  m_MSR.data_direction = true;
+  m_MSR.request_for_master = true;
+  m_MSR.ClearActivity();
 }
 
 void FDC::ConnectIOPorts(Bus* bus)
@@ -904,7 +991,7 @@ void FDC::ConnectIOPorts(Bus* bus)
   bus->ConnectIOPortRead(0x03F1, this, std::bind(&FDC::IOReadStatusRegisterB, this, std::placeholders::_2));
   bus->ConnectIOPortRead(0x03F2, this, std::bind(&FDC::IOReadDigitalOutputRegister, this, std::placeholders::_2));
   bus->ConnectIOPortWrite(0x03F2, this, std::bind(&FDC::IOWriteDigitalOutputRegister, this, std::placeholders::_2));
-  bus->ConnectIOPortReadToPointer(0x03F4, this, &m_main_status_register.bits);
+  bus->ConnectIOPortReadToPointer(0x03F4, this, &m_MSR.bits);
   bus->ConnectIOPortWrite(0x03F4, this, std::bind(&FDC::IOWriteDataRateSelectRegister, this, std::placeholders::_2));
   bus->ConnectIOPortRead(0x03F5, this, std::bind(&FDC::IOReadFIFO, this, std::placeholders::_2));
   bus->ConnectIOPortWrite(0x03F5, this, std::bind(&FDC::IOWriteFIFO, this, std::placeholders::_2));
@@ -926,7 +1013,7 @@ void FDC::RaiseInterrupt()
 {
   m_interrupt_pending = true;
   m_reset_sense_interrupt_count = 0;
-  if (m_interrupt_enable)
+  if (m_DOR.ndmagate)
     m_system->GetInterruptController()->RaiseInterrupt(6);
 }
 
@@ -946,13 +1033,11 @@ void FDC::IOReadStatusRegisterA(uint8* value)
   // 0x04 - index - sector == 0
   // 0x02 - write protect
   // 0x01 - direction == 0
+  const DriveState* ds = GetCurrentDrive();
   *value = (BoolToUInt8(m_interrupt_pending) << 7) | (BoolToUInt8(m_dma->GetDMAState(DMA_CHANNEL)) << 6) |
-           (BoolToUInt8(m_drives[m_current_drive].step_latch) << 5) |
-           (BoolToUInt8(m_drives[m_current_drive].current_cylinder == 0) << 4) |
-           (BoolToUInt8(m_drives[m_current_drive].current_head == 0) << 3) |
-           (BoolToUInt8(m_drives[m_current_drive].current_sector == 0) << 2) |
-           (BoolToUInt8(m_drives[m_current_drive].write_protect) << 1) |
-           (BoolToUInt8(m_drives[m_current_drive].direction) << 0);
+           (BoolToUInt8(ds->step_latch) << 5) | (BoolToUInt8(ds->current_cylinder == 0) << 4) |
+           (BoolToUInt8(ds->current_head == 0) << 3) | (BoolToUInt8(ds->current_sector == 0) << 2) |
+           (BoolToUInt8(ds->write_protect) << 1) | (BoolToUInt8(ds->direction) << 0);
 }
 
 void FDC::IOReadStatusRegisterB(uint8* value)
@@ -965,24 +1050,30 @@ void FDC::IOReadStatusRegisterB(uint8* value)
   // 0x04 - data written again
   // 0x02 - not ds3
   // 0x01 - not ds2
-  *value = (BoolToUInt8(m_drives[1].drive_type == DriveType_None) << 7) | (BoolToUInt8(m_current_drive != 1) << 6) |
-           (BoolToUInt8(m_current_drive != 0) << 5) | (BoolToUInt8(m_drives[m_current_drive].data_was_written) << 4) |
-           (BoolToUInt8(m_drives[m_current_drive].data_was_read) << 3) |
-           (BoolToUInt8(m_drives[m_current_drive].data_was_written) << 2) | (BoolToUInt8(m_current_drive != 3) << 1) |
-           (BoolToUInt8(m_current_drive != 2) << 0);
+  const DriveState* ds = GetCurrentDrive();
+  *value = (BoolToUInt8(m_drives[1].drive_type == DriveType_None) << 7) |
+           (BoolToUInt8(GetCurrentDriveIndex() != 1) << 6) | (BoolToUInt8(GetCurrentDriveIndex() != 0) << 5) |
+           (BoolToUInt8(ds->data_was_written) << 4) | (BoolToUInt8(ds->data_was_read) << 3) |
+           (BoolToUInt8(ds->data_was_written) << 2) | (BoolToUInt8(GetCurrentDriveIndex() != 3) << 1) |
+           (BoolToUInt8(GetCurrentDriveIndex() != 2) << 0);
 }
 
 void FDC::IOReadDigitalInputRegister(uint8* value)
 {
+  uint8 bits = 0b01111000;
+  bits |= BoolToUInt8(m_disk_change_flag) << 7;
+  bits |= (m_data_rate_index & 0x03) << 1;
+  if (data_rates[m_data_rate_index] >= 500)
+    bits |= 0x01; // High density
+
   // Bit 7 - not disk change
   // Bit 3 - interrupt enable
   // Bit 2 - CCR?
   // Bit 1-0 - Data rate select
-  Log_WarningPrintf("Read digital input register - stubbed");
-  *value = uint8(0 << 7) | (BoolToUInt8(m_interrupt_enable) << 3) | uint8(0 << 2) | (m_data_rate_index & 0x03);
+  *value = bits;
 
   // Clear step bit of current drive
-  m_drives[m_current_drive].step_latch = false;
+  GetCurrentDrive()->step_latch = false;
 }
 
 void FDC::IOReadDigitalOutputRegister(uint8* value)
@@ -994,55 +1085,56 @@ void FDC::IOReadDigitalOutputRegister(uint8* value)
   // Bit 3 - Interrupt enable
   // Bit 2 - Reset
   // Bit 1-0 - Drive select
-  *value = (BoolToUInt8(m_motor_on[3]) << 7) | (BoolToUInt8(m_motor_on[2]) << 6) | (BoolToUInt8(m_motor_on[1]) << 5) |
-           (BoolToUInt8(m_motor_on[0]) << 4) | (BoolToUInt8(m_interrupt_enable) << 3) | (BoolToUInt8(m_nreset) << 2) |
-           (m_current_drive << 0);
+  *value = m_DOR.bits;
 }
 
 void FDC::IOWriteDigitalOutputRegister(uint8 value)
 {
-  Log_TracePrintf("FDC write DOR=0x%02X", value);
+  decltype(m_DOR) changed_bits = {uint8(m_DOR.bits ^ value)};
+  m_DOR.bits = value;
 
-  uint8 drive_select = value & 0x03;
-  bool reset = !!(value & (1 << 2));
-  bool interrupt_enable = !!(value & (1 << 3));
-  uint8 motor_enable = (value >> 4);
-
-  m_current_drive = drive_select;
-
-  m_interrupt_enable = interrupt_enable;
-  if (!m_interrupt_enable)
+  if (changed_bits.ndmagate && !m_DOR.ndmagate)
     LowerInterrupt();
 
-  for (size_t i = 0; i < m_motor_on.size(); i++)
-    m_motor_on[i] = ((motor_enable & (1 << i)) != 0);
-
   // This bit is inverted.
-  if (reset != m_nreset)
+  if (changed_bits.nreset)
   {
-    m_nreset = reset;
-    if (!reset)
+    if (!m_DOR.nreset)
     {
+      // Queue a reset command. Make sure we can interrupt this.
       Log_DevPrintf("FDC enter reset");
+      m_reset_begin_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+      m_command_event->SetActive(false);
     }
-    else if (reset)
+    else
     {
+      // Reset after 250us.
+      // TODO: We should ignore commands until this point.
       Log_DevPrintf("FDC leave reset");
-      SoftReset();
-      RaiseInterrupt();
-      m_reset_sense_interrupt_count = 4;
+
+      SimulationTime time_since_reset = m_system->GetTimingManager()->GetEmulatedTimeDifference(m_reset_begin_time);
+      if (time_since_reset > 1000)
+      {
+        m_reset_begin_time = 0;
+        Reset(true);
+      }
     }
   }
 
   // Clear FIFO, TODO move data direction to ClearFIFO
   ClearFIFO();
-  m_main_status_register.data_direction = false;
+  m_MSR.data_direction = false;
 }
 
 void FDC::IOWriteDataRateSelectRegister(uint8 value)
 {
-  // TODO: Handle upper bits (software reset, etc).
   m_data_rate_index = value & 0x03;
+
+  if (value & 0x80)
+  {
+    // Soft reset, self-clearing.
+    Reset(true);
+  }
 }
 
 void FDC::IOWriteConfigurationControlRegister(uint8 value)
@@ -1052,9 +1144,22 @@ void FDC::IOWriteConfigurationControlRegister(uint8 value)
 
 void FDC::IOReadFIFO(uint8* value)
 {
-  DebugAssert(m_main_status_register.data_direction && m_main_status_register.request_for_master);
+  // Are we in a DMA transfer? Ignore if so.
+  if (InReset() || IsDMATransferInProgress())
+  {
+    *value = 0xFF;
+    return;
+  }
 
-  Log_TracePrintf("FDC read fifo pos=%u", m_fifo_result_position);
+  // If a transfer is in progress, this is a PIO transfer.
+  if (m_current_transfer.active)
+  {
+    Panic("TODO: Handle PIO writes.");
+    *value = 0xFF;
+    return;
+  }
+
+  // Reading results back.
   if (m_fifo_result_position == m_fifo_result_size)
   {
     // Bad read
@@ -1064,9 +1169,6 @@ void FDC::IOReadFIFO(uint8* value)
   }
 
   *value = m_fifo[m_fifo_result_position++];
-
-  // XT bios requires that this bit is cleared.
-  // m_main_status_register.data_direction = false;
 
   // Interrupt is lowered after the first byte is read.
   LowerInterrupt();
@@ -1078,21 +1180,34 @@ void FDC::IOReadFIFO(uint8* value)
 
 void FDC::IOWriteFIFO(uint8 value)
 {
-  DebugAssert(!m_main_status_register.data_direction && m_main_status_register.request_for_master);
-  Assert(m_fifo_command_position < FIFO_SIZE);
+  // Are we in a DMA transfer? Ignore if so.
+  if (InReset() || IsDMATransferInProgress())
+    return;
 
-  Log_TracePrintf("FDC write fifo pos=%u,value=0x%02X", m_fifo_command_position, value);
+  // If a transfer is in progress, this is a PIO transfer.
+  if (m_current_transfer.active)
+  {
+    Panic("TODO: Handle PIO writes.");
+    return;
+  }
 
-  m_fifo[m_fifo_command_position++] = value;
-  if (m_fifo_command_position == GetCurrentCommandLength())
-    BeginCommand();
+  // Append to the command buffer.
+  if (!m_current_command.HasAllParameters())
+  {
+    m_MSR.command_busy = true;
+    Assert(m_current_command.command_length <= sizeof(m_current_command.buf));
+    m_current_command.buf[m_current_command.command_length++] = value;
+    if (m_current_command.HasAllParameters())
+      BeginCommand();
+  }
 }
 
 void FDC::EndTransfer(uint32 drive, uint8 st0_bits, uint8 st1_bits, uint8 st2_bits)
 {
+  m_current_command.Clear();
   if (m_current_transfer.active)
   {
-    m_current_transfer.active = false;
+    m_current_transfer.Clear();
     m_dma->SetDMAState(DMA_CHANNEL, false);
   }
   if (m_command_event->IsActive())
@@ -1174,7 +1289,7 @@ void FDC::DMAReadCallback(IOPortDataSize size, uint32* value, uint32 remaining_b
     // TODO: Timing for seeking to next cylinder.
     if (!MoveToNextTransferSector())
     {
-      EndTransfer(m_current_drive, ST0_IC_AT, ST1_EN, 0);
+      EndTransfer(m_current_transfer.drive, ST0_IC_AT, ST1_EN, 0);
       return;
     }
 
@@ -1221,7 +1336,7 @@ void FDC::DMAWriteCallback(IOPortDataSize size, uint32 value, uint32 remaining_b
   {
     if (!MoveToNextTransferSector())
     {
-      EndTransfer(m_current_drive, ST0_IC_AT, ST1_EN, 0);
+      EndTransfer(m_current_transfer.drive, ST0_IC_AT, ST1_EN, 0);
       return;
     }
 
@@ -1270,6 +1385,17 @@ CycleCount FDC::CalculateSectorReadTime() const
 {
   // to-microseconds, bits-per-sector / (data-rate-in-kbs*1000)
   return 1000000u * (512u * 8u) / (data_rates[m_data_rate_index] * 1000);
+}
+
+void FDC::CurrentTransfer::Clear()
+{
+  active = false;
+  multi_track = false;
+  is_write = false;
+  drive = 0;
+  bytes_per_sector = 0;
+  sectors_per_track = 0;
+  sector_offset = 0;
 }
 
 } // namespace HW

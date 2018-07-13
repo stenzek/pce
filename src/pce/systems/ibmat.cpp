@@ -104,7 +104,7 @@ void IBMAT::AddComponents()
   AddComponent(m_keyboard_controller);
   AddComponent(m_cmos);
 
-  m_fdd_controller = new HW::FDC(m_dma_controller);
+  m_fdd_controller = new HW::FDC(HW::FDC::Model_8272, m_dma_controller);
   m_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_PRIMARY);
 
   AddComponent(m_fdd_controller);

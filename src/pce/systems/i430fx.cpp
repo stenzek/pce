@@ -178,7 +178,7 @@ void i430FX::AddComponents()
   AddComponent(m_keyboard_controller = new HW::i8042_PS2());
   AddComponent(m_cmos = new HW::CMOS());
 
-  AddComponent(m_fdd_controller = new HW::FDC(m_dma_controller));
+  AddComponent(m_fdd_controller = new HW::FDC(HW::FDC::Model_82077, m_dma_controller));
   AddComponent(m_primary_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_PRIMARY));
   AddComponent(m_secondary_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_SECONDARY));
 

@@ -76,7 +76,7 @@ void IBMXT::AddComponents()
   m_interrupt_controller = new HW::i8259_PIC();
   m_ppi = new HW::XT_PPI();
   m_speaker = new HW::PCSpeaker();
-  m_fdd_controller = new HW::FDC(m_dma_controller);
+  m_fdd_controller = new HW::FDC(HW::FDC::Model_8272, m_dma_controller);
 
   AddComponent(m_interrupt_controller);
   AddComponent(m_dma_controller);

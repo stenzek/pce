@@ -16,6 +16,14 @@ TimingManager::~TimingManager()
   // Pointers will clean themselves up.
 }
 
+SimulationTime TimingManager::GetEmulatedTimeDifference(SimulationTime timestamp)
+{
+  if (timestamp <= m_total_emulated_time)
+    return m_total_emulated_time - timestamp;
+  else
+    return (std::numeric_limits<SimulationTime>::max() - timestamp) + timestamp;
+}
+
 void TimingManager::AddPendingTime(SimulationTime time)
 {
   m_total_emulated_time += time;

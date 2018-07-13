@@ -204,30 +204,21 @@ void Bochs::UpdateKeyboardControllerOutputPort()
 
 void Bochs::AddComponents()
 {
-  m_keyboard_controller = new HW::i8042_PS2();
-  m_dma_controller = new HW::i8237_DMA();
-  m_timer = new HW::i8253_PIT();
-  m_interrupt_controller = new HW::i8259_PIC();
-  m_cmos = new HW::CMOS();
+  AddComponent(m_interrupt_controller = new HW::i8259_PIC());
+  AddComponent(m_dma_controller = new HW::i8237_DMA());
+  AddComponent(m_timer = new HW::i8253_PIT());
+  AddComponent(m_keyboard_controller = new HW::i8042_PS2());
+  AddComponent(m_cmos = new HW::CMOS());
 
-  AddComponent(m_interrupt_controller);
-  AddComponent(m_dma_controller);
-  AddComponent(m_timer);
-  AddComponent(m_keyboard_controller);
-  AddComponent(m_cmos);
-
-  m_fdd_controller = new HW::FDC(m_dma_controller);
-  m_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_PRIMARY);
-
-  AddComponent(m_fdd_controller);
-  AddComponent(m_hdd_controller);
+  AddComponent(m_fdd_controller = new HW::FDC(HW::FDC::Model_82077, m_dma_controller));
+  AddComponent(m_primary_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_PRIMARY));
+  AddComponent(m_secondary_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_SECONDARY));
 
   // Connect channel 0 of the PIT to the interrupt controller
   m_timer->SetChannelOutputChangeCallback(0,
                                           [this](bool value) { m_interrupt_controller->SetInterruptState(0, value); });
 
-  m_speaker = new HW::PCSpeaker();
-  AddComponent(m_speaker);
+  AddComponent(m_speaker = new HW::PCSpeaker());
 
   // Connect channel 2 of the PIT to the speaker
   m_timer->SetChannelOutputChangeCallback(2, [this](bool value) { m_speaker->SetLevel(value); });
@@ -355,7 +346,7 @@ void Bochs::SetCMOSVariables()
   // Legacy - 0 - C: -> A:, 1 - A: -> C:
   m_cmos->SetVariable(0x2D, (0 << 5));
   // 0x00 - undefined, 0x01 - first floppy, 0x02 - first HDD, 0x03 - first cdrom
-  if (m_hdd_controller->GetDriveCount() > 0)
+  if (m_primary_hdd_controller->GetDriveCount() > 0)
     m_cmos->SetVariable(0x3D, 0x02);
   else
     m_cmos->SetVariable(0x3D, 0x01);
@@ -365,33 +356,33 @@ void Bochs::SetCMOSVariables()
 
   // HDD information
   m_cmos->SetVariable(0x12, 0);
-  if (m_hdd_controller->IsDrivePresent(0))
+  if (m_primary_hdd_controller->IsDrivePresent(0))
   {
     m_cmos->SetVariable(0x12, m_cmos->GetVariable(0x12) | 0xF0);
     m_cmos->SetVariable(0x19, 47); // user-defined type
-    m_cmos->SetVariable(0x1B, Truncate8(m_hdd_controller->GetDriveCylinders(0)));
-    m_cmos->SetVariable(0x1C, Truncate8(m_hdd_controller->GetDriveCylinders(0) >> 8));
-    m_cmos->SetVariable(0x1D, Truncate8(m_hdd_controller->GetDriveHeads(0)));
+    m_cmos->SetVariable(0x1B, Truncate8(m_primary_hdd_controller->GetDriveCylinders(0)));
+    m_cmos->SetVariable(0x1C, Truncate8(m_primary_hdd_controller->GetDriveCylinders(0) >> 8));
+    m_cmos->SetVariable(0x1D, Truncate8(m_primary_hdd_controller->GetDriveHeads(0)));
     m_cmos->SetVariable(0x1E, 0xFF);
     m_cmos->SetVariable(0x1F, 0xFF);
-    m_cmos->SetVariable(0x20, 0xC0 | ((m_hdd_controller->GetDriveHeads(0) > 8) ? 8 : 0));
+    m_cmos->SetVariable(0x20, 0xC0 | ((m_primary_hdd_controller->GetDriveHeads(0) > 8) ? 8 : 0));
     m_cmos->SetVariable(0x21, m_cmos->GetVariable(0x1B));
     m_cmos->SetVariable(0x22, m_cmos->GetVariable(0x1C));
-    m_cmos->SetVariable(0x23, Truncate8(m_hdd_controller->GetDriveSectors(0)));
+    m_cmos->SetVariable(0x23, Truncate8(m_primary_hdd_controller->GetDriveSectors(0)));
   }
-  if (m_hdd_controller->IsDrivePresent(1))
+  if (m_primary_hdd_controller->IsDrivePresent(1))
   {
     m_cmos->SetVariable(0x12, m_cmos->GetVariable(0x12) | 0x0F);
     m_cmos->SetVariable(0x1A, 47); // user-defined type
-    m_cmos->SetVariable(0x24, Truncate8(m_hdd_controller->GetDriveCylinders(1)));
-    m_cmos->SetVariable(0x25, Truncate8(m_hdd_controller->GetDriveCylinders(1) >> 8));
-    m_cmos->SetVariable(0x26, Truncate8(m_hdd_controller->GetDriveHeads(1)));
+    m_cmos->SetVariable(0x24, Truncate8(m_primary_hdd_controller->GetDriveCylinders(1)));
+    m_cmos->SetVariable(0x25, Truncate8(m_primary_hdd_controller->GetDriveCylinders(1) >> 8));
+    m_cmos->SetVariable(0x26, Truncate8(m_primary_hdd_controller->GetDriveHeads(1)));
     m_cmos->SetVariable(0x27, 0xFF);
     m_cmos->SetVariable(0x28, 0xFF);
-    m_cmos->SetVariable(0x29, 0xC0 | ((m_hdd_controller->GetDriveHeads(1) > 8) ? 8 : 0));
+    m_cmos->SetVariable(0x29, 0xC0 | ((m_primary_hdd_controller->GetDriveHeads(1) > 8) ? 8 : 0));
     m_cmos->SetVariable(0x2A, m_cmos->GetVariable(0x1B));
     m_cmos->SetVariable(0x2B, m_cmos->GetVariable(0x1C));
-    m_cmos->SetVariable(0x2C, Truncate8(m_hdd_controller->GetDriveSectors(1)));
+    m_cmos->SetVariable(0x2C, Truncate8(m_primary_hdd_controller->GetDriveSectors(1)));
   }
 }
 

@@ -25,6 +25,9 @@ public:
   SimulationTime GetTotalEmulatedTime() const { return m_total_emulated_time; }
   void ResetTotalEmulatedTime() { m_total_emulated_time = 0; }
 
+  // Calculates the difference between the specified timestamp and the current emulated time.
+  SimulationTime GetEmulatedTimeDifference(SimulationTime timestamp);
+
   // Adds pending cycles, and invokes events if necessary.
   void AddPendingTime(SimulationTime time);
 
