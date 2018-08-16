@@ -1433,13 +1433,17 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
                  CalculateLinearAddress(Segment_CS, m_current_EIP));
   }
 
-#if 1
+//#define COMMON_LOGGING_FORMAT 1
+
+#ifndef COMMON_LOGGING_FORMAT
+#if 0
   std::fprintf(stdout, "EAX=%08X EBX=%08X ECX=%08X EDX=%08X ESI=%08X EDI=%08X\n", m_registers.EAX, m_registers.EBX,
                m_registers.ECX, m_registers.EDX, m_registers.ESI, m_registers.EDI);
   std::fprintf(stdout, "ESP=%08X EBP=%08X EIP=%04X:%08X EFLAGS=%08X ES=%04X SS=%04X DS=%04X FS=%04X GS=%04X\n",
                m_registers.ESP, m_registers.EBP, ZeroExtend32(m_registers.CS), m_current_EIP, m_registers.EFLAGS.bits,
                ZeroExtend32(m_registers.ES), ZeroExtend32(m_registers.SS), ZeroExtend32(m_registers.DS),
                ZeroExtend32(m_registers.FS), ZeroExtend32(m_registers.GS));
+#endif
 #endif
 
   uint32 fetch_EIP = m_current_EIP;
@@ -1483,22 +1487,69 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
 
     hex_string.AppendFormattedString("%02X ", ZeroExtend32(value));
   }
-  for (uint32 i = instruction_length; i < 10; i++)
-    hex_string.AppendString("   ");
 
   if (instruction_valid)
   {
     SmallString instr_string;
     Decoder::DisassembleToString(&instruction, &instr_string);
 
+#ifndef COMMON_LOGGING_FORMAT
+    for (uint32 i = instruction_length; i < 10; i++)
+      hex_string.AppendString("   ");
+
     LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, m_current_EIP);
     std::fprintf(stdout, "%04X:%08Xh (0x%08X) | %s | %s\n", ZeroExtend32(m_registers.CS), m_current_EIP, linear_address,
                  hex_string.GetCharArray(), instr_string.GetCharArray());
+#else
+    std::fprintf(stdout, "%04x:%08x %s%s\n", ZeroExtend32(m_registers.CS), m_current_EIP, hex_string.GetCharArray(),
+                 instr_string.GetCharArray());
+#endif
   }
   else
   {
+#ifndef COMMON_LOGGING_FORMAT
     std::fprintf(stdout, "Decoding failed, bytes at failure point: %s\n", hex_string.GetCharArray());
+#else
+    std::fprintf(stdout, "%04x:%08x %s??????\n", ZeroExtend32(m_registers.CS), m_current_EIP,
+                 hex_string.GetCharArray());
+#endif
   }
+
+#ifdef COMMON_LOGGING_FORMAT
+  std::fprintf(stdout, "Registers:\n");
+  std::fprintf(stdout, "EAX: %08x EBX: %08x ECX: %08x EDX: %08x\n", m_registers.EAX, m_registers.EBX, m_registers.ECX,
+               m_registers.EDX);
+  std::fprintf(stdout, "ESP: %08x EBP: %08x ESI: %08x EDI: %08x\n", m_registers.ESP, m_registers.EBP, m_registers.ESI,
+               m_registers.EDI);
+  std::fprintf(stdout, "CS: %04x DS: %04x ES: %04x FS: %04x GS: %04x SS: %04x TR: %04x LDTR: %04x\n",
+               ZeroExtend32(m_registers.CS), ZeroExtend32(m_registers.DS), ZeroExtend32(m_registers.ES),
+               ZeroExtend32(m_registers.FS), ZeroExtend32(m_registers.GS), ZeroExtend32(m_registers.SS),
+               ZeroExtend32(m_registers.TR), ZeroExtend32(m_registers.LDTR));
+  std::fprintf(stdout, "EIP: %08x EFLAGS: %08x\n", m_current_EIP, m_registers.EFLAGS.bits);
+  std::fprintf(stdout, "CR0: %08x CR2: %08x CR3: %08x\n", m_registers.CR0, m_registers.CR2, m_registers.CR3);
+  std::fprintf(stdout, "DR0: %08x DR1: %08x DR2: %08x DR3: %08x\n", m_registers.DR0, m_registers.DR1, m_registers.DR2,
+               m_registers.DR3);
+  std::fprintf(stdout, "DR6: %08x DR7: %08x\n", m_registers.DR6, m_registers.DR7);
+  std::fprintf(stdout, "GDTR: %08x%08x IDTR: %08x%08x\n", m_gdt_location.base_address, m_gdt_location.limit,
+               m_idt_location.base_address, m_idt_location.limit);
+  std::fprintf(stdout, "FLAGSINFO: %c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c\n",
+               ((m_registers.EFLAGS.bits >> 31) & 1) + '0', ((m_registers.EFLAGS.bits >> 30) & 1) + '0',
+               ((m_registers.EFLAGS.bits >> 29) & 1) + '0', ((m_registers.EFLAGS.bits >> 28) & 1) + '0',
+               ((m_registers.EFLAGS.bits >> 27) & 1) + '0', ((m_registers.EFLAGS.bits >> 26) & 1) + '0',
+               ((m_registers.EFLAGS.bits >> 25) & 1) + '0', ((m_registers.EFLAGS.bits >> 24) & 1) + '0',
+               ((m_registers.EFLAGS.bits >> 23) & 1) + '0', ((m_registers.EFLAGS.bits >> 22) & 1) + '0',
+               ((m_registers.EFLAGS.bits >> 21) & 1) + '0', ((m_registers.EFLAGS.bits >> 20) & 1) + '0',
+               ((m_registers.EFLAGS.bits >> 19) & 1) + '0', ((m_registers.EFLAGS.bits >> 18) & 1) + '0',
+               ((m_registers.EFLAGS.bits >> 17) & 1) ? 'V' : 'v', ((m_registers.EFLAGS.bits >> 16) & 1) ? 'R' : 'r',
+               ((m_registers.EFLAGS.bits >> 15) & 1) + '0', ((m_registers.EFLAGS.bits >> 14) & 1) ? 'N' : 'n',
+               ((m_registers.EFLAGS.bits >> 13) & 1) + '0', ((m_registers.EFLAGS.bits >> 12) & 1) + '0',
+               ((m_registers.EFLAGS.bits >> 11) & 1) ? 'O' : 'o', ((m_registers.EFLAGS.bits >> 10) & 1) ? 'D' : 'd',
+               ((m_registers.EFLAGS.bits >> 9) & 1) ? 'I' : 'i', ((m_registers.EFLAGS.bits >> 8) & 1) ? 'T' : 't',
+               ((m_registers.EFLAGS.bits >> 7) & 1) ? 'S' : 's', ((m_registers.EFLAGS.bits >> 6) & 1) ? 'Z' : 'z',
+               ((m_registers.EFLAGS.bits >> 5) & 1) + '0', ((m_registers.EFLAGS.bits >> 4) & 1) ? 'A' : 'a',
+               ((m_registers.EFLAGS.bits >> 3) & 1) + '0', ((m_registers.EFLAGS.bits >> 2) & 1) ? 'P' : 'p',
+               ((m_registers.EFLAGS.bits >> 1) & 1) + '0', ((m_registers.EFLAGS.bits) & 1) ? 'C' : 'c');
+#endif
 }
 
 bool CPU::ReadDescriptorEntry(DESCRIPTOR_ENTRY* entry, const DescriptorTablePointer& table, uint32 index)
