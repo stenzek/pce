@@ -1640,18 +1640,28 @@ void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
 
-  uint8 segreg = cpu->idata.GetModRM_Reg();
+  const uint8 segreg = cpu->idata.GetModRM_Reg();
   if (segreg >= Segment_Count)
-    RaiseInvalidOpcode(cpu);
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
 
-  // TODO: The MOV instruction cannot be used to load the CS register. Attempting to do so results in an invalid opcode
-  // exception (#UD). Loading the SS register with a MOV instruction inhibits all interrupts until after the execution
+  // TODO: Loading the SS register with a MOV instruction inhibits all interrupts until after the execution
   // of the next instruction. This operation allows a stack pointer to be loaded into the ESP register with the next
   // instruction (MOV ESP, stack-pointer value) before an interrupt occurs1. Be aware that the LSS instruction offers a
   // more efficient method of loading the SS and ESP registers.
   if constexpr (dst_mode == OperandMode_ModRM_SegmentReg)
   {
-    // Loading segment register
+    // Loading segment register.
+    // The MOV instruction cannot be used to load the CS register. Attempting to do so results in an invalid opcode
+    // exception (#UD).
+    if (segreg == Segment_CS)
+    {
+      cpu->RaiseException(Interrupt_InvalidOpcode);
+      return;
+    }
+
     uint16 value = ReadWordOperand<src_mode, src_constant>(cpu);
     cpu->LoadSegmentRegister(static_cast<CPU_X86::Segment>(segreg), value);
   }
