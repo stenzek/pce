@@ -1,4 +1,3 @@
-#include "pce/cpu_x86/cpu.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
@@ -7,6 +6,7 @@
 #include "pce/bus.h"
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cached_interpreter_backend.h"
+#include "pce/cpu_x86/cpu.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
 #include "pce/cpu_x86/interpreter_backend.h"
@@ -2341,9 +2341,9 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
 
       // Read parameters from caller before changing anything
       // We can pop here safely because the ESP will be restored afterwards
-      uint32 parameter_count = descriptor.call_gate.parameter_count;
+      uint32 parameter_count = descriptor.call_gate.parameter_count & 0x1F;
       uint32 caller_parameters[32];
-      if (m_tss_location.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_16)
+      if (!is_32bit_gate)
       {
         for (uint32 i = 0; i < parameter_count; i++)
           caller_parameters[(parameter_count - 1) - i] = ZeroExtend32(PopWord());
