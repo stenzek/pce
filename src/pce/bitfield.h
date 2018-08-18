@@ -31,6 +31,34 @@ struct BitField
     return *this;
   }
 
+  DataType operator++()
+  {
+    DataType value = GetValue() + 1;
+    SetValue(value);
+    return GetValue();
+  }
+
+  DataType operator++(int)
+  {
+    DataType value = GetValue();
+    SetValue(value + 1);
+    return value;
+  }
+
+  DataType operator--()
+  {
+    DataType value = GetValue() - 1;
+    SetValue(value);
+    return GetValue();
+  }
+
+  DataType operator--(int)
+  {
+    DataType value = GetValue();
+    SetValue(value - 1);
+    return value;
+  }
+
   //     BitField& operator^=(DataType value)
   //     {
   //         data &= GetMask();

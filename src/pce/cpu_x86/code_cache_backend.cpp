@@ -154,7 +154,6 @@ bool CodeCacheBackend::IsExitBlockInstruction(const Instruction* instruction)
     case Operation_INTO:
     case Operation_IRET:
     case Operation_HLT:
-    case Operation_LOADALL_286:
     case Operation_INVLPG:
       return true;
 

@@ -316,8 +316,6 @@ public:
   static inline void Execute_Operation_DAA(CPU* cpu);
   static inline void Execute_Operation_DAS(CPU* cpu);
 
-  static inline void Execute_Operation_LOADALL_286(CPU* cpu);
-
   // Reads operands based on operand mode
   // Use only when you have already confirmed the operand size
   template<OperandMode mode, uint32 constant>

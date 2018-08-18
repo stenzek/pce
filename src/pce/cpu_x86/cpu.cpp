@@ -1,3 +1,4 @@
+#include "pce/cpu_x86/cpu.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
@@ -6,7 +7,6 @@
 #include "pce/bus.h"
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cached_interpreter_backend.h"
-#include "pce/cpu_x86/cpu.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
 #include "pce/cpu_x86/interpreter_backend.h"
@@ -75,12 +75,6 @@ void CPU::Reset()
   // IOPL NT, reserved are 1 on 8086
   m_registers.EFLAGS.bits = 0;
   m_registers.EFLAGS.bits |= Flag_Reserved;
-  if (m_model == MODEL_8086)
-  {
-    m_registers.EFLAGS.bits |= Flag_IOPL;
-    m_registers.EFLAGS.bits |= Flag_NT;
-    m_registers.EFLAGS.bits |= (1 << 15);
-  }
   if (m_model >= MODEL_PENTIUM)
   {
     // Pentium+ supports CPUID.
@@ -810,35 +804,18 @@ void CPU::TemporaryStack::SwitchTo()
 void CPU::SetFlags(uint32 value)
 {
   // Don't clear/set all flags, only those allowed
-  uint32 MASK = Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_IF | Flag_DF | Flag_OF;
+  uint32 MASK =
+    Flag_IOPL | Flag_NT | Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_IF | Flag_DF | Flag_OF;
 
   if (m_model >= MODEL_PENTIUM)
   {
     // ID is Pentium+
-    MASK |= Flag_IOPL | Flag_NT | Flag_AC | Flag_ID;
+    MASK |= Flag_AC | Flag_ID;
   }
-  if (m_model >= MODEL_486)
+  else if (m_model == MODEL_486)
   {
     // AC is 486+
-    MASK |= Flag_IOPL | Flag_NT | Flag_AC;
-  }
-  else if (m_model >= MODEL_386)
-  {
-    MASK |= Flag_IOPL | Flag_NT;
-  }
-  else
-  {
-    // Clear upper bits on <386
-    value &= 0x0000FFFF;
-
-    if (m_model == MODEL_286)
-    {
-      // IOPL flag is 286+
-      // Nested task flag can't be set in real mode on a 286
-      MASK |= Flag_IOPL;
-      if (InProtectedMode())
-        MASK |= Flag_NT;
-    }
+    MASK |= Flag_AC;
   }
 
   m_registers.EFLAGS.bits = (value & MASK) | (m_registers.EFLAGS.bits & ~MASK);
@@ -1433,7 +1410,7 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
                  CalculateLinearAddress(Segment_CS, m_current_EIP));
   }
 
-//#define COMMON_LOGGING_FORMAT 1
+    //#define COMMON_LOGGING_FORMAT 1
 
 #ifndef COMMON_LOGGING_FORMAT
 #if 0
@@ -3569,12 +3546,6 @@ bool CPU::HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exc
   // CPL>IOPL or V8086 must check IO permission map
   if (GetCPL() <= GetIOPL() && !InVirtual8086Mode())
     return true;
-
-  // But this doesn't exist on the 286
-  if (m_model == MODEL_286 || m_tss_location.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_16)
-  {
-    return false;
-  }
 
   // Check TSS validity
   if ((offsetof(TASK_STATE_SEGMENT_32, IOPB_offset) + (sizeof(uint16) - 1)) > m_tss_location.limit)

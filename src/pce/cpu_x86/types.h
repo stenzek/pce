@@ -12,9 +12,6 @@ using VirtualMemoryAddress = uint32;
 
 enum Model : uint8
 {
-  MODEL_8086,
-  MODEL_186,
-  MODEL_286,
   MODEL_386,
   MODEL_486,
   MODEL_PENTIUM
@@ -354,7 +351,6 @@ enum Operation : uint8
   Operation_LSL,
   Operation_PUSHA,
   Operation_POPA,
-  Operation_LOADALL_286,
 
   // 80386+
   Operation_LFS,

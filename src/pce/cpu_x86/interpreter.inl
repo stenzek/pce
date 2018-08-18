@@ -3976,11 +3976,8 @@ void Interpreter::Execute_Operation_SIDT(CPU* cpu)
   uint32 idt_address = Truncate32(cpu->m_idt_location.base_address);
   uint16 idt_limit = Truncate16(cpu->m_idt_location.limit);
 
-  // 80286+ sets higher-order bits to 0xFF
-  if (cpu->m_model == MODEL_286)
-    idt_address = (idt_address & 0xFFFFFF) | 0xFF000000;
   // 16-bit operand sets higher-order bits to zero
-  else if (cpu->idata.operand_size == OperandSize_16)
+  if (cpu->idata.operand_size == OperandSize_16)
     idt_address = (idt_address & 0xFFFFFF);
 
   // Write back to memory
@@ -3996,11 +3993,8 @@ void Interpreter::Execute_Operation_SGDT(CPU* cpu)
   uint32 gdt_address = Truncate32(cpu->m_gdt_location.base_address);
   uint16 gdt_limit = Truncate16(cpu->m_gdt_location.limit);
 
-  // 80286+ sets higher-order bits to 0xFF
-  if (cpu->m_model == MODEL_286)
-    gdt_address = (gdt_address & 0xFFFFFF) | 0xFF000000;
   // 16-bit operand sets higher-order bits to zero
-  else if (cpu->idata.operand_size == OperandSize_16)
+  if (cpu->idata.operand_size == OperandSize_16)
     gdt_address = (gdt_address & 0xFFFFFF);
 
   // Write back to memory
@@ -5382,145 +5376,6 @@ void Interpreter::Execute_Operation_RDTSC(CPU* cpu)
   // Log_WarningPrintf("RDTSC instruction");
   cpu->m_registers.EDX = 0;
   cpu->m_registers.EAX = 0;
-}
-
-void Interpreter::Execute_Operation_LOADALL_286(CPU* cpu)
-{
-#pragma pack(push, 1)
-  union LOADALL_286_TABLE
-  {
-    struct ADDRESS24
-    {
-      uint8 bits[3];
-
-      uint32 GetValue() const
-      {
-        return ((ZeroExtend32(bits[0])) | (ZeroExtend32(bits[1]) << 8) | (ZeroExtend32(bits[2]) << 16));
-      }
-    };
-
-    struct DESC_CACHE_286
-    {
-      ADDRESS24 physical_address;
-      uint8 access_rights_or_zero;
-      uint16 limit;
-    };
-
-    struct
-    {
-      uint16 unused_00;
-      uint16 unused_02;
-      uint16 MSW;
-      uint16 unused_06;
-      uint16 unused_08;
-      uint16 unused_0A;
-      uint16 unused_0C;
-      uint16 unused_0E;
-      uint16 unused_10;
-      uint16 unused_12;
-      uint16 unused_14;
-      uint16 TR_REG;
-      uint16 FLAGS;
-      uint16 IP;
-      uint16 LDT_REG;
-      uint16 DS_REG;
-      uint16 SS_REG;
-      uint16 CS_REG;
-      uint16 ES_REG;
-      uint16 DI;
-      uint16 SI;
-      uint16 BP;
-      uint16 SP;
-      uint16 BX;
-      uint16 DX;
-      uint16 CX;
-      uint16 AX;
-      DESC_CACHE_286 ES_DESC;
-      DESC_CACHE_286 CS_DESC;
-      DESC_CACHE_286 SS_DESC;
-      DESC_CACHE_286 DS_DESC;
-      DESC_CACHE_286 GDT_DESC;
-      DESC_CACHE_286 LDT_DESC;
-      DESC_CACHE_286 IDT_DESC;
-      DESC_CACHE_286 TSS_DESC;
-    };
-
-    uint16 words[51];
-  };
-  static_assert(sizeof(LOADALL_286_TABLE) == 0x66, "286 loadall table is correct size");
-#pragma pack(pop)
-
-  if (cpu->m_model != MODEL_286)
-  {
-    cpu->RaiseException(Interrupt_InvalidOpcode);
-    return;
-  }
-
-  // Check CPL = 0, GPF?
-  if (cpu->GetCPL() != 0)
-  {
-    cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
-    return;
-  }
-
-  LOADALL_286_TABLE table = {};
-  for (uint32 i = 0; i < countof(table.words); i++)
-    table.words[i] = cpu->m_bus->ReadMemoryWord(0x800 + i * 2);
-
-  // 286 can't switch from protected to real mode.
-  // cpu->m_registers.CR0 = table.MSW;
-  if (table.MSW & CR0Bit_PE)
-    cpu->m_registers.CR0 |= CR0Bit_PE;
-
-  cpu->SetFlags((cpu->m_registers.EFLAGS.bits & 0xFFFF0000) | ZeroExtend32(table.FLAGS));
-  cpu->m_registers.IP = table.IP;
-  cpu->m_registers.DS = table.DS_REG;
-  cpu->m_registers.SS = table.SS_REG;
-  cpu->m_registers.CS = table.CS_REG;
-  cpu->m_registers.ES = table.ES_REG;
-  cpu->m_registers.DI = table.DI;
-  cpu->m_registers.SI = table.SI;
-  cpu->m_registers.BP = table.BP;
-  cpu->m_registers.SP = table.SP;
-  cpu->m_registers.BX = table.BX;
-  cpu->m_registers.DX = table.DX;
-  cpu->m_registers.CX = table.CX;
-  cpu->m_registers.AX = table.AX;
-
-  const LOADALL_286_TABLE::DESC_CACHE_286* caches[4] = {&table.ES_DESC, &table.CS_DESC, &table.SS_DESC, &table.DS_DESC};
-  for (uint32 i = 0; i < 4; i++)
-  {
-    CPU::SegmentCache& seg = cpu->m_segment_cache[i];
-    seg.access.bits = caches[i]->access_rights_or_zero;
-    seg.base_address = caches[i]->physical_address.GetValue();
-    seg.limit_low = 0;
-    seg.limit_high = ZeroExtend32(caches[i]->limit);
-
-    if (seg.access.is_code)
-    {
-      seg.access_mask = AccessTypeMask::Execute;
-      if (seg.access.code_readable)
-        seg.access_mask |= AccessTypeMask::Read;
-    }
-    else
-    {
-      seg.access_mask = AccessTypeMask::Read;
-      if (seg.access.data_writable)
-        seg.access_mask |= AccessTypeMask::Write;
-      if (seg.access.data_expand_down)
-      {
-        seg.limit_low = seg.limit_high + 1;
-        seg.limit_high = 0xFFFF;
-      }
-    }
-  }
-
-  cpu->m_gdt_location.base_address = table.GDT_DESC.physical_address.GetValue();
-  cpu->m_gdt_location.limit = table.GDT_DESC.limit;
-  cpu->m_ldt_location.base_address = table.LDT_DESC.physical_address.GetValue();
-  cpu->m_ldt_location.limit = table.LDT_DESC.limit;
-  cpu->m_idt_location.base_address = table.IDT_DESC.physical_address.GetValue();
-  cpu->m_idt_location.limit = table.IDT_DESC.limit;
 }
 } // namespace CPU_X86
 

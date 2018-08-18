@@ -502,7 +502,7 @@ protected:
   CycleCount m_execution_downcount = 0;
 
   // CPU model that determines behavior.
-  Model m_model = MODEL_8086;
+  Model m_model = MODEL_386;
 
   // Two instruction pointers are kept, m_registers.IP contains the address of the next
   // instruction to be executed, and m_current_IP contains the address of the instruction

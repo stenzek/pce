@@ -342,7 +342,7 @@ MakeModRMRegExtension(0x01, 0f01) \
 MakeTwoOperands(0x02, Operation_LAR, Gv, Ew) \
 MakeTwoOperands(0x03, Operation_LSL, Gv, Ew) \
 MakeInvalidOpcode(0x04) \
-MakeNoOperands(0x05, Operation_LOADALL_286) \
+MakeInvalidOpcode(0x05) \
 MakeNoOperands(0x06, Operation_CLTS) \
 MakeInvalidOpcode(0x07) \
 MakeNoOperands(0x08, Operation_INVD) /* 80486+ */ \

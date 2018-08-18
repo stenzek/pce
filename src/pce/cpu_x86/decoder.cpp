@@ -144,7 +144,6 @@ static const char* operation_names[Operation_Count] = {"<invalid>",
                                                        "lsl",
                                                        "pusha",
                                                        "popa",
-                                                       "loadall_286",
 
                                                        "lfs",
                                                        "lgs",
