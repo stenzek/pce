@@ -455,21 +455,6 @@ void CPU::ExecuteCycles(CycleCount cycles)
   m_execution_downcount = std::max(m_execution_downcount, CycleCount(0));
 }
 
-void CPU::AddCycles(CYCLE_GROUP group)
-{
-  m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group]);
-}
-
-void CPU::AddCyclesPMode(CYCLE_GROUP group)
-{
-  m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + (m_registers.CR0 & 0x01)]);
-}
-
-void CPU::AddCyclesRM(CYCLE_GROUP group, bool rm_reg)
-{
-  m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + static_cast<int>(rm_reg)]);
-}
-
 void CPU::CommitPendingCycles()
 {
   m_execution_downcount -= m_pending_cycles;

@@ -285,9 +285,15 @@ public:
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
   void AddMemoryCycle() { /*m_pending_cycles++;*/}
-  void AddCycles(CYCLE_GROUP group);
-  void AddCyclesPMode(CYCLE_GROUP group);
-  void AddCyclesRM(CYCLE_GROUP group, bool rm_reg);
+  void AddCycles(CYCLE_GROUP group) { m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group]); }
+  void AddCyclesPMode(CYCLE_GROUP group)
+  {
+    m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + (m_registers.CR0 & 0x01)]);
+  }
+  void AddCyclesRM(CYCLE_GROUP group, bool rm_reg)
+  {
+    m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + static_cast<int>(rm_reg)]);
+  }
   void CommitPendingCycles();
 
   // Calculates the physical address of memory with the specified segment and offset.
