@@ -2,6 +2,7 @@
 
 #include "pce/clock.h"
 #include "pce/cpu.h"
+#include "pce/cpu_x86/cycles.h"
 #include "pce/cpu_x86/types.h"
 #include <functional>
 #include <memory>
@@ -284,7 +285,9 @@ public:
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
   void AddMemoryCycle() { /*m_pending_cycles++;*/}
-  void AddCycles(CycleCount cycles) { m_pending_cycles += cycles; }
+  void AddCycles(CYCLE_GROUP group);
+  void AddCyclesPMode(CYCLE_GROUP group);
+  void AddCyclesRM(CYCLE_GROUP group, bool rm_reg);
   void CommitPendingCycles();
 
   // Calculates the physical address of memory with the specified segment and offset.
@@ -560,6 +563,9 @@ protected:
 
   // Exception currently being thrown. Interrupt_Count at all other times. Not saved to state.
   uint32 m_current_exception = Interrupt_Count;
+
+  // Timing data.
+  uint16 m_cycle_group_timings[NUM_CYCLE_GROUPS] = {};
 
 #ifdef ENABLE_TLB_EMULATION
   struct TLBEntry

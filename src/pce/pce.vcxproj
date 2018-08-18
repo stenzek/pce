@@ -39,6 +39,7 @@
     <ClCompile Include="cpu_x86\jitx64_codegen.cpp" />
     <ClCompile Include="cpu_x86\decoder.cpp" />
     <ClCompile Include="cpu_x86\interpreter_backend.cpp" />
+    <ClCompile Include="cpu_x86\cycles.cpp" />
     <ClCompile Include="hw\adlib.cpp" />
     <ClCompile Include="hw\cdrom.cpp" />
     <ClCompile Include="hw\et4000.cpp" />
@@ -94,6 +95,7 @@
     <ClInclude Include="cpu_x86\interpreter_backend.h" />
     <ClInclude Include="cpu_x86\interpreter.inl" />
     <ClInclude Include="cpu_x86\opcodes.h" />
+    <ClInclude Include="cpu_x86\cycles.h" />
     <ClInclude Include="cpu_x86\types.h" />
     <ClInclude Include="debugger_interface.h" />
     <ClInclude Include="dma_controller.h" />

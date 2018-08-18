@@ -401,7 +401,6 @@ enum Operation : uint8
   Operation_FILD,
   Operation_FIMUL,
   Operation_FINCSTP,
-  Operation_FINIT,
   Operation_FIST,
   Operation_FISTP,
   Operation_FISUB,

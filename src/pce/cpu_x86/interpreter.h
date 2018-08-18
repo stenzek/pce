@@ -175,7 +175,7 @@ public:
   static inline void Execute_Operation_IRET(CPU* cpu);
 
   // String operations
-  template<bool check_equal, typename callback>
+  template<Operation operation, bool check_equal, typename callback>
   static inline void Execute_REP(CPU* cpu, callback cb);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant>

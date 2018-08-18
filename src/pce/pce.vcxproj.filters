@@ -123,6 +123,9 @@
     <ClCompile Include="hw\pci_device.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="cpu_x86\cycles.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -271,6 +274,9 @@
     </ClInclude>
     <ClInclude Include="hw\pci_device.h">
       <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\cycles.h">
+      <Filter>cpu_x86</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

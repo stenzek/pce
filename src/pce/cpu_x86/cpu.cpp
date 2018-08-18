@@ -60,6 +60,11 @@ bool CPU::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   m_bus = bus;
+
+  // Copy cycle timings in.
+  for (uint32 i = 0; i < NUM_CYCLE_GROUPS; i++)
+    m_cycle_group_timings[i] = Truncate16(g_cycle_group_timings[i][m_model]);
+
   CreateBackend();
   return true;
 }
@@ -448,6 +453,21 @@ void CPU::ExecuteCycles(CycleCount cycles)
   // If we had a long-running instruction (e.g. a long REP), set downcount to zero, as it'll likely be negative.
   // This is safe, as any time-dependent events occur during CommitPendingCycles();
   m_execution_downcount = std::max(m_execution_downcount, CycleCount(0));
+}
+
+void CPU::AddCycles(CYCLE_GROUP group)
+{
+  m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group]);
+}
+
+void CPU::AddCyclesPMode(CYCLE_GROUP group)
+{
+  m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + (m_registers.CR0 & 0x01)]);
+}
+
+void CPU::AddCyclesRM(CYCLE_GROUP group, bool rm_reg)
+{
+  m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + static_cast<int>(rm_reg)]);
 }
 
 void CPU::CommitPendingCycles()
