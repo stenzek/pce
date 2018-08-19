@@ -296,12 +296,14 @@ void Interpreter::Execute_Operation_WAIT(CPU* cpu)
     return;
   }
 
+  cpu->AddCycles(CYCLES_WAIT);
   cpu->CheckFloatingPointException();
 }
 
 void Interpreter::Execute_Operation_FNINIT(CPU* cpu)
 {
   StartX87Instruction(cpu, false);
+  cpu->AddCycles(CYCLES_FNINIT);
 
   cpu->m_fpu_registers.CW.bits = 0x037F;
   cpu->m_fpu_registers.SW.bits = 0;
@@ -314,6 +316,7 @@ void Interpreter::Execute_Operation_FNINIT(CPU* cpu)
 void Interpreter::Execute_Operation_FNCLEX(CPU* cpu)
 {
   StartX87Instruction(cpu, false);
+  cpu->AddCycles(CYCLES_FNCLEX);
 
   // FPUStatusWord[0:7] <- 0;
   // FPUStatusWord[15] <- 0;
@@ -323,29 +326,34 @@ void Interpreter::Execute_Operation_FNCLEX(CPU* cpu)
 void Interpreter::Execute_Operation_FNOP(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FNOP);
 }
 
 void Interpreter::Execute_Operation_FNENI(CPU* cpu)
 {
   // No-op on 80287+.
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FNENI);
 }
 
 void Interpreter::Execute_Operation_FNDISI(CPU* cpu)
 {
   // No-op on 80287+.
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FNDISI);
 }
 
 void Interpreter::Execute_Operation_FSETPM(CPU* cpu)
 {
   // No-op on 80387+.
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FSETPM);
 }
 
 void Interpreter::Execute_Operation_FINCSTP(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FINCSTP);
   ClearC1(cpu);
   cpu->m_fpu_registers.SW.TOP = (cpu->m_fpu_registers.SW.TOP + 1) & 7;
 }
@@ -353,6 +361,7 @@ void Interpreter::Execute_Operation_FINCSTP(CPU* cpu)
 void Interpreter::Execute_Operation_FDECSTP(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FDECSTP);
   ClearC1(cpu);
   cpu->m_fpu_registers.SW.TOP = (cpu->m_fpu_registers.SW.TOP - 1) & 7;
 }
@@ -360,6 +369,7 @@ void Interpreter::Execute_Operation_FDECSTP(CPU* cpu)
 void Interpreter::Execute_Operation_FABS(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FABS);
 
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -373,9 +383,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FADD(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FADD);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -401,8 +413,10 @@ void Interpreter::Execute_Operation_FADDP(CPU* cpu)
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
 void Interpreter::Execute_Operation_FBLD(CPU* cpu)
 {
-  CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FBLD);
+
+  CalculateEffectiveAddress<src_mode>(cpu);
 
   uint32 p1 = cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
   uint32 p2 = cpu->ReadMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
@@ -438,8 +452,10 @@ void Interpreter::Execute_Operation_FBLD(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FBSTP(CPU* cpu)
 {
-  CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FBSTP);
+
+  CalculateEffectiveAddress<dst_mode>(cpu);
 
   // The store can throw an exception, so we want to preserve the old FPU flags.
   uint16 SW = cpu->m_fpu_registers.SW.bits;
@@ -495,6 +511,7 @@ void Interpreter::Execute_Operation_FBSTP(CPU* cpu)
 void Interpreter::Execute_Operation_FCHS(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FCHS);
 
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -539,9 +556,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant, bool quiet>
 void Interpreter::Execute_Operation_FCOM(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(quiet ? CYCLES_FUCOM : CYCLES_FCOM);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -600,6 +619,7 @@ void Interpreter::Execute_Operation_FUCOMPP(CPU* cpu)
 void Interpreter::Execute_Operation_FTST(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FTST);
   ClearC1(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
@@ -613,9 +633,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FDIV(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FDIV);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 dividend = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -641,9 +663,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FDIVR(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FDIV);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 divisor = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -671,6 +695,7 @@ void Interpreter::Execute_Operation_FFREE(CPU* cpu)
   static_assert(val_mode == OperandMode_FPRegister && val_constant < countof(cpu->m_fpu_registers.ST),
                 "mode is FP register");
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FFREE);
   ClearC1(cpu);
   cpu->m_fpu_registers.TW.SetEmpty((cpu->m_fpu_registers.SW.TOP + uint8(val_constant)) & 0x7);
 }
@@ -679,9 +704,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FIADD(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FIADD);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -699,9 +726,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FISUB(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FISUB);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -719,9 +748,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FISUBR(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FISUB);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
@@ -739,9 +770,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FIMUL(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FIMUL);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -759,9 +792,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FIDIV(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FIDIV);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 dividend = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -779,9 +814,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FIDIVR(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FIDIV);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 divisor = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -799,9 +836,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant, bool quiet>
 void Interpreter::Execute_Operation_FICOM(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FICOM);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -829,8 +868,10 @@ void Interpreter::Execute_Operation_FICOMP(CPU* cpu)
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
 void Interpreter::Execute_Operation_FILD(CPU* cpu)
 {
-  CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FILD);
+
+  CalculateEffectiveAddress<src_mode>(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 value = ReadIntegerOperandAsFloat<src_size, src_mode, src_constant>(cpu, fs);
@@ -847,8 +888,10 @@ void Interpreter::Execute_Operation_FIST(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16 || dst_size == OperandSize_32 || dst_size == OperandSize_64,
                 "dst_size is 16/32/64 bits");
-  CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FIST);
+
+  CalculateEffectiveAddress<dst_mode>(cpu);
 
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -896,8 +939,10 @@ void Interpreter::Execute_Operation_FISTP(CPU* cpu)
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
 void Interpreter::Execute_Operation_FLD(CPU* cpu)
 {
-  CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLD);
+
+  CalculateEffectiveAddress<src_mode>(cpu);
 
   ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
@@ -913,6 +958,7 @@ void Interpreter::Execute_Operation_FLD(CPU* cpu)
 void Interpreter::Execute_Operation_FLD1(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLD_CONSTANT);
 
   ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
@@ -925,8 +971,10 @@ template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
 void Interpreter::Execute_Operation_FLDCW(CPU* cpu)
 {
   static_assert(src_size == OperandSize_16, "src size is 16-bits");
-  CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLDCW);
+
+  CalculateEffectiveAddress<src_mode>(cpu);
 
   uint16 cw = ReadWordOperand<src_mode, src_constant>(cpu);
   cpu->m_fpu_registers.CW.bits = (cw & ~FPUControlWord::ReservedBits) | FPUControlWord::FixedBits;
@@ -936,6 +984,7 @@ void Interpreter::Execute_Operation_FLDCW(CPU* cpu)
 void Interpreter::Execute_Operation_FLDL2E(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLD_LONG_CONSTANT);
 
   ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
@@ -948,6 +997,7 @@ void Interpreter::Execute_Operation_FLDL2E(CPU* cpu)
 void Interpreter::Execute_Operation_FLDL2T(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLD_LONG_CONSTANT);
 
   ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
@@ -960,6 +1010,7 @@ void Interpreter::Execute_Operation_FLDL2T(CPU* cpu)
 void Interpreter::Execute_Operation_FLDLG2(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLD_LONG_CONSTANT);
 
   ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
@@ -972,6 +1023,7 @@ void Interpreter::Execute_Operation_FLDLG2(CPU* cpu)
 void Interpreter::Execute_Operation_FLDLN2(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLD_LONG_CONSTANT);
 
   ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
@@ -984,6 +1036,7 @@ void Interpreter::Execute_Operation_FLDLN2(CPU* cpu)
 void Interpreter::Execute_Operation_FLDPI(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLD_LONG_CONSTANT);
 
   ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
@@ -996,6 +1049,7 @@ void Interpreter::Execute_Operation_FLDPI(CPU* cpu)
 void Interpreter::Execute_Operation_FLDZ(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLD_CONSTANT);
 
   ClearC1(cpu);
   CheckFloatStackOverflow(cpu);
@@ -1008,9 +1062,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FMUL(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FMUL);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -1036,8 +1092,10 @@ void Interpreter::Execute_Operation_FMULP(CPU* cpu)
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
 void Interpreter::Execute_Operation_FRSTOR(CPU* cpu)
 {
-  CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FRSTOR);
+
+  CalculateEffectiveAddress<src_mode>(cpu);
 
   cpu->LoadFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
                     true);
@@ -1046,8 +1104,10 @@ void Interpreter::Execute_Operation_FRSTOR(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FNSAVE(CPU* cpu)
 {
-  CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu, false);
+  cpu->AddCycles(CYCLES_FNSAVE);
+
+  CalculateEffectiveAddress<dst_mode>(cpu);
 
   cpu->StoreFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
                      true);
@@ -1062,8 +1122,10 @@ void Interpreter::Execute_Operation_FNSAVE(CPU* cpu)
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
 void Interpreter::Execute_Operation_FLDENV(CPU* cpu)
 {
-  CalculateEffectiveAddress<src_mode>(cpu);
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FLDENV);
+
+  CalculateEffectiveAddress<src_mode>(cpu);
 
   cpu->LoadFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
                     false);
@@ -1072,8 +1134,10 @@ void Interpreter::Execute_Operation_FLDENV(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FNSTENV(CPU* cpu)
 {
-  CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu, false);
+  cpu->AddCycles(CYCLES_FNSTENV);
+
+  CalculateEffectiveAddress<dst_mode>(cpu);
 
   cpu->StoreFPUState(cpu->idata.segment, cpu->m_effective_address, cpu->idata.GetAddressMask(), cpu->idata.Is32Bit(),
                      false);
@@ -1092,9 +1156,10 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FNSTCW(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16, "dst_size is 16 bits");
-  CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu, false);
+  cpu->AddCycles(CYCLES_FNSTCW);
 
+  CalculateEffectiveAddress<dst_mode>(cpu);
   WriteWordOperand<dst_mode, dst_constant>(cpu, cpu->m_fpu_registers.CW.bits);
 }
 
@@ -1102,9 +1167,10 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FNSTSW(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16, "dst_size is 16 bits");
-  CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu, false);
+  cpu->AddCycles(CYCLES_FNSTSW);
 
+  CalculateEffectiveAddress<dst_mode>(cpu);
   WriteWordOperand<dst_mode, dst_constant>(cpu, cpu->m_fpu_registers.SW.bits);
 }
 
@@ -1112,6 +1178,7 @@ template<bool ieee754>
 void Interpreter::Execute_Operation_FPREM(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(ieee754 ? CYCLES_FPREM1 : CYCLES_FPREM);
 
   cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C0 = 0;
   CheckFloatStackUnderflow(cpu, 0);
@@ -1148,6 +1215,7 @@ void Interpreter::Execute_Operation_FPREM1(CPU* cpu)
 void Interpreter::Execute_Operation_FPTAN(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FPTAN);
 
   cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C0 = 0;
   CheckFloatStackUnderflow(cpu, 0);
@@ -1170,6 +1238,7 @@ void Interpreter::Execute_Operation_FPTAN(CPU* cpu)
 void Interpreter::Execute_Operation_FRNDINT(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FRNDINT);
 
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1185,6 +1254,7 @@ void Interpreter::Execute_Operation_FRNDINT(CPU* cpu)
 void Interpreter::Execute_Operation_FSCALE(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FSCALE);
 
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1201,6 +1271,7 @@ void Interpreter::Execute_Operation_FSCALE(CPU* cpu)
 void Interpreter::Execute_Operation_FSQRT(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FSQRT);
 
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1216,8 +1287,10 @@ void Interpreter::Execute_Operation_FSQRT(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_FST(CPU* cpu)
 {
-  CalculateEffectiveAddress<dst_mode>(cpu);
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FST);
+
+  CalculateEffectiveAddress<dst_mode>(cpu);
 
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
@@ -1239,9 +1312,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FSUB(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FSUB);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 lhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -1268,9 +1343,11 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, Operan
          uint32 src_constant>
 void Interpreter::Execute_Operation_FSUBR(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FSUB);
+
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
-  StartX87Instruction(cpu);
 
   float_status_t fs = GetFloatStatus(cpu);
   floatx80 rhs = ReadFloatOperand<dst_size, dst_mode, dst_constant>(cpu, fs);
@@ -1296,6 +1373,7 @@ void Interpreter::Execute_Operation_FSUBRP(CPU* cpu)
 void Interpreter::Execute_Operation_FXAM(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FXAM);
 
   // Empty values are accepted here.
   floatx80 val = ReadFloatRegister(cpu, 0);
@@ -1363,6 +1441,8 @@ void Interpreter::Execute_Operation_FXCH(CPU* cpu)
   static_assert(val_mode == OperandMode_FPRegister && val_constant < countof(cpu->m_fpu_registers.ST),
                 "val_mode is FP register");
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FXCH);
+
   ClearC1(cpu);
 
   uint8 index = uint8(val_constant);
@@ -1378,12 +1458,17 @@ void Interpreter::Execute_Operation_FXCH(CPU* cpu)
 
 void Interpreter::Execute_Operation_FXTRACT(CPU* cpu)
 {
+  StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FXTRACT);
+
   Panic("Not Implemented");
 }
 
 void Interpreter::Execute_Operation_FPATAN(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FPATAN);
+
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
   CheckFloatStackUnderflow(cpu, 1);
@@ -1400,6 +1485,8 @@ void Interpreter::Execute_Operation_FPATAN(CPU* cpu)
 void Interpreter::Execute_Operation_F2XM1(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_F2XM1);
+
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
 
@@ -1413,6 +1500,8 @@ void Interpreter::Execute_Operation_F2XM1(CPU* cpu)
 void Interpreter::Execute_Operation_FYL2X(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FYL2X);
+
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
   CheckFloatStackUnderflow(cpu, 1);
@@ -1429,6 +1518,8 @@ void Interpreter::Execute_Operation_FYL2X(CPU* cpu)
 void Interpreter::Execute_Operation_FYL2XP1(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FYL2XP1);
+
   ClearC1(cpu);
   CheckFloatStackUnderflow(cpu, 0);
   CheckFloatStackUnderflow(cpu, 1);
@@ -1444,6 +1535,8 @@ void Interpreter::Execute_Operation_FYL2XP1(CPU* cpu)
 void Interpreter::Execute_Operation_FCOS(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FCOS);
+
   cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C2 = 0;
   CheckFloatStackUnderflow(cpu, 0);
 
@@ -1462,6 +1555,8 @@ void Interpreter::Execute_Operation_FCOS(CPU* cpu)
 void Interpreter::Execute_Operation_FSIN(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FSIN);
+
   cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C2 = 0;
   CheckFloatStackUnderflow(cpu, 0);
 
@@ -1480,6 +1575,8 @@ void Interpreter::Execute_Operation_FSIN(CPU* cpu)
 void Interpreter::Execute_Operation_FSINCOS(CPU* cpu)
 {
   StartX87Instruction(cpu);
+  cpu->AddCycles(CYCLES_FSINCOS);
+
   cpu->m_fpu_registers.SW.C1 = cpu->m_fpu_registers.SW.C2 = 0;
   CheckFloatStackUnderflow(cpu, 0);
 
