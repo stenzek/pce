@@ -1022,6 +1022,7 @@ void HDC::HandleATAIdentify()
   if (drive->type == DRIVE_TYPE_ATAPI)
   {
     SetSignature(drive);
+    AbortCommand(ATA_ERR_ABRT);
     return;
   }
 
