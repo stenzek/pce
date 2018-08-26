@@ -57,6 +57,7 @@ bool PCIPC::Initialize()
 
 void PCIPC::Reset()
 {
+  ISAPC::Reset();
   m_pci_config_type1_address.bits = 0;
   m_pci_config_type2_bus = 0;
   m_pci_config_type2_address.bits = 0;
@@ -134,7 +135,8 @@ void PCIPC::IOReadPCIType1ConfigDataByte(uint32 port, uint8* value)
 
   if (bus >= NUM_PCI_BUSES || device >= NUM_PCI_DEVICES_PER_BUS || !m_pci_devices[bus][device])
   {
-    Log_DevPrintf("Missing bus %u device %u function %u (%u/%u/%u)", bus, device, function, reg, idx, (reg * 4) + idx);
+    Log_TracePrintf("Missing bus %u device %u function %u (%u/%u/%u)", bus, device, function, reg, idx,
+                    (reg * 4) + idx);
     *value = 0xFF;
     return;
   }
@@ -155,8 +157,8 @@ void PCIPC::IOWritePCIType1ConfigDataByte(uint32 port, uint8 value)
 
   if (bus >= NUM_PCI_BUSES || device >= NUM_PCI_DEVICES_PER_BUS || !m_pci_devices[bus][device])
   {
-    Log_DevPrintf("Missing bus %u device %u function %u (%u/%u/%u) <- 0x%02X", bus, device, function, reg, idx,
-                  (reg * 4) + idx, value);
+    Log_TracePrintf("Missing bus %u device %u function %u (%u/%u/%u) <- 0x%02X", bus, device, function, reg, idx,
+                    (reg * 4) + idx, value);
     return;
   }
 
