@@ -6,24 +6,25 @@
 #include "pce/hw/hdc.h"
 #include "pce/hw/i8042_ps2.h"
 #include "pce/hw/i8237_dma.h"
+#include "pce/hw/i82437fx.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
 #include "pce/hw/pcspeaker.h"
-#include "pce/systems/isapc.h"
+#include "pce/systems/pcipc.h"
 
 class ByteStream;
 
 namespace Systems {
 
-class Bochs : public ISAPC
+class Bochs : public PCIPC
 {
 public:
   static const uint32 PHYSICAL_MEMORY_BITS = 32;
-  static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xFFFF0000;
-  static const PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xF0000;
-  static const uint32 BIOS_ROM_SIZE = 65536;
+  static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xE0000;
+  static const PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFE0000;
+  static const uint32 BIOS_ROM_SIZE = 131072;
 
-  Bochs(HostInterface* host_interface, CPU_X86::Model model = CPU_X86::MODEL_486, float cpu_frequency = 8000000.0f,
+  Bochs(HostInterface* host_interface, CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 8000000.0f,
         uint32 memory_size = 16 * 1024 * 1024);
   ~Bochs();
 
@@ -62,6 +63,7 @@ private:
   HW::i8237_DMA* m_dma_controller = nullptr;
   HW::i8253_PIT* m_timer = nullptr;
   HW::i8259_PIC* m_interrupt_controller = nullptr;
+  HW::i82437FX* m_sb82437 = nullptr;
 
   HW::CMOS* m_cmos = nullptr;
 

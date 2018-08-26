@@ -11,11 +11,11 @@ namespace Systems {
 
 Bochs::Bochs(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X86::MODEL_486 */,
              float cpu_frequency /* = 8000000.0f */, uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : ISAPC(host_interface), m_bios_file_path("romimages/BIOS-bochs-legacy")
+  : PCIPC(host_interface, PCIPC::PCIConfigSpaceAccessType::Type1), m_bios_file_path("romimages/BIOS-bochs-latest")
 {
   m_cpu = new CPU_X86::CPU(model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
-  AllocatePhysicalMemory(memory_size, false, true);
+  AllocatePhysicalMemory(memory_size, false, false);
   AddComponents();
 }
 
@@ -23,14 +23,16 @@ Bochs::~Bochs() {}
 
 bool Bochs::Initialize()
 {
-  if (!ISAPC::Initialize())
+  if (!PCIPC::Initialize())
     return false;
 
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
+  // We have to use MMIO ROMs, because the shadowed region can only be RAM or ROM, not both.
+  // The upper binding is okay to keep as a ROM region, though, since we don't shadow it.
+  if (!m_bus->CreateMMIOROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE) ||
+      !m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_MIRROR_ADDRESS, BIOS_ROM_SIZE))
+  {
     return false;
-
-  // Mirror BIOS from FFFF0000 to 000F0000.
-  m_bus->MirrorRegion(BIOS_ROM_ADDRESS, BIOS_ROM_SIZE, BIOS_ROM_MIRROR_ADDRESS);
+  }
 
   ConnectSystemIOPorts();
   SetCMOSVariables();
@@ -39,7 +41,7 @@ bool Bochs::Initialize()
 
 void Bochs::Reset()
 {
-  ISAPC::Reset();
+  PCIPC::Reset();
 
   m_refresh_bit = false;
 
@@ -50,7 +52,7 @@ void Bochs::Reset()
 
 bool Bochs::LoadSystemState(BinaryReader& reader)
 {
-  if (!ISAPC::LoadSystemState(reader))
+  if (!PCIPC::LoadSystemState(reader))
     return false;
 
   reader.SafeReadBool(&m_refresh_bit);
@@ -59,7 +61,7 @@ bool Bochs::LoadSystemState(BinaryReader& reader)
 
 bool Bochs::SaveSystemState(BinaryWriter& writer)
 {
-  if (!ISAPC::SaveSystemState(writer))
+  if (!PCIPC::SaveSystemState(writer))
     return false;
 
   writer.SafeWriteBool(m_refresh_bit);
@@ -204,6 +206,7 @@ void Bochs::UpdateKeyboardControllerOutputPort()
 
 void Bochs::AddComponents()
 {
+  AddPCIDeviceToLocation((m_sb82437 = new HW::i82437FX(this, m_bus)), 0, 0);
   AddComponent(m_interrupt_controller = new HW::i8259_PIC());
   AddComponent(m_dma_controller = new HW::i8237_DMA());
   AddComponent(m_timer = new HW::i8253_PIT());
