@@ -362,6 +362,15 @@ bool CDROM::BeginCommand()
       QueueCommand(CalculateSeekTime(m_current_lba, lba) + CalculateReadTime(lba, 1));
       return true;
     }
+
+    case SCSI_CMD_MECHANISM_STATUS:
+    {
+      if (m_command_buffer.size() < 12)
+        return false;
+
+      QueueCommand(1);
+      return true;
+    }
   }
 
   // Unknown command.
@@ -425,6 +434,10 @@ void CDROM::ExecuteCommand()
     case SCSI_CMD_READ_10:
     case SCSI_CMD_READ_12:
       HandleReadCommand();
+      break;
+
+    case SCSI_CMD_MECHANISM_STATUS:
+      HandleMechanismStatusCommand();
       break;
   }
 
@@ -941,4 +954,24 @@ bool CDROM::TransferNextSector()
 
   return true;
 }
+
+void CDROM::HandleMechanismStatusCommand()
+{
+  Log_DevPrintf("CDROM read mechanism status");
+
+  uint16 max_length = ReadCommandBufferWord(8);
+  AllocateData(8, max_length);
+
+  WriteDataBufferByte(0, (0 << 7) /* fault */ | (0 << 5) /* changer state */ | (0 << 0) /* current slot */);
+  WriteDataBufferByte(1, (0 << 5) /* CD mechanism state */);
+  WriteDataBufferByte(2, Truncate8(m_current_lba >> 16));
+  WriteDataBufferByte(3, Truncate8(m_current_lba >> 8));
+  WriteDataBufferByte(4, Truncate8(m_current_lba));
+  WriteDataBufferByte(5, 0 /* number of slots available */);
+  WriteDataBufferWord(6, 0 /* length of slot tables */);
+
+  UpdateSenseInfo(SENSE_NO_STATUS, 0);
+  CompleteCommand();
+}
+
 } // namespace HW

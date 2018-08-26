@@ -164,6 +164,7 @@ private:
   void HandleReadSubChannelCommand();
   void HandleModeSenseCommand();
   void HandleReadCommand();
+  void HandleMechanismStatusCommand();
 
   Clock m_clock;
   std::string m_vendor_id_string;
