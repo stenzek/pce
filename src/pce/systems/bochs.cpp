@@ -5,6 +5,7 @@
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"
+#include <memory>
 Log_SetChannel(Systems::Bochs);
 
 namespace Systems {
@@ -85,56 +86,25 @@ void Bochs::ConnectSystemIOPorts()
     m_keyboard_controller->SetOutputPort(value);
   });
 
-  // PCI stuff
-  m_bus->ConnectIOPortReadDWord(0x0CF8, this, [](uint32 port, uint32* value) { *value = 0xFFFFFFFF; });
-  m_bus->ConnectIOPortReadDWord(0x0CFA, this, [](uint32 port, uint32* value) { *value = 0xFFFFFFFF; });
-  m_bus->ConnectIOPortReadWord(0x0CFC, this, [](uint32 port, uint16* value) { *value = 0xFFFF; });
-  m_bus->ConnectIOPortReadWord(0x0CFD, this, [](uint32 port, uint16* value) { *value = 0xFFFF; });
-  m_bus->ConnectIOPortWriteDWord(0x0CF8, this, [](uint32 port, uint32 value) {});
-  m_bus->ConnectIOPortWriteDWord(0x0CFA, this, [](uint32 port, uint32 value) {});
-  m_bus->ConnectIOPortWriteWord(0x0CFC, this, [](uint32 port, uint16 value) {});
-  m_bus->ConnectIOPortWriteWord(0x0CFD, this, [](uint32 port, uint16 value) {});
-
-  String* blah = new String();
-  m_bus->ConnectIOPortWrite(0x0500, this, [blah](uint32 port, uint8 value) {
-    // Log_DevPrintf("Debug port: %u: %c", uint32(value), value);
-    if (value == '\n')
-    {
-      Log_DevPrintf("Debug message 0500: %s", blah->GetCharArray());
-      blah->Clear();
-    }
-    else
-    {
-      blah->AppendCharacter(char(value));
-    }
-  });
-
-  String* blah2 = new String();
-  m_bus->ConnectIOPortWrite(0x0402, this, [blah2](uint32 port, uint8 value) {
-    // Log_DevPrintf("Debug port: %u: %c", uint32(value), value);
-    if (value == '\n')
-    {
-      Log_DevPrintf("Debug message 0402: %s", blah2->GetCharArray());
-      blah2->Clear();
-    }
-    else
-    {
-      blah2->AppendCharacter(char(value));
-    }
-  });
-  String* blah3 = new String();
-  m_bus->ConnectIOPortWrite(0x0403, this, [blah3](uint32 port, uint8 value) {
-    // Log_DevPrintf("Debug port: %u: %c", uint32(value), value);
-    if (value == '\n')
-    {
-      Log_DevPrintf("Debug message 0403: %s", blah3->GetCharArray());
-      blah3->Clear();
-    }
-    else
-    {
-      blah3->AppendCharacter(char(value));
-    }
-  });
+  // Debug ports.
+  static const char* debug_port_names[5] = {"panic", "panic2", "info", "debug", "unknown"};
+  static const uint32 debug_port_numbers[5] = {0x0400, 0x0401, 0x0402, 0x0403, 0x0500};
+  for (uint32 i = 0; i < countof(debug_port_names); i++)
+  {
+    const char* port_name = debug_port_names[i];
+    std::shared_ptr<std::string> str = std::make_shared<std::string>();
+    m_bus->ConnectIOPortWrite(debug_port_numbers[i], this, [port_name, str](uint32 port, uint8 value) {
+      if (value == '\n')
+      {
+        Log_DevPrintf("%s port message (%04X): %s", port_name, port, str->c_str());
+        str->clear();
+      }
+      else
+      {
+        *str += static_cast<char>(value);
+      }
+    });
+  }
 }
 
 void Bochs::IOReadSystemControlPortA(uint8* value)
