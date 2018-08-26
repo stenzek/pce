@@ -1415,7 +1415,7 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
     //#define COMMON_LOGGING_FORMAT 1
 
 #ifndef COMMON_LOGGING_FORMAT
-#if 0
+#if 1
   std::fprintf(stdout, "EAX=%08X EBX=%08X ECX=%08X EDX=%08X ESI=%08X EDI=%08X\n", m_registers.EAX, m_registers.EBX,
                m_registers.ECX, m_registers.EDX, m_registers.ESI, m_registers.EDI);
   std::fprintf(stdout, "ESP=%08X EBP=%08X EIP=%04X:%08X EFLAGS=%08X ES=%04X SS=%04X DS=%04X FS=%04X GS=%04X\n",

@@ -210,7 +210,17 @@ uint32 CDROM::ReadCommandBufferDWord(uint32 offset) const
          (ZeroExtend32(m_command_buffer[offset + 2]) << 8) | (ZeroExtend32(m_command_buffer[offset + 3]));
 }
 
-uint64 CDROM::ReadCommandBufferLBA(uint32 offset) const
+uint32 CDROM::ReadCommandBufferLBA24(uint32 offset) const
+{
+  // TODO: Endian conversion
+  if ((offset + 3) > m_command_buffer.size())
+    return 0;
+
+  return (ZeroExtend32(m_command_buffer[offset]) << 16) | (ZeroExtend32(m_command_buffer[offset + 1]) << 8) |
+         (ZeroExtend32(m_command_buffer[offset + 2]));
+}
+
+uint64 CDROM::ReadCommandBufferLBA48(uint32 offset) const
 {
   // TODO: Endian conversion
   if ((offset + 5) > m_command_buffer.size())
@@ -243,7 +253,15 @@ void CDROM::WriteDataBufferDWord(uint32 offset, uint32 value)
   m_data_buffer[offset + 3] = Truncate8(value);
 }
 
-void CDROM::WriteDataBufferLBA(uint32 offset, uint64 value)
+void CDROM::WriteDataBufferLBA24(uint32 offset, uint32 value)
+{
+  Assert((offset + 3) < m_data_buffer.size());
+  m_data_buffer[offset] = Truncate8(value >> 16);
+  m_data_buffer[offset + 1] = Truncate8(value >> 8);
+  m_data_buffer[offset + 2] = Truncate8(value);
+}
+
+void CDROM::WriteDataBufferLBA48(uint32 offset, uint64 value)
 {
   Assert((offset + 5) < m_data_buffer.size());
   m_data_buffer[offset] = Truncate8(value >> 40);
@@ -363,6 +381,23 @@ bool CDROM::BeginCommand()
       return true;
     }
 
+    case SCSI_CMD_READ_CD:
+    {
+      if (m_command_buffer.size() < 12)
+        return false;
+
+      uint64 lba = ZeroExtend64(ReadCommandBufferDWord(2));
+      uint32 sector_count = ReadCommandBufferLBA24(6);
+      if ((lba + sector_count) > m_media.total_sectors)
+      {
+        AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_LOGICAL_BLOCK_OUT_OF_RANGE);
+        return true;
+      }
+
+      QueueCommand(CalculateSeekTime(m_current_lba, lba) + CalculateReadTime(lba, 1));
+      return true;
+    }
+
     case SCSI_CMD_MECHANISM_STATUS:
     {
       if (m_command_buffer.size() < 12)
@@ -433,6 +468,7 @@ void CDROM::ExecuteCommand()
 
     case SCSI_CMD_READ_10:
     case SCSI_CMD_READ_12:
+    case SCSI_CMD_READ_CD:
       HandleReadCommand();
       break;
 
@@ -878,17 +914,50 @@ void CDROM::HandleModeSenseCommand()
 
 void CDROM::HandleReadCommand()
 {
-  uint32 lba = ReadCommandBufferDWord(2);
-  uint32 sector_count =
-    (m_command_buffer[0] == SCSI_CMD_READ_10) ? ZeroExtend32(ReadCommandBufferWord(7)) : ReadCommandBufferDWord(6);
-
-  Log_DevPrintf("CDROM read %u sectors at LBA %u", sector_count, lba);
-
   if (!HasMedia())
   {
     AbortCommand(SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
     return;
   }
+
+  uint32 lba;
+  uint32 sector_count;
+  switch (m_command_buffer[0])
+  {
+    case SCSI_CMD_READ_10:
+      lba = ReadCommandBufferDWord(2);
+      sector_count = ZeroExtend32(ReadCommandBufferWord(7));
+      break;
+    case SCSI_CMD_READ_12:
+      lba = ReadCommandBufferDWord(2);
+      sector_count = ReadCommandBufferDWord(6);
+      break;
+    case SCSI_CMD_READ_CD:
+    {
+      lba = ReadCommandBufferDWord(2);
+      sector_count = ReadCommandBufferLBA24(6);
+      if ((m_command_buffer[9] & 0xF8) == 0x00)
+      {
+        // No transfer.
+        CompleteCommand();
+        return;
+      }
+
+      // Only support data reads for now.
+      if ((m_command_buffer[9] & 0xF8) != 0x10)
+      {
+        AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_INVALID_FIELD_IN_CMD_PACKET);
+        return;
+      }
+    }
+    break;
+
+    default:
+      AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_ILLEGAL_OPCODE);
+      return;
+  }
+
+  Log_DevPrintf("CDROM read %u sectors at LBA %u", sector_count, lba);
 
   // Transfers of length zero are fine.
   m_remaining_sectors = sector_count;
@@ -964,9 +1033,7 @@ void CDROM::HandleMechanismStatusCommand()
 
   WriteDataBufferByte(0, (0 << 7) /* fault */ | (0 << 5) /* changer state */ | (0 << 0) /* current slot */);
   WriteDataBufferByte(1, (0 << 5) /* CD mechanism state */);
-  WriteDataBufferByte(2, Truncate8(m_current_lba >> 16));
-  WriteDataBufferByte(3, Truncate8(m_current_lba >> 8));
-  WriteDataBufferByte(4, Truncate8(m_current_lba));
+  WriteDataBufferLBA24(2, Truncate32(m_current_lba));
   WriteDataBufferByte(5, 0 /* number of slots available */);
   WriteDataBufferWord(6, 0 /* length of slot tables */);
 
