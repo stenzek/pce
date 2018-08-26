@@ -126,6 +126,9 @@
     <ClCompile Include="cpu_x86\cycles.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
+    <ClCompile Include="hw\i82437fx.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -277,6 +280,9 @@
     </ClInclude>
     <ClInclude Include="cpu_x86\cycles.h">
       <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\i82437fx.h">
+      <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
