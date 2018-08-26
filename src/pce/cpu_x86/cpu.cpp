@@ -125,13 +125,10 @@ void CPU::Reset()
   }
 
   // Execution begins at F000:FFF0
-  LoadSegmentRegister(Segment_CS, 0xF000);
+  // CS is F000 but the base is FFFF0000
+  m_registers.CS = 0xF000;
+  m_segment_cache[Segment_CS].base_address = 0xFFFF0000u;
   m_registers.EIP = 0xFFF0;
-  if (m_model >= MODEL_386)
-  {
-    // CS is F000 but the base is FFFF0000
-    m_segment_cache[Segment_CS].base_address = 0xFFFF0000u;
-  }
 
   // Protected mode off, FPU not present, cache disabled.
   m_registers.CR0 = 0;
