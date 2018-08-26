@@ -28,7 +28,7 @@ bool ALi1429::Initialize()
 
   // We have to use MMIO ROMs, because the shadowed region can only be RAM or ROM, not both.
   // The upper binding is okay to keep as a ROM region, though, since we don't shadow it.
-  if (!m_bus->CreateMMIOROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE) ||
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE) ||
       !m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_MIRROR_ADDRESS, BIOS_ROM_SIZE))
   {
     return false;
@@ -142,12 +142,12 @@ void ALi1429::UpdateShadowRAM()
       Log_DevPrintf("Shadowing ENABLED for 0x%08X-0x%08X (type %u, readable=%s, writable=%s)", base,
                     base + SHADOW_REGION_SIZE - 1, flag, readable_memory ? "yes" : "no",
                     writable_memory ? "yes" : "no");
-      m_bus->SetPagesMemoryState(base, SHADOW_REGION_SIZE, readable_memory, writable_memory);
+      m_bus->SetPagesRAMState(base, SHADOW_REGION_SIZE, readable_memory, writable_memory);
     }
     else
     {
       Log_DevPrintf("Shadowing DISABLED for 0x%08X-0x%08X", base, base + SHADOW_REGION_SIZE - 1);
-      m_bus->SetPagesMemoryState(base, SHADOW_REGION_SIZE, false, false);
+      m_bus->SetPagesRAMState(base, SHADOW_REGION_SIZE, false, false);
     }
   }
 }

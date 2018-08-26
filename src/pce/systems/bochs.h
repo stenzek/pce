@@ -21,8 +21,10 @@ class Bochs : public PCIPC
 public:
   static const uint32 PHYSICAL_MEMORY_BITS = 32;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xE0000;
-  static const PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFE0000;
   static const uint32 BIOS_ROM_SIZE = 131072;
+  static const PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFF0000;
+  static const uint32 BIOS_ROM_MIRROR_START = 0x10000;
+  static const uint32 BIOS_ROM_MIRROR_SIZE = 65536;
 
   Bochs(HostInterface* host_interface, CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 8000000.0f,
         uint32 memory_size = 16 * 1024 * 1024);

@@ -19,12 +19,12 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
 
   // Fast path - page is RAM.
   const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
-  if (page.type & PhysicalMemoryPage::kReadableMemory)
+  if (page.type & PhysicalMemoryPage::kReadableRAM)
   {
     std::memcpy(&value, page.ram_ptr + page_offset, sizeof(T));
   }
   // Slow path - page is MMIO.
-  else if (page.type & PhysicalMemoryPage::kReadableMMIO && address >= page.mmio_handler->GetStartAddress() &&
+  else if (page.mmio_handler && address >= page.mmio_handler->GetStartAddress() &&
            (address + sizeof(T) - 1) <= page.mmio_handler->GetEndAddress())
   {
 
@@ -73,7 +73,7 @@ void Bus::WriteMemoryTyped(PhysicalMemoryAddress address, T value)
 
   // Fast path - page is RAM.
   PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
-  if (page.type & PhysicalMemoryPage::kWritableMemory)
+  if (page.type & PhysicalMemoryPage::kWritableRAM)
   {
     if (!(page.type & PhysicalMemoryPage::kCachedCode))
     {
@@ -94,7 +94,7 @@ void Bus::WriteMemoryTyped(PhysicalMemoryAddress address, T value)
   }
 
   // Slow path - page is MMIO.
-  if (page.type & PhysicalMemoryPage::kWritableMMIO && address >= page.mmio_handler->GetStartAddress() &&
+  if (page.mmio_handler && address >= page.mmio_handler->GetStartAddress() &&
       (address + sizeof(value) - 1) <= page.mmio_handler->GetEndAddress())
   {
     // Pass to MMIO

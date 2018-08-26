@@ -169,6 +169,8 @@ bool SDLHostInterface::Initialize(System* system)
     return false;
   }
 
+  m_mixer->SetMuted(true);
+
   m_display->SetDisplayAspectRatio(4, 3);
   return true;
 }
@@ -546,14 +548,21 @@ void SDLHostInterface::DoSaveState(uint32 index)
   stream->Release();
 }
 
+#if 0
+namespace CPU_X86 {
+extern bool TRACE_EXECUTION;
+extern bool TRACE_TRIGGER;
+}
+#endif
+
 static void TestBIOS(SDLHostInterface* host_interface)
 {
   // auto* system = new Systems::PCXT(host_interface, 1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
-  // auto* system = new Systems::PCBochs(host_interface, CPU_X86::MODEL_486, 1000000, 32 * 1024 * 1024);
-  // auto* system = new Systems::Bochs(host_interface, CPU_X86::MODEL_PENTIUM, 10000000, 32 * 1024 * 1024);
-  // auto* system = new Systems::PC_AMI_386(host_interface, CPU_X86::MODEL_386, 4000000, 4 * 1024 * 1024);
-  // auto* system = new Systems::PCALI1429(host_interface, CPU_X86::MODEL_486, 1000000, 16 * 1024 * 1024);
-  auto* system = new Systems::i430FX(host_interface, CPU_X86::MODEL_PENTIUM, 10000000, 32 * 1024 * 1024);
+  // auto* system = new Systems::Bochs(host_interface, CPU_X86::MODEL_486, 33000000, 8 * 1024 * 1024);
+  auto* system = new Systems::Bochs(host_interface, CPU_X86::MODEL_PENTIUM, 66000000, 32 * 1024 * 1024);
+  // auto* system = new Systems::AMI386(host_interface, CPU_X86::MODEL_386, 33000000, 4 * 1024 * 1024);
+  // auto* system = new Systems::ALi1429(host_interface, CPU_X86::MODEL_486, 33000000, 16 * 1024 * 1024);
+  // auto* system = new Systems::i430FX(host_interface, CPU_X86::MODEL_PENTIUM, 50000000, 32 * 1024 * 1024);
 
   system->GetCPU()->SetBackend(CPUBackendType::Interpreter);
   // system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
@@ -594,11 +603,12 @@ static void TestBIOS(SDLHostInterface* host_interface)
 
   // system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_5_25);
   system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_3_5);
-  // LoadFloppy(system->GetFDDController(), 0, "images\\386bench.img");
+  LoadFloppy(system->GetFDDController(), 0, "images\\386bench.img");
   // LoadFloppy(system->GetFDDController(), 0, "images\\DOS33-DISK01.IMG");
-  LoadFloppy(system->GetFDDController(), 0, "images\\win95boot.img");
+  // LoadFloppy(system->GetFDDController(), 0, "images\\win98seboot.img");
   // LoadFloppy(system->GetFDDController(), 1, "images\\8088mph.img");
   // LoadFloppy(system->GetFDDController(), 1, "images\\checkit3a.img");
+  // LoadFloppy(system->GetFDDController(), 0, "images\\bootfloppy.img");
   host_interface->AddDeviceFileCallback("Floppy A", [&system](const std::string& filename) {
     LoadFloppy(system->GetFDDController(), 0, filename.c_str());
   });
@@ -607,13 +617,35 @@ static void TestBIOS(SDLHostInterface* host_interface)
   });
 
   // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS33.img", 41, 16, 63);
-  LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS5.img", 81, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6.img", 162, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WIN30.img", 81, 16, 63);
+  LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WIN31.img", 81, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WIN31-EGA.img", 801 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WIN31BETA1.img", 81, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-WIN2.img", 40, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-WIN2-EGA.img", 40, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-WIN286.img", 40, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-WIN386.img", 40, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\HD-FREEDOS.img", 81, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\hd10meg.img", 306, 4, 17);
-  // LoadHDD(system->GetHDDController(), 0, "images\\blank.img", 243, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\linux2-grub.img", 81, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\NT351-install.img", 203, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\win95.img", 243, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\win98.img", 609, 16, 63);
   // LoadHDD(system->GetHDDController(), 0, "images\\c.img", 81, 16, 63);
-  // LoadHDD(system->GetHDDController(), 1, "images\\utils.img", 162, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\nt35.img", 243, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\nt4.img", 507, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\blank.img", 243, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\hd-win2k.img", 2080, 16, 63);
+  // LoadHDD(system->GetHDDController(), 0, "images\\os2w3.img", 507, 16, 63);
+
+  // LoadHDD(system->GetSecondaryHDDController(), 0, "images\\utils.img", 162, 16, 63);
+
+  // Until identify locking up the BIOS is fixed..
+  // LoadHDD(system->GetSecondaryHDDController(), 0, "images\\hd10meg.img", 306, 4, 17);
+  // LoadHDD(system->GetSecondaryHDDController(), 1, "images\\hd10meg.img", 306, 4, 17);
 
 #if 0
   system->Start(true);
@@ -625,12 +657,12 @@ static void TestBIOS(SDLHostInterface* host_interface)
 
   {
     ByteStream* stream;
-    if (ByteStream_OpenFileStream("savestate_4.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
+    if (ByteStream_OpenFileStream("savestate_1.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
     {
       Log_InfoPrintf("Loading state...");
       system->LoadState(stream);
       system->QueueExternalEvent([&]() { system->SetState(System::State::Running); });
-      //host_interface->InjectKeyEvent(GenScanCode_Return, true);
+      // host_interface->InjectKeyEvent(GenScanCode_Return, true);
       stream->Release();
     }
   }
@@ -657,6 +689,11 @@ static void TestBIOS(SDLHostInterface* host_interface)
           break;
         }
       }
+
+#if 0
+      if (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_RETURN)
+        CPU_X86::TRACE_TRIGGER = true;
+#endif
 
       host_interface->HandleSDLEvent(&ev);
     }

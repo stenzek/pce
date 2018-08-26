@@ -112,7 +112,7 @@ void i82437FX::SetPAMMapping(uint32 base, uint32 size, uint8 flag)
   Log_DevPrintf("Shadowing for 0x%08X-0x%08X - type %u, readable=%s, writable=%s", base, base + size - 1, flag,
                 readable_memory ? "yes" : "no", writable_memory ? "yes" : "no");
 
-  m_bus->SetPagesMemoryState(base, size, readable_memory, writable_memory);
+  m_bus->SetPagesRAMState(base, size, readable_memory, writable_memory);
 }
 
 void i82437FX::UpdatePAMMapping(uint8 offset)
