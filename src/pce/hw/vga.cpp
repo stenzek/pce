@@ -235,7 +235,7 @@ void VGA::ConnectIOPorts()
 bool VGA::LoadBIOSROM()
 {
   const PhysicalMemoryAddress bios_load_location = 0xC0000;
-  return m_bus->CreateMMIOROMRegionFromFile(m_bios_file_path.c_str(), bios_load_location);
+  return m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), bios_load_location);
 }
 
 void VGA::Render()

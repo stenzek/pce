@@ -12,7 +12,7 @@ namespace Systems {
 
 Bochs::Bochs(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X86::MODEL_486 */,
              float cpu_frequency /* = 8000000.0f */, uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : PCIPC(host_interface, PCIPC::PCIConfigSpaceAccessType::Type1), m_bios_file_path("romimages/BIOS-bochs-latest")
+  : PCIPC(host_interface, PCIPC::PCIConfigSpaceAccessType::Type1), m_bios_file_path("romimages/BIOS-bochs-latest-debug")
 {
   m_cpu = new CPU_X86::CPU(model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
@@ -27,13 +27,10 @@ bool Bochs::Initialize()
   if (!PCIPC::Initialize())
     return false;
 
-  // We have to use MMIO ROMs, because the shadowed region can only be RAM or ROM, not both.
-  // The upper binding is okay to keep as a ROM region, though, since we don't shadow it.
-  if (!m_bus->CreateMMIOROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE) ||
-      !m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_MIRROR_ADDRESS, BIOS_ROM_SIZE))
-  {
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
     return false;
-  }
+
+  m_bus->MirrorRegion(BIOS_ROM_ADDRESS + BIOS_ROM_MIRROR_START, BIOS_ROM_MIRROR_SIZE, BIOS_ROM_MIRROR_ADDRESS);
 
   ConnectSystemIOPorts();
   SetCMOSVariables();

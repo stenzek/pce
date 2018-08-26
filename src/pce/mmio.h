@@ -58,6 +58,7 @@ public:
                             bool allow_write = true, bool cacheable = true);
   static MMIO* CreateComplex(PhysicalMemoryAddress start_address, uint32 size, Handlers&& handlers,
                              bool cacheable = false);
+  static MMIO* CreateMirror(PhysicalMemoryAddress start_address, uint32 size, const MMIO* existing_handler);
 
 private:
   static void IgnoreReadByteHandler(uint32 offset_from_base, uint8* value);

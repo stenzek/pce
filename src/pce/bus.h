@@ -54,22 +54,13 @@ public:
   // Start and end have to be page-aligned.
   uint32 CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end);
 
-  // Creates an empty ROM region, and returns the pointer.
-  byte* CreateROMRegion(PhysicalMemoryAddress address, uint32 size, std::unique_ptr<byte[]> data);
-
-  // Creates a ROM region from an external file. Set size to 0 if the size is dynamic.
+  // Creates a MMIO ROM region from an external file.
   bool CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size = 0);
 
-  // Creates a ROM region from a buffer.
+  // Creates a MMIO ROM region from a buffer.
   bool CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address);
 
-  // Creates a MMIO ROM region from an external file.
-  bool CreateMMIOROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size = 0);
-
-  // Creates a MMIO ROM region from a buffer.
-  bool CreateMMIOROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address);
-
-  // Creates a mirror of RAM/ROM. Currently does not work for MMIO.
+  // Creates a mirror of RAM/ROM.
   void MirrorRegion(PhysicalMemoryAddress start, uint32 size, PhysicalMemoryAddress mirror_start);
 
   // IO port read/write callbacks
@@ -169,27 +160,31 @@ public:
   void ClearCodeInvalidationCallback();
 
   // Change page types.
-  void SetPageMemoryState(PhysicalMemoryAddress page_address, bool readable_memory, bool writable_memory);
-  void SetPagesMemoryState(PhysicalMemoryAddress start_address, uint32 size, bool readable_memory,
-                           bool writable_memory);
+  void SetPageRAMState(PhysicalMemoryAddress page_address, bool readable_memory, bool writable_memory);
+  void SetPagesRAMState(PhysicalMemoryAddress start_address, uint32 size, bool readable_memory, bool writable_memory);
 
 protected:
   struct PhysicalMemoryPage
   {
     enum Type : uint8
     {
-      kReadableMemory = 1,
-      kWritableMemory = 2,
-      kReadableMMIO = 4,
-      kWritableMMIO = 8,
-      kRAMRegion = 16,
-      kROMRegion = 32,
-      kCachedCode = 64
+      kReadableRAM = 1,
+      kWritableRAM = 2,
+      kCachedCode = 4,
+      kMirror = 8,
     };
 
     byte* ram_ptr;
     MMIO* mmio_handler;
     uint8 type;
+
+    bool IsReadableRAM() const { return (type & kReadableRAM) != 0; }
+    bool IsWritableRAM() const { return (type & kWritableRAM) != 0; }
+    bool HasCachedCode() const { return (type & kCachedCode) != 0; }
+    bool IsMirror() const { return (type & kMirror) != 0; }
+    bool IsMMIO() const { return (mmio_handler != nullptr); }
+    bool IsReadableMMIO() const { return IsMMIO() && !IsReadableRAM(); }
+    bool IsWritableMMIO() const { return IsMMIO() && !IsWritableRAM(); }
   };
 
   struct IOPortConnection

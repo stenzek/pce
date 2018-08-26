@@ -160,6 +160,27 @@ MMIO* MMIO::CreateComplex(PhysicalMemoryAddress start_address, uint32 size, Hand
   return mmio;
 }
 
+MMIO* MMIO::CreateMirror(PhysicalMemoryAddress start_address, uint32 size, const MMIO* existing_handler)
+{
+  DebugAssert(size <= existing_handler->m_size);
+
+  // Create copies of handler functions.
+  Handlers handlers;
+  handlers.read_byte = existing_handler->m_handlers.read_byte;
+  handlers.read_word = existing_handler->m_handlers.read_word;
+  handlers.read_dword = existing_handler->m_handlers.read_dword;
+  handlers.read_qword = existing_handler->m_handlers.read_qword;
+  handlers.read_block = existing_handler->m_handlers.read_block;
+  handlers.write_byte = existing_handler->m_handlers.write_byte;
+  handlers.write_word = existing_handler->m_handlers.write_word;
+  handlers.write_dword = existing_handler->m_handlers.write_dword;
+  handlers.write_qword = existing_handler->m_handlers.write_qword;
+  handlers.write_block = existing_handler->m_handlers.write_block;
+
+  // Use the same properties, just a different start address.
+  return new MMIO(start_address, size, std::move(handlers), existing_handler->m_cachable);
+}
+
 void MMIO::Handlers::IgnoreReads()
 {
   read_byte = std::bind(&IgnoreReadByteHandler, std::placeholders::_1, std::placeholders::_2);
