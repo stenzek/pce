@@ -138,12 +138,14 @@ private:
   uint8 ReadCommandBufferByte(uint32 offset) const;
   uint16 ReadCommandBufferWord(uint32 offset) const;
   uint32 ReadCommandBufferDWord(uint32 offset) const;
-  uint64 ReadCommandBufferLBA(uint32 offset) const;
+  uint32 ReadCommandBufferLBA24(uint32 offset) const;
+  uint64 ReadCommandBufferLBA48(uint32 offset) const;
 
   void WriteDataBufferByte(uint32 offset, uint8 value);
   void WriteDataBufferWord(uint32 offset, uint16 value);
   void WriteDataBufferDWord(uint32 offset, uint32 value);
-  void WriteDataBufferLBA(uint32 offset, uint64 value);
+  void WriteDataBufferLBA24(uint32 offset, uint32 value);
+  void WriteDataBufferLBA48(uint32 offset, uint64 value);
 
   bool BeginCommand();
   void QueueCommand(CycleCount time_in_microseconds);
