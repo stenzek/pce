@@ -33,8 +33,8 @@ inline SDL_AudioFormat GetSDLAudioFormat(SampleFormat format)
   return AUDIO_U8;
 }
 
-Mixer_SDL::Mixer_SDL(SDL_AudioDeviceID device_id, float output_sample_rate)
-  : Mixer(output_sample_rate), m_device_id(device_id)
+Mixer_SDL::Mixer_SDL(SDL_AudioDeviceID device_id, uint32 output_sample_rate, uint32 output_buffer_size)
+  : Mixer(output_sample_rate, output_buffer_size), m_device_id(device_id)
 {
 }
 
@@ -45,9 +45,16 @@ Mixer_SDL::~Mixer_SDL()
 
 std::unique_ptr<Mixer> Mixer_SDL::Create()
 {
-  auto mixer = std::make_unique<Mixer_SDL>(0, 44100.0f);
-  SDL_AudioSpec spec = {44100,          AUDIO_F32,  static_cast<Uint8>(NumOutputChannels), 0, 4096, 0, 0,
-                        RenderCallback, mixer.get()};
+  auto mixer = std::make_unique<Mixer_SDL>(0, DefaultOutputSampleRate, DefaultBufferSize);
+  SDL_AudioSpec spec = {static_cast<int>(mixer->m_output_sample_rate),
+                        AUDIO_F32,
+                        static_cast<Uint8>(NumOutputChannels),
+                        0,
+                        static_cast<Uint16>(mixer->m_output_buffer_size),
+                        0,
+                        0,
+                        RenderCallback,
+                        mixer.get()};
   SDL_AudioSpec obtained_spec;
   SDL_AudioDeviceID device_id = SDL_OpenAudioDevice(nullptr, 0, &spec, &obtained_spec, 0);
   if (device_id == 0)
@@ -60,29 +67,30 @@ std::unique_ptr<Mixer> Mixer_SDL::Create()
   return mixer;
 }
 
-void Mixer_SDL::RenderSamples(Audio::OutputFormatType* buf, size_t num_samples)
+void Mixer_SDL::RenderSamples(Audio::OutputFormatType* buf, size_t num_frames)
 {
-  CheckRenderBufferSize(num_samples);
-  std::fill_n(buf, num_samples * NumOutputChannels, 0.0f);
+  std::fill_n(buf, num_frames * NumOutputChannels, 0.0f);
 
   for (auto& channel : m_channels)
   {
-    channel->ReadSamples(m_render_buffer.data(), num_samples);
+    CheckRenderBufferSize(num_frames, channel->GetChannels());
+    size_t frames_read = channel->ReadFrames(m_render_buffer.data(), num_frames);
 
     // Don't bother mixing it if we're muted.
-    if (m_muted)
+    if (frames_read == 0 || m_muted)
       continue;
 
     // If the format is the same, we can just copy it as-is..
-    if (channel->GetChannels() == 1)
+    if (channel->GetChannels() == 1 && NumOutputChannels == 2)
     {
       // Mono -> stereo
-      for (ssize_t idx = ssize_t(num_samples) - 1; idx >= 0; idx--)
+      for (size_t i = 0; i < frames_read; i++)
       {
-        float sample = m_render_buffer[idx];
-        m_render_buffer[idx * 2 + 0] = sample;
-        m_render_buffer[idx * 2 + 1] = sample;
+        buf[i * 2 + 0] += m_render_buffer[i];
+        buf[i * 2 + 1] += m_render_buffer[i];
       }
+
+      continue;
     }
     else if (channel->GetChannels() != NumOutputChannels)
     {
@@ -92,7 +100,7 @@ void Mixer_SDL::RenderSamples(Audio::OutputFormatType* buf, size_t num_samples)
       if (err != 1)
         Panic("Failed to set up audio conversion");
 
-      cvt.len = int(channel->GetChannels() * sizeof(float));
+      cvt.len = int(channel->GetChannels() * sizeof(OutputFormatType) * frames_read);
       cvt.buf = reinterpret_cast<Uint8*>(m_render_buffer.data());
       err = SDL_ConvertAudio(&cvt);
       if (err != 0)
@@ -100,9 +108,9 @@ void Mixer_SDL::RenderSamples(Audio::OutputFormatType* buf, size_t num_samples)
     }
 
     // Mix channels together.
-    const Audio::OutputFormatType* mix_src = reinterpret_cast<const Audio::OutputFormatType*>(m_render_buffer.data());
+    const Audio::OutputFormatType* mix_src = m_render_buffer.data();
     Audio::OutputFormatType* mix_dst = buf;
-    for (size_t i = 0; i < num_samples * NumOutputChannels; i++)
+    for (size_t i = 0; i < frames_read; i++)
     {
       // TODO: Saturation/clamping here
       *(mix_dst++) += *(mix_src++);

@@ -30,21 +30,23 @@ size_t GetBytesPerSample(SampleFormat format)
   return 1;
 }
 
-Mixer::Mixer(float output_sample_rate) : m_output_sample_rate(output_sample_rate)
+Mixer::Mixer(uint32 output_sample_rate, uint32 output_buffer_size)
+  : m_output_sample_rate(output_sample_rate), m_output_buffer_size(output_buffer_size)
 {
-  // Render/mix buffers are allocated on-demand.
-  m_output_buffer = std::make_unique<CircularBuffer>(size_t(output_sample_rate * OutputBufferLengthInSeconds) *
-                                                     NumOutputChannels * sizeof(OutputFormatType));
 }
 
 Mixer::~Mixer() {}
 
-Channel* Mixer::CreateChannel(const char* name, float sample_rate, SampleFormat format, size_t channels)
+Channel* Mixer::CreateChannel(const char* name, float sample_rate, SampleFormat format, size_t channels,
+                              size_t buffer_count /* = DefaultBufferCount */)
 {
   Assert(!GetChannelByName(name));
 
+  float sample_ratio = sample_rate / float(m_output_sample_rate);
+  size_t buffer_size = size_t(std::ceil(m_output_buffer_size * sample_ratio));
+
   std::unique_ptr<Channel> channel =
-    std::make_unique<Channel>(name, m_output_sample_rate, sample_rate, format, channels);
+    std::make_unique<Channel>(name, buffer_size, buffer_count, m_output_sample_rate, sample_rate, format, channels);
   m_channels.push_back(std::move(channel));
   return m_channels.back().get();
 }
@@ -80,9 +82,9 @@ void Mixer::ClearBuffers()
     channel->ClearBuffer();
 }
 
-void Mixer::CheckRenderBufferSize(size_t num_samples)
+void Mixer::CheckRenderBufferSize(size_t num_samples, size_t num_channels)
 {
-  size_t buffer_size = num_samples * NumOutputChannels * sizeof(OutputFormatType);
+  size_t buffer_size = num_samples * num_channels;
   if (m_render_buffer.size() < buffer_size)
     m_render_buffer.resize(buffer_size);
 }
@@ -152,19 +154,16 @@ void AudioBuffer::MoveReadPointer(size_t byteCount)
     std::memmove(m_buffer.data(), m_buffer.data() + byteCount, m_used);
 }
 
-Channel::Channel(const char* name, float output_sample_rate, float input_sample_rate, SampleFormat format,
-                 size_t channels)
-  : m_name(name), m_input_sample_rate(input_sample_rate), m_output_sample_rate(output_sample_rate), m_format(format),
-    m_channels(channels), m_enabled(true), m_input_sample_size(GetBytesPerSample(format)),
-    m_input_frame_size(GetBytesPerSample(format) * channels), m_output_frame_size(sizeof(float) * channels),
-    m_input_buffer(uint32(float(InputBufferLengthInSeconds* input_sample_rate)) * channels * m_input_sample_size),
-    m_output_buffer(uint32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels *
-                    sizeof(OutputFormatType)),
-    m_resample_buffer(uint32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels),
-    m_resampler_state(src_new(SRC_SINC_FASTEST, int(channels), nullptr)),
+Channel::Channel(const char* name, size_t buffer_size, size_t buffer_count, uint32 output_sample_rate,
+                 float input_sample_rate, SampleFormat format, size_t channels)
+  : m_name(name), m_buffer_size(buffer_size), m_buffer_count(buffer_count), m_input_sample_rate(input_sample_rate),
+    m_output_sample_rate(output_sample_rate), m_format(format), m_channels(channels), m_enabled(true),
+    m_frame_size(GetBytesPerSample(format) * channels), m_output_frame_size(sizeof(float) * channels),
+    m_resample_buffer(buffer_size * channels), m_resampler_state(src_new(SRC_SINC_FASTEST, int(channels), nullptr)),
     m_resample_ratio(double(output_sample_rate) / double(input_sample_rate))
 {
   Assert(m_resampler_state != nullptr);
+  AllocateBuffers(buffer_count);
 }
 
 Channel::~Channel()
@@ -172,68 +171,71 @@ Channel::~Channel()
   src_delete(reinterpret_cast<SRC_STATE*>(m_resampler_state));
 }
 
-size_t Channel::GetFreeInputSamples()
+void Channel::BeginWrite(void** buffer_ptr, size_t* num_frames)
 {
-  MutexLock lock(m_lock);
-  return m_input_buffer.GetContiguousBufferSpace() / m_input_frame_size;
-}
-
-void* Channel::ReserveInputSamples(size_t sample_count)
-{
-  void* write_ptr;
-  size_t byte_count = sample_count * m_input_frame_size;
-
   m_lock.Lock();
 
-  // When the speed limiter is off, we can easily exceed the audio buffer length.
-  // In this case, just destroy the oldest samples, wrapping around.
-  while (!m_input_buffer.GetWritePointer(&write_ptr, &byte_count))
-  {
-    size_t bytes_to_remove = byte_count - m_input_buffer.GetContiguousBufferSpace();
-    m_input_buffer.MoveReadPointer(bytes_to_remove);
-  }
+  if (m_num_free_buffers == 0)
+    DropBuffer();
 
-  return write_ptr;
+  Buffer& buffer = m_buffers[m_first_free_buffer];
+  *buffer_ptr = &buffer.data[m_frame_size * buffer.write_position];
+  *num_frames = m_buffer_size - buffer.write_position;
 }
 
-void Channel::CommitInputSamples(size_t sample_count)
+void Channel::WriteFrames(const void* samples, size_t num_frames)
 {
-  size_t byte_count = sample_count * m_input_frame_size;
-  m_input_buffer.MoveWritePointer(byte_count);
+  m_lock.Lock();
+  size_t remaining_samples = num_frames;
+
+  const byte* samples_ptr = reinterpret_cast<const byte*>(samples);
+  while (remaining_samples > 0)
+  {
+    if (m_num_free_buffers == 0)
+      DropBuffer();
+
+    Buffer& buffer = m_buffers[m_first_free_buffer];
+    const size_t to_this_buffer = std::min(m_buffer_size - buffer.write_position, remaining_samples);
+
+    const size_t copy_size = to_this_buffer * m_frame_size;
+    std::memcpy(&buffer.data[buffer.write_position * m_frame_size], samples_ptr, copy_size);
+    samples_ptr += copy_size;
+
+    remaining_samples -= to_this_buffer;
+    buffer.write_position += to_this_buffer;
+
+    // End of the buffer?
+    if (buffer.write_position == m_buffer_size)
+    {
+      // Reset it back to the start, and enqueue it.
+      buffer.write_position = 0;
+      m_num_free_buffers--;
+      m_first_free_buffer = (m_first_free_buffer + 1) % m_buffers.size();
+      m_num_available_buffers++;
+    }
+  }
 
   m_lock.Unlock();
 }
 
-void Channel::ReadSamples(float* destination, size_t num_samples)
+void Channel::EndWrite(size_t num_frames)
 {
-  MutexLock lock(m_lock);
+  Buffer& buffer = m_buffers[m_first_free_buffer];
+  DebugAssert((buffer.write_position + num_frames) <= m_buffer_size);
+  buffer.write_position += num_frames;
 
-  while (num_samples > 0)
+  // End of the buffer?
+  if (buffer.write_position == m_buffer_size)
   {
-    // Can we use what we have buffered?
-    size_t currently_buffered = m_output_buffer.GetBufferUsed() / m_output_frame_size;
-    if (currently_buffered > 0)
-    {
-      size_t to_read = std::min(num_samples, currently_buffered);
-      m_output_buffer.Read(destination, to_read * m_output_frame_size);
-      destination += to_read;
-      num_samples -= to_read;
-      if (num_samples == 0)
-        break;
-    }
-
-    // Resample num_samples samples
-    if (m_input_buffer.GetBufferUsed() > 0)
-    {
-      if (ResampleInput(num_samples))
-        continue;
-    }
-
-    // If we hit here, it's because we're out of input data.
-    Log_WarningPrintf("%u extra samples inserted", Truncate32(num_samples));
-    std::memset(destination, 0, num_samples * m_output_frame_size);
-    break;
+    // Reset it back to the start, and enqueue it.
+    // Log_DevPrintf("Enqueue buffer %u", m_first_free_buffer);
+    buffer.write_position = 0;
+    m_num_free_buffers--;
+    m_first_free_buffer = (m_first_free_buffer + 1) % m_buffers.size();
+    m_num_available_buffers++;
   }
+
+  m_lock.Unlock();
 }
 
 void Channel::ChangeSampleRate(float new_sample_rate)
@@ -244,6 +246,9 @@ void Channel::ChangeSampleRate(float new_sample_rate)
   // Calculate the new ratio.
   m_input_sample_rate = new_sample_rate;
   m_resample_ratio = double(m_output_sample_rate) / double(new_sample_rate);
+  m_buffer_size = size_t(std::ceil(m_buffer_size / m_resample_ratio));
+  m_resample_buffer.resize(m_buffer_size * m_channels);
+  AllocateBuffers(m_buffer_count);
 }
 
 void Channel::ClearBuffer()
@@ -252,125 +257,159 @@ void Channel::ClearBuffer()
   InternalClearBuffer();
 }
 
-void Channel::InternalClearBuffer()
+void Channel::AllocateBuffers(size_t buffer_count)
 {
-  m_input_buffer.Clear();
-  src_reset(reinterpret_cast<SRC_STATE*>(m_resampler_state));
-  m_output_buffer.Clear();
-}
-
-bool Channel::ResampleInput(size_t num_output_samples)
-{
-  const void* in_buf;
-  size_t in_bufsize;
-  size_t in_num_frames;
-  size_t in_num_samples;
-  if (!m_input_buffer.GetReadPointer(&in_buf, &in_bufsize))
-    return false;
-
-  in_num_frames = in_bufsize / m_input_frame_size;
-  in_num_samples = in_num_frames * m_channels;
-  if (in_num_frames == 0)
-    return false;
-
-  // Cap output samples at buffer size.
-  num_output_samples = std::min(num_output_samples, m_output_buffer.GetContiguousBufferSpace() / m_output_frame_size);
-  Assert((num_output_samples * m_channels) < m_resample_buffer.size());
-
-  // Only use as many input samples as needed.
-  void* out_buf;
-  size_t out_bufsize = num_output_samples * m_output_frame_size;
-  if (!m_output_buffer.GetWritePointer(&out_buf, &out_bufsize))
-    return false;
-
-  // Set up resampling.
-  SRC_DATA resample_data;
-  resample_data.data_out = reinterpret_cast<float*>(out_buf);
-  resample_data.output_frames = static_cast<long>(num_output_samples);
-  resample_data.input_frames_used = 0;
-  resample_data.output_frames_gen = 0;
-  resample_data.end_of_input = 0;
-  resample_data.src_ratio = m_resample_ratio;
-
-  // Convert from whatever format the input is in to float.
-  switch (m_format)
+  m_buffers.resize(buffer_count);
+  for (size_t i = 0; i < buffer_count; i++)
   {
-    case SampleFormat::Signed8:
-    {
-      const int8* in_samples_typed = reinterpret_cast<const int8*>(in_buf);
-      for (size_t i = 0; i < in_num_samples; i++)
-        m_resample_buffer[i] = float(in_samples_typed[i]) / float(0x80);
-
-      resample_data.input_frames = long(in_num_frames);
-      resample_data.data_in = m_resample_buffer.data();
-    }
-    break;
-    case SampleFormat::Unsigned8:
-    {
-      const int8* in_samples_typed = reinterpret_cast<const int8*>(in_buf);
-      for (size_t i = 0; i < in_num_samples; i++)
-        m_resample_buffer[i] = float(int(in_samples_typed[i]) - 128) / float(0x80);
-
-      resample_data.input_frames = long(in_num_frames);
-      resample_data.data_in = m_resample_buffer.data();
-    }
-    break;
-    case SampleFormat::Signed16:
-      src_short_to_float_array(reinterpret_cast<const short*>(in_buf), m_resample_buffer.data(), int(in_num_samples));
-      resample_data.input_frames = long(in_num_frames);
-      resample_data.data_in = m_resample_buffer.data();
-      break;
-
-    case SampleFormat::Unsigned16:
-    {
-      const uint16* in_samples_typed = reinterpret_cast<const uint16*>(in_buf);
-      for (size_t i = 0; i < in_num_samples; i++)
-        m_resample_buffer[i] = float(int(in_samples_typed[i]) - 32768) / float(0x8000);
-
-      resample_data.input_frames = long(in_num_frames);
-      resample_data.data_in = m_resample_buffer.data();
-    }
-    break;
-
-    case SampleFormat::Signed32:
-      src_int_to_float_array(reinterpret_cast<const int*>(in_buf), m_resample_buffer.data(), int(in_num_samples));
-      resample_data.input_frames = long(in_num_frames);
-      resample_data.data_in = m_resample_buffer.data();
-      break;
-
-    case SampleFormat::Float32:
-    default:
-      resample_data.input_frames = long(in_num_frames);
-      resample_data.data_in = reinterpret_cast<const float*>(in_buf);
-      break;
+    Buffer& buffer = m_buffers[i];
+    buffer.data.resize(m_buffer_size * m_frame_size);
+    buffer.read_position = 0;
+    buffer.write_position = 0;
   }
 
-  // Actually perform the resampling.
-  int process_result = src_process(reinterpret_cast<SRC_STATE*>(m_resampler_state), &resample_data);
-  Assert(process_result == 0);
-
-  // Update buffer pointers.
-  m_input_buffer.MoveReadPointer(size_t(resample_data.input_frames_used) * m_input_frame_size);
-  m_output_buffer.MoveWritePointer(size_t(resample_data.output_frames_gen) * m_output_frame_size);
-  return true;
+  m_first_available_buffer = 0;
+  m_num_available_buffers = 0;
+  m_first_free_buffer = 0;
+  m_num_free_buffers = buffer_count;
 }
 
-NullMixer::NullMixer() : Mixer(44100) {}
+void Channel::DropBuffer()
+{
+  DebugAssert(m_num_available_buffers > 0);
+  // Log_DevPrintf("Dropping buffer %u", m_first_free_buffer);
+
+  // Out of space. We'll overwrite the oldest buffer with the new data.
+  // At the same time, we shift the available buffer forward one.
+  m_first_available_buffer = (m_first_available_buffer + 1) % m_buffers.size();
+  m_num_available_buffers--;
+
+  m_buffers[m_first_free_buffer].read_position = 0;
+  m_buffers[m_first_free_buffer].write_position = 0;
+  m_num_free_buffers++;
+}
+
+void Channel::InternalClearBuffer()
+{
+  for (Buffer& buffer : m_buffers)
+  {
+    buffer.read_position = 0;
+    buffer.write_position = 0;
+  }
+
+  m_first_free_buffer = 0;
+  m_num_free_buffers = m_buffers.size();
+  m_first_available_buffer = 0;
+  m_num_available_buffers = 0;
+
+  src_reset(reinterpret_cast<SRC_STATE*>(m_resampler_state));
+}
+
+size_t Channel::ReadFrames(float* destination, size_t num_frames)
+{
+  m_lock.Lock();
+
+  size_t remaining_frames = num_frames;
+  while (remaining_frames > 0 && m_num_available_buffers > 0)
+  {
+    // TODO: Instead of converting all frames, we could just do the first n*ratio.
+    Buffer& buffer = m_buffers[m_first_available_buffer];
+    const byte* in_data = &buffer.data[buffer.read_position * m_frame_size];
+    const size_t in_num_frames = m_buffer_size - buffer.read_position;
+    const size_t in_num_samples = in_num_frames * m_channels;
+
+    // Set up resampling.
+    SRC_DATA resample_data;
+    resample_data.input_frames = static_cast<long>(in_num_frames);
+    resample_data.input_frames_used = 0;
+    resample_data.data_out = destination;
+    resample_data.output_frames = static_cast<long>(remaining_frames);
+    resample_data.output_frames_gen = 0;
+    resample_data.end_of_input = 0;
+    resample_data.src_ratio = m_resample_ratio;
+
+    // Convert from whatever format the input is in to float.
+    switch (m_format)
+    {
+      case SampleFormat::Signed8:
+      {
+        const int8* in_samples_typed = reinterpret_cast<const int8*>(in_data);
+        for (size_t i = 0; i < in_num_samples; i++)
+          m_resample_buffer[i] = float(in_samples_typed[i]) / float(0x80);
+
+        resample_data.data_in = m_resample_buffer.data();
+      }
+      break;
+      case SampleFormat::Unsigned8:
+      {
+        const int8* in_samples_typed = reinterpret_cast<const int8*>(in_data);
+        for (size_t i = 0; i < in_num_samples; i++)
+          m_resample_buffer[i] = float(int(in_samples_typed[i]) - 128) / float(0x80);
+
+        resample_data.data_in = m_resample_buffer.data();
+      }
+      break;
+      case SampleFormat::Signed16:
+        src_short_to_float_array(reinterpret_cast<const short*>(in_data), m_resample_buffer.data(),
+                                 int(in_num_samples));
+        resample_data.data_in = m_resample_buffer.data();
+        break;
+
+      case SampleFormat::Unsigned16:
+      {
+        const uint16* in_samples_typed = reinterpret_cast<const uint16*>(in_data);
+        for (size_t i = 0; i < in_num_samples; i++)
+          m_resample_buffer[i] = float(int(in_samples_typed[i]) - 32768) / float(0x8000);
+
+        resample_data.data_in = m_resample_buffer.data();
+      }
+      break;
+
+      case SampleFormat::Signed32:
+        src_int_to_float_array(reinterpret_cast<const int*>(in_data), m_resample_buffer.data(), int(in_num_samples));
+        resample_data.data_in = m_resample_buffer.data();
+        break;
+
+      case SampleFormat::Float32:
+      default:
+        resample_data.data_in = reinterpret_cast<const float*>(in_data);
+        break;
+    }
+
+    // Actually perform the resampling.
+    int process_result = src_process(reinterpret_cast<SRC_STATE*>(m_resampler_state), &resample_data);
+    Assert(process_result == 0);
+
+    // Update buffer pointers.
+    buffer.read_position += resample_data.input_frames_used;
+    destination += resample_data.output_frames_gen * m_channels;
+    remaining_frames -= resample_data.output_frames_gen;
+
+    // End of buffer?
+    if (buffer.read_position >= m_buffer_size)
+    {
+      // End of this buffer.
+      DebugAssert(buffer.read_position == m_buffer_size);
+      // Log_DevPrintf("Finish dequeing buffer %u", m_first_available_buffer);
+      buffer.read_position = 0;
+      m_num_available_buffers--;
+      m_first_available_buffer = (m_first_available_buffer + 1) % m_buffers.size();
+      m_num_free_buffers++;
+    }
+  }
+
+  m_lock.Unlock();
+  return num_frames - remaining_frames;
+}
+
+NullMixer::NullMixer() : Mixer(44100, 2048) {}
 
 NullMixer::~NullMixer() {}
 
 std::unique_ptr<Mixer> NullMixer::Create()
 {
+  // The null mixer never reads frames, they just keep getting overwritten.
   return std::make_unique<NullMixer>();
-}
-
-void NullMixer::RenderSamples(size_t output_samples)
-{
-  CheckRenderBufferSize(output_samples);
-
-  // Consume everything from the input buffers.
-  for (auto& channel : m_channels)
-    channel->ReadSamples(m_render_buffer.data(), output_samples);
 }
 
 } // namespace Audio

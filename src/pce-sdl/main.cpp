@@ -169,7 +169,7 @@ bool SDLHostInterface::Initialize(System* system)
     return false;
   }
 
-  m_mixer->SetMuted(true);
+  // m_mixer->SetMuted(true);
 
   m_display->SetDisplayAspectRatio(4, 3);
   return true;

@@ -838,38 +838,45 @@ uint32 SoundBlaster::GetSamplesPerDMATransfer(DSP_SAMPLE_FORMAT format)
 
 void SoundBlaster::DACSampleEvent(CycleCount cycles)
 {
-  size_t num_samples = size_t(cycles);
-  int16* obuf = reinterpret_cast<int16*>(m_dac_state.output_channel->ReserveInputSamples(num_samples));
-
-  // TODO: Invert loop
-  for (size_t sample_index = 0; sample_index < num_samples; sample_index++)
+  size_t remaining_samples = size_t(cycles);
+  while (remaining_samples > 0)
   {
-    if (m_dac_state.silence_samples > 0)
-    {
-      m_dac_state.silence_samples--;
-      if (m_dac_state.silence_samples == 0)
-        RaiseInterrupt(m_dac_state.dma_16);
+    int16* obuf;
+    size_t frames_to_output;
+    m_dac_state.output_channel->BeginWrite(reinterpret_cast<void**>(&obuf), &frames_to_output);
+    frames_to_output = std::min(frames_to_output, size_t(remaining_samples));
 
-      if (m_dac_state.stereo)
+    // TODO: Invert loop
+    for (size_t frame_index = 0; frame_index < frames_to_output; frame_index++)
+    {
+      if (m_dac_state.silence_samples > 0)
       {
-        obuf[sample_index * 2 + 0] = m_dac_state.last_sample[0] = 0;
-        obuf[sample_index * 2 + 1] = m_dac_state.last_sample[1] = 0;
+        m_dac_state.silence_samples--;
+        if (m_dac_state.silence_samples == 0)
+          RaiseInterrupt(m_dac_state.dma_16);
+
+        if (m_dac_state.stereo)
+        {
+          obuf[frame_index * 2 + 0] = m_dac_state.last_sample[0] = 0;
+          obuf[frame_index * 2 + 1] = m_dac_state.last_sample[1] = 0;
+        }
+      }
+      else
+      {
+        m_dac_state.last_sample[0] = DecodeDACOutputSample(m_dac_state.last_sample[0]);
+        if (m_dac_state.stereo)
+          m_dac_state.last_sample[1] = DecodeDACOutputSample(m_dac_state.last_sample[1]);
+        else
+          m_dac_state.last_sample[1] = m_dac_state.last_sample[0];
+
+        obuf[frame_index * 2 + 0] = m_dac_state.last_sample[0];
+        obuf[frame_index * 2 + 1] = m_dac_state.last_sample[1];
       }
     }
-    else
-    {
-      m_dac_state.last_sample[0] = DecodeDACOutputSample(m_dac_state.last_sample[0]);
-      if (m_dac_state.stereo)
-        m_dac_state.last_sample[1] = DecodeDACOutputSample(m_dac_state.last_sample[1]);
-      else
-        m_dac_state.last_sample[1] = m_dac_state.last_sample[0];
 
-      obuf[sample_index * 2 + 0] = m_dac_state.last_sample[0];
-      obuf[sample_index * 2 + 1] = m_dac_state.last_sample[1];
-    }
+    m_dac_state.output_channel->EndWrite(frames_to_output);
+    remaining_samples -= frames_to_output;
   }
-
-  m_dac_state.output_channel->CommitInputSamples(num_samples);
 
   // If a DMA is not active, we're just going to be repeating the same value anyway, so set a higher interval
   UpdateDACSampleEventState();

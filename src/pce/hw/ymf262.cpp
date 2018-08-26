@@ -480,79 +480,80 @@ inline int16 ConvertSample(int32 in_sample, float factor)
 
 void YMF262::RenderSamples(uint32 num_samples)
 {
+  return;
   float gain_factor = float(std::pow(10.0f, (GAIN / 10.0f)));
+  size_t remaining_samples = num_samples;
 
-  switch (m_mode)
+  while (remaining_samples > 0)
   {
-    case Mode::OPL2:
+    int16* output_samples;
+    size_t samples_to_output;
+    m_output_channel->BeginWrite(reinterpret_cast<void**>(&output_samples), &samples_to_output);
+    samples_to_output = std::min(samples_to_output, size_t(remaining_samples));
+
+    switch (m_mode)
     {
-      ChipState& chip = m_chips[0];
-      if (num_samples > chip.temp_buffer.size())
-        chip.temp_buffer.resize(num_samples);
-
-      chip.dbopl->GenerateBlock2(Truncate32(num_samples), chip.temp_buffer.data());
-
-      int16* output_samples = reinterpret_cast<int16*>(m_output_channel->ReserveInputSamples(num_samples));
-      float factor = gain_factor * m_chips[0].volume;
-
-      for (size_t i = 0; i < num_samples; i++)
-        output_samples[i] = ConvertSample(chip.temp_buffer[i], factor);
-
-      m_output_channel->CommitInputSamples(num_samples);
-    }
-    break;
-
-    case Mode::DualOPL2:
-    {
-      for (ChipState& chip : m_chips)
+      case Mode::OPL2:
       {
-        if (num_samples > chip.temp_buffer.size())
-          chip.temp_buffer.resize(num_samples);
+        ChipState& chip = m_chips[0];
+        if (samples_to_output > chip.temp_buffer.size())
+          chip.temp_buffer.resize(samples_to_output);
 
-        chip.dbopl->GenerateBlock2(Truncate32(num_samples), chip.temp_buffer.data());
-      }
+        chip.dbopl->GenerateBlock2(Truncate32(samples_to_output), chip.temp_buffer.data());
 
-      int16* output_samples = reinterpret_cast<int16*>(m_output_channel->ReserveInputSamples(num_samples));
-      float factor0 = gain_factor * m_chips[0].volume;
-      float factor1 = gain_factor * m_chips[1].volume;
-
-      for (size_t i = 0; i < num_samples; i++)
-      {
-        output_samples[i * 2 + 0] = ConvertSample(m_chips[0].temp_buffer[i], factor0);
-        output_samples[i * 2 + 1] = ConvertSample(m_chips[1].temp_buffer[i], factor1);
-      }
-
-      m_output_channel->CommitInputSamples(num_samples);
-    }
-    break;
-
-    case Mode::OPL3:
-    {
-      ChipState& chip = m_chips[0];
-      if ((num_samples * 2) > chip.temp_buffer.size())
-        chip.temp_buffer.resize(num_samples * 2);
-
-      int16* output_samples = reinterpret_cast<int16*>(m_output_channel->ReserveInputSamples(num_samples));
-      float factor = gain_factor * m_chips[0].volume;
-
-      if (chip.dbopl->opl3Active != 0)
-      {
-        // Stereo samples
-        chip.dbopl->GenerateBlock3(Truncate32(num_samples), chip.temp_buffer.data());
-        for (size_t i = 0; i < num_samples * 2; i++)
+        const float factor = gain_factor * m_chips[0].volume;
+        for (size_t i = 0; i < samples_to_output; i++)
           output_samples[i] = ConvertSample(chip.temp_buffer[i], factor);
       }
-      else
-      {
-        // Mono samples, so duplicate across both channels.
-        chip.dbopl->GenerateBlock2(Truncate32(num_samples), chip.temp_buffer.data());
-        for (size_t i = 0; i < num_samples; i++)
-          output_samples[i * 2 + 0] = output_samples[i * 2 + 1] = ConvertSample(chip.temp_buffer[i], factor);
-      }
+      break;
 
-      m_output_channel->CommitInputSamples(num_samples);
+      case Mode::DualOPL2:
+      {
+        for (ChipState& chip : m_chips)
+        {
+          if (samples_to_output > chip.temp_buffer.size())
+            chip.temp_buffer.resize(samples_to_output);
+
+          chip.dbopl->GenerateBlock2(Truncate32(samples_to_output), chip.temp_buffer.data());
+        }
+
+        const float factor0 = gain_factor * m_chips[0].volume;
+        const float factor1 = gain_factor * m_chips[1].volume;
+        for (size_t i = 0; i < samples_to_output; i++)
+        {
+          output_samples[i * 2 + 0] = ConvertSample(m_chips[0].temp_buffer[i], factor0);
+          output_samples[i * 2 + 1] = ConvertSample(m_chips[1].temp_buffer[i], factor1);
+        }
+      }
+      break;
+
+      case Mode::OPL3:
+      {
+        ChipState& chip = m_chips[0];
+        if ((samples_to_output * 2) > chip.temp_buffer.size())
+          chip.temp_buffer.resize(samples_to_output * 2);
+
+        const float factor = gain_factor * m_chips[0].volume;
+        if (chip.dbopl->opl3Active != 0)
+        {
+          // Stereo samples
+          chip.dbopl->GenerateBlock3(Truncate32(samples_to_output), chip.temp_buffer.data());
+          for (size_t i = 0; i < samples_to_output * 2; i++)
+            output_samples[i] = ConvertSample(chip.temp_buffer[i], factor);
+        }
+        else
+        {
+          // Mono samples, so duplicate across both channels.
+          chip.dbopl->GenerateBlock2(Truncate32(samples_to_output), chip.temp_buffer.data());
+          for (size_t i = 0; i < samples_to_output; i++)
+            output_samples[i * 2 + 0] = output_samples[i * 2 + 1] = ConvertSample(chip.temp_buffer[i], factor);
+        }
+      }
+      break;
     }
-    break;
+
+    m_output_channel->EndWrite(samples_to_output);
+    remaining_samples -= samples_to_output;
   }
 }
 

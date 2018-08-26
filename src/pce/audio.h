@@ -52,7 +52,14 @@ size_t GetBytesPerSample(SampleFormat format);
 class Mixer
 {
 public:
-  Mixer(float output_sample_rate);
+  enum : uint32
+  {
+    DefaultOutputSampleRate = 44100,
+    DefaultBufferSize = 2048,
+    DefaultBufferCount = 3,
+  };
+
+  Mixer(uint32 output_sample_rate, uint32 output_buffer_size);
   virtual ~Mixer();
 
   // Disable all outputs.
@@ -62,7 +69,8 @@ public:
 
   // Adds a channel to the audio mixer.
   // This pointer is owned by the audio class.
-  Channel* CreateChannel(const char* name, float sample_rate, SampleFormat format, size_t channels);
+  Channel* CreateChannel(const char* name, float sample_rate, SampleFormat format, size_t channels,
+                         size_t buffer_count = DefaultBufferCount);
 
   // Drops a channel from the audio mixer.
   void RemoveChannel(Channel* channel);
@@ -74,18 +82,17 @@ public:
   void ClearBuffers();
 
 protected:
-  void CheckRenderBufferSize(size_t num_samples);
+  void CheckRenderBufferSize(size_t num_samples, size_t num_channels);
 
-  float m_output_sample_rate;
-  float m_output_sample_carry = 0.0f;
+  uint32 m_output_sample_rate;
+  uint32 m_output_buffer_size;
   bool m_muted = false;
 
   // Input channels.
   std::vector<std::unique_ptr<Channel>> m_channels;
 
-  // Output buffer.
+  // Render/resampling buffer.
   std::vector<OutputFormatType> m_render_buffer;
-  std::unique_ptr<CircularBuffer> m_output_buffer;
 };
 
 class AudioBuffer
@@ -117,7 +124,8 @@ private:
 class Channel
 {
 public:
-  Channel(const char* name, float output_sample_rate, float input_sample_rate, SampleFormat format, size_t channels);
+  Channel(const char* name, size_t buffer_size, size_t buffer_count, uint32 output_sample_rate, float input_sample_rate,
+          SampleFormat format, size_t channels);
   ~Channel();
 
   const String& GetName() const { return m_name; }
@@ -130,15 +138,12 @@ public:
   void SetEnabled(bool enabled) { m_enabled = enabled; }
 
   // This sample_count is the number of samples per channel, so two-channel will be half of the total values.
-  size_t GetFreeInputSamples();
-  void* ReserveInputSamples(size_t sample_count);
-  void CommitInputSamples(size_t sample_count);
+  void BeginWrite(void** buffer_ptr, size_t* num_frames);
+  void WriteFrames(const void* samples, size_t num_frames);
+  void EndWrite(size_t num_frames);
 
-  // Resamples at most num_output_samples, the actual number can be lower if there isn't enough input data.
-  bool ResampleInput(size_t num_output_samples);
-
-  // Render n output samples. If not enough input data is in the buffer, set to zero.
-  void ReadSamples(float* destination, size_t num_samples);
+  // Render n output samples. Returns the number of samples written to destination.
+  size_t ReadFrames(float* destination, size_t num_frames);
 
   // Changes the frequency of the input data. Flushes the resample buffer.
   void ChangeSampleRate(float new_sample_rate);
@@ -148,21 +153,39 @@ public:
 
 private:
   void InternalClearBuffer();
+  void AllocateBuffers(size_t buffer_count);
+  void DropBuffer();
+
+  struct Buffer
+  {
+    std::vector<byte> data;
+    size_t write_position;
+    size_t read_position;
+  };
 
   String m_name;
+  size_t m_buffer_size;
+  size_t m_buffer_count;
   float m_input_sample_rate;
-  float m_output_sample_rate;
+  uint32 m_output_sample_rate;
   SampleFormat m_format;
   size_t m_channels;
   bool m_enabled;
 
   Mutex m_lock;
-  // std::unique_ptr<CircularBuffer> m_input_buffer;
-  size_t m_input_sample_size;
-  size_t m_input_frame_size;
+  size_t m_frame_size;
   size_t m_output_frame_size;
-  AudioBuffer m_input_buffer;
-  AudioBuffer m_output_buffer;
+
+  std::vector<Buffer> m_buffers;
+
+  // For input.
+  size_t m_first_free_buffer = 0;
+  size_t m_num_free_buffers = 0;
+
+  // For output.
+  size_t m_num_available_buffers = 0;
+  size_t m_first_available_buffer = 0;
+
   std::vector<float> m_resample_buffer;
   double m_resample_ratio;
   void* m_resampler_state;
@@ -176,9 +199,6 @@ public:
   virtual ~NullMixer();
 
   static std::unique_ptr<Mixer> Create();
-
-protected:
-  void RenderSamples(size_t output_samples);
 };
 
 } // namespace Audio

@@ -84,6 +84,7 @@ void PCSpeaker::SetLevel(bool level)
 
 void PCSpeaker::RenderSampleEvent(CycleCount cycles)
 {
+  return;
   size_t num_samples = size_t(cycles);
 
   //     static SimulationTime total_audio_time;
@@ -96,25 +97,34 @@ void PCSpeaker::RenderSampleEvent(CycleCount cycles)
   if (num_samples < 2)
     sound_on = false;
 
-  int16* samples = reinterpret_cast<int16*>(m_output_channel->ReserveInputSamples(num_samples));
-  int16 value = sound_on ? (m_level ? HIGH_SAMPLE_VALUE : LOW_SAMPLE_VALUE) : 0;
-  for (size_t i = 0; i < num_samples; i++)
-    samples[i] = value;
-
-#if 0
-  static FILE* fp = nullptr;
-  if (!fp)
-    fp = fopen("D:\\speaker.raw", "wb");
-  if (fp)
-  {
-    fwrite(samples, sizeof(int16), num_samples, fp);
-    fflush(fp);
-  }
-#endif
-
   Log_TracePrintf("Speaker: rendered %u samples at %s", Truncate32(num_samples),
                   sound_on ? (m_level ? "high" : "low") : "off");
-  m_output_channel->CommitInputSamples(num_samples);
+
+  while (num_samples > 0)
+  {
+    int16* samples;
+    size_t samples_avail;
+    m_output_channel->BeginWrite(reinterpret_cast<void**>(&samples), &samples_avail);
+    samples_avail = std::min(samples_avail, num_samples);
+
+    int16 value = sound_on ? (m_level ? HIGH_SAMPLE_VALUE : LOW_SAMPLE_VALUE) : 0;
+    for (size_t i = 0; i < samples_avail; i++)
+      samples[i] = value;
+
+#if 0
+    static FILE* fp = nullptr;
+    if (!fp)
+      fp = fopen("D:\\speaker.raw", "wb");
+    if (fp)
+    {
+      fwrite(samples, sizeof(int16), samples_avail, fp);
+      fflush(fp);
+    }
+#endif
+
+    m_output_channel->EndWrite(samples_avail);
+    num_samples -= samples_avail;
+  }
 
 #if 0
   static Timer t;
