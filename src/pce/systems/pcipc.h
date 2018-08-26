@@ -47,8 +47,8 @@ private:
   {
     BitField<uint32, uint8, 31, 1> enable;
     BitField<uint32, uint8, 16, 8> bus;
-    BitField<uint32, uint8, 11, 15> device;
-    BitField<uint32, uint8, 8, 2> function;
+    BitField<uint32, uint8, 11, 5> device;
+    BitField<uint32, uint8, 8, 3> function;
     BitField<uint32, uint8, 2, 6> reg;
     uint32 bits;
   };
