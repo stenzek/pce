@@ -40,6 +40,7 @@
     <ClCompile Include="cpu_x86\decoder.cpp" />
     <ClCompile Include="cpu_x86\interpreter_backend.cpp" />
     <ClCompile Include="cpu_x86\cycles.cpp" />
+    <ClCompile Include="hdd_image.cpp" />
     <ClCompile Include="hw\adlib.cpp" />
     <ClCompile Include="hw\cdrom.cpp" />
     <ClCompile Include="hw\et4000.cpp" />
@@ -101,6 +102,7 @@
     <ClInclude Include="debugger_interface.h" />
     <ClInclude Include="dma_controller.h" />
     <ClInclude Include="fastjmp.h" />
+    <ClInclude Include="hdd_image.h" />
     <ClInclude Include="hw\adlib.h" />
     <ClInclude Include="hw\cdrom.h" />
     <ClInclude Include="hw\et4000.h" />
