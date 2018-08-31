@@ -2,6 +2,7 @@
 
 #include "pce/bitfield.h"
 #include "pce/component.h"
+#include "pce/timing.h"
 #include <YBaseLib/Assert.h>
 #include <array>
 #include <memory>
@@ -197,9 +198,11 @@ protected:
   };
   std::array<std::unique_ptr<DriveState>, MAX_DRIVES> m_drives;
   std::array<CDROM*, MAX_DRIVES> m_atapi_devices;
+  TimingEvent::Pointer m_image_flush_event;
 
   void ConnectIOPorts(Bus* bus);
   void SoftReset();
+  void FlushImagesEvent();
 
   uint8 GetCurrentDriveIndex() const { return m_drive_select.drive; }
   DriveState* GetCurrentDrive() { return m_drives[m_drive_select.drive].get(); }

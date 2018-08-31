@@ -21,6 +21,10 @@ bool HDC::Initialize(System* system, Bus* bus)
 {
   m_system = system;
   ConnectIOPorts(bus);
+
+  // Flush the HDD images once a second, to ensure data isn't lost.
+  m_image_flush_event = m_system->GetTimingManager()->CreateFrequencyEvent("HDD Image Flush", 1.0f,
+                                                                           std::bind(&HDC::FlushImagesEvent, this));
   return true;
 }
 
@@ -465,6 +469,18 @@ void HDC::SoftReset()
   }
 
   // TODO: Stop any ATAPI commands.
+}
+
+void HDC::FlushImagesEvent()
+{
+  for (uint32 i = 0; i < MAX_DRIVES; i++)
+  {
+    DriveState* state = m_drives[i].get();
+    if (!state || state->type != DRIVE_TYPE_HDD)
+      continue;
+
+    state->hdd_image->Flush();
+  }
 }
 
 HW::CDROM* HDC::GetCurrentATAPIDevice()
