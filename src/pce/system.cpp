@@ -349,7 +349,9 @@ void System::ThrottleEventCallback()
 
     uint64 total_cpu_time_ns = elapsed_kernel_time_ns + elapsed_user_time_ns;
     double busy_cpu_time = double(total_cpu_time_ns) / speed_real_time;
+#ifdef Y_BUILD_CONFIG_RELEASE
     Log_ErrorPrintf("Main thread CPU usage: %f%%", busy_cpu_time * 100.0);
+#endif
   }
 
   if (m_speed_limiter_enabled)
@@ -371,7 +373,9 @@ void System::ThrottleEventCallback()
       const SimulationTime max_variance_ms = 50;
       if (diff < -(max_variance_ms * 1000000))
       {
+#ifdef Y_BUILD_CONFIG_RELEASE
         Log_ErrorPrintf("System too slow, lost %d ms", int32(-diff / 1000000));
+#endif
         m_elapsed_real_time.Reset();
         m_timing_manager.ResetTotalEmulatedTime();
         m_last_emulated_time = 0;

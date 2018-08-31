@@ -230,7 +230,7 @@ void Channel::ReadSamples(float* destination, size_t num_samples)
     }
 
     // If we hit here, it's because we're out of input data.
-    Log_WarningPrintf("%u extra samples inserted", Truncate32(num_samples));
+    // Log_WarningPrintf("%u extra samples inserted", Truncate32(num_samples));
     std::memset(destination, 0, num_samples * m_output_frame_size);
     break;
   }
