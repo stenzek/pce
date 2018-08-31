@@ -324,6 +324,8 @@ void HDDImage::WriteSectorToLog(SectorBuffer& buf)
     {
       Panic("Failed to update sector map in log file.");
     }
+
+    buf.in_log = true;
   }
 
   // Write to the log.
