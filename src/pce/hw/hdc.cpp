@@ -1,10 +1,10 @@
 #include "pce/hw/hdc.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "YBaseLib/Memory.h"
 #include "pce/bus.h"
+#include "pce/hdd_image.h"
 #include "pce/hw/cdrom.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
@@ -40,20 +40,28 @@ bool HDC::LoadState(BinaryReader& reader)
 
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
-    bool present = reader.ReadBool();
-    if (!present)
+    auto& drive = m_drives[i];
+    const bool present = reader.ReadBool();
+    if ((drive && !present) || (!drive && present))
     {
-      m_drives[i].reset();
+      Log_ErrorPrintf("Save state mismatch for drive %u", i);
+      return false;
+    }
+    if (!present)
       continue;
+
+    const DRIVE_TYPE type = static_cast<DRIVE_TYPE>(reader.ReadUInt32());
+    const u32 num_cylinders = reader.ReadUInt32();
+    const u32 num_heads = reader.ReadUInt32();
+    const u32 num_sectors = reader.ReadUInt32();
+    const u64 num_lbas = reader.ReadUInt64();
+    if (type != drive->type || num_cylinders != drive->num_cylinders || num_heads != drive->num_heads ||
+        num_sectors != drive->num_sectors || num_lbas != drive->num_lbas)
+    {
+      Log_ErrorPrintf("Save state geometry mismatch for drive %u", i);
+      return false;
     }
 
-    m_drives[i] = std::make_unique<DriveState>();
-    auto& drive = m_drives[i];
-    drive->type = static_cast<DRIVE_TYPE>(reader.ReadUInt32());
-    drive->num_cylinders = reader.ReadUInt32();
-    drive->num_heads = reader.ReadUInt32();
-    drive->num_sectors = reader.ReadUInt32();
-    drive->num_lbas = reader.ReadUInt64();
     drive->current_num_cylinders = reader.ReadUInt32();
     drive->current_num_heads = reader.ReadUInt32();
     drive->current_num_sectors = reader.ReadUInt32();
@@ -100,10 +108,11 @@ bool HDC::LoadState(BinaryReader& reader)
     if (!drive || drive->type != DRIVE_TYPE_HDD)
       continue;
 
-    uint32 size = reader.ReadUInt32();
-    drive->data.resize(size);
-    if (size > 0)
-      reader.ReadBytes(drive->data.data(), size);
+    if (!drive->hdd_image->LoadState(reader.GetStream()))
+    {
+      Log_ErrorPrintf("Failed to replace log for drive %u", i);
+      continue;
+    }
   }
 
   return true;
@@ -116,7 +125,7 @@ bool HDC::SaveState(BinaryWriter& writer)
 
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
-    auto& drive = m_drives[i];
+    const auto& drive = m_drives[i];
     writer.WriteBool((drive.get() != nullptr));
     if (!drive)
       continue;
@@ -165,10 +174,11 @@ bool HDC::SaveState(BinaryWriter& writer)
     if (!drive || drive->type != DRIVE_TYPE_HDD)
       continue;
 
-    uint32 size = Truncate32(drive->data.size());
-    writer.WriteUInt32(size);
-    if (size > 0)
-      writer.WriteBytes(drive->data.data(), size);
+    if (!drive->hdd_image->SaveState(writer.GetStream()))
+    {
+      Log_ErrorPrintf("Failed to write log for drive %u", i);
+      return false;
+    }
   }
 
   return true;
@@ -204,19 +214,26 @@ void HDC::CalculateCHSForSize(uint32* cylinders, uint32* heads, uint32* sectors,
   // TODO
 }
 
-bool HDC::AttachDrive(uint32 number, ByteStream* stream, uint32 cylinders /*= 0*/, uint32 heads /*= 0*/,
-                      uint32 sectors /*= 0*/)
+bool HDC::AttachDrive(uint32 number, const char* filename, uint32 cylinders /* = 0 */, uint32 heads /* = 0 */,
+                      uint32 sectors /* = 0 */)
 {
   DebugAssert(number < MAX_DRIVES);
 
-  uint64 stream_size = stream->GetSize();
-  if (cylinders == 0 || heads == 0 || sectors == 0)
-    CalculateCHSForSize(&cylinders, &heads, &sectors, stream_size);
+  auto image = HDDImage::Open(filename);
+  if (!image)
+  {
+    Log_ErrorPrintf("Failed to open image for drive %u (%s)", number, filename);
+    return false;
+  }
 
-  if (stream_size != (cylinders * heads * sectors * SECTOR_SIZE))
+  if (cylinders == 0 || heads == 0 || sectors == 0)
+    CalculateCHSForSize(&cylinders, &heads, &sectors, image->GetImageSize());
+
+  if (image->GetImageSize() !=
+      (static_cast<u64>(cylinders) * static_cast<u64>(heads) * static_cast<u64>(sectors) * SECTOR_SIZE))
   {
     Log_ErrorPrintf("CHS geometry does not match disk size: %u/%u/%u -> %u LBAs, real size %u LBAs", cylinders, heads,
-                    sectors, cylinders * heads * sectors, uint32(stream_size / SECTOR_SIZE));
+                    sectors, cylinders * heads * sectors, uint32(image->GetImageSize() / SECTOR_SIZE));
     return false;
   }
 
@@ -229,11 +246,8 @@ bool HDC::AttachDrive(uint32 number, ByteStream* stream, uint32 cylinders /*= 0*
   drive_state->current_num_cylinders = cylinders;
   drive_state->current_num_heads = heads;
   drive_state->current_num_sectors = sectors;
-  drive_state->data.resize(size_t(stream_size));
-
-  if (!stream->SeekAbsolute(0) || !stream->Read2(drive_state->data.data(), uint32(stream_size)))
-    return false;
-
+  drive_state->hdd_image = std::move(image);
+  drive_state->hdd_image_filename = filename;
   m_drives[number] = std::move(drive_state);
   return true;
 }
@@ -341,8 +355,7 @@ void HDC::ReadCurrentSector(uint32 drive, void* data)
 
   DriveState* state = m_drives[drive].get();
   Log_DevPrintf("HDC read lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
-
-  std::memcpy(data, &state->data[state->current_lba * SECTOR_SIZE], SECTOR_SIZE);
+  state->hdd_image->Read(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
 void HDC::WriteCurrentSector(uint32 drive, const void* data)
@@ -351,8 +364,7 @@ void HDC::WriteCurrentSector(uint32 drive, const void* data)
 
   DriveState* state = m_drives[drive].get();
   Log_DevPrintf("HDC write lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
-
-  std::memcpy(&state->data[state->current_lba * SECTOR_SIZE], data, SECTOR_SIZE);
+  state->hdd_image->Write(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
 bool HDC::ReadSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, void* data)

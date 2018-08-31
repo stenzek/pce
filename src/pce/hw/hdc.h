@@ -5,9 +5,10 @@
 #include <YBaseLib/Assert.h>
 #include <array>
 #include <memory>
+#include <string>
 #include <vector>
 
-class ByteStream;
+class HDDImage;
 
 namespace HW {
 
@@ -142,7 +143,7 @@ public:
     return m_drives[number]->current_sector;
   }
 
-  bool AttachDrive(uint32 number, ByteStream* stream, uint32 cylinders = 0, uint32 heads = 0, uint32 sectors = 0);
+  bool AttachDrive(uint32 number, const char* filename, uint32 cylinders = 0, uint32 heads = 0, uint32 sectors = 0);
   bool AttachATAPIDevice(uint32 number, CDROM* cdrom);
 
   // For HLE bios
@@ -159,6 +160,7 @@ protected:
   CHANNEL m_channel = CHANNEL_PRIMARY;
   uint32 m_irq_number = 0;
 
+  // TODO: Make this a fixed array, rather than pointer.
   struct DriveState
   {
     DRIVE_TYPE type = DRIVE_TYPE_NONE;
@@ -188,7 +190,8 @@ protected:
     uint16 multiple_sectors = 0;
 
     // TODO: Replace with file IO
-    std::vector<byte> data;
+    std::string hdd_image_filename;
+    std::unique_ptr<HDDImage> hdd_image;
 
     void SetATAPIInterruptReason(bool is_command, bool data_from_device, bool release);
   };

@@ -37,20 +37,6 @@ static bool LoadFloppy(HW::FDC* fdc, uint32 disk, const char* path)
   return result;
 }
 
-static bool LoadHDD(HW::HDC* hdc, uint32 drive, const char* path, uint32 cylinders, uint32 heads, uint32 sectors)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(path, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
-  {
-    Log_ErrorPrintf("Failed to load HDD at %s", path);
-    return false;
-  }
-
-  bool result = hdc->AttachDrive(drive, stream, cylinders, heads, sectors);
-  stream->Release();
-  return result;
-}
-
 MainWindow::MainWindow(QWidget* parent /*= nullptr*/) : QMainWindow(parent)
 {
   m_ui = std::make_unique<Ui::MainWindow>();
@@ -113,7 +99,7 @@ bool MainWindow::setTestSystemStorage(const char* floppy_a_filename, const char*
     return false;
   if (floppy_b_filename && !LoadFloppy(fdc, 0, floppy_b_filename))
     return false;
-  if (hdd_filename && !LoadHDD(hdc, 0, hdd_filename, hdd_cylinders, hdd_heads, hdd_sectors))
+  if (hdd_filename && !hdc->AttachDrive(0, hdd_filename, hdd_cylinders, hdd_heads, hdd_sectors))
     return false;
 
   return true;

@@ -64,20 +64,6 @@ static bool LoadFloppy(HW::FDC* fdc, uint32 disk, const char* path)
   return result;
 }
 
-static bool LoadHDD(HW::HDC* hdc, uint32 drive, const char* path, uint32 cylinders, uint32 heads, uint32 sectors)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(path, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
-  {
-    Log_ErrorPrintf("Failed to load floppy at %s", path);
-    return false;
-  }
-
-  bool result = hdc->AttachDrive(drive, stream, cylinders, heads, sectors);
-  stream->Release();
-  return result;
-}
-
 class SDLHostInterface : public HostInterface
 {
 public:
@@ -594,11 +580,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
 
   // system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_5_25);
   system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_3_5);
-  // LoadFloppy(system->GetFDDController(), 0, "images\\386bench.img");
-  // LoadFloppy(system->GetFDDController(), 0, "images\\DOS33-DISK01.IMG");
-  LoadFloppy(system->GetFDDController(), 0, "images\\win95boot.img");
-  // LoadFloppy(system->GetFDDController(), 1, "images\\8088mph.img");
-  // LoadFloppy(system->GetFDDController(), 1, "images\\checkit3a.img");
+  LoadFloppy(system->GetFDDController(), 0, "images\\bootfloppy.img");
   host_interface->AddDeviceFileCallback("Floppy A", [&system](const std::string& filename) {
     LoadFloppy(system->GetFDDController(), 0, filename.c_str());
   });
@@ -606,14 +588,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
     LoadFloppy(system->GetFDDController(), 1, filename.c_str());
   });
 
-  // LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS33.img", 41, 16, 63);
-  LoadHDD(system->GetHDDController(), 0, "images\\HD-DOS6-WFW311.img", 81, 16, 63);
-  // LoadHDD(system->GetHDDController(), 0, "images\\hd10meg.img", 306, 4, 17);
-  // LoadHDD(system->GetHDDController(), 0, "images\\blank.img", 243, 16, 63);
-  // LoadHDD(system->GetHDDController(), 0, "images\\win95.img", 243, 16, 63);
-  // LoadHDD(system->GetHDDController(), 0, "images\\win98.img", 609, 16, 63);
-  // LoadHDD(system->GetHDDController(), 0, "images\\c.img", 81, 16, 63);
-  // LoadHDD(system->GetHDDController(), 1, "images\\utils.img", 162, 16, 63);
+  system->GetHDDController()->AttachDrive(0, "images\\blank.img", 243, 16, 63);
 
 #if 0
   system->Start(true);
