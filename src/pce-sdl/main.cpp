@@ -569,7 +569,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
 #endif
 #if 0
   // Sound blaster card
-  system->AddComponent(new HW::SoundBlaster(system->GetDMAController(), HW::SoundBlaster::Type::SoundBlaster16));
+  system->AddComponent(new HW::SoundBlaster(HW::SoundBlaster::Type::SoundBlaster16));
 #endif
 #if 0
   // cdrom

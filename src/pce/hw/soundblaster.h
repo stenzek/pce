@@ -29,8 +29,8 @@ public:
     SoundBlaster16
   };
 
-  SoundBlaster(DMAController* dma_controller = nullptr, Type type = Type::SoundBlaster10, uint32 iobase = 0x220,
-               uint32 irq = 7, uint32 dma = 1, uint32 dma16 = 5);
+  SoundBlaster(Type type = Type::SoundBlaster10, uint32 iobase = 0x220, uint32 irq = 7, uint32 dma = 1,
+               uint32 dma16 = 5);
   ~SoundBlaster();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -131,7 +131,7 @@ private:
 
   Clock m_clock;
   System* m_system = nullptr;
-  DMAController* m_dma_controller;
+  DMAController* m_dma_controller = nullptr;
   Type m_type;
   uint32 m_io_base;
   uint32 m_irq;

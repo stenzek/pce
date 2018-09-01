@@ -56,11 +56,10 @@ YMF262::Mode SoundBlaster::GetOPLMode(Type type)
   }
 }
 
-SoundBlaster::SoundBlaster(DMAController* dma_controller, Type type /* = Type::SoundBlaster10 */,
-                           uint32 iobase /* = 0x220 */, uint32 irq /* = 7 */, uint32 dma /* = 1 */,
-                           uint32 dma16 /* = 5 */)
-  : m_clock("Sound Blaster DSP", 44100), m_dma_controller(dma_controller), m_type(type), m_io_base(iobase), m_irq(irq),
-    m_dma_channel(dma), m_dma_channel_16(dma16), m_ymf262(GetOPLMode(type)), m_dsp_version(GetDSPVersion(type))
+SoundBlaster::SoundBlaster(Type type /* = Type::SoundBlaster10 */, uint32 iobase /* = 0x220 */, uint32 irq /* = 7 */,
+                           uint32 dma /* = 1 */, uint32 dma16 /* = 5 */)
+  : m_clock("Sound Blaster DSP", 44100), m_type(type), m_io_base(iobase), m_irq(irq), m_dma_channel(dma),
+    m_dma_channel_16(dma16), m_ymf262(GetOPLMode(type)), m_dsp_version(GetDSPVersion(type))
 {
 }
 
@@ -122,6 +121,12 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
     m_clock.NewEvent("DAC Sample", 1, std::bind(&SoundBlaster::DACSampleEvent, this, std::placeholders::_2), false);
 
   // DMA channel connections
+  m_dma_controller = system->GetComponentByType<DMAController>();
+  if (!m_dma_controller)
+  {
+    Log_ErrorPrintf("Failed to find DMA controller.");
+    return false;
+  }
   m_dma_controller->ConnectDMAChannel(m_dma_channel,
                                       std::bind(&SoundBlaster::DMAReadCallback, this, std::placeholders::_1,
                                                 std::placeholders::_2, std::placeholders::_3, false),
