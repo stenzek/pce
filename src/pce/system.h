@@ -72,6 +72,10 @@ public:
   // Pointer ownership is transferred
   void AddComponent(Component* component);
 
+  // Returns the nth component of the specified type.
+  template<typename T>
+  T* GetComponentByType(u32 index = 0);
+
   // Clears the simulation thread ID. Call this when moving simulation from one thread to another.
   void ClearSimulationThreadID();
 
@@ -187,3 +191,19 @@ protected:
   TaskQueue m_external_event_queue;
   std::atomic_bool m_has_external_events{false};
 };
+
+template<typename T>
+T* System::GetComponentByType(u32 index /*= 0*/)
+{
+  u32 counter = 0;
+  for (Component* component : m_components)
+  {
+    if (!component->IsDerived<T>())
+      continue;
+
+    if ((counter++) == index)
+      return component->Cast<T>();
+  }
+
+  return nullptr;
+}

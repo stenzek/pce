@@ -20,7 +20,7 @@ public:
   virtual ~Object();
 
   // Retrieves the type information for this object.
-  const ObjectTypeInfo* GetObjectTypeInfo() const { return m_type_info; }
+  const ObjectTypeInfo* GetTypeInfo() const { return m_type_info; }
 
   // Cast from one object type to another, unchecked.
   template<class T>
