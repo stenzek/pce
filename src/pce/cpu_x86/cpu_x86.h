@@ -21,6 +21,10 @@ class DebuggerInterface;
 
 class CPU : public CPUBase
 {
+  DECLARE_OBJECT_TYPE_INFO(CPU, CPUBase);
+  DECLARE_OBJECT_NO_FACTORY(CPU);
+  DECLARE_OBJECT_PROPERTY_MAP(CPU);
+
   friend class Backend;
   friend class DebuggerInterface;
   friend class CodeCacheBackend;

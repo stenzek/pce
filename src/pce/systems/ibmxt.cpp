@@ -4,7 +4,7 @@
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
-#include "pce/cpu_x86/cpu.h"
+#include "pce/cpu_x86/cpu_x86.h"
 Log_SetChannel(Systems::ISAPC);
 
 namespace Systems {

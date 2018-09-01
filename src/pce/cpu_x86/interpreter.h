@@ -1,7 +1,7 @@
 #pragma once
 
 #include "pce/cpu_x86/backend.h"
-#include "pce/cpu_x86/cpu.h"
+#include "pce/cpu_x86/cpu_x86.h"
 #include <csetjmp>
 
 #include <softfloat.h>

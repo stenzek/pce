@@ -1,7 +1,7 @@
 #pragma once
 #include "common/fastjmp.h"
 #include "pce/cpu_x86/backend.h"
-#include "pce/cpu_x86/cpu.h"
+#include "pce/cpu_x86/cpu_x86.h"
 
 namespace CPU_X86 {
 class InterpreterBackend : public Backend

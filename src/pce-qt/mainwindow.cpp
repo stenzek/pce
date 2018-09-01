@@ -6,7 +6,6 @@
 #include "pce-qt/debuggerwindow.h"
 #include "pce-qt/displaywidget.h"
 #include "pce-qt/scancodes_qt.h"
-#include "pce/cpu_x86/cpu.h"
 #include "pce/debugger_interface.h"
 #include "pce/hw/vga.h"
 #include "pce/systems/bochs.h"

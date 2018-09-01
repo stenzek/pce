@@ -1,4 +1,4 @@
-#include "pce/cpu_x86/cpu.h"
+#include "pce/cpu_x86/cpu_x86.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
@@ -17,6 +17,9 @@
 Log_SetChannel(CPU_X86::CPU);
 
 namespace CPU_X86 {
+DEFINE_OBJECT_TYPE_INFO(CPU);
+BEGIN_OBJECT_PROPERTY_MAP(CPU)
+END_OBJECT_PROPERTY_MAP()
 
 // Used by backends to enable tracing feature.
 #ifdef Y_BUILD_CONFIG_RELEASE

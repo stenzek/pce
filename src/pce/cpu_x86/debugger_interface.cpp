@@ -1,5 +1,4 @@
 #include "pce/cpu_x86/debugger_interface.h"
-#include "pce/cpu_x86/cpu.h"
 #include "pce/cpu_x86/decoder.h"
 #include "pce/system.h"
 

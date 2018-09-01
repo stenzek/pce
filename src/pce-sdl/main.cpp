@@ -15,7 +15,7 @@
 #include "pce-sdl/display_sdl.h"
 #include "pce-sdl/scancodes_sdl.h"
 #include "pce/bus.h"
-#include "pce/cpu_x86/cpu.h"
+#include "pce/cpu_x86/cpu_x86.h"
 #include "pce/host_interface.h"
 #include "pce/hw/adlib.h"
 #include "pce/hw/cdrom.h"

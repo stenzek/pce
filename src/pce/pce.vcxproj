@@ -29,9 +29,10 @@
   <ItemGroup>
     <ClCompile Include="bus.cpp" />
     <ClCompile Include="component.cpp" />
+    <ClCompile Include="cpu.cpp" />
     <ClCompile Include="cpu_x86\cached_interpreter_backend.cpp" />
     <ClCompile Include="cpu_x86\code_cache_backend.cpp" />
-    <ClCompile Include="cpu_x86\cpu.cpp" />
+    <ClCompile Include="cpu_x86\cpu_x86.cpp" />
     <ClCompile Include="cpu_x86\debugger_interface.cpp" />
     <ClCompile Include="cpu_x86\jitx64_backend.cpp" />
     <ClCompile Include="cpu_x86\jitx64_code.cpp" />
@@ -82,7 +83,7 @@
     <ClInclude Include="cpu_x86\backend.h" />
     <ClInclude Include="cpu_x86\cached_interpreter_backend.h" />
     <ClInclude Include="cpu_x86\code_cache_backend.h" />
-    <ClInclude Include="cpu_x86\cpu.h" />
+    <ClInclude Include="cpu_x86\cpu_x86.h" />
     <ClInclude Include="cpu_x86\debugger_interface.h" />
     <ClInclude Include="cpu_x86\jitx64_backend.h" />
     <ClInclude Include="cpu_x86\jitx64_code.h" />

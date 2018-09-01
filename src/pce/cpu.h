@@ -5,32 +5,28 @@ class DebuggerInterface;
 
 class CPUBase : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(CPUBase, Component);
+  DECLARE_OBJECT_NO_FACTORY(CPUBase);
+  DECLARE_OBJECT_PROPERTY_MAP(CPUBase);
+
 public:
-  CPUBase(float frequency, CPUBackendType backend_type)
-    : m_cycle_period(SimulationTime(double(1000000000) / double(frequency))), m_frequency(frequency),
-      m_backend_type(backend_type)
-  {
-  }
+  CPUBase(float frequency, CPUBackendType backend_type);
 
   virtual ~CPUBase() = default;
 
   float GetFrequency() const { return m_frequency; }
-  void SetFrequency(float frequency)
-  {
-    m_frequency = frequency;
-    m_cycle_period = SimulationTime(double(1000000000) / double(frequency));
-  }
+  void SetFrequency(float frequency);
 
-  SimulationTime GetCyclePeriod() const { return m_cycle_period; }
+  SimulationTime GetCyclePeriod() const;
 
   // IRQs are level-triggered
-  virtual void SetIRQState(bool state) {}
+  virtual void SetIRQState(bool state);
 
   // NMIs are edge-triggered
-  virtual void SignalNMI() {}
+  virtual void SignalNMI();
 
   // Debugger interface
-  virtual DebuggerInterface* GetDebuggerInterface() { return nullptr; }
+  virtual DebuggerInterface* GetDebuggerInterface();
 
   // Execution mode
   CPUBackendType GetCurrentBackend() const { return m_backend_type; }

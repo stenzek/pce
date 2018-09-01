@@ -36,9 +36,6 @@
     <ClCompile Include="cpu_x86\debugger_interface.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
-    <ClCompile Include="cpu_x86\cpu.cpp">
-      <Filter>cpu_x86</Filter>
-    </ClCompile>
     <ClCompile Include="host_interface.cpp" />
     <ClCompile Include="hw\serial_mouse.cpp">
       <Filter>hw</Filter>
@@ -128,6 +125,10 @@
     <ClCompile Include="component.cpp" />
     <ClCompile Include="dma_controller.cpp" />
     <ClCompile Include="interrupt_controller.cpp" />
+    <ClCompile Include="cpu_x86\cpu_x86.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -144,7 +145,6 @@
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="interrupt_controller.h" />
-    <ClInclude Include="cpu.h" />
     <ClInclude Include="hw\i8259_pic.h">
       <Filter>hw</Filter>
     </ClInclude>
@@ -174,9 +174,6 @@
       <Filter>cpu_x86</Filter>
     </ClInclude>
     <ClInclude Include="cpu_x86\types.h">
-      <Filter>cpu_x86</Filter>
-    </ClInclude>
-    <ClInclude Include="cpu_x86\cpu.h">
       <Filter>cpu_x86</Filter>
     </ClInclude>
     <ClInclude Include="cpu_x86\backend.h">
@@ -276,6 +273,10 @@
     </ClInclude>
     <ClInclude Include="hw\i82437fx.h">
       <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu.h" />
+    <ClInclude Include="cpu_x86\cpu_x86.h">
+      <Filter>cpu_x86</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

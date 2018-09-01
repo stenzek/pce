@@ -3,7 +3,7 @@
 #include <memory>
 #include <vector>
 
-#include "pce/cpu_x86/cpu.h"
+#include "pce/cpu_x86/cpu_x86.h"
 #include "pce/hw/i8259_pic.h"
 #include "pce/system.h"
 

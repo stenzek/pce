@@ -1,5 +1,5 @@
 #pragma once
-#include "pce/cpu_x86/cpu.h"
+#include "pce/cpu_x86/cpu_x86.h"
 #include "pce/hw/cmos.h"
 #include "pce/hw/fdc.h"
 #include "pce/hw/hdc.h"
