@@ -8,10 +8,14 @@
 Log_SetChannel(Systems::ISAPC);
 
 namespace Systems {
+DEFINE_OBJECT_TYPE_INFO(IBMXT);
+DEFINE_OBJECT_GENERIC_FACTORY(IBMXT);
+BEGIN_OBJECT_PROPERTY_MAP(IBMXT)
+END_OBJECT_PROPERTY_MAP()
 
-IBMXT::IBMXT(HostInterface* host_interface, float cpu_frequency /* = 1000000.0f */,
-             uint32 memory_size /* = 640 * 1024 */, VideoType video_type /* = VideoType::Other */)
-  : ISAPC(host_interface), m_bios_file_path("romimages/PCXTBIOS.BIN"), m_video_type(video_type)
+IBMXT::IBMXT(float cpu_frequency /* = 1000000.0f */, uint32 memory_size /* = 640 * 1024 */,
+             VideoType video_type /* = VideoType::Other */)
+  : ISAPC(), m_bios_file_path("romimages/PCXTBIOS.BIN"), m_video_type(video_type)
 {
   m_cpu = new CPU_X86::CPU(CPU_X86::MODEL_386, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);

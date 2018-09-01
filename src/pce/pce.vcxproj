@@ -28,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bus.cpp" />
+    <ClCompile Include="component.cpp" />
     <ClCompile Include="cpu_x86\cached_interpreter_backend.cpp" />
     <ClCompile Include="cpu_x86\code_cache_backend.cpp" />
     <ClCompile Include="cpu_x86\cpu.cpp" />
@@ -38,6 +39,7 @@
     <ClCompile Include="cpu_x86\decoder.cpp" />
     <ClCompile Include="cpu_x86\interpreter_backend.cpp" />
     <ClCompile Include="cpu_x86\cycles.cpp" />
+    <ClCompile Include="dma_controller.cpp" />
     <ClCompile Include="hw\adlib.cpp" />
     <ClCompile Include="hw\cdrom.cpp" />
     <ClCompile Include="hw\et4000.cpp" />
@@ -47,6 +49,7 @@
     <ClCompile Include="hw\keyboard_scancodes.cpp" />
     <ClCompile Include="hw\soundblaster.cpp" />
     <ClCompile Include="hw\xt_ppi.cpp" />
+    <ClCompile Include="interrupt_controller.cpp" />
     <ClCompile Include="systems\ami386.cpp" />
     <ClCompile Include="systems\ali1429.cpp" />
     <ClCompile Include="systems\i430fx.cpp" />

@@ -10,6 +10,8 @@ Log_SetChannel(HW::CMOS);
 
 namespace HW {
 
+DEFINE_OBJECT_TYPE_INFO(CMOS);
+
 CMOS::CMOS() : m_rtc_clock("CMOS", 32768) {}
 
 CMOS::~CMOS() {}

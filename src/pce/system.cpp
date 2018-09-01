@@ -19,7 +19,11 @@
 #include <limits>
 Log_SetChannel(System);
 
-System::System(HostInterface* host_interface) : m_host_interface(host_interface) {}
+DEFINE_OBJECT_TYPE_INFO(System);
+BEGIN_OBJECT_PROPERTY_MAP(System)
+END_OBJECT_PROPERTY_MAP()
+
+System::System() = default;
 
 System::~System()
 {
@@ -325,6 +329,12 @@ void System::ThrottleEventCallback()
   double speed_real_time = m_speed_elapsed_real_time.GetTimeNanoseconds();
   if (speed_real_time >= 1000000000.0)
   {
+    double fraction = double(m_speed_elapsed_simulation_time) / speed_real_time;
+    m_speed_elapsed_simulation_time = 0;
+    m_speed_elapsed_real_time.Reset();
+    m_host_interface->OnSimulationSpeedUpdate(float(fraction * 100.0));
+
+#ifdef Y_BUILD_CONFIG_RELEASE
     uint64 elapsed_kernel_time_ns = 0;
     uint64 elapsed_user_time_ns = 0;
 
@@ -342,14 +352,8 @@ void System::ThrottleEventCallback()
     }
 #endif
 
-    double fraction = double(m_speed_elapsed_simulation_time) / speed_real_time;
-    m_speed_elapsed_simulation_time = 0;
-    m_speed_elapsed_real_time.Reset();
-    m_host_interface->OnSimulationSpeedUpdate(float(fraction * 100.0));
-
     uint64 total_cpu_time_ns = elapsed_kernel_time_ns + elapsed_user_time_ns;
     double busy_cpu_time = double(total_cpu_time_ns) / speed_real_time;
-#ifdef Y_BUILD_CONFIG_RELEASE
     Log_ErrorPrintf("Main thread CPU usage: %f%%", busy_cpu_time * 100.0);
 #endif
   }

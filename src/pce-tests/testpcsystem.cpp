@@ -9,6 +9,8 @@
 #include "pce/mmio.h"
 Log_SetChannel(TestPCSystem);
 
+DEFINE_OBJECT_TYPE_INFO(TestPCSystem);
+
 // This leaks at the moment, but whatever.
 class DummyHostInterface : public HostInterface
 {
@@ -32,8 +34,9 @@ protected:
 TestPCSystem::TestPCSystem(CPU_X86::Model cpu_model /* = CPU_X86::MODEL_486 */, float cpu_frequency /* = 1000000.0f */,
                            CPUBackendType cpu_backend /* = CPUBackendType::Interpreter */,
                            uint32 ram_size /* = 1024 * 1024 */)
-  : System(new DummyHostInterface())
+  : System()
 {
+  m_host_interface = new DummyHostInterface();
   m_cpu = new CPU_X86::CPU(cpu_model, cpu_frequency, cpu_backend);
   m_bus = new Bus((cpu_model >= CPU_X86::MODEL_386) ? 32 : 20);
   // AllocatePhysicalMemory(640 * 1024, false);

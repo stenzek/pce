@@ -18,7 +18,7 @@ public:
     Type2
   };
 
-  PCIPC(HostInterface* host_interface, PCIConfigSpaceAccessType config_access_type);
+  PCIPC(PCIConfigSpaceAccessType config_access_type);
   virtual ~PCIPC();
 
   // TODO: Needs a better interface, probably with RTTI and AddComponent().

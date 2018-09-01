@@ -59,6 +59,9 @@ static const DiskTypeInfo disk_types[] = {
 static const uint32 data_rates[4] = {500, 300, 250, 1000};
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(FDC);
+BEGIN_OBJECT_PROPERTY_MAP(FDC)
+END_OBJECT_PROPERTY_MAP()
 
 FDC::DiskType FDC::DetectDiskType(ByteStream* pStream)
 {

@@ -17,6 +17,10 @@ class CDROM;
 
 class HDC : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(HDC, Component);
+  DECLARE_OBJECT_NO_FACTORY(HDC);
+  DECLARE_OBJECT_PROPERTY_MAP(HDC);
+
 public:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('H', 'D', 'C');
   static const uint32 SECTOR_SIZE = 512;

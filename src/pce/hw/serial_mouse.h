@@ -11,8 +11,12 @@ class Serial;
 
 class SerialMouse final : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(SerialMouse, Component);
+  DECLARE_OBJECT_GENERIC_FACTORY(SerialMouse);
+  DECLARE_OBJECT_PROPERTY_MAP(SerialMouse);
+
 public:
-  SerialMouse(Serial* serial_port);
+  SerialMouse(Serial* serial_port = nullptr);
   ~SerialMouse();
 
   bool Initialize(System* system, Bus* bus) override;

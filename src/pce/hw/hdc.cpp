@@ -12,6 +12,9 @@
 Log_SetChannel(HW::HDC);
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(HDC);
+BEGIN_OBJECT_PROPERTY_MAP(HDC)
+END_OBJECT_PROPERTY_MAP()
 
 HDC::HDC(CHANNEL channel) : m_channel(channel) {}
 
@@ -1125,7 +1128,7 @@ void HDC::HandleATAPIIdentify()
   response.support = (1 << 9);
   response.pio_timing_mode = 0x200;
   PutIdentifyString(response.model, sizeof(response.model),
-                    m_atapi_devices[GetCurrentDriveIndex()]->GetModelIDString().c_str());
+                    m_atapi_devices[GetCurrentDriveIndex()]->GetModelIDString());
   for (size_t i = 0; i < countof(response.pio_cycle_time); i++)
     response.pio_cycle_time[i] = 120;
   response.word_80 = (1 << 4);

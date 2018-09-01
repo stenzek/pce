@@ -11,6 +11,10 @@ namespace HW {
 // This is kinda a garbage implementation of a PC speaker, considering it can't render amplitudes other than -1/+1.
 class PCSpeaker final : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(PCSpeaker, Component);
+  DECLARE_OBJECT_NO_FACTORY(PCSpeaker);
+  DECLARE_OBJECT_PROPERTY_MAP(PCSpeaker);
+
 public:
   static constexpr float OUTPUT_FREQUENCY = 22050.0f;
   static constexpr float VOLUME = 0.1f;

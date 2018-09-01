@@ -16,6 +16,10 @@ namespace HW {
 
 class ET4000 : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(ET4000, Component);
+  DECLARE_OBJECT_GENERIC_FACTORY(ET4000);
+  DECLARE_OBJECT_PROPERTY_MAP(ET4000);
+
 public:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('E', 'T', '4', 'K');
   static const uint32 MAX_BIOS_SIZE = 32768;

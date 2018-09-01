@@ -14,12 +14,16 @@ namespace Systems {
 
 class IBMAT : public ISAPC
 {
+  DECLARE_OBJECT_TYPE_INFO(IBMAT, ISAPC);
+  DECLARE_OBJECT_GENERIC_FACTORY(IBMAT);
+  DECLARE_OBJECT_PROPERTY_MAP(IBMAT);
+
 public:
   static const uint32 PHYSICAL_MEMORY_BITS = 24;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
   static const uint32 BIOS_ROM_SIZE = 65536;
 
-  IBMAT(HostInterface* host_interface, float cpu_frequency = 2000000.0f, uint32 memory_size = 1024 * 1024);
+  IBMAT(float cpu_frequency = 2000000.0f, uint32 memory_size = 1024 * 1024);
   ~IBMAT();
 
   void SetLowBIOSFilePath(const std::string& path) { m_low_bios_file_path = path; }

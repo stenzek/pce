@@ -10,6 +10,10 @@ namespace HW {
 // i8237 DMA Controller
 class i8237_DMA : public DMAController
 {
+  DECLARE_OBJECT_TYPE_INFO(i8237_DMA, DMAController);
+  DECLARE_OBJECT_NO_FACTORY(i8237_DMA);
+  DECLARE_OBJECT_PROPERTY_MAP(i8237_DMA);
+
 public:
   enum DMATransferType
   {

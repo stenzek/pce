@@ -8,10 +8,14 @@
 Log_SetChannel(Systems::i430FX);
 
 namespace Systems {
+DEFINE_OBJECT_TYPE_INFO(i430FX);
+DEFINE_OBJECT_GENERIC_FACTORY(i430FX);
+BEGIN_OBJECT_PROPERTY_MAP(i430FX)
+END_OBJECT_PROPERTY_MAP()
 
-i430FX::i430FX(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */,
-               float cpu_frequency /* = 2000000.0f */, uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : PCIPC(host_interface, PCIPC::PCIConfigSpaceAccessType::Type1), m_bios_file_path("romimages/5ifw001.bin")
+i430FX::i430FX(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_frequency /* = 2000000.0f */,
+               uint32 memory_size /* = 16 * 1024 * 1024 */)
+  : PCIPC(PCIPC::PCIConfigSpaceAccessType::Type1), m_bios_file_path("romimages/5ifw001.bin")
 {
   m_cpu = new CPU_X86::CPU(model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);

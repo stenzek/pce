@@ -2,6 +2,12 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 
+DEFINE_OBJECT_TYPE_INFO(PCIDevice);
+BEGIN_OBJECT_PROPERTY_MAP(PCIDevice)
+PROPERTY_TABLE_MEMBER_UINT("PCIBusNumber", 0, offsetof(PCIDevice, m_pci_bus_number), nullptr, 0)
+PROPERTY_TABLE_MEMBER_UINT("PCIDeviceNumber", 0, offsetof(PCIDevice, m_pci_device_number), nullptr, 0)
+END_OBJECT_PROPERTY_MAP()
+
 PCIDevice::PCIDevice(uint16 vendor_id, uint16 device_id, uint32 num_functions /* = 1 */)
   : m_num_functions(num_functions)
 {

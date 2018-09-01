@@ -1,4 +1,5 @@
 #pragma once
+#include "YBaseLib/String.h"
 #include "common/bitfield.h"
 #include "common/clock.h"
 #include "pce/component.h"
@@ -10,6 +11,10 @@ namespace HW {
 // TODO: "SCSI Device" base class
 class CDROM final : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(CDROM, Component);
+  DECLARE_OBJECT_GENERIC_FACTORY(CDROM);
+  DECLARE_OBJECT_PROPERTY_MAP(CDROM);
+
 public:
   CDROM();
   ~CDROM() override;
@@ -19,9 +24,9 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
-  const std::string& GetVendorIDString() const { return m_vendor_id_string; }
-  const std::string& GetModelIDString() const { return m_model_id_string; }
-  const std::string& GetFirmwareVersionString() const { return m_firmware_version_string; }
+  const String& GetVendorIDString() const { return m_vendor_id_string; }
+  const String& GetModelIDString() const { return m_model_id_string; }
+  const String& GetFirmwareVersionString() const { return m_firmware_version_string; }
 
   bool IsBusy() const { return m_busy; }
   bool HasError() const { return m_error; }
@@ -169,9 +174,9 @@ private:
   void HandleMechanismStatusCommand();
 
   Clock m_clock;
-  std::string m_vendor_id_string;
-  std::string m_model_id_string;
-  std::string m_firmware_version_string;
+  SmallString m_vendor_id_string;
+  SmallString m_model_id_string;
+  SmallString m_firmware_version_string;
 
   CommandBuffer m_command_buffer;
   DataBuffer m_data_buffer;

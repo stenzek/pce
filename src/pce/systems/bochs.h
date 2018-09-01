@@ -17,6 +17,10 @@ namespace Systems {
 
 class Bochs : public PCIPC
 {
+  DECLARE_OBJECT_TYPE_INFO(Bochs, PCIPC);
+  DECLARE_OBJECT_GENERIC_FACTORY(Bochs);
+  DECLARE_OBJECT_PROPERTY_MAP(Bochs);
+
 public:
   static const uint32 PHYSICAL_MEMORY_BITS = 32;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xE0000;
@@ -25,7 +29,7 @@ public:
   static const uint32 BIOS_ROM_MIRROR_START = 0x10000;
   static const uint32 BIOS_ROM_MIRROR_SIZE = 65536;
 
-  Bochs(HostInterface* host_interface, CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 8000000.0f,
+  Bochs(CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 8000000.0f,
         uint32 memory_size = 16 * 1024 * 1024);
   ~Bochs();
 

@@ -6,6 +6,10 @@ class CPUBase;
 
 class InterruptController : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(InterruptController, Component);
+  DECLARE_OBJECT_NO_FACTORY(InterruptController);
+  DECLARE_OBJECT_NO_PROPERTIES(InterruptController);
+
 public:
   virtual ~InterruptController() {}
 

@@ -12,6 +12,9 @@ Log_SetChannel(i8253_PIT);
 // NOTE: Most of the documentation here is based on http://wiki.osdev.org/Programmable_Interval_Timer
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(i8253_PIT);
+BEGIN_OBJECT_PROPERTY_MAP(i8253_PIT)
+END_OBJECT_PROPERTY_MAP()
 
 i8253_PIT::i8253_PIT() : m_clock("i8253 PIT", CLOCK_FREQUENCY) {}
 

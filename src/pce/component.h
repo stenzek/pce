@@ -1,5 +1,5 @@
 #pragma once
-
+#include "common/object.h"
 #include "pce/types.h"
 
 class BinaryReader;
@@ -8,8 +8,12 @@ class BinaryWriter;
 class Bus;
 class System;
 
-class Component
+class Component : public Object
 {
+  DECLARE_OBJECT_TYPE_INFO(Component, Object);
+  DECLARE_OBJECT_NO_PROPERTIES(Component);
+  DECLARE_OBJECT_NO_FACTORY(Component);
+
 public:
   virtual ~Component() {}
 

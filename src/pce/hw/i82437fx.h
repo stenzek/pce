@@ -6,9 +6,12 @@ class PCIPC;
 }
 
 namespace HW {
-
 class i82437FX : public PCIDevice
 {
+  DECLARE_OBJECT_TYPE_INFO(i82437FX, PCIDevice);
+  DECLARE_OBJECT_NO_FACTORY(i82437FX);
+  DECLARE_OBJECT_PROPERTY_MAP(i82437FX);
+
 public:
   i82437FX(Systems::PCIPC* system, Bus* bus);
   ~i82437FX();

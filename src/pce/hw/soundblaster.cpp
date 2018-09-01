@@ -13,6 +13,10 @@ Log_SetChannel(HW::SoundBlaster);
 // http://flint.cs.yale.edu/cs422/readings/hardware/SoundBlaster.pdf
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(SoundBlaster);
+DEFINE_OBJECT_GENERIC_FACTORY(SoundBlaster);
+BEGIN_OBJECT_PROPERTY_MAP(SoundBlaster)
+END_OBJECT_PROPERTY_MAP()
 
 uint32 SoundBlaster::GetDSPVersion(Type type)
 {

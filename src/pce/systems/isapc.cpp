@@ -7,8 +7,11 @@
 Log_SetChannel(Systems::ISAPC);
 
 namespace Systems {
+DEFINE_OBJECT_TYPE_INFO(ISAPC);
+BEGIN_OBJECT_PROPERTY_MAP(ISAPC)
+END_OBJECT_PROPERTY_MAP()
 
-ISAPC::ISAPC(HostInterface* host_interface) : System(host_interface) {}
+ISAPC::ISAPC() : System() {}
 
 ISAPC::~ISAPC() {}
 

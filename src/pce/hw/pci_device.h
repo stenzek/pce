@@ -4,6 +4,10 @@
 
 class PCIDevice : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(PCIDevice, Component);
+  DECLARE_OBJECT_NO_FACTORY(PCIDevice);
+  DECLARE_OBJECT_PROPERTY_MAP(PCIDevice);
+
 public:
   static constexpr uint32 NUM_CONFIG_REGISTERS = 64;
 

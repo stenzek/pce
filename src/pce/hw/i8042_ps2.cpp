@@ -13,6 +13,9 @@
 Log_SetChannel(HW::i8042_PS2);
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(i8042_PS2);
+BEGIN_OBJECT_PROPERTY_MAP(i8042_PS2)
+END_OBJECT_PROPERTY_MAP()
 
 i8042_PS2::i8042_PS2() : m_clock("8042 Keyboard Controller", 1000000.0f) {}
 

@@ -6,6 +6,9 @@
 Log_SetChannel(HW::i82437FX);
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(i82437FX);
+BEGIN_OBJECT_PROPERTY_MAP(i82437FX)
+END_OBJECT_PROPERTY_MAP()
 
 i82437FX::i82437FX(Systems::PCIPC* system, Bus* bus) : PCIDevice(0x8086, 0x122D), m_system(system), m_bus(bus) {}
 

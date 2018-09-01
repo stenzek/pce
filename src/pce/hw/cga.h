@@ -11,6 +11,10 @@ namespace HW {
 
 class CGA : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(CGA, Component);
+  DECLARE_OBJECT_GENERIC_FACTORY(CGA);
+  DECLARE_OBJECT_PROPERTY_MAP(CGA);
+
 public:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('C', 'G', 'A');
   static const uint32 VRAM_SIZE = 16384;

@@ -16,6 +16,10 @@ namespace HW {
 
 class VGA : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(VGA, Component);
+  DECLARE_OBJECT_GENERIC_FACTORY(VGA);
+  DECLARE_OBJECT_PROPERTY_MAP(VGA);
+
 public:
   static const uint32 SERIALIZATION_ID = MakeSerializationID('V', 'G', 'A');
   static const uint32 MAX_BIOS_SIZE = 65536;

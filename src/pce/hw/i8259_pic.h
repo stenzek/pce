@@ -8,6 +8,10 @@ namespace HW {
 // This simulates the configuration of the two PICs in the AT in one class.
 class i8259_PIC : public InterruptController
 {
+  DECLARE_OBJECT_TYPE_INFO(i8259_PIC, InterruptController);
+  DECLARE_OBJECT_NO_FACTORY(i8259_PIC);
+  DECLARE_OBJECT_PROPERTY_MAP(i8259_PIC);
+
 public:
   i8259_PIC();
   ~i8259_PIC();

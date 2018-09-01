@@ -10,6 +10,9 @@ Log_SetChannel(HW::AdLib);
 
 namespace HW {
 
+DEFINE_OBJECT_TYPE_INFO(AdLib);
+DEFINE_OBJECT_GENERIC_FACTORY(AdLib);
+
 AdLib::AdLib() : m_chip(YMF262::Mode::OPL2, "AdLib ") {}
 
 AdLib::~AdLib() {}

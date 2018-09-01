@@ -12,6 +12,10 @@ namespace HW {
 
 class i8042_PS2 : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(i8042_PS2, Component);
+  DECLARE_OBJECT_NO_FACTORY(i8042_PS2);
+  DECLARE_OBJECT_PROPERTY_MAP(i8042_PS2);
+
 public:
   i8042_PS2();
   ~i8042_PS2();

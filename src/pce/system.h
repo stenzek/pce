@@ -30,8 +30,12 @@ class InterruptController;
 class MMIO;
 class HostInterface;
 
-class System
+class System : public Object
 {
+  DECLARE_OBJECT_TYPE_INFO(System, Object);
+  DECLARE_OBJECT_NO_FACTORY(System);
+  DECLARE_OBJECT_PROPERTY_MAP(System);
+
 public:
   static const uint32 SERIALIZATION_ID = Component::MakeSerializationID('S', 'Y', 'S');
 
@@ -43,11 +47,12 @@ public:
     Paused
   };
 
-  System(HostInterface* host_interface);
+  System();
   virtual ~System();
 
   // Host outputs
   HostInterface* GetHostInterface() const { return m_host_interface; }
+  void SetHostInterface(HostInterface* iface) { m_host_interface = iface; }
 
   const TimingManager* GetTimingManager() const { return &m_timing_manager; }
   TimingManager* GetTimingManager() { return &m_timing_manager; }
@@ -152,7 +157,7 @@ protected:
   void ThrottleEventCallback();
 
   // Host outputs
-  HostInterface* m_host_interface;
+  HostInterface* m_host_interface = nullptr;
   CPUBase* m_cpu = nullptr;
   Bus* m_bus = nullptr;
   TimingManager m_timing_manager;

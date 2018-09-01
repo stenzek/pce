@@ -9,6 +9,10 @@
 Log_SetChannel(HW::Serial);
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(Serial);
+DEFINE_OBJECT_GENERIC_FACTORY(Serial);
+BEGIN_OBJECT_PROPERTY_MAP(Serial)
+END_OBJECT_PROPERTY_MAP()
 
 inline std::size_t GetFifoSize(Serial::Model model)
 {

@@ -11,6 +11,10 @@
 Log_SetChannel(HW::SerialMouse);
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(SerialMouse);
+DEFINE_OBJECT_GENERIC_FACTORY(SerialMouse);
+BEGIN_OBJECT_PROPERTY_MAP(SerialMouse)
+END_OBJECT_PROPERTY_MAP()
 
 SerialMouse::SerialMouse(Serial* serial_port) : m_clock("SerialMouse", UPDATES_PER_SEC), m_serial_port(serial_port) {}
 

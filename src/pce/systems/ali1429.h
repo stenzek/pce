@@ -16,8 +16,12 @@ namespace Systems {
 
 class ALi1429 : public ISAPC
 {
+  DECLARE_OBJECT_TYPE_INFO(ALi1429, ISAPC);
+  DECLARE_OBJECT_GENERIC_FACTORY(ALi1429);
+  DECLARE_OBJECT_PROPERTY_MAP(ALi1429);
+
 public:
-  ALi1429(HostInterface* host_interface, CPU_X86::Model model = CPU_X86::MODEL_486, float cpu_frequency = 2000000.0f,
+  ALi1429(CPU_X86::Model model = CPU_X86::MODEL_486, float cpu_frequency = 2000000.0f,
           uint32 memory_size = 16 * 1024 * 1024);
   ~ALi1429();
 

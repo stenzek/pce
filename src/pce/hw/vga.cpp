@@ -12,6 +12,10 @@
 Log_SetChannel(HW::VGA);
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(VGA);
+DEFINE_OBJECT_GENERIC_FACTORY(VGA);
+BEGIN_OBJECT_PROPERTY_MAP(VGA)
+END_OBJECT_PROPERTY_MAP()
 
 VGA::VGA() : m_clock("VGA Retrace", 25175000), m_bios_file_path("romimages\\VGABIOS-lgpl-latest") {}
 

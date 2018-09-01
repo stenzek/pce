@@ -8,8 +8,7 @@ Log_SetChannel(Systems::PCIPC);
 
 namespace Systems {
 
-PCIPC::PCIPC(HostInterface* host_interface, PCIConfigSpaceAccessType config_access_type)
-  : Systems::ISAPC(host_interface), m_config_access_type(config_access_type)
+PCIPC::PCIPC(PCIConfigSpaceAccessType config_access_type) : Systems::ISAPC(), m_config_access_type(config_access_type)
 {
 }
 

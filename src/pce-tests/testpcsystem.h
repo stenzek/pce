@@ -11,6 +11,10 @@ class ByteStream;
 
 class TestPCSystem : public System
 {
+  DECLARE_OBJECT_TYPE_INFO(TestPCSystem, System);
+  DECLARE_OBJECT_NO_FACTORY(TestPCSystem);
+  DECLARE_OBJECT_NO_PROPERTIES(TestPCSystem);
+
 public:
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
   static const uint32 BIOS_ROM_SIZE = 65536;

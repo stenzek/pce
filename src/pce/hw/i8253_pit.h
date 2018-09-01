@@ -10,6 +10,10 @@ namespace HW {
 // i8253 Programmable Interval Timer
 class i8253_PIT : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(i8253_PIT, Component);
+  DECLARE_OBJECT_NO_FACTORY(i8253_PIT);
+  DECLARE_OBJECT_PROPERTY_MAP(i8253_PIT);
+
 public:
   static constexpr float CLOCK_FREQUENCY = 1193181.6666f;
   static constexpr size_t NUM_CHANNELS = 3;

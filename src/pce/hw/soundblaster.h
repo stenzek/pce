@@ -15,6 +15,10 @@ namespace HW {
 
 class SoundBlaster final : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(SoundBlaster, Component);
+  DECLARE_OBJECT_GENERIC_FACTORY(SoundBlaster);
+  DECLARE_OBJECT_PROPERTY_MAP(SoundBlaster);
+
 public:
   enum class Type
   {
@@ -25,8 +29,8 @@ public:
     SoundBlaster16
   };
 
-  SoundBlaster(DMAController* dma_controller, Type type = Type::SoundBlaster10, uint32 iobase = 0x220, uint32 irq = 7,
-               uint32 dma = 1, uint32 dma16 = 5);
+  SoundBlaster(DMAController* dma_controller = nullptr, Type type = Type::SoundBlaster10, uint32 iobase = 0x220,
+               uint32 irq = 7, uint32 dma = 1, uint32 dma16 = 5);
   ~SoundBlaster();
 
   bool Initialize(System* system, Bus* bus) override;

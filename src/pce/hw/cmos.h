@@ -14,6 +14,10 @@ namespace HW {
 
 class CMOS : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(CMOS, Component);
+  DECLARE_OBJECT_NO_FACTORY(CMOS);
+  DECLARE_OBJECT_NO_PROPERTIES(CMOS);
+
 public:
   CMOS();
   ~CMOS();

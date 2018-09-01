@@ -33,14 +33,21 @@
     <ClInclude Include="display.h" />
     <ClInclude Include="fastjmp.h" />
     <ClInclude Include="hdd_image.h" />
+    <ClInclude Include="object.h" />
+    <ClInclude Include="object_type_info.h" />
+    <ClInclude Include="property.h" />
     <ClInclude Include="timing.h" />
     <ClInclude Include="types.h" />
+    <ClInclude Include="type_registry.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="audio.cpp" />
     <ClCompile Include="clock.cpp" />
     <ClCompile Include="display.cpp" />
     <ClCompile Include="hdd_image.cpp" />
+    <ClCompile Include="object.cpp" />
+    <ClCompile Include="object_type_info.cpp" />
+    <ClCompile Include="property.cpp" />
     <ClCompile Include="timing.cpp" />
   </ItemGroup>
   <ItemGroup>

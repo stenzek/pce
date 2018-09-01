@@ -125,6 +125,9 @@
     <ClCompile Include="hw\i82437fx.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="component.cpp" />
+    <ClCompile Include="dma_controller.cpp" />
+    <ClCompile Include="interrupt_controller.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />

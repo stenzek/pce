@@ -79,8 +79,9 @@ bool MainWindow::createTestSystem(uint32 cpu_model, uint32 ram_mb, const char* b
     real_cpu_frequency = 8000000.0f;
   }
 
-  m_system = std::unique_ptr<Systems::Bochs>(
-    new Systems::Bochs(m_host_interface.get(), real_cpu_model, real_cpu_frequency, ram_mb * 1024 * 1024));
+  m_system =
+    std::unique_ptr<Systems::Bochs>(new Systems::Bochs(real_cpu_model, real_cpu_frequency, ram_mb * 1024 * 1024));
+  m_system->SetHostInterface(m_host_interface.get());
 
   m_system->AddComponent(new HW::VGA());
 

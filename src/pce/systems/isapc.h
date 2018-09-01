@@ -7,8 +7,12 @@ namespace Systems {
 
 class ISAPC : public System
 {
+  DECLARE_OBJECT_TYPE_INFO(ISAPC, System);
+  DECLARE_OBJECT_NO_FACTORY(ISAPC);
+  DECLARE_OBJECT_PROPERTY_MAP(ISAPC);
+
 public:
-  ISAPC(HostInterface* host_interface);
+  ISAPC();
   virtual ~ISAPC();
 
   bool LoadInterleavedROM(PhysicalMemoryAddress address, const char* low_filename, const char* high_filename);

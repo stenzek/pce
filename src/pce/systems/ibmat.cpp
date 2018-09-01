@@ -9,10 +9,13 @@
 Log_SetChannel(Systems::IBMAT);
 
 namespace Systems {
+DEFINE_OBJECT_TYPE_INFO(IBMAT);
+DEFINE_OBJECT_GENERIC_FACTORY(IBMAT);
+BEGIN_OBJECT_PROPERTY_MAP(IBMAT)
+END_OBJECT_PROPERTY_MAP()
 
-IBMAT::IBMAT(HostInterface* host_interface, float cpu_frequency /* = 2000000.0f */,
-             uint32 memory_size /* = 1024 * 1024 */)
-  : ISAPC(host_interface), m_low_bios_file_path("romimages/Bi286-l.bin"), m_high_bios_file_path("romimages/Bi286-h.bin")
+IBMAT::IBMAT(float cpu_frequency /* = 2000000.0f */, uint32 memory_size /* = 1024 * 1024 */)
+  : ISAPC(), m_low_bios_file_path("romimages/Bi286-l.bin"), m_high_bios_file_path("romimages/Bi286-h.bin")
 {
   m_cpu = new CPU_X86::CPU(CPU_X86::MODEL_386, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);

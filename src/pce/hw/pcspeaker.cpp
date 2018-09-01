@@ -7,6 +7,9 @@
 Log_SetChannel(HW::PCSpeaker);
 
 namespace HW {
+DEFINE_OBJECT_TYPE_INFO(PCSpeaker);
+BEGIN_OBJECT_PROPERTY_MAP(PCSpeaker)
+END_OBJECT_PROPERTY_MAP()
 
 PCSpeaker::PCSpeaker() : m_clock("PC Speaker", OUTPUT_FREQUENCY) {}
 

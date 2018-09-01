@@ -8,10 +8,14 @@
 Log_SetChannel(Systems::ALi1429);
 
 namespace Systems {
+DEFINE_OBJECT_TYPE_INFO(ALi1429);
+DEFINE_OBJECT_GENERIC_FACTORY(ALi1429);
+BEGIN_OBJECT_PROPERTY_MAP(ALi1429)
+END_OBJECT_PROPERTY_MAP()
 
-ALi1429::ALi1429(HostInterface* host_interface, CPU_X86::Model model /* = CPU_X86::MODEL_486 */,
-                 float cpu_frequency /* = 8000000.0f */, uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : ISAPC(host_interface), m_bios_file_path("romimages/4alp001.bin")
+ALi1429::ALi1429(CPU_X86::Model model /* = CPU_X86::MODEL_486 */, float cpu_frequency /* = 8000000.0f */,
+                 uint32 memory_size /* = 16 * 1024 * 1024 */)
+  : ISAPC(), m_bios_file_path("romimages/4alp001.bin")
 {
   m_cpu = new CPU_X86::CPU(model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);

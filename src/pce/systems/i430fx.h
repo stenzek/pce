@@ -17,8 +17,12 @@ namespace Systems {
 
 class i430FX : public PCIPC
 {
+  DECLARE_OBJECT_TYPE_INFO(i430FX, PCIPC);
+  DECLARE_OBJECT_GENERIC_FACTORY(i430FX);
+  DECLARE_OBJECT_PROPERTY_MAP(i430FX);
+
 public:
-  i430FX(HostInterface* host_interface, CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 2000000.0f,
+  i430FX(CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 2000000.0f,
          uint32 memory_size = 16 * 1024 * 1024);
   ~i430FX();
 

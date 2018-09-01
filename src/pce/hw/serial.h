@@ -16,6 +16,10 @@ namespace HW {
 
 class Serial : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(Serial, Component);
+  DECLARE_OBJECT_GENERIC_FACTORY(Serial);
+  DECLARE_OBJECT_PROPERTY_MAP(Serial);
+
 public:
   // Input/output buffer sizes. These are external to the chip emulation, allowing senders to buffer large
   // amounts of data without multiple calls into this class.
@@ -29,7 +33,7 @@ public:
     Model_16750
   };
 
-  Serial(InterruptController* interrupt_controller, Model model = Model_8250, uint32 base_io_address = 0x03F8,
+  Serial(InterruptController* interrupt_controller = nullptr, Model model = Model_8250, uint32 base_io_address = 0x03F8,
          uint32 irq_number = 4, int32 base_rate = 1843200);
   ~Serial();
 

@@ -9,6 +9,10 @@
     <ClInclude Include="hdd_image.h" />
     <ClInclude Include="timing.h" />
     <ClInclude Include="audio.h" />
+    <ClInclude Include="object.h" />
+    <ClInclude Include="object_type_info.h" />
+    <ClInclude Include="property.h" />
+    <ClInclude Include="type_registry.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="display.cpp" />
@@ -16,11 +20,14 @@
     <ClCompile Include="timing.cpp" />
     <ClCompile Include="audio.cpp" />
     <ClCompile Include="clock.cpp" />
+    <ClCompile Include="object_type_info.cpp" />
+    <ClCompile Include="property.cpp" />
+    <ClCompile Include="object.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="bitfield.natvis" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="fastjmp.asm" />
+    <MASM Include="fastjmp.asm" />
   </ItemGroup>
 </Project>

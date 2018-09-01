@@ -15,6 +15,11 @@ namespace HW {
 #include "cga_font.inl"
 #include "cga_palette.inl"
 
+DEFINE_OBJECT_TYPE_INFO(CGA);
+DEFINE_OBJECT_GENERIC_FACTORY(CGA);
+BEGIN_OBJECT_PROPERTY_MAP(CGA)
+END_OBJECT_PROPERTY_MAP()
+
 CGA::CGA() : m_clock("CGA", 3579545) {}
 
 CGA::~CGA() {}

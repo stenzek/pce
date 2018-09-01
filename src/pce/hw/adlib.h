@@ -10,6 +10,10 @@ namespace HW {
 
 class AdLib final : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(AdLib, Component);
+  DECLARE_OBJECT_NO_PROPERTIES(AdLib);
+  DECLARE_OBJECT_GENERIC_FACTORY(AdLib);
+
 public:
   AdLib();
   ~AdLib();

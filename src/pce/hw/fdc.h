@@ -13,6 +13,10 @@ namespace HW {
 
 class FDC : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(FDC, Component);
+  DECLARE_OBJECT_NO_FACTORY(FDC);
+  DECLARE_OBJECT_PROPERTY_MAP(FDC);
+
 public:
   enum DriveType : uint8
   {

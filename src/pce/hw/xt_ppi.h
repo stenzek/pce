@@ -11,6 +11,10 @@ namespace HW {
 
 class XT_PPI : public Component
 {
+  DECLARE_OBJECT_TYPE_INFO(XT_PPI, Component);
+  DECLARE_OBJECT_NO_FACTORY(XT_PPI);
+  DECLARE_OBJECT_PROPERTY_MAP(XT_PPI);
+
 public:
   XT_PPI();
   ~XT_PPI();
