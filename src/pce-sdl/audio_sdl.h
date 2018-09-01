@@ -1,5 +1,5 @@
 #pragma once
-#include "pce/audio.h"
+#include "common/audio.h"
 #include <SDL_audio.h>
 
 class Mixer_SDL : public Audio::Mixer

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "YBaseLib/PODArray.h"
-#include "pce/bitfield.h"
-#include "pce/clock.h"
+#include "common/bitfield.h"
+#include "common/clock.h"
 #include "pce/component.h"
 #include "pce/dma_controller.h"
 #include <array>

@@ -8,7 +8,6 @@
     <ClCompile Include="hw\fdc.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="display.cpp" />
     <ClCompile Include="mmio.cpp" />
     <ClCompile Include="hw\hdc.cpp">
       <Filter>hw</Filter>
@@ -19,7 +18,6 @@
     <ClCompile Include="hw\i8253_pit.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="clock.cpp" />
     <ClCompile Include="hw\i8237_dma.cpp">
       <Filter>hw</Filter>
     </ClCompile>
@@ -29,7 +27,6 @@
     <ClCompile Include="hw\vga.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="audio.cpp" />
     <ClCompile Include="hw\pcspeaker.cpp">
       <Filter>hw</Filter>
     </ClCompile>
@@ -46,7 +43,6 @@
     <ClCompile Include="hw\serial_mouse.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="timing.cpp" />
     <ClCompile Include="hw\keyboard_scancodes.cpp">
       <Filter>hw</Filter>
     </ClCompile>
@@ -129,7 +125,6 @@
     <ClCompile Include="hw\i82437fx.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="hdd_image.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -141,15 +136,12 @@
     <ClInclude Include="hw\fdc.h">
       <Filter>hw</Filter>
     </ClInclude>
-    <ClInclude Include="display.h" />
-    <ClInclude Include="bitfield.h" />
     <ClInclude Include="mmio.h" />
     <ClInclude Include="hw\hdc.h">
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="interrupt_controller.h" />
     <ClInclude Include="cpu.h" />
-    <ClInclude Include="clock.h" />
     <ClInclude Include="hw\i8259_pic.h">
       <Filter>hw</Filter>
     </ClInclude>
@@ -169,7 +161,6 @@
     <ClInclude Include="scancodes.h" />
     <ClInclude Include="save_state_version.h" />
     <ClInclude Include="debugger_interface.h" />
-    <ClInclude Include="audio.h" />
     <ClInclude Include="hw\pcspeaker.h">
       <Filter>hw</Filter>
     </ClInclude>
@@ -192,7 +183,6 @@
     <ClInclude Include="hw\serial_mouse.h">
       <Filter>hw</Filter>
     </ClInclude>
-    <ClInclude Include="timing.h" />
     <ClInclude Include="hw\keyboard_scancodes.h">
       <Filter>hw</Filter>
     </ClInclude>
@@ -242,7 +232,6 @@
     <ClInclude Include="cpu_x86\interpreter_backend.h">
       <Filter>cpu_x86</Filter>
     </ClInclude>
-    <ClInclude Include="fastjmp.h" />
     <ClInclude Include="hw\et4000.h">
       <Filter>hw</Filter>
     </ClInclude>
@@ -285,7 +274,6 @@
     <ClInclude Include="hw\i82437fx.h">
       <Filter>hw</Filter>
     </ClInclude>
-    <ClInclude Include="hdd_image.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="hw">
@@ -318,11 +306,5 @@
       <Filter>cpu_x86</Filter>
     </None>
     <None Include="bus.inl" />
-  </ItemGroup>
-  <ItemGroup>
-    <MASM Include="fastjmp.asm" />
-  </ItemGroup>
-  <ItemGroup>
-    <Natvis Include="bitfield.natvis" />
   </ItemGroup>
 </Project>

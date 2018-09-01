@@ -1,5 +1,4 @@
 #pragma once
-#include "pce/bitfield.h"
 #include "pce/cpu_x86/cpu.h"
 #include "pce/hw/cmos.h"
 #include "pce/hw/fdc.h"

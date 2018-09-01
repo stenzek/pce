@@ -1,7 +1,6 @@
 #pragma once
 
-#include "pce/bitfield.h"
-#include "pce/clock.h"
+#include "common/clock.h"
 #include "pce/component.h"
 #include "pce/hw/fdc.h"
 #include <YBaseLib/Assert.h>

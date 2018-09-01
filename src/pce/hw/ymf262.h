@@ -1,9 +1,8 @@
 #pragma once
 
 #include "YBaseLib/TaskQueue.h"
-#include "pce/audio.h"
-#include "pce/bitfield.h"
-#include "pce/clock.h"
+#include "common/audio.h"
+#include "common/clock.h"
 #include "pce/component.h"
 #include "pce/system.h"
 #include <array>

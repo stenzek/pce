@@ -1,7 +1,7 @@
 #pragma once
 
 #include "YBaseLib/Common.h"
-#include "pce/bitfield.h"
+#include "common/bitfield.h"
 #include "pce/types.h"
 
 namespace CPU_X86 {

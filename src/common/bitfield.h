@@ -1,6 +1,4 @@
 #pragma once
-
-#include "YBaseLib/Common.h"
 #include <type_traits>
 
 // Disable MSVC warnings that we actually handle
@@ -9,7 +7,7 @@
 #pragma warning(disable : 4800) // warning C4800: 'int': forcing value to bool 'true' or 'false' (performance warning)
 #endif
 
-template<typename BackingDataType, typename DataType, uint32 BitIndex, uint32 BitCount>
+template<typename BackingDataType, typename DataType, unsigned BitIndex, unsigned BitCount>
 struct BitField
 {
   constexpr BackingDataType GetMask() const
@@ -59,13 +57,47 @@ struct BitField
     return value;
   }
 
-  //     BitField& operator^=(DataType value)
-  //     {
-  //         data &= GetMask();
-  //         value = *this ^ value;
-  //         data |= (static_cast<BackingDataType>(value) << BitIndex) & GetMask();
-  //         return *this;
-  //     }
+  BitField& operator+=(DataType rhs)
+  {
+    SetValue(GetValue() + rhs);
+    return *this;
+  }
+
+  BitField& operator-=(DataType rhs)
+  {
+    SetValue(GetValue() - rhs);
+    return *this;
+  }
+
+  BitField& operator*=(DataType rhs)
+  {
+    SetValue(GetValue() * rhs);
+    return *this;
+  }
+
+  BitField& operator/=(DataType rhs)
+  {
+    SetValue(GetValue() / rhs);
+    return *this;
+  }
+
+  BitField& operator^=(DataType rhs)
+  {
+    SetValue(GetValue() ^ rhs);
+    return *this;
+  }
+
+  BitField& operator<<=(DataType rhs)
+  {
+    SetValue(GetValue() >> rhs);
+    return *this;
+  }
+
+  BitField& operator>>=(DataType rhs)
+  {
+    SetValue(GetValue() >> rhs);
+    return *this;
+  }
 
   DataType GetValue() const
   {

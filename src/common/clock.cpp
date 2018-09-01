@@ -1,8 +1,7 @@
-#include "pce/clock.h"
+#include "clock.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
-#include "pce/timing.h"
 Log_SetChannel(Clock);
 
 Clock::Clock(const char* name, float frequency) : m_name(name), m_frequency(frequency) {}

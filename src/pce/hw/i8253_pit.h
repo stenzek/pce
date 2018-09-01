@@ -1,6 +1,6 @@
 #pragma once
-#include "pce/bitfield.h"
-#include "pce/clock.h"
+#include "common/bitfield.h"
+#include "common/clock.h"
 #include "pce/component.h"
 #include "pce/types.h"
 #include <array>

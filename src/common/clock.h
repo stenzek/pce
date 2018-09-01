@@ -6,8 +6,8 @@
 
 #include "YBaseLib/String.h"
 
-#include "pce/timing.h"
-#include "pce/types.h"
+#include "timing.h"
+#include "types.h"
 
 class BinaryReader;
 class BinaryWriter;

@@ -1,5 +1,5 @@
 #pragma once
-#include "pce/bitfield.h"
+#include "common/bitfield.h"
 #include "pce/component.h"
 #include "pce/hw/pci_device.h"
 #include "pce/system.h"

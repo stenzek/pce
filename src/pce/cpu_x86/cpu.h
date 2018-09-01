@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pce/clock.h"
+#include "common/clock.h"
 #include "pce/cpu.h"
 #include "pce/cpu_x86/cycles.h"
 #include "pce/cpu_x86/types.h"

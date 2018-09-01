@@ -1,8 +1,8 @@
 #pragma once
 
-#include "pce/bitfield.h"
+#include "common/bitfield.h"
+#include "common/timing.h"
 #include "pce/component.h"
-#include "pce/timing.h"
 #include <YBaseLib/Assert.h>
 #include <array>
 #include <memory>

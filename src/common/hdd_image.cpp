@@ -1,4 +1,4 @@
-#include "pce/hdd_image.h"
+#include "hdd_image.h"
 #include "YBaseLib/FileSystem.h"
 #include "YBaseLib/Log.h"
 Log_SetChannel(HDDImage);

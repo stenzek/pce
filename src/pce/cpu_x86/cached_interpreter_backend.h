@@ -1,7 +1,7 @@
 #pragma once
+#include "common/fastjmp.h"
 #include "pce/cpu_x86/code_cache_backend.h"
 #include "pce/cpu_x86/cpu.h"
-#include "pce/fastjmp.h"
 #include <unordered_map>
 #include <utility>
 

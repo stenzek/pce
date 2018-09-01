@@ -1,8 +1,6 @@
 #pragma once
 
-#include "pce/audio.h"
-#include "pce/bitfield.h"
-#include "pce/clock.h"
+#include "common/audio.h"
 #include "pce/component.h"
 #include "pce/hw/ymf262.h"
 #include "pce/system.h"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pce/display.h"
+#include "common/display.h"
 #include <QtOpenGL/QGLWidget>
 #include <memory>
 

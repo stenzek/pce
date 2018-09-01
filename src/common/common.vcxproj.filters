@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="bitfield.h" />
+    <ClInclude Include="display.h" />
+    <ClInclude Include="types.h" />
+    <ClInclude Include="clock.h" />
+    <ClInclude Include="fastjmp.h" />
+    <ClInclude Include="hdd_image.h" />
+    <ClInclude Include="timing.h" />
+    <ClInclude Include="audio.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="display.cpp" />
+    <ClCompile Include="hdd_image.cpp" />
+    <ClCompile Include="timing.cpp" />
+    <ClCompile Include="audio.cpp" />
+    <ClCompile Include="clock.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="bitfield.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fastjmp.asm" />
+  </ItemGroup>
+</Project>

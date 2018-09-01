@@ -1,7 +1,7 @@
 #pragma once
 
 #include "YBaseLib/PODArray.h"
-#include "pce/bitfield.h"
+#include "common/bitfield.h"
 #include "pce/component.h"
 #include "pce/scancodes.h"
 #include "pce/system.h"

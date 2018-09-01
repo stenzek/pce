@@ -15,9 +15,9 @@
 #include "YBaseLib/TaskQueue.h"
 #include "YBaseLib/Timer.h"
 
-#include "pce/clock.h"
+#include "common/clock.h"
+#include "common/timing.h"
 #include "pce/component.h"
-#include "pce/timing.h"
 #include "pce/types.h"
 
 class Bus;

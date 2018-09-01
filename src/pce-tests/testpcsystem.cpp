@@ -1,10 +1,10 @@
 #include "pce-tests/testpcsystem.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
+#include "common/audio.h"
+#include "common/display.h"
 #include "pce-tests/helpers.h"
-#include "pce/audio.h"
 #include "pce/bus.h"
-#include "pce/display.h"
 #include "pce/host_interface.h"
 #include "pce/mmio.h"
 Log_SetChannel(TestPCSystem);

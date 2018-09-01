@@ -1,4 +1,4 @@
-#include "pce/display.h"
+#include "display.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/Math.h"
 #include <algorithm>
