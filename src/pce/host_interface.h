@@ -64,6 +64,10 @@ public:
   void AddMousePositionChangeCallback(const void* owner, MousePositionChangeCallback callback);
   void AddMouseButtonChangeCallback(const void* owner, MouseButtonChangeCallback callback);
 
+  // Error reporting. May block.
+  virtual void ReportError(const char* message);
+  void ReportFormattedError(const char* format, ...);
+
   // Status message logging.
   virtual void ReportMessage(const char* message);
   void ReportFormattedMessage(const char* format, ...);

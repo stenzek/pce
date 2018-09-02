@@ -371,15 +371,6 @@ void SDLHostInterface::RenderImGui()
 
         if (ImGui::BeginMenu(ui.component->GetIdentifier()))
         {
-          for (const auto& it : ui.callbacks)
-          {
-            if (ImGui::MenuItem(it.first))
-            {
-              const auto& callback = it.second;
-              m_system->QueueExternalEvent([&callback]() { callback(); });
-            }
-          }
-
           for (const auto& it : ui.file_callbacks)
           {
             if (ImGui::MenuItem(it.first))
@@ -391,6 +382,15 @@ void SDLHostInterface::RenderImGui()
                 String str(path);
                 m_system->QueueExternalEvent([&callback, str]() { callback(str); });
               }
+            }
+          }
+
+          for (const auto& it : ui.callbacks)
+          {
+            if (ImGui::MenuItem(it.first))
+            {
+              const auto& callback = it.second;
+              m_system->QueueExternalEvent([&callback]() { callback(); });
             }
           }
 

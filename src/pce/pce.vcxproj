@@ -44,6 +44,7 @@
     <ClCompile Include="hw\adlib.cpp" />
     <ClCompile Include="hw\cdrom.cpp" />
     <ClCompile Include="hw\et4000.cpp" />
+    <ClCompile Include="hw\floppy.cpp" />
     <ClCompile Include="hw\i82437fx.cpp" />
     <ClCompile Include="hw\ide_cdrom.cpp" />
     <ClCompile Include="hw\ide_hdd.cpp" />
@@ -104,6 +105,7 @@
     <ClInclude Include="hw\adlib.h" />
     <ClInclude Include="hw\cdrom.h" />
     <ClInclude Include="hw\et4000.h" />
+    <ClInclude Include="hw\floppy.h" />
     <ClInclude Include="hw\i82437fx.h" />
     <ClInclude Include="hw\ide_cdrom.h" />
     <ClInclude Include="hw\ide_hdd.h" />

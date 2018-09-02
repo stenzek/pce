@@ -7,6 +7,7 @@
 #include "pce/hw/cmos.h"
 #include "pce/hw/et4000.h"
 #include "pce/hw/fdc.h"
+#include "pce/hw/floppy.h"
 #include "pce/hw/hdc.h"
 #include "pce/hw/i8042_ps2.h"
 #include "pce/hw/i8237_dma.h"
@@ -57,6 +58,7 @@ void RegisterAllTypes()
   REGISTER_HW_TYPE(CMOS);
   REGISTER_HW_TYPE(ET4000);
   REGISTER_HW_TYPE(FDC);
+  REGISTER_HW_TYPE(Floppy);
   REGISTER_HW_TYPE(HDC);
   REGISTER_HW_TYPE(i8042_PS2);
   REGISTER_HW_TYPE(i8237_DMA);

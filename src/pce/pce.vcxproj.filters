@@ -139,6 +139,9 @@
     <ClCompile Include="hw\ide_hdd.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="hw\floppy.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -296,6 +299,9 @@
     </ClInclude>
     <ClInclude Include="system_config_parser.cpp" />
     <ClInclude Include="hw\ide_hdd.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\floppy.h">
       <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>

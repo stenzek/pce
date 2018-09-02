@@ -210,66 +210,12 @@ void AMI386::SetCMOSVariables()
   PhysicalMemoryAddress extended_memory_in_k = GetExtendedMemorySize() / 1024;
   Log_DevPrintf("Extended memory in KB: %u", Truncate32(extended_memory_in_k));
 
-  uint32 fdd_drive_type_variable = 0;
+  m_cmos->SetFloppyCount(m_fdd_controller->GetDriveCount());
   for (uint32 i = 0; i < HW::FDC::MAX_DRIVES; i++)
   {
-    HW::FDC::DriveType drive_type = m_fdd_controller->GetDriveType_(i);
-    HW::FDC::DiskType disk_type = m_fdd_controller->GetDiskType(i);
-    if (drive_type == HW::FDC::DriveType_None)
-      continue;
-
-    // 1 - 360K 5.25", 2 - 1.2MB 5.25", 3 - 720K 3.5", 4 - 1.44MB 3.5", 5 - 2.88M 3.5"
-    uint32 cmos_type;
-    switch (drive_type)
-    {
-      case HW::FDC::DriveType_5_25:
-      {
-        switch (disk_type)
-        {
-          case HW::FDC::DiskType_160K:
-          case HW::FDC::DiskType_180K:
-          case HW::FDC::DiskType_320K:
-          case HW::FDC::DiskType_360K:
-          case HW::FDC::DiskType_640K:
-          case HW::FDC::DiskType_1220K:
-            cmos_type = 2;
-            break;
-          default:
-            cmos_type = 0;
-            break;
-        }
-      }
-      break;
-
-      case HW::FDC::DriveType_3_5:
-      {
-        switch (disk_type)
-        {
-          case HW::FDC::DiskType_720K:
-          case HW::FDC::DiskType_1440K:
-            cmos_type = 4;
-            break;
-          case HW::FDC::DiskType_2880K:
-            cmos_type = 5;
-            break;
-          default:
-            cmos_type = 0;
-            break;
-        }
-      }
-      break;
-
-      default:
-        cmos_type = 0;
-        break;
-    }
-
-    if (i == 0)
-      fdd_drive_type_variable |= ((cmos_type & 0xF) << 4);
-    else if (i == 1)
-      fdd_drive_type_variable |= ((cmos_type & 0xF) << 0);
+    if (m_fdd_controller->IsDrivePresent(i))
+      m_cmos->SetFloppyType(i, m_fdd_controller->GetDriveType_(i));
   }
-  m_cmos->SetVariable(0x10, Truncate8(fdd_drive_type_variable));
 
   // Equipment byte
   uint8 equipment_byte = 0;

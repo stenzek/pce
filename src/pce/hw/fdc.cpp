@@ -10,51 +10,6 @@
 #include <cstring>
 Log_SetChannel(HW::FDC);
 
-#pragma pack(push, 1)
-struct FAT_HEADER
-{
-  uint8 bootstrap_jump[3];
-  char oem_name[8];
-  uint16 bytes_per_sector;
-  uint8 sectors_per_cluster;
-  uint16 num_reserved_sectors;
-  uint8 num_fat_copies;
-  uint16 num_root_directory_entries;
-  uint16 num_sectors;
-  uint8 media_descriptor_type;
-  uint16 num_sectors_per_fat;
-  uint16 num_sectors_per_track;
-  uint16 num_heads;
-  uint16 num_hidden_sectors;
-  uint8 bootloader_code[480];
-  uint16 signature;
-};
-static_assert(sizeof(FAT_HEADER) == 512, "FAT header is 512 bytes");
-#pragma pack(pop)
-
-struct DiskTypeInfo
-{
-  HW::FDC::DriveType drive_type;
-  HW::FDC::DiskType disk_type;
-  uint32 size;
-  uint32 num_tracks;
-  uint32 num_heads;
-  uint32 num_sectors_per_track;
-  uint8 media_descriptor_byte;
-};
-static const DiskTypeInfo disk_types[] = {
-  {HW::FDC::DriveType_5_25, HW::FDC::DiskType_160K, 163840, 40, 1, 8, 0xFE},    // DiskType_160K
-  {HW::FDC::DriveType_5_25, HW::FDC::DiskType_180K, 184320, 40, 1, 9, 0xFC},    // DiskType_180K
-  {HW::FDC::DriveType_5_25, HW::FDC::DiskType_320K, 327680, 40, 2, 8, 0xFF},    // DiskType_320K
-  {HW::FDC::DriveType_5_25, HW::FDC::DiskType_360K, 368640, 40, 2, 9, 0xFD},    // DiskType_360K
-  {HW::FDC::DriveType_5_25, HW::FDC::DiskType_640K, 655360, 80, 2, 8, 0xFB},    // DiskType_640K
-  {HW::FDC::DriveType_3_5, HW::FDC::DiskType_720K, 737280, 80, 2, 9, 0xF9},     // DiskType_720K
-  {HW::FDC::DriveType_5_25, HW::FDC::DiskType_1220K, 1310720, 80, 2, 15, 0xF9}, // DiskType_1220K
-  {HW::FDC::DriveType_3_5, HW::FDC::DiskType_1440K, 1474560, 80, 2, 18, 0xF0},  // DiskType_1440K
-  {HW::FDC::DriveType_3_5, HW::FDC::DiskType_1680K, 1720320, 80, 2, 21, 0xF0},  // DiskType_1680K
-  {HW::FDC::DriveType_3_5, HW::FDC::DiskType_2880K, 2949120, 80, 2, 36, 0xF0},  // DiskType_2880K
-};
-
 // Data rates in kb/s.
 static const uint32 data_rates[4] = {500, 300, 250, 1000};
 
@@ -62,55 +17,6 @@ namespace HW {
 DEFINE_OBJECT_TYPE_INFO(FDC);
 BEGIN_OBJECT_PROPERTY_MAP(FDC)
 END_OBJECT_PROPERTY_MAP()
-
-FDC::DiskType FDC::DetectDiskType(ByteStream* pStream)
-{
-  // Get file size
-  uint32 file_size = static_cast<uint32>(pStream->GetSize());
-  Log_DevPrintf("Disk size: %u bytes", file_size);
-
-  // Check for FAT header
-  FAT_HEADER fat_header;
-  if (!pStream->SeekAbsolute(0) || !pStream->Read2(&fat_header, sizeof(fat_header)))
-    return DiskType_None;
-
-  // Validate FAT header
-  if (fat_header.signature == 0xAA55)
-  {
-    Log_DevPrintf("FAT detected, media descriptor = 0x%02X", fat_header.media_descriptor_type);
-
-    // Use media descriptor byte to find a matching type
-    for (size_t i = 0; i < countof(disk_types); i++)
-    {
-      if (fat_header.media_descriptor_type == disk_types[i].media_descriptor_byte && file_size <= disk_types[i].size)
-      {
-        return disk_types[i].disk_type;
-      }
-    }
-  }
-
-  // Use size alone to find a matching type
-  for (size_t i = 0; i < countof(disk_types); i++)
-  {
-    if (file_size <= disk_types[i].size)
-      return disk_types[i].disk_type;
-  }
-
-  // Unknown
-  Log_ErrorPrintf("Unable to determine disk type for size %u", file_size);
-  return DiskType_None;
-}
-
-FDC::DriveType FDC::GetDriveTypeForDiskType(DiskType type)
-{
-  for (size_t i = 0; i < countof(disk_types); i++)
-  {
-    if (disk_types[i].disk_type == type)
-      return disk_types[i].drive_type;
-  }
-
-  return DriveType_None;
-}
 
 FDC::FDC(const String& identifier, Model model /* = Model_8272 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(identifier, type_info), m_clock("Floppy Controller", CLOCK_FREQUENCY), m_model(model)
@@ -204,21 +110,19 @@ void FDC::Reset(bool software_reset)
 
 bool FDC::LoadState(BinaryReader& reader)
 {
-  uint32 magic;
-  if (!reader.SafeReadUInt32(&magic) || magic != SERIALIZATION_ID)
+  if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
     DriveState* drive = &m_drives[i];
-    uint32 drive_type = 0, disk_type = 0;
-    reader.SafeReadUInt32(&drive_type);
-    reader.SafeReadUInt32(&disk_type);
-    drive->drive_type = static_cast<DriveType>(drive_type);
-    drive->disk_type = static_cast<DiskType>(disk_type);
-    reader.SafeReadUInt32(&drive->num_cylinders);
-    reader.SafeReadUInt32(&drive->num_heads);
-    reader.SafeReadUInt32(&drive->num_sectors);
+    const bool present = reader.ReadBool();
+    if (present && !drive->floppy)
+    {
+      Log_ErrorPrintf("Drive state mismatch");
+      return false;
+    }
+
     reader.SafeReadUInt32(&drive->current_cylinder);
     reader.SafeReadUInt32(&drive->current_head);
     reader.SafeReadUInt32(&drive->current_sector);
@@ -270,18 +174,6 @@ bool FDC::LoadState(BinaryReader& reader)
   reader.SafeReadUInt8(&m_st1);
   reader.SafeReadUInt8(&m_st2);
 
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
-  {
-    DriveState* drive = &m_drives[i];
-    uint32 size = 0;
-
-    reader.SafeReadBool(&drive->write_protect);
-    reader.SafeReadUInt32(&size);
-    drive->data.Resize(size);
-    if (size > 0)
-      reader.SafeReadBytes(drive->data.GetBasePointer(), size);
-  }
-
   return !reader.GetErrorState();
 }
 
@@ -292,11 +184,7 @@ bool FDC::SaveState(BinaryWriter& writer)
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
     DriveState* drive = &m_drives[i];
-    writer.SafeWriteUInt32(static_cast<uint32>(drive->drive_type));
-    writer.SafeWriteUInt32(static_cast<uint32>(drive->disk_type));
-    writer.SafeWriteUInt32(drive->num_cylinders);
-    writer.SafeWriteUInt32(drive->num_heads);
-    writer.SafeWriteUInt32(drive->num_sectors);
+    writer.SafeWriteBool(drive->floppy != nullptr);
     writer.SafeWriteUInt32(drive->current_cylinder);
     writer.SafeWriteUInt32(drive->current_head);
     writer.SafeWriteUInt32(drive->current_sector);
@@ -346,23 +234,23 @@ bool FDC::SaveState(BinaryWriter& writer)
   writer.SafeWriteUInt8(m_st1);
   writer.SafeWriteUInt8(m_st2);
 
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
-  {
-    DriveState* drive = &m_drives[i];
-    uint32 size = Truncate32(drive->data.GetSize());
-    writer.SafeWriteBool(drive->write_protect);
-    writer.SafeWriteUInt32(size);
-    if (size > 0)
-      writer.SafeWriteBytes(drive->data.GetBasePointer(), size);
-  }
-
   return true;
 }
 
-void FDC::SetDriveType(uint32 drive, DriveType type)
+Floppy::DriveType FDC::GetDriveType_(uint32 drive)
 {
-  DebugAssert(drive < MAX_DRIVES);
-  m_drives[drive].drive_type = type;
+  return (drive < MAX_DRIVES && m_drives[drive].floppy) ? m_drives[drive].floppy->GetDriveType_() :
+                                                          Floppy::DriveType_None;
+}
+
+bool FDC::IsDrivePresent(uint32 drive) const
+{
+  return (drive < MAX_DRIVES && m_drives[drive].floppy);
+}
+
+bool FDC::IsDiskPresent(uint32 drive) const
+{
+  return (drive < MAX_DRIVES && m_drives[drive].floppy) ? m_drives[drive].floppy->GetDiskType() : Floppy::DiskType_None;
 }
 
 uint32 FDC::GetDriveCount() const
@@ -376,74 +264,13 @@ uint32 FDC::GetDriveCount() const
   return count;
 }
 
-bool FDC::InsertDisk(uint32 drive, DiskType type, ByteStream* pStream)
+bool FDC::AttachDrive(uint32 number, Floppy* drive)
 {
-  RemoveDisk(drive);
-  if (!pStream)
-    return true;
-
-  if (type == DiskType_AutoDetect)
-  {
-    type = DetectDiskType(pStream);
-    if (type == DiskType_None)
-      return false;
-  }
-
-  const DiskTypeInfo* info = nullptr;
-  for (size_t i = 0; i < countof(disk_types); i++)
-  {
-    if (disk_types[i].disk_type == type)
-    {
-      info = &disk_types[i];
-      break;
-    }
-  }
-  if (!info)
+  if (number >= MAX_DRIVES || m_drives[number].floppy)
     return false;
 
-  DriveState* state = &m_drives[drive];
-  if (state->drive_type != info->drive_type)
-  {
-    Log_WarningPrintf("Changing drive %u type from %u to %u", drive, uint32(state->drive_type),
-                      uint32(info->drive_type));
-  }
-
-  PODArray<uint8> data;
-  uint32 image_size = static_cast<uint32>(pStream->GetSize());
-  data.Resize(image_size);
-  if (!pStream->SeekAbsolute(0) || !pStream->Read2(data.GetBasePointer(), image_size))
-    return false;
-
-  // Allocate extra data when the image is smaller?
-  if (info->size < image_size)
-  {
-    data.Resize(info->size);
-    Y_memzero(data.GetBasePointer() + image_size, info->size - image_size);
-  }
-
-  state->disk_type = type;
-  state->drive_type = info->drive_type;
-  state->num_cylinders = info->num_tracks;
-  state->num_heads = info->num_heads;
-  state->num_sectors = info->num_sectors_per_track;
-  state->data.Swap(data);
-  Log_InfoPrintf("Disk %u inserted: CHS %u/%u/%u", drive, info->num_tracks, info->num_heads,
-                 info->num_sectors_per_track);
+  m_drives[number].floppy = drive;
   return true;
-}
-
-void FDC::RemoveDisk(uint32 drive)
-{
-  DriveState* state = &m_drives[drive];
-  state->disk_type = DiskType_None;
-  state->num_cylinders = 0;
-  state->num_heads = 0;
-  state->num_sectors = 0;
-  state->current_cylinder = 0;
-  state->current_head = 0;
-  state->current_sector = 0;
-  state->current_lba = 0;
-  state->data.Obliterate();
 }
 
 void FDC::ClearFIFO()
@@ -458,22 +285,51 @@ void FDC::WriteToFIFO(uint8 value)
   m_fifo[m_fifo_result_size++] = value;
 }
 
+void FDC::SetActivity(u32 drive_number, bool writing /* = false */)
+{
+  m_MSR.bits &= 0x0F;
+  m_MSR.bits |= u8(0x01) << drive_number;
+  for (u32 i = 0; i < MAX_DRIVES; i++)
+  {
+    if (m_drives[drive_number].floppy)
+    {
+      if (i == drive_number)
+        m_drives[drive_number].floppy->SetActivity(writing);
+      else
+        m_drives[drive_number].floppy->ClearActivity();
+    }
+  }
+}
+
+void FDC::ClearActivity()
+{
+  m_MSR.bits &= 0xF0;
+  for (u32 i = 0; i < MAX_DRIVES; i++)
+  {
+    if (m_drives[i].floppy)
+      m_drives[i].floppy->ClearActivity();
+  }
+}
+
 bool FDC::SeekDrive(uint32 drive, uint32 cylinder, uint32 head, uint32 sector)
 {
   DriveState* state = &m_drives[drive];
-  if (cylinder >= state->num_cylinders || head >= state->num_heads || sector < 1 || sector > state->num_sectors)
+  Floppy* floppy = state->floppy;
+  if (cylinder >= floppy->GetNumTracks() || head >= floppy->GetNumHeads() || sector < 1 ||
+      sector > floppy->GetSectorsPerTrack())
     return false;
 
   state->current_cylinder = cylinder;
   state->current_head = head;
   state->current_sector = sector;
-  state->current_lba = (cylinder * state->num_heads + head) * state->num_sectors + (sector - 1);
+  state->current_lba = (cylinder * floppy->GetNumHeads() + head) * floppy->GetSectorsPerTrack() + (sector - 1);
   return true;
 }
 
 bool FDC::SeekToNextSector(uint32 drive)
 {
   DriveState* state = &m_drives[drive];
+  Floppy* floppy = state->floppy;
 
   // CHS addressing
   uint32 cylinder = state->current_cylinder;
@@ -482,15 +338,15 @@ bool FDC::SeekToNextSector(uint32 drive)
 
   // move sectors -> heads -> cylinders
   sector++;
-  if (sector > state->num_sectors)
+  if (sector > floppy->GetSectorsPerTrack())
   {
     sector = 1;
     head++;
-    if (head >= state->num_heads)
+    if (head >= floppy->GetNumHeads())
     {
       head = 0;
       cylinder++;
-      if (cylinder >= state->num_cylinders)
+      if (cylinder >= floppy->GetNumTracks())
       {
         // end of disk
         return false;
@@ -502,7 +358,7 @@ bool FDC::SeekToNextSector(uint32 drive)
   state->current_sector = sector;
 
   uint32 old_lba = state->current_lba;
-  state->current_lba = (cylinder * state->num_heads + head) * state->num_sectors + (sector - 1);
+  state->current_lba = (cylinder * floppy->GetNumHeads() + head) * floppy->GetSectorsPerTrack() + (sector - 1);
   DebugAssert((old_lba + 1) == state->current_lba);
   return true;
 }
@@ -511,16 +367,14 @@ void FDC::ReadCurrentSector(uint32 drive, void* data)
 {
   DriveState* state = &m_drives[drive];
   Log_DevPrintf("FDC read lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
-
-  std::memcpy(data, &state->data[state->current_lba * SECTOR_SIZE], SECTOR_SIZE);
+  state->floppy->Read(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
 void FDC::WriteCurrentSector(uint32 drive, const void* data)
 {
   DriveState* state = &m_drives[drive];
   Log_DevPrintf("FDC write lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
-
-  std::memcpy(&state->data[state->current_lba * SECTOR_SIZE], data, SECTOR_SIZE);
+  state->floppy->Write(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
 bool FDC::ReadSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, void* data)
@@ -613,7 +467,7 @@ void FDC::BeginCommand()
       }
 
       m_MSR.request_for_master = false;
-      m_MSR.SetActivity(drive_number);
+      SetActivity(drive_number);
       m_command_event->Queue(seek_time);
     }
     break;
@@ -633,7 +487,7 @@ void FDC::BeginCommand()
 
       // Ensure the cylinder/head is in range.
       DriveState* drive = &m_drives[drive_number];
-      if (cylinder_number >= drive->num_cylinders || head_number >= drive->num_heads)
+      if (cylinder_number >= drive->floppy->GetNumTracks() || head_number >= drive->floppy->GetNumHeads())
       {
         EndTransfer(drive_number, ST0_IC_AT, ST1_ND, 0);
         return;
@@ -652,7 +506,7 @@ void FDC::BeginCommand()
 
       // The End handler just pretty much has to send the result now.
       m_MSR.request_for_master = false;
-      m_MSR.SetActivity(drive_number);
+      SetActivity(drive_number);
       m_command_event->Queue(seek_time);
     }
     break;
@@ -687,7 +541,8 @@ void FDC::BeginCommand()
 
       // Check for out-of-range reads.
       DriveState* drive = &m_drives[drive_number];
-      if (cylinder_number >= drive->num_cylinders || sector_number == 0 || sector_number > drive->num_sectors)
+      if (cylinder_number >= drive->floppy->GetNumTracks() || sector_number == 0 ||
+          sector_number > drive->floppy->GetSectorsPerTrack())
       {
         EndTransfer(drive_number, ST0_IC_AT, ST1_ND, 0);
         return;
@@ -695,8 +550,6 @@ void FDC::BeginCommand()
 
       // TODO: Properly validate ranges
       DebugAssert(sector_type == 0x02);
-      DebugAssert(cylinder_number < drive->num_cylinders);
-      DebugAssert(sector_number <= drive->num_sectors);
       if (sector_type == 0)
       {
         // sector type 2 means the number of bytes is specified in the last command byte
@@ -722,7 +575,7 @@ void FDC::BeginCommand()
 
       // Clear RFM bit. The direction bit is set after the seek.
       m_MSR.request_for_master = false;
-      m_MSR.SetActivity(drive_number);
+      SetActivity(drive_number, is_write);
 
       // We need to seek to the correct track/cylinder.
       CycleCount seek_time = CalculateHeadSeekTime(drive->current_cylinder, cylinder_number);
@@ -805,7 +658,7 @@ void FDC::BeginCommand()
       }
 
       m_MSR.request_for_master = false;
-      m_MSR.SetActivity(drive_number);
+      SetActivity(drive_number);
       m_command_event->Queue(CalculateSectorReadTime());
     }
     break;
@@ -969,7 +822,7 @@ void FDC::EndCommand()
 void FDC::HangController()
 {
   // Leave the command in place, this way writes are ignored.
-  m_MSR.ClearActivity();
+  ClearActivity();
   m_MSR.command_busy = true;
   m_MSR.data_direction = false;
   m_MSR.request_for_master = false;
@@ -993,7 +846,7 @@ void FDC::TransitionToCommandPhase()
   m_MSR.command_busy = false;
   m_MSR.data_direction = false;
   m_MSR.request_for_master = true;
-  m_MSR.ClearActivity();
+  ClearActivity();
 }
 
 void FDC::TransitionToResultPhase()
@@ -1002,7 +855,7 @@ void FDC::TransitionToResultPhase()
   m_MSR.command_busy = true;
   m_MSR.data_direction = true;
   m_MSR.request_for_master = true;
-  m_MSR.ClearActivity();
+  ClearActivity();
 }
 
 void FDC::ConnectIOPorts(Bus* bus)
@@ -1071,11 +924,10 @@ void FDC::IOReadStatusRegisterB(uint8* value)
   // 0x02 - not ds3
   // 0x01 - not ds2
   const DriveState* ds = GetCurrentDrive();
-  *value = (BoolToUInt8(m_drives[1].drive_type == DriveType_None) << 7) |
-           (BoolToUInt8(GetCurrentDriveIndex() != 1) << 6) | (BoolToUInt8(GetCurrentDriveIndex() != 0) << 5) |
-           (BoolToUInt8(ds->data_was_written) << 4) | (BoolToUInt8(ds->data_was_read) << 3) |
-           (BoolToUInt8(ds->data_was_written) << 2) | (BoolToUInt8(GetCurrentDriveIndex() != 3) << 1) |
-           (BoolToUInt8(GetCurrentDriveIndex() != 2) << 0);
+  *value = (BoolToUInt8(IsDrivePresent(1)) << 7) | (BoolToUInt8(GetCurrentDriveIndex() != 1) << 6) |
+           (BoolToUInt8(GetCurrentDriveIndex() != 0) << 5) | (BoolToUInt8(ds->data_was_written) << 4) |
+           (BoolToUInt8(ds->data_was_read) << 3) | (BoolToUInt8(ds->data_was_written) << 2) |
+           (BoolToUInt8(GetCurrentDriveIndex() != 3) << 1) | (BoolToUInt8(GetCurrentDriveIndex() != 2) << 0);
 }
 
 void FDC::IOReadDigitalInputRegister(uint8* value)

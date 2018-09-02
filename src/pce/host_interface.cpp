@@ -43,6 +43,23 @@ void HostInterface::AddMouseButtonChangeCallback(const void* owner, MouseButtonC
   m_mouse_button_change_callbacks.emplace_back(owner, std::move(callback));
 }
 
+void HostInterface::ReportError(const char* message)
+{
+  Log_ErrorPrintf("Report error: %s", message);
+}
+
+void HostInterface::ReportFormattedError(const char* format, ...)
+{
+  std::va_list ap;
+  va_start(ap, format);
+
+  SmallString message;
+  message.FormatVA(format, ap);
+  va_end(ap);
+
+  ReportError(message);
+}
+
 void HostInterface::ReportMessage(const char* message)
 {
   Log_InfoPrintf("Report message: %s", message);

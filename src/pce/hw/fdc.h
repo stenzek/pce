@@ -1,16 +1,18 @@
 #pragma once
 
+#include "../component.h"
+#include "../dma_controller.h"
 #include "YBaseLib/PODArray.h"
 #include "common/bitfield.h"
 #include "common/clock.h"
-#include "pce/component.h"
-#include "pce/dma_controller.h"
+#include "floppy.h"
 #include <array>
 
 class ByteStream;
 class InterruptController;
 
 namespace HW {
+class Floppy;
 
 class FDC : public Component
 {
@@ -19,32 +21,6 @@ class FDC : public Component
   DECLARE_OBJECT_PROPERTY_MAP(FDC);
 
 public:
-  enum DriveType : uint8
-  {
-    DriveType_None,
-    DriveType_5_25,
-    DriveType_3_5,
-    DriveType_Count
-  };
-
-  enum DiskType : uint8
-  {
-    DiskType_None,
-
-    DiskType_160K,  // 5.25-inch, single-sided, 40 tracks, 8 sectors per track
-    DiskType_180K,  // 5.25-inch, single-sided, 40 tracks, 9 sectors per track
-    DiskType_320K,  // 5.25-inch, double-sided, 40 tracks, 8 sectors per track
-    DiskType_360K,  // 5.25-inch, double-sided, 40 tracks, 9 sectors per track
-    DiskType_640K,  // 5.25-inch, double-sided, 80 tracks, 8 sectors per track
-    DiskType_1220K, // 5.25-inch, double-sided, 80 tracks, 15 sectors per track
-    DiskType_720K,  // 3.5-inch, double-sided, 80 tracks, 9 sectors per track
-    DiskType_1440K, // 3.5-inch, double-sided, 80 tracks, 18 sectors per track
-    DiskType_1680K, // 3.5-inch, double-sided, 80 tracks, 21 sectors per track, "DMF"
-    DiskType_2880K, // 3.5-inch, double-sided, 80 tracks, 36 sectors per track
-
-    DiskType_AutoDetect
-  };
-
   enum Model : uint8
   {
     Model_8272,
@@ -59,9 +35,6 @@ public:
   // We use 1MHz as the clock frequency for the FDC, so we can specify "cycles" as microseconds.
   static constexpr float CLOCK_FREQUENCY = 1000000;
 
-  static DiskType DetectDiskType(ByteStream* pStream);
-  static DriveType GetDriveTypeForDiskType(DiskType type);
-
 public:
   FDC(const String& identifier, Model model = Model_8272, const ObjectTypeInfo* type_info = &s_type_info);
   ~FDC();
@@ -71,41 +44,20 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
-  // Renamed due to winapi conflicts
-  DriveType GetDriveType_(uint32 drive) { return m_drives[drive].drive_type; }
-  DiskType GetDiskType(uint32 drive) { return m_drives[drive].disk_type; }
-
-  bool IsDrivePresent(uint32 drive) const
-  {
-    return (drive < MAX_DRIVES && m_drives[drive].drive_type != DriveType_None);
-  }
-  bool IsDiskPresent(uint32 drive) const { return (drive < MAX_DRIVES && m_drives[drive].disk_type != DiskType_None); }
-  void SetDriveType(uint32 drive, DriveType type);
+  Floppy::DriveType GetDriveType_(uint32 drive);
+  bool IsDrivePresent(uint32 drive) const;
+  bool IsDiskPresent(uint32 drive) const;
   uint32 GetDriveCount() const;
 
-  uint32 GetDiskSize(uint32 drive) { return static_cast<uint32>(m_drives[drive].data.GetSize()); }
-  uint32 GetDiskCylinders(uint32 drive) { return m_drives[drive].num_cylinders; }
-  uint32 GetDiskHeads(uint32 drive) { return m_drives[drive].num_heads; }
-  uint32 GetDiskSectors(uint32 drive) { return m_drives[drive].num_sectors; }
-  uint32 GetDriveCurrentCylinder(uint32 drive) const { return m_drives[drive].current_cylinder; }
-  uint32 GetDriveCurrentHead(uint32 drive) const { return m_drives[drive].current_head; }
-  uint32 GetDriveCurrentSector(uint32 drive) const { return m_drives[drive].current_sector; }
-  uint32 GetDriveCurrentLBA(uint32 drive) const { return m_drives[drive].current_sector; }
-
-  bool InsertDisk(uint32 drive, DiskType type, ByteStream* pStream);
-
-  // For HLE bios
-  bool SeekDrive(uint32 drive, uint32 cylinder, uint32 head, uint32 sector);
-  bool SeekToNextSector(uint32 drive);
-  void ReadCurrentSector(uint32 drive, void* data);
-  void WriteCurrentSector(uint32 drive, const void* data);
-  bool ReadSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, void* data);
-  bool WriteSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, const void* data);
+  bool AttachDrive(uint32 number, Floppy* drive);
 
 protected:
   static constexpr uint32 IRQ_NUMBER = 6;
   static constexpr uint32 DMA_CHANNEL = 2;
   static constexpr uint32 MAX_COMMAND_LENGTH = 9;
+
+  void SetActivity(u32 drive_number, bool writing = false);
+  void ClearActivity();
 
   InterruptController* m_interrupt_controller = nullptr;
   DMAController* m_dma = nullptr;
@@ -114,19 +66,14 @@ protected:
 
   struct DriveState
   {
-    DriveType drive_type = DriveType_None;
-    DiskType disk_type = DiskType_None;
+    Floppy* floppy = nullptr;
 
-    uint32 num_cylinders = 0;
-    uint32 num_heads = 0;
-    uint32 num_sectors = 0;
-
+    // TODO: Move some of these to Floppy?
     uint32 current_cylinder = 0;
     uint32 current_head = 0;
     uint32 current_sector = 0;
     uint32 current_lba = 0;
 
-    PODArray<uint8> data;
     bool write_protect = false;
 
     bool data_was_read = false;
@@ -169,19 +116,6 @@ protected:
     BitField<uint8, bool, 5, 1> pio_mode;
     BitField<uint8, bool, 6, 1> data_direction;     // 1 = FDC->CPU, 0=CPU->FDC
     BitField<uint8, bool, 7, 1> request_for_master; // data register ready
-
-    void ClearActivity()
-    {
-      drive_0_activity = false;
-      drive_1_activity = false;
-      drive_2_activity = false;
-      drive_3_activity = false;
-    }
-    void SetActivity(uint8 drive)
-    {
-      ClearActivity();
-      bits |= uint8(1 << drive);
-    }
   } m_MSR;
 
   // 03F4h: Data-rate select register.
@@ -262,6 +196,13 @@ protected:
   uint8 m_st1 = 0;
   uint8 m_st2 = 0;
 
+  bool SeekDrive(uint32 drive, uint32 cylinder, uint32 head, uint32 sector);
+  bool SeekToNextSector(uint32 drive);
+  void ReadCurrentSector(uint32 drive, void* data);
+  void WriteCurrentSector(uint32 drive, const void* data);
+  bool ReadSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, void* data);
+  bool WriteSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, const void* data);
+
   bool InReset() const { return !m_DOR.nreset; }
   bool IsDMATransferInProgress() const { return m_current_transfer.active && m_DOR.ndmagate; }
   DriveState* GetCurrentDrive() { return &m_drives[m_DOR.drive_select]; }
@@ -271,7 +212,6 @@ protected:
   bool IsCurrentDiskPresent() const { return IsDiskPresent(GetCurrentDriveIndex()); }
 
   void Reset(bool software_reset);
-  void RemoveDisk(uint32 drive);
 
   void ClearFIFO();
   void WriteToFIFO(uint8 value);

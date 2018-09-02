@@ -2,7 +2,6 @@
 
 #include "common/clock.h"
 #include "pce/component.h"
-#include "pce/hw/fdc.h"
 #include <YBaseLib/Assert.h>
 #include <array>
 #include <memory>
@@ -34,7 +33,7 @@ public:
   uint16 GetWordVariable(uint8 base_index) const;
   void SetWordVariable(uint8 base_index, uint16 value);
 
-  void SetFloppyType(uint8 index, FDC::DriveType type);
+  void SetFloppyType(uint32 index, uint32 type);
   void SetFloppyCount(uint32 count);
 
 protected:

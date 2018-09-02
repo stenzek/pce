@@ -4,6 +4,7 @@
 #include "YBaseLib/Log.h"
 #include "YBaseLib/Timestamp.h"
 #include "pce/bus.h"
+#include "pce/hw/fdc.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 Log_SetChannel(HW::CMOS);
@@ -114,7 +115,7 @@ void CMOS::SetWordVariable(uint8 base_index, uint16 value)
   m_data[base_index + 1] = Truncate8(value >> 8);
 }
 
-void CMOS::SetFloppyType(uint8 index, FDC::DriveType type)
+void CMOS::SetFloppyType(uint32 index, u32 type)
 {
   Assert(index < 2);
 
@@ -127,10 +128,10 @@ void CMOS::SetFloppyType(uint8 index, FDC::DriveType type)
   uint8 floppy_type;
   switch (type)
   {
-    case FDC::DriveType_5_25:
+    case Floppy::DriveType_5_25:
       floppy_type = 0b0010;
       break;
-    case FDC::DriveType_3_5:
+    case Floppy::DriveType_3_5:
       floppy_type = 0b0100;
       break;
     default:

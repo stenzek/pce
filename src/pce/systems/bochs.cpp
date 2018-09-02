@@ -36,7 +36,7 @@ bool Bochs::Initialize()
 
   AllocatePhysicalMemory(m_ram_size, false, false);
 
-  if (!PCIPC::Initialize())
+  if (!BaseClass::Initialize())
     return false;
 
   if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
@@ -45,13 +45,16 @@ bool Bochs::Initialize()
   m_bus->MirrorRegion(BIOS_ROM_ADDRESS + BIOS_ROM_MIRROR_START, BIOS_ROM_MIRROR_SIZE, BIOS_ROM_MIRROR_ADDRESS);
 
   ConnectSystemIOPorts();
-  SetCMOSVariables();
   return true;
 }
 
 void Bochs::Reset()
 {
-  PCIPC::Reset();
+  BaseClass::Reset();
+
+  // Hack: Set the CMOS variables on reset, so things like floppies are picked up.
+  // We should probably set this last, or have a PostInitialize function or something.
+  SetCMOSVariables();
 
   m_refresh_bit = false;
 
@@ -62,7 +65,7 @@ void Bochs::Reset()
 
 bool Bochs::LoadSystemState(BinaryReader& reader)
 {
-  if (!PCIPC::LoadSystemState(reader))
+  if (!BaseClass::LoadSystemState(reader))
     return false;
 
   reader.SafeReadBool(&m_refresh_bit);
@@ -71,7 +74,7 @@ bool Bochs::LoadSystemState(BinaryReader& reader)
 
 bool Bochs::SaveSystemState(BinaryWriter& writer)
 {
-  if (!PCIPC::SaveSystemState(writer))
+  if (!BaseClass::SaveSystemState(writer))
     return false;
 
   writer.SafeWriteBool(m_refresh_bit);
@@ -255,62 +258,12 @@ void Bochs::SetCMOSVariables()
   m_cmos->SetWordVariable(0x34, Truncate16(extended_memory_in_64k));
   Log_DevPrintf("Extended memory above 16MB in KB: %u", Truncate32(extended_memory_in_64k * 64));
 
-  uint32 fdd_drive_type_variable = 0;
+  m_cmos->SetFloppyCount(m_fdd_controller->GetDriveCount());
   for (uint32 i = 0; i < HW::FDC::MAX_DRIVES; i++)
   {
-    HW::FDC::DriveType drive_type = m_fdd_controller->GetDriveType_(i);
-    HW::FDC::DiskType disk_type = m_fdd_controller->GetDiskType(i);
-    if (drive_type == HW::FDC::DriveType_None)
-      continue;
-
-    // 1 - 360K 5.25", 2 - 1.2MB 5.25", 3 - 720K 3.5", 4 - 1.44MB 3.5", 5 - 2.88M 3.5"
-    uint32 cmos_type;
-    switch (drive_type)
-    {
-      case HW::FDC::DriveType_5_25:
-      {
-        switch (disk_type)
-        {
-          case HW::FDC::DiskType_160K:
-          case HW::FDC::DiskType_180K:
-          case HW::FDC::DiskType_320K:
-          case HW::FDC::DiskType_360K:
-          case HW::FDC::DiskType_640K:
-          case HW::FDC::DiskType_1220K:
-          default:
-            cmos_type = 2;
-            break;
-        }
-      }
-      break;
-
-      case HW::FDC::DriveType_3_5:
-      {
-        switch (disk_type)
-        {
-          case HW::FDC::DiskType_2880K:
-            cmos_type = 5;
-            break;
-          case HW::FDC::DiskType_720K:
-          case HW::FDC::DiskType_1440K:
-          default:
-            cmos_type = 4;
-            break;
-        }
-      }
-      break;
-
-      default:
-        cmos_type = 0;
-        break;
-    }
-
-    if (i == 0)
-      fdd_drive_type_variable |= ((cmos_type & 0xF) << 4);
-    else if (i == 1)
-      fdd_drive_type_variable |= ((cmos_type & 0xF) << 0);
+    if (m_fdd_controller->IsDrivePresent(i))
+      m_cmos->SetFloppyType(i, m_fdd_controller->GetDriveType_(i));
   }
-  m_cmos->SetVariable(0x10, Truncate8(fdd_drive_type_variable));
 
   // Equipment byte
   uint8 equipment_byte = 0;
