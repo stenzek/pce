@@ -62,7 +62,7 @@ static Component* CreateComponent(const std::string& component_identifier, const
 
   Log_InfoPrintf("Creating instance '%s' of optional component '%s'", component_identifier.c_str(),
                  type_info->GetTypeName());
-  Object* obj = type_info->CreateInstance();
+  Object* obj = type_info->GetFactory()->CreateObject(component_identifier.c_str());
   Assert(obj && obj->IsDerived<Component>());
   return obj->Cast<Component>();
 }
