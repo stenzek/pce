@@ -18,6 +18,9 @@ public:
   void DisplayFramebuffer() override;
 
   SDL_Window* GetSDLWindow() const { return m_window; }
+  uint32 GetWindowWidth() const { return m_window_width; }
+  uint32 GetWindowHeight() const { return m_window_height; }
+
   bool IsUIActive() const { return m_ui_active; }
   bool NeedsRender() const { return m_needs_render || m_ui_active; }
   bool HandleSDLEvent(const SDL_Event* ev);

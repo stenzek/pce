@@ -291,12 +291,12 @@ void FDC::SetActivity(u32 drive_number, bool writing /* = false */)
   m_MSR.bits |= u8(0x01) << drive_number;
   for (u32 i = 0; i < MAX_DRIVES; i++)
   {
-    if (m_drives[drive_number].floppy)
+    if (m_drives[i].floppy)
     {
       if (i == drive_number)
-        m_drives[drive_number].floppy->SetActivity(writing);
+        m_drives[i].floppy->SetActivity(writing);
       else
-        m_drives[drive_number].floppy->ClearActivity();
+        m_drives[i].floppy->ClearActivity();
     }
   }
 }

@@ -403,6 +403,40 @@ void SDLHostInterface::RenderImGui()
 
     ImGui::EndMainMenuBar();
   }
+
+  // Activity window
+  {
+    bool has_activity = false;
+    for (const auto& elem : m_component_ui_elements)
+    {
+      if (elem.indicator_state != IndicatorState::Off)
+      {
+        has_activity = true;
+        break;
+      }
+    }
+    if (has_activity)
+    {
+      ImGui::SetNextWindowPos(ImVec2(1.0f, 32.0f));
+      if (ImGui::Begin("Activity", nullptr,
+                       ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                         ImGuiWindowFlags_NoInputs))
+      {
+        for (const auto& elem : m_component_ui_elements)
+        {
+          if (elem.indicator_state == IndicatorState::Off)
+            continue;
+
+          const char* text = elem.indicator_state == IndicatorState::Reading ? "Reading" : "Writing";
+          const ImVec4 color = elem.indicator_state == IndicatorState::Reading ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f) :
+                                                                                 ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+          ImGui::TextColored(color, "%s (%s): %s", elem.component->GetIdentifier().GetCharArray(),
+                             elem.component->GetTypeInfo()->GetTypeName(), text);
+        }
+        ImGui::End();
+      }
+    }
+  }
 }
 
 void SDLHostInterface::DoLoadState(uint32 index)
