@@ -10,11 +10,26 @@
 namespace Audio {
 class Mixer;
 }
+class Component;
 class Display;
 
 class HostInterface
 {
 public:
+  enum class IndicatorType : u8
+  {
+    None,
+    FDD,
+    HDD,
+    Serial
+  };
+  enum class IndicatorState : u8
+  {
+    Off,
+    Reading,
+    Writing
+  };
+
   HostInterface() = default;
   virtual ~HostInterface() = default;
 
@@ -61,13 +76,35 @@ public:
   // Emulation speed updates.
   virtual void OnSimulationSpeedUpdate(float speed_percent);
 
+  // UI elements.
+  using UICallback = std::function<void()>;
+  using UIFileCallback = std::function<void(const String&)>;
+  virtual void AddUIIndicator(const Component* component, IndicatorType type);
+  virtual void SetUIIndicatorState(const Component* component, IndicatorState state);
+  virtual void AddUICallback(const Component* component, const String& label, UICallback callback);
+  virtual void AddUIFileCallback(const Component* component, const String& label, UIFileCallback callback);
+
 protected:
+  struct ComponentUIElement
+  {
+    const Component* component;
+    std::vector<std::pair<String, UICallback>> callbacks;
+    std::vector<std::pair<String, std::function<void(const String&)>>> file_callbacks;
+    IndicatorType indicator_type = IndicatorType::None;
+    IndicatorState indicator_state = IndicatorState::Off;
+  };
+
   void ExecuteKeyboardCallback(GenScanCode scancode, bool key_down) const;
   void ExecuteMousePositionChangeCallbacks(int32 dx, int32 dy) const;
   void ExecuteMouseButtonChangeCallbacks(uint32 button, bool state) const;
+
+  ComponentUIElement* CreateComponentUIElement(const Component* component);
+  ComponentUIElement* GetOrCreateComponentUIElement(const Component* component);
+  ComponentUIElement* GetComponentUIElement(const Component* component);
 
   System* m_system;
   std::vector<std::pair<const void*, KeyboardCallback>> m_keyboard_callbacks;
   std::vector<std::pair<const void*, MousePositionChangeCallback>> m_mouse_position_change_callbacks;
   std::vector<std::pair<const void*, MouseButtonChangeCallback>> m_mouse_button_change_callbacks;
+  std::vector<ComponentUIElement> m_component_ui_elements;
 };

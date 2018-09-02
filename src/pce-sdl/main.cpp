@@ -2,10 +2,6 @@
 #include "YBaseLib/Error.h"
 #include "YBaseLib/FileSystem.h"
 #include "YBaseLib/Log.h"
-#include "YBaseLib/Memory.h"
-#include "YBaseLib/String.h"
-#include "YBaseLib/Thread.h"
-#include "YBaseLib/Timer.h"
 #include "common/audio.h"
 #include "imgui.h"
 #include "nfd.h"
@@ -14,55 +10,11 @@
 #include "pce-sdl/display_gl.h"
 #include "pce-sdl/display_sdl.h"
 #include "pce-sdl/scancodes_sdl.h"
-#include "pce/bus.h"
-#include "pce/cpu_x86/cpu_x86.h"
 #include "pce/host_interface.h"
-#include "pce/hw/adlib.h"
-#include "pce/hw/cga.h"
-#include "pce/hw/cmos.h"
-#include "pce/hw/et4000.h"
-#include "pce/hw/fdc.h"
-#include "pce/hw/i8042_ps2.h"
-#include "pce/hw/i8237_dma.h"
-#include "pce/hw/i8253_pit.h"
-#include "pce/hw/i8259_pic.h"
-#include "pce/hw/ide_cdrom.h"
-#include "pce/hw/serial.h"
-#include "pce/hw/serial_mouse.h"
-#include "pce/hw/soundblaster.h"
-#include "pce/hw/vga.h"
-#include "pce/mmio.h"
 #include "pce/system.h"
-#include "pce/systems/ali1429.h"
-#include "pce/systems/ami386.h"
-#include "pce/systems/bochs.h"
-#include "pce/systems/i430fx.h"
-#include "pce/systems/ibmat.h"
-#include "pce/systems/ibmxt.h"
 #include <SDL.h>
 #include <cstdio>
 Log_SetChannel(Main);
-
-static bool LoadFloppy(HW::FDC* fdc, uint32 disk, const char* path)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(path, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
-  {
-    Log_ErrorPrintf("Failed to load floppy at %s", path);
-    return false;
-  }
-
-  HW::FDC::DiskType disk_type = HW::FDC::DetectDiskType(stream);
-  if (disk_type == HW::FDC::DiskType_None)
-  {
-    stream->Release();
-    return false;
-  }
-
-  bool result = fdc->InsertDisk(disk, disk_type, stream);
-  stream->Release();
-  return result;
-}
 
 class SDLHostInterface : public HostInterface
 {
@@ -88,16 +40,7 @@ public:
 
   void Render();
 
-  void AddDeviceCallbacks();
-  void AddDeviceFileCallback(const char* title, std::function<void(const String&)>&& callback);
-
 protected:
-  struct DeviceFileEntry
-  {
-    String title;
-    std::function<void(const String&)> callback;
-  };
-
   // We only pass mouse input through if it's grabbed
   bool IsMouseGrabbed() const;
   void GrabMouse();
@@ -106,18 +49,11 @@ protected:
   void DoLoadState(uint32 index);
   void DoSaveState(uint32 index);
 
-  void AddFloppyCallbacks();
-  void AddCDROMCallbacks();
-
   std::unique_ptr<DisplaySDL> m_display;
   std::unique_ptr<Audio::Mixer> m_mixer;
 
   String m_last_message;
   Timer m_last_message_time;
-
-  std::vector<DeviceFileEntry> m_device_files;
-  const DeviceFileEntry* m_current_device_file = nullptr;
-  String m_current_device_filename;
 };
 
 std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
@@ -137,7 +73,6 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
 
   std::unique_ptr<SDLHostInterface> hi = std::make_unique<SDLHostInterface>();
   hi->m_display = std::move(display);
-  hi->m_current_device_filename.Resize(512);
   return hi;
 }
 
@@ -330,20 +265,6 @@ void SDLHostInterface::Render()
   m_display->RenderFrame();
 }
 
-void SDLHostInterface::AddDeviceCallbacks()
-{
-  AddFloppyCallbacks();
-  AddCDROMCallbacks();
-}
-
-void SDLHostInterface::AddDeviceFileCallback(const char* title, std::function<void(const String&)>&& callback)
-{
-  DeviceFileEntry dfe;
-  dfe.title = title;
-  dfe.callback = callback;
-  m_device_files.push_back(dfe);
-}
-
 void SDLHostInterface::RenderImGui()
 {
   if (ImGui::BeginMainMenuBar())
@@ -442,56 +363,45 @@ void SDLHostInterface::RenderImGui()
 
       ImGui::Separator();
 
-      for (const DeviceFileEntry& dfe : m_device_files)
+      for (const ComponentUIElement& ui : m_component_ui_elements)
       {
-        if (ImGui::MenuItem(dfe.title))
-          m_current_device_file = &dfe;
+        const size_t total_callbacks = ui.callbacks.size() + ui.file_callbacks.size();
+        if (total_callbacks == 0)
+          continue;
+
+        if (ImGui::BeginMenu(ui.component->GetIdentifier()))
+        {
+          for (const auto& it : ui.callbacks)
+          {
+            if (ImGui::MenuItem(it.first))
+            {
+              const auto& callback = it.second;
+              m_system->QueueExternalEvent([&callback]() { callback(); });
+            }
+          }
+
+          for (const auto& it : ui.file_callbacks)
+          {
+            if (ImGui::MenuItem(it.first))
+            {
+              nfdchar_t* path;
+              if (NFD_OpenDialog("", "", &path) == NFD_OKAY)
+              {
+                const auto& callback = it.second;
+                String str(path);
+                m_system->QueueExternalEvent([&callback, str]() { callback(str); });
+              }
+            }
+          }
+
+          ImGui::EndMenu();
+        }
       }
 
       ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();
-  }
-
-  bool opened = false;
-  if (m_current_device_file)
-  {
-    ImGui::SetNextWindowSize(ImVec2(250, 100));
-    if (ImGui::Begin("Change Image", &opened))
-    {
-      ImGui::Text("Device: %s", m_current_device_file->title.GetCharArray());
-      if (ImGui::InputText("", m_current_device_filename.GetWriteableCharArray(),
-                           m_current_device_filename.GetBufferSize()))
-      {
-        m_current_device_filename.UpdateSize();
-      }
-
-      ImGui::SameLine();
-      if (ImGui::Button("..."))
-      {
-        nfdchar_t* path;
-        if (NFD_OpenDialog("", "", &path) == NFD_OKAY)
-          m_current_device_filename = path;
-      }
-
-      if (ImGui::Button("Mount"))
-      {
-        const DeviceFileEntry* dfe = m_current_device_file;
-        String str(m_current_device_filename);
-        m_system->QueueExternalEvent([str, dfe]() { dfe->callback(str); });
-        m_current_device_file = nullptr;
-      }
-      ImGui::SameLine();
-      if (ImGui::Button("Cancel"))
-        m_current_device_file = nullptr;
-
-      ImGui::End();
-    }
-    else if (!opened)
-    {
-      m_current_device_file = nullptr;
-    }
   }
 }
 
@@ -530,81 +440,22 @@ void SDLHostInterface::DoSaveState(uint32 index)
   stream->Release();
 }
 
-void SDLHostInterface::AddFloppyCallbacks()
+std::unique_ptr<System> CreateSystem(const char* filename)
 {
-  // Find FDC.
-  HW::FDC* fdc = m_system->GetComponentByType<HW::FDC>();
-  if (!fdc)
-    return;
-
-  for (u32 i = 0; i < fdc->GetDriveCount(); i++)
+  Error error;
+  std::unique_ptr<System> system = System::ParseConfig(filename, &error);
+  if (!system)
   {
-    AddDeviceFileCallback(SmallString::FromFormat("Floppy %c", 'A' + i),
-                          [fdc](const String& filename) { LoadFloppy(fdc, 1, filename); });
-  };
-}
-void SDLHostInterface::AddCDROMCallbacks()
-{
-  // Search all CDROMs.
-  u32 index = 0;
-  for (;;)
-  {
-    HW::CDROM* cdrom = m_system->GetComponentByType<HW::CDROM>(index);
-    if (!cdrom)
-      break;
-
-    AddDeviceFileCallback(SmallString::FromFormat("CDROM '%s'", cdrom->GetIdentifier().GetCharArray()),
-                          [cdrom](const String& filename) { cdrom->InsertMedia(filename); });
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Parse Error", error.GetErrorCodeAndDescription(), nullptr);
+    return nullptr;
   }
+
+  return system;
 }
 
-static void TestBIOS(SDLHostInterface* host_interface)
+static void Run(SDLHostInterface* host_interface, System* system)
 {
-  // auto* system = new Systems::PCXT(1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
-  // auto* system = new Systems::PCBochs(CPU_X86::MODEL_486, 1000000, 32 * 1024 * 1024);
-  auto* system = new Systems::Bochs(CPU_X86::MODEL_PENTIUM, 66000000, 32 * 1024 * 1024);
-  // auto* system = new Systems::PC_AMI_386(CPU_X86::MODEL_386, 4000000, 4 * 1024 * 1024);
-  // auto* system = new Systems::PCALI1429(CPU_X86::MODEL_486, 1000000, 16 * 1024 * 1024);
-  // auto* system = new Systems::i430FX(CPU_X86::MODEL_PENTIUM, 66000000, 32 * 1024 * 1024);
-
   system->SetHostInterface(host_interface);
-
-  system->GetCPU()->SetBackend(CPUBackendType::Interpreter);
-  // system->GetCPU()->SetBackend(CPUBackendType::CachedInterpreter);
-  // system->GetCPU()->SetBackend(CPUBackendType::Recompiler);
-
-#if 0
-  system->CreateComponent<HW::CGA>("DisplayAdapter");
-#elif 0
-  system->CreateComponent<HW::VGA>("DisplayAdapter");
-#else
-  system->CreateComponent<HW::ET4000>("DisplayAdapter");
-#endif
-
-#if 0
-  // Adding a serial mouse to COM1, because why not
-  if (system->GetComponentByIdentifier("COM1"))
-    system->CreateComponent<HW::Serial>("COM1");
-  system->CreateComponent<HW::SerialMouse>("Mouse", "COM1");
-#endif
-
-#if 0
-  // Adlib synth card
-  system->CreateComponent<HW::AdLib>("AdLib");
-#endif
-#if 0
-  // Sound blaster card
-  system->CreateComponent<HW::SoundBlaster>("SoundBlaster", HW::SoundBlaster::Type::SoundBlaster16));
-#endif
-#if 0
-  // cdrom
-  system->CreateComponent<HW::IDECDROM>("CDROM", HW::HDC::CHANNEL_PRIMARY, 1);
-#endif
-
-  // system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_5_25);
-  system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_3_5);
-
-  system->GetHDDController()->AttachDrive(0, "images\\blank.img", 243, 16, 63);
 
   system->Start(true);
   while (system->GetState() == System::State::Uninitialized)
@@ -612,8 +463,6 @@ static void TestBIOS(SDLHostInterface* host_interface)
     SDL_PumpEvents();
     Thread::Sleep(0);
   }
-
-  host_interface->AddDeviceCallbacks();
 
 #if 0
   {
@@ -663,11 +512,13 @@ static void TestBIOS(SDLHostInterface* host_interface)
 #undef main
 int main(int argc, char* argv[])
 {
+  RegisterAllTypes();
+
   // set log flags
   // g_pLog->SetConsoleOutputParams(true);
-  g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_PROFILE);
+  // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_PROFILE);
   // g_pLog->SetConsoleOutputParams(true, "Bus HW::Serial", LOGLEVEL_PROFILE);
-  // g_pLog->SetConsoleOutputParams(true, "CPU_X86::CPU Bus HW::Serial", LOGLEVEL_PROFILE);
+  g_pLog->SetConsoleOutputParams(true, "CPU_X86::CPU Bus HW::Serial", LOGLEVEL_PROFILE);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_INFO);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_WARNING);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_ERROR);
@@ -678,12 +529,6 @@ int main(int argc, char* argv[])
   g_pLog->SetFilterLevel(LOGLEVEL_ERROR);
 #else
   g_pLog->SetFilterLevel(LOGLEVEL_PROFILE);
-#endif
-
-#if defined(__WIN32__)
-  // fix up stdout/stderr on win32
-  // freopen("CONOUT$", "w", stdout);
-  // freopen("CONOUT$", "w", stderr);
 #endif
 
   // init sdl
@@ -698,9 +543,15 @@ int main(int argc, char* argv[])
   if (!host_interface)
     Panic("Failed to create host interface");
 
-  TestBIOS(host_interface.get());
+  // create system
+  std::unique_ptr<System> system = CreateSystem(argv[1]);
+  if (!system)
+    return -1;
+
+  Run(host_interface.get(), system.get());
 
   // done
+  system.reset();
   host_interface.reset();
 
   SDL_Quit();
