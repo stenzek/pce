@@ -33,9 +33,6 @@ int main(int argc, char* argv[])
   bool result = true;
 
   result = result && window->createTestSystem(1, 32, "romimages/BIOS-bochs-legacy", "romimages/VGABIOS-lgpl-latest");
-  // result = result && window->setTestSystemStorage(nullptr, nullptr, "images/HD-DOS6-WIN31.img", 81, 16, 63);
-  // result = result && window->setTestSystemStorage(nullptr, nullptr, "images/win95.img", 243, 16, 63);
-  result = result && window->setTestSystemStorage(nullptr, nullptr, "images/HD-DOS6-WFW311.img", 81, 16, 63);
   result = result && window->startSystem();
 
   if (!result)

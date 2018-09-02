@@ -10,10 +10,10 @@
 #include <vector>
 
 class InterruptController;
-class HDDImage;
 
 namespace HW {
 
+class IDEHDD;
 class CDROM;
 
 class HDC : public Component
@@ -105,52 +105,17 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
-  bool IsDrivePresent(uint32 number) const { return (number < MAX_DRIVES && m_drives[number]); }
+  bool IsDrivePresent(uint32 number) const;
   uint32 GetDriveCount() const;
 
-  uint32 GetDriveCylinders(uint32 number) const
-  {
-    DebugAssert(m_drives[number]);
-    return m_drives[number]->num_cylinders;
-  }
-  uint32 GetDriveHeads(uint32 number) const
-  {
-    DebugAssert(m_drives[number]);
-    return m_drives[number]->num_heads;
-  }
-  uint32 GetDriveSectors(uint32 number) const
-  {
-    DebugAssert(m_drives[number]);
-    return m_drives[number]->num_sectors;
-  }
-  uint64 GetDriveLBAs(uint32 number) const
-  {
-    DebugAssert(m_drives[number]);
-    return m_drives[number]->num_lbas;
-  }
-  uint32 GetDriveCurrentCylinder(uint32 number) const
-  {
-    DebugAssert(m_drives[number]);
-    return m_drives[number]->current_cylinder;
-  }
-  uint32 GetDriveCurrentHead(uint32 number) const
-  {
-    DebugAssert(m_drives[number]);
-    return m_drives[number]->current_head;
-  }
-  uint32 GetDriveCurrentSector(uint32 number) const
-  {
-    DebugAssert(m_drives[number]);
-    return m_drives[number]->current_sector;
-  }
-  uint64 GetDriveCurrentLBA(uint32 number) const
-  {
-    DebugAssert(m_drives[number]);
-    return m_drives[number]->current_sector;
-  }
+  uint32 GetDriveCylinders(uint32 number) const;
+  uint32 GetDriveHeads(uint32 number) const;
+  uint32 GetDriveSectors(uint32 number) const;
+  uint64 GetDriveLBAs(uint32 number) const;
 
-  bool AttachDrive(uint32 number, const char* filename, uint32 cylinders = 0, uint32 heads = 0, uint32 sectors = 0);
+  bool AttachHDD(uint32 number, IDEHDD* drive);
   bool AttachATAPIDevice(uint32 number, CDROM* cdrom);
+  void DetachDrive(uint32 number);
 
   // For HLE bios
   bool SeekDrive(uint32 drive, uint64 lba);
@@ -170,10 +135,6 @@ protected:
   struct DriveState
   {
     DRIVE_TYPE type = DRIVE_TYPE_NONE;
-    uint32 num_cylinders = 0;
-    uint32 num_heads = 0;
-    uint32 num_sectors = 0;
-    uint64 num_lbas = 0;
 
     // parameters in current translation mode
     uint32 current_num_cylinders = 0;
@@ -196,8 +157,7 @@ protected:
     uint16 multiple_sectors = 0;
 
     // TODO: Replace with file IO
-    std::string hdd_image_filename;
-    std::unique_ptr<HDDImage> hdd_image;
+    IDEHDD* hdd = nullptr;
 
     void SetATAPIInterruptReason(bool is_command, bool data_from_device, bool release);
   };

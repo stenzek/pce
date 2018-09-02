@@ -25,10 +25,6 @@ public:
   // TODO: Remove this and replace with config system
   bool createTestSystem(uint32 cpu_model, uint32 ram_mb, const char* bios_filename, const char* vgabios_filename);
 
-  bool setTestSystemStorage(const char* floppy_a_filename = nullptr, const char* floppy_b_filename = nullptr,
-                            const char* hdd_filename = nullptr, uint32 hdd_cylinders = 0, uint32 hdd_heads = 0,
-                            uint32 hdd_sectors = 0);
-
   bool isSystemStopped() const;
   bool startSystem(bool start_paused = false);
   void pauseSystem();

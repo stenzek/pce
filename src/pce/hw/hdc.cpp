@@ -6,6 +6,7 @@
 #include "common/hdd_image.h"
 #include "pce/bus.h"
 #include "pce/hw/cdrom.h"
+#include "pce/hw/ide_hdd.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 #include <cstring>
@@ -71,14 +72,9 @@ bool HDC::LoadState(BinaryReader& reader)
       continue;
 
     const DRIVE_TYPE type = static_cast<DRIVE_TYPE>(reader.ReadUInt32());
-    const u32 num_cylinders = reader.ReadUInt32();
-    const u32 num_heads = reader.ReadUInt32();
-    const u32 num_sectors = reader.ReadUInt32();
-    const u64 num_lbas = reader.ReadUInt64();
-    if (type != drive->type || num_cylinders != drive->num_cylinders || num_heads != drive->num_heads ||
-        num_sectors != drive->num_sectors || num_lbas != drive->num_lbas)
+    if (type != drive->type)
     {
-      Log_ErrorPrintf("Save state geometry mismatch for drive %u", i);
+      Log_ErrorPrintf("Save state mismatch for drive %u", i);
       return false;
     }
 
@@ -121,20 +117,6 @@ bool HDC::LoadState(BinaryReader& reader)
   m_current_transfer.is_write = reader.ReadBool();
   m_current_transfer.is_packet_command = reader.ReadBool();
   m_current_transfer.is_packet_data = reader.ReadBool();
-
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
-  {
-    auto& drive = m_drives[i];
-    if (!drive || drive->type != DRIVE_TYPE_HDD)
-      continue;
-
-    if (!drive->hdd_image->LoadState(reader.GetStream()))
-    {
-      Log_ErrorPrintf("Failed to replace log for drive %u", i);
-      continue;
-    }
-  }
-
   return true;
 }
 
@@ -151,10 +133,6 @@ bool HDC::SaveState(BinaryWriter& writer)
       continue;
 
     writer.WriteUInt32(static_cast<uint32>(drive->type));
-    writer.WriteUInt32(drive->num_cylinders);
-    writer.WriteUInt32(drive->num_heads);
-    writer.WriteUInt32(drive->num_sectors);
-    writer.WriteUInt64(drive->num_lbas);
     writer.WriteUInt32(drive->current_num_cylinders);
     writer.WriteUInt32(drive->current_num_heads);
     writer.WriteUInt32(drive->current_num_sectors);
@@ -187,21 +165,12 @@ bool HDC::SaveState(BinaryWriter& writer)
   writer.WriteBool(m_current_transfer.is_write);
   writer.WriteBool(m_current_transfer.is_packet_command);
   writer.WriteBool(m_current_transfer.is_packet_data);
-
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
-  {
-    auto& drive = m_drives[i];
-    if (!drive || drive->type != DRIVE_TYPE_HDD)
-      continue;
-
-    if (!drive->hdd_image->SaveState(writer.GetStream()))
-    {
-      Log_ErrorPrintf("Failed to write log for drive %u", i);
-      return false;
-    }
-  }
-
   return true;
+}
+
+bool HDC::IsDrivePresent(uint32 number) const
+{
+  return (number < MAX_DRIVES && m_drives[number]);
 }
 
 uint32 HDC::GetDriveCount() const
@@ -234,43 +203,39 @@ void HDC::CalculateCHSForSize(uint32* cylinders, uint32* heads, uint32* sectors,
   // TODO
 }
 
-bool HDC::AttachDrive(uint32 number, const char* filename, uint32 cylinders /* = 0 */, uint32 heads /* = 0 */,
-                      uint32 sectors /* = 0 */)
+uint32 HDC::GetDriveCylinders(uint32 number) const
+{
+  return (number < MAX_DRIVES && m_drives[number] && m_drives[number]->hdd) ? m_drives[number]->hdd->GetNumCylinders() :
+                                                                              0;
+}
+
+uint32 HDC::GetDriveHeads(uint32 number) const
+{
+  return (number < MAX_DRIVES && m_drives[number] && m_drives[number]->hdd) ? m_drives[number]->hdd->GetNumHeads() : 0;
+}
+
+uint32 HDC::GetDriveSectors(uint32 number) const
+{
+  return (number < MAX_DRIVES && m_drives[number] && m_drives[number]->hdd) ? m_drives[number]->hdd->GetNumSectors() :
+                                                                              0;
+}
+
+uint64 HDC::GetDriveLBAs(uint32 number) const
+{
+  return (number < MAX_DRIVES && m_drives[number] && m_drives[number]->hdd) ? m_drives[number]->hdd->GetNumLBAs() : 0;
+}
+
+bool HDC::AttachHDD(uint32 number, IDEHDD* drive)
 {
   if (number >= MAX_DRIVES || m_drives[number])
     return false;
 
-  auto image = HDDImage::Open(filename);
-  if (!image)
-  {
-    Log_ErrorPrintf("Failed to open image for drive %u (%s)", number, filename);
-    return false;
-  }
-
-  if (cylinders == 0 || heads == 0 || sectors == 0)
-    CalculateCHSForSize(&cylinders, &heads, &sectors, image->GetImageSize());
-
-  if (image->GetImageSize() !=
-      (static_cast<u64>(cylinders) * static_cast<u64>(heads) * static_cast<u64>(sectors) * SECTOR_SIZE))
-  {
-    Log_ErrorPrintf("CHS geometry does not match disk size: %u/%u/%u -> %u LBAs, real size %u LBAs", cylinders, heads,
-                    sectors, cylinders * heads * sectors, uint32(image->GetImageSize() / SECTOR_SIZE));
-    return false;
-  }
-
-  Log_DevPrintf("Attaching HDD on channel %u drive %u, C/H/S: %u/%u/%u", m_channel, number, cylinders, heads, sectors);
-
   std::unique_ptr<DriveState> drive_state = std::make_unique<DriveState>();
   drive_state->type = DRIVE_TYPE_HDD;
-  drive_state->num_cylinders = cylinders;
-  drive_state->num_heads = heads;
-  drive_state->num_sectors = sectors;
-  drive_state->num_lbas = cylinders * heads * sectors;
-  drive_state->current_num_cylinders = cylinders;
-  drive_state->current_num_heads = heads;
-  drive_state->current_num_sectors = sectors;
-  drive_state->hdd_image = std::move(image);
-  drive_state->hdd_image_filename = filename;
+  drive_state->current_num_cylinders = drive->GetNumCylinders();
+  drive_state->current_num_heads = drive->GetNumHeads();
+  drive_state->current_num_sectors = drive->GetNumSectors();
+  drive_state->hdd = drive;
   m_drives[number] = std::move(drive_state);
   return true;
 }
@@ -289,12 +254,21 @@ bool HDC::AttachATAPIDevice(uint32 number, CDROM* cdrom)
   return true;
 }
 
+void HDC::DetachDrive(uint32 number)
+{
+  if (number >= MAX_DRIVES || !m_drives[number])
+    return;
+
+  m_drives[number].reset();
+  m_atapi_devices[number] = nullptr;
+}
+
 bool HDC::SeekDrive(uint32 drive, uint64 lba)
 {
   DebugAssert(drive < MAX_DRIVES && m_drives[drive]);
 
   DriveState* state = m_drives[drive].get();
-  if (lba >= state->num_lbas)
+  if (lba >= state->hdd->GetNumLBAs())
     return false;
 
   // TODO: Leave CHS unupdated for now?
@@ -329,7 +303,7 @@ bool HDC::SeekToNextSector(uint32 drive)
   if (state->current_sector == 0)
   {
     // using LBA
-    if ((state->current_lba + 1) < state->num_lbas)
+    if ((state->current_lba + 1) < state->hdd->GetNumLBAs())
     {
       state->current_lba++;
       return true;
@@ -379,7 +353,7 @@ void HDC::ReadCurrentSector(uint32 drive, void* data)
 
   DriveState* state = m_drives[drive].get();
   Log_DevPrintf("HDC read lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
-  state->hdd_image->Read(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
+  state->hdd->GetImage()->Read(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
 void HDC::WriteCurrentSector(uint32 drive, const void* data)
@@ -388,7 +362,7 @@ void HDC::WriteCurrentSector(uint32 drive, const void* data)
 
   DriveState* state = m_drives[drive].get();
   Log_DevPrintf("HDC write lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
-  state->hdd_image->Write(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
+  state->hdd->GetImage()->Write(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
 bool HDC::ReadSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, void* data)
@@ -482,9 +456,9 @@ void HDC::SoftReset()
     if (!state)
       continue;
 
-    state->current_num_cylinders = state->num_cylinders;
-    state->current_num_heads = state->num_heads;
-    state->current_num_sectors = state->num_sectors;
+    state->current_num_cylinders = state->hdd ? state->hdd->GetNumCylinders() : 0;
+    state->current_num_heads = state->hdd ? state->hdd->GetNumHeads() : 0;
+    state->current_num_sectors = state->hdd ? state->hdd->GetNumSectors() : 0;
     SetSignature(state);
   }
 
@@ -499,7 +473,7 @@ void HDC::FlushImagesEvent()
     if (!state || state->type != DRIVE_TYPE_HDD)
       continue;
 
-    state->hdd_image->Flush();
+    state->hdd->GetImage()->Flush();
   }
 }
 
@@ -815,7 +789,7 @@ bool HDC::FillReadBuffer(uint32 drive_index, uint32 sector_count)
   // TODO: Handle end of disk...
   for (uint32 i = 0; i < sector_count; i++)
   {
-    DebugAssert(m_drives[drive_index] && m_drives[drive_index]->current_lba < m_drives[drive_index]->num_lbas);
+    DebugAssert(m_drives[drive_index] && m_drives[drive_index]->current_lba < m_drives[drive_index]->hdd->GetNumLBAs());
     ReadCurrentSector(drive_index, &m_current_transfer.buffer[i * SECTOR_SIZE]);
     if (!SeekToNextSector(drive_index) && (i != (sector_count - 1)))
       return false;
@@ -835,7 +809,7 @@ bool HDC::FlushWriteBuffer(uint32 drive_index, uint32 sector_count)
   // TODO: Handle end of disk...
   for (uint32 i = 0; i < sector_count; i++)
   {
-    DebugAssert(m_drives[drive_index] && m_drives[drive_index]->current_lba < m_drives[drive_index]->num_lbas);
+    DebugAssert(m_drives[drive_index] && m_drives[drive_index]->current_lba < m_drives[drive_index]->hdd->GetNumLBAs());
     WriteCurrentSector(drive_index, &m_current_transfer.buffer[i * SECTOR_SIZE]);
     if (!SeekToNextSector(drive_index) && (i != (sector_count - 1)))
       return false;
@@ -1078,11 +1052,11 @@ void HDC::HandleATAIdentify()
   // response.flags |= (1 << 10); // >10mbit/sec transfer speed
   response.flags |= (1 << 6); // Fixed drive
   // response.flags |= (1 << 2);  // Soft sectored
-  response.cylinders = Truncate16(drive->num_cylinders);
-  response.heads = Truncate16(drive->num_heads);
-  response.unformatted_bytes_per_track = Truncate16(SECTOR_SIZE * drive->num_sectors);
+  response.cylinders = Truncate16(drive->hdd->GetNumCylinders());
+  response.heads = Truncate16(drive->hdd->GetNumHeads());
+  response.unformatted_bytes_per_track = Truncate16(SECTOR_SIZE * drive->hdd->GetNumSectors());
   response.unformatted_bytes_per_sector = Truncate16(SECTOR_SIZE);
-  response.sectors_per_track = Truncate16(drive->num_sectors);
+  response.sectors_per_track = Truncate16(drive->hdd->GetNumSectors());
   response.buffer_type = 3;
   response.buffer_size = 512; // 256KB cache
   response.ecc_bytes = 4;
@@ -1105,7 +1079,8 @@ void HDC::HandleATAIdentify()
   response.user_sectors_per_track = Truncate16(drive->current_num_sectors);
   response.user_total_sectors =
     Truncate32(drive->current_num_cylinders * drive->current_num_heads * drive->current_num_sectors);
-  response.lba_sectors = Truncate32(std::min(drive->num_lbas, ZeroExtend64(std::numeric_limits<uint32>::max())));
+  response.lba_sectors =
+    Truncate32(std::min(drive->hdd->GetNumLBAs(), ZeroExtend64(std::numeric_limits<uint32>::max())));
   PutIdentifyString(response.model, sizeof(response.model), "Herp derpity derp");
   // response.singleword_dma_modes = (1 << 0) | (1 << 8);
   // response.multiword_dma_modes = (1 << 0) | (1 << 8);
@@ -1120,7 +1095,7 @@ void HDC::HandleATAIdentify()
   response.word_85 = (1 << 14);
   response.word_86 = (1 << 10);
   response.word_93 = 1 | (1 << 14) | 0x2000;
-  response.lba48_sectors = drive->num_lbas;
+  response.lba48_sectors = drive->hdd->GetNumLBAs();
 
   // 512 bytes total
   BeginTransfer(MAX_DRIVES, 1, 1, false);
@@ -1196,7 +1171,7 @@ void HDC::HandleATATransferPIO(bool write, bool extended, bool multiple)
     uint32 sector = ZeroExtend32(drive->ata_sector_number & 0xFF);
     uint32 count = ZeroExtend32(drive->ata_sector_count & 0xFF);
     if (!SeekDrive(drive_index, cylinder, head, sector) ||
-        ((drive->current_lba + ZeroExtend64(count)) > drive->num_lbas))
+        ((drive->current_lba + ZeroExtend64(count)) > drive->hdd->GetNumLBAs()))
     {
       AbortCommand(ATA_ERR_IDNF);
       return;
@@ -1244,7 +1219,7 @@ void HDC::HandleATATransferPIO(bool write, bool extended, bool multiple)
     }
 
     // Check that it's in range
-    if (!SeekDrive(drive_index, start_lba) || ((drive->current_lba + ZeroExtend64(count)) > drive->num_lbas))
+    if (!SeekDrive(drive_index, start_lba) || ((drive->current_lba + ZeroExtend64(count)) > drive->hdd->GetNumLBAs()))
     {
       AbortCommand(ATA_ERR_IDNF);
       return;
@@ -1286,7 +1261,7 @@ void HDC::HandleATAReadVerifySectors(bool extended, bool with_retry)
     uint32 sector = ZeroExtend32(drive->ata_sector_number & 0xFF);
     uint32 count = ZeroExtend32(drive->ata_sector_count & 0xFF);
     if (!SeekDrive(drive_index, cylinder, head, sector) ||
-        ((drive->current_lba + ZeroExtend64(count)) > drive->num_lbas) || count == 0)
+        ((drive->current_lba + ZeroExtend64(count)) > drive->hdd->GetNumLBAs()) || count == 0)
     {
       // AbortCommand(ATA_ERR_IDNF);
       CompleteCommand();
@@ -1338,7 +1313,7 @@ void HDC::HandleATAReadVerifySectors(bool extended, bool with_retry)
     }
 
     // Check that it's in range
-    if (!SeekDrive(drive_index, start_lba) || ((drive->current_lba + ZeroExtend64(count)) > drive->num_lbas) ||
+    if (!SeekDrive(drive_index, start_lba) || ((drive->current_lba + ZeroExtend64(count)) > drive->hdd->GetNumLBAs()) ||
         count == 0)
     {
       AbortCommand(ATA_ERR_IDNF);
@@ -1415,7 +1390,7 @@ void HDC::HandleATAInitializeDriveParameters()
   DebugAssert(drive);
 
   // TODO: These should be controller-specific not drive-specific.. but the reset command :S
-  uint32 num_cylinders = ZeroExtend32(drive->num_cylinders);
+  uint32 num_cylinders = ZeroExtend32(drive->hdd->GetNumCylinders());
   uint32 num_heads = ZeroExtend32(m_drive_select.head.GetValue()) + 1;
   uint32 num_sectors = ZeroExtend32(drive->ata_sector_count & 0xFF);
 
@@ -1423,7 +1398,7 @@ void HDC::HandleATAInitializeDriveParameters()
                 num_sectors);
 
   // Abort the command if the translation is not possible.
-  if ((num_cylinders * num_heads * num_sectors) > drive->num_lbas)
+  if ((num_cylinders * num_heads * num_sectors) > drive->hdd->GetNumLBAs())
   {
     Log_WarningPrintf("ATA invalid geometry");
     AbortCommand();

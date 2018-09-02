@@ -15,27 +15,6 @@
 #include <QtWidgets/QMessageBox>
 Log_SetChannel(MainWindow);
 
-static bool LoadFloppy(HW::FDC* fdc, uint32 disk, const char* path)
-{
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(path, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
-  {
-    Log_ErrorPrintf("Failed to load floppy at %s", path);
-    return false;
-  }
-
-  HW::FDC::DiskType disk_type = HW::FDC::DetectDiskType(stream);
-  if (disk_type == HW::FDC::DiskType_None)
-  {
-    stream->Release();
-    return false;
-  }
-
-  bool result = fdc->InsertDisk(disk, disk_type, stream);
-  stream->Release();
-  return result;
-}
-
 MainWindow::MainWindow(QWidget* parent /*= nullptr*/) : QMainWindow(parent)
 {
   m_ui = std::make_unique<Ui::MainWindow>();
@@ -85,23 +64,6 @@ bool MainWindow::createTestSystem(uint32 cpu_model, uint32 ram_mb, const char* b
   m_system->CreateComponent<HW::VGA>("VGA");
 
   m_display_widget->SetDisplayAspectRatio(4, 3);
-  return true;
-}
-
-bool MainWindow::setTestSystemStorage(const char* floppy_a_filename, const char* floppy_b_filename,
-                                      const char* hdd_filename, uint32 hdd_cylinders, uint32 hdd_heads,
-                                      uint32 hdd_sectors)
-{
-  // TODO: Fix this crap
-  HW::FDC* fdc = m_system->GetFDDController();
-  HW::HDC* hdc = m_system->GetHDDController();
-  if (floppy_a_filename && !LoadFloppy(fdc, 0, floppy_a_filename))
-    return false;
-  if (floppy_b_filename && !LoadFloppy(fdc, 0, floppy_b_filename))
-    return false;
-  if (hdd_filename && !hdc->AttachDrive(0, hdd_filename, hdd_cylinders, hdd_heads, hdd_sectors))
-    return false;
-
   return true;
 }
 
