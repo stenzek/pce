@@ -14,11 +14,14 @@ Log_SetChannel(HW::ET4000);
 namespace HW {
 
 DEFINE_OBJECT_TYPE_INFO(ET4000);
-DEFINE_OBJECT_GENERIC_FACTORY(ET4000);
+DEFINE_GENERIC_COMPONENT_FACTORY(ET4000);
 BEGIN_OBJECT_PROPERTY_MAP(ET4000)
 END_OBJECT_PROPERTY_MAP()
 
-ET4000::ET4000() : m_clock("ET4000 Retrace", 25175000), m_bios_file_path("romimages/et4000.bin") {}
+ET4000::ET4000(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("ET4000 Retrace", 25175000), m_bios_file_path("romimages/et4000.bin")
+{
+}
 
 ET4000::~ET4000()
 {
@@ -28,8 +31,9 @@ ET4000::~ET4000()
 
 bool ET4000::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
-  m_bus = bus;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   m_display = system->GetHostInterface()->GetDisplay();
   m_clock.SetManager(system->GetTimingManager());
 

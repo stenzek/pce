@@ -47,7 +47,7 @@ public:
     Paused
   };
 
-  System();
+  System(const ObjectTypeInfo* type_info = &s_type_info);
   virtual ~System();
 
   // Host outputs
@@ -66,15 +66,20 @@ public:
   bool IsSpeedLimiterEnabled() const { return m_speed_limiter_enabled; }
   void SetSpeedLimiterEnabled(bool enabled);
 
-  virtual const char* GetSystemName() const = 0;
-  virtual InterruptController* GetInterruptController() const = 0;
-
   // Pointer ownership is transferred
   void AddComponent(Component* component);
+
+  // Creates a new component, and adds it.
+  template<typename T, typename... Args>
+  T* CreateComponent(const String& identifier, Args...);
 
   // Returns the nth component of the specified type.
   template<typename T>
   T* GetComponentByType(u32 index = 0);
+
+  // Returns the component with the specified name, or nullptr.
+  template<typename T = Component>
+  T* GetComponentByIdentifier(const char* name);
 
   // Clears the simulation thread ID. Call this when moving simulation from one thread to another.
   void ClearSimulationThreadID();
@@ -192,6 +197,14 @@ protected:
   std::atomic_bool m_has_external_events{false};
 };
 
+template<typename T, typename... Args>
+T* System::CreateComponent(const String& identifier, Args... args)
+{
+  T* component = new T(identifier, args...);
+  AddComponent(component);
+  return component;
+}
+
 template<typename T>
 T* System::GetComponentByType(u32 index /*= 0*/)
 {
@@ -203,6 +216,18 @@ T* System::GetComponentByType(u32 index /*= 0*/)
 
     if ((counter++) == index)
       return component->Cast<T>();
+  }
+
+  return nullptr;
+}
+
+template<typename T>
+T* System::GetComponentByIdentifier(const char* name)
+{
+  for (Component* component : m_components)
+  {
+    if (component->GetIdentifier().Compare(name))
+      return component->SafeCast<T>();
   }
 
   return nullptr;

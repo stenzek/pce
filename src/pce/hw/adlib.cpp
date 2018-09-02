@@ -11,22 +11,29 @@ Log_SetChannel(HW::AdLib);
 namespace HW {
 
 DEFINE_OBJECT_TYPE_INFO(AdLib);
-DEFINE_OBJECT_GENERIC_FACTORY(AdLib);
+DEFINE_GENERIC_COMPONENT_FACTORY(AdLib);
+BEGIN_OBJECT_PROPERTY_MAP(AdLib)
+PROPERTY_TABLE_MEMBER_UINT("IOBase", 0, offsetof(AdLib, m_io_base), nullptr, 0)
+END_OBJECT_PROPERTY_MAP()
 
-AdLib::AdLib() : m_chip(YMF262::Mode::OPL2, "AdLib ") {}
+AdLib::AdLib(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_chip(YMF262::Mode::OPL2, "AdLib ")
+{
+}
 
-AdLib::~AdLib() {}
+AdLib::~AdLib() = default;
 
 bool AdLib::Initialize(System* system, Bus* bus)
 {
-  if (!m_chip.Initialize(system))
+  if (!BaseClass::Initialize(system, bus) || !m_chip.Initialize(system))
     return false;
 
   // IO port connections
-  for (uint32 i = 0x0388; i <= 0x0399; i++)
+  for (uint32 i = 0; i < 18; i++)
   {
-    bus->ConnectIOPortRead(i, this, std::bind(&AdLib::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));
-    bus->ConnectIOPortWrite(i, this,
+    bus->ConnectIOPortRead(m_io_base + i, this,
+                           std::bind(&AdLib::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));
+    bus->ConnectIOPortWrite(m_io_base + i, this,
                             std::bind(&AdLib::IOPortWrite, this, std::placeholders::_1, std::placeholders::_2));
   }
 

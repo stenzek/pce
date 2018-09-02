@@ -50,7 +50,10 @@ static uint32 GetCPUIDModel(Model model)
   }
 }
 
-CPU::CPU(Model model, float frequency, CPUBackendType backend_type) : CPUBase(frequency, backend_type), m_model(model)
+CPU::CPU(const String& identifier, Model model, float frequency,
+         CPUBackendType backend_type /* = CPUBackendType::Interpreter */,
+         const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : CPUBase(identifier, frequency, backend_type, type_info), m_model(model)
 {
 #ifdef ENABLE_TLB_EMULATION
   InvalidateAllTLBEntries();
@@ -59,10 +62,23 @@ CPU::CPU(Model model, float frequency, CPUBackendType backend_type) : CPUBase(fr
 
 CPU::~CPU() {}
 
+const char* CPU::GetModelString() const
+{
+  static const char* model_name_strings[NUM_MODELS] = {"386", "486", "Pentium"};
+  return model_name_strings[m_model];
+}
+
 bool CPU::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
-  m_bus = bus;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
+  m_interrupt_controller = system->GetComponentByType<InterruptController>();
+  if (!m_interrupt_controller)
+  {
+    Log_ErrorPrintf("Failed to locate interrupt controller");
+    return false;
+  }
 
   // Copy cycle timings in.
   for (uint32 i = 0; i < NUM_CYCLE_GROUPS; i++)
@@ -1980,7 +1996,7 @@ void CPU::DispatchExternalInterrupt()
   m_current_ESP = m_registers.ESP;
 
   // Request interrupt number from the PIC.
-  const uint32 interrupt_number = m_system->GetInterruptController()->GetInterruptNumber();
+  const uint32 interrupt_number = m_interrupt_controller->GetInterruptNumber();
   SetupInterruptCall(interrupt_number, false, false, 0, m_registers.EIP);
 }
 
@@ -3613,7 +3629,7 @@ void CPU::CheckFloatingPointException()
   }
 
   // Compatibility mode via the PIC.
-  m_system->GetInterruptController()->TriggerInterrupt(13);
+  m_interrupt_controller->TriggerInterrupt(13);
 }
 
 void CPU::LoadFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddress addr_mask, bool is_32bit,

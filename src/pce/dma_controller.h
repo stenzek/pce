@@ -16,6 +16,9 @@ class DMAController : public Component
   DECLARE_OBJECT_NO_PROPERTIES(DMAController);
 
 public:
+  DMAController(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
+  virtual ~DMAController();
+
   using DMAReadCallback = std::function<void(IOPortDataSize size, uint32* value, uint32 remaining_bytes)>;
   using DMAWriteCallback = std::function<void(IOPortDataSize size, uint32 value, uint32 remaining_bytes)>;
 

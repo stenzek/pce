@@ -9,6 +9,7 @@
 #include <vector>
 
 class ByteStream;
+class InterruptController;
 
 namespace HW {
 
@@ -19,7 +20,7 @@ class CMOS : public Component
   DECLARE_OBJECT_NO_PROPERTIES(CMOS);
 
 public:
-  CMOS();
+  CMOS(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~CMOS();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -56,8 +57,6 @@ protected:
     RTC_SRC_PERIODIC_INTERRUPT = (1 << 6),
   };
 
-  System* m_system = nullptr;
-
   void ConnectIOPorts(Bus* bus);
   bool HandleKnownCMOSRead(uint8 index, uint8* value);
   bool HandleKnownCMOSWrite(uint8 index, uint8 value);
@@ -69,6 +68,7 @@ protected:
   void UpdateRTCFrequency();
   void RTCInterruptEvent(CycleCount cycles);
 
+  InterruptController* m_interrupt_controller = nullptr;
   std::array<uint8, 256> m_data = {};
   uint8 m_index_register = 0;
   bool m_nmi_enabled = false;

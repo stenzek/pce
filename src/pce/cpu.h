@@ -10,9 +10,12 @@ class CPUBase : public Component
   DECLARE_OBJECT_PROPERTY_MAP(CPUBase);
 
 public:
-  CPUBase(float frequency, CPUBackendType backend_type);
+  CPUBase(const String& identifier, float frequency, CPUBackendType backend_type,
+          const ObjectTypeInfo* type_info = &s_type_info);
 
   virtual ~CPUBase() = default;
+
+  virtual const char* GetModelString() const = 0;
 
   float GetFrequency() const { return m_frequency; }
   void SetFrequency(float frequency);
@@ -30,6 +33,8 @@ public:
 
   // Execution mode
   CPUBackendType GetCurrentBackend() const { return m_backend_type; }
+  const char* GetCurrentBackendString() const;
+
   virtual bool SupportsBackend(CPUBackendType mode) = 0;
   virtual void SetBackend(CPUBackendType mode) = 0;
 

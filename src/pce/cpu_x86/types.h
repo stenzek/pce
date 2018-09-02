@@ -14,7 +14,8 @@ enum Model : uint8
 {
   MODEL_386,
   MODEL_486,
-  MODEL_PENTIUM
+  MODEL_PENTIUM,
+  NUM_MODELS
 };
 
 enum Reg8 : uint8

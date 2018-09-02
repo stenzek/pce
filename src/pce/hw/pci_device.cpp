@@ -1,6 +1,9 @@
 #include "pce/hw/pci_device.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
+#include "YBaseLib/Log.h"
+#include "pce/hw/pci_bus.h"
+Log_SetChannel(PCIDevice);
 
 DEFINE_OBJECT_TYPE_INFO(PCIDevice);
 BEGIN_OBJECT_PROPERTY_MAP(PCIDevice)
@@ -8,8 +11,9 @@ PROPERTY_TABLE_MEMBER_UINT("PCIBusNumber", 0, offsetof(PCIDevice, m_pci_bus_numb
 PROPERTY_TABLE_MEMBER_UINT("PCIDeviceNumber", 0, offsetof(PCIDevice, m_pci_device_number), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-PCIDevice::PCIDevice(uint16 vendor_id, uint16 device_id, uint32 num_functions /* = 1 */)
-  : m_num_functions(num_functions)
+PCIDevice::PCIDevice(const String& identifier, uint16 vendor_id, uint16 device_id, uint32 num_functions /* = 1 */,
+                     const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_num_functions(num_functions)
 {
   m_config_space.resize(num_functions);
   for (uint32 i = 0; i < num_functions; i++)
@@ -19,12 +23,50 @@ PCIDevice::PCIDevice(uint16 vendor_id, uint16 device_id, uint32 num_functions /*
   }
 }
 
-PCIDevice::~PCIDevice() {}
+PCIDevice::~PCIDevice() = default;
 
-bool PCIDevice::InitializePCIDevice(uint32 pci_bus_number, uint32 pci_device_number)
+void PCIDevice::SetLocation(u32 pci_bus_number, u32 pci_device_number)
 {
   m_pci_bus_number = pci_bus_number;
   m_pci_device_number = pci_device_number;
+}
+
+PCIBus* PCIDevice::GetPCIBus() const
+{
+  return static_cast<PCIBus*>(m_bus);
+}
+
+bool PCIDevice::Initialize(System* system, Bus* bus)
+{
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
+  PCIBus* pci_bus = bus->SafeCast<PCIBus>();
+  if (!pci_bus)
+  {
+    Log_ErrorPrintf("Attempting to initialize PCI device '%s' (%s) on non-PCI bus (%s)", m_identifier.GetCharArray(),
+                    m_type_info->GetTypeName(), bus->GetTypeInfo()->GetTypeName());
+    return false;
+  }
+
+  // Auto device number?
+  if (m_pci_bus_number == 0xFFFFFFFFu || m_pci_device_number == 0xFFFFFFFFu)
+  {
+    if (!pci_bus->GetNextFreePCIDeviceNumber(&m_pci_bus_number, &m_pci_device_number))
+    {
+      Log_ErrorPrintf("No free PCI slots in bus for '%s' (%s)", m_identifier.GetCharArray(),
+                      m_type_info->GetTypeName());
+      return false;
+    }
+  }
+
+  if (!pci_bus->AssignPCIDevice(m_pci_bus_number, m_pci_device_number, this))
+  {
+    Log_ErrorPrintf("Failed to assign PCI device '%s' (%s) to bus %u/device %u", m_identifier.GetCharArray(),
+                    m_type_info->GetTypeName(), m_pci_bus_number, m_pci_device_number);
+    return false;
+  }
+
   return true;
 }
 

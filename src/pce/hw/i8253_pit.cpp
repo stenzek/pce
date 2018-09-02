@@ -16,13 +16,18 @@ DEFINE_OBJECT_TYPE_INFO(i8253_PIT);
 BEGIN_OBJECT_PROPERTY_MAP(i8253_PIT)
 END_OBJECT_PROPERTY_MAP()
 
-i8253_PIT::i8253_PIT() : m_clock("i8253 PIT", CLOCK_FREQUENCY) {}
+i8253_PIT::i8253_PIT(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("i8253 PIT", CLOCK_FREQUENCY)
+{
+}
 
-i8253_PIT::~i8253_PIT() {}
+i8253_PIT::~i8253_PIT() = default;
 
 bool i8253_PIT::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   m_clock.SetManager(system->GetTimingManager());
   ConnectIOPorts(bus);
 

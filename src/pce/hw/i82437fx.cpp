@@ -10,13 +10,16 @@ DEFINE_OBJECT_TYPE_INFO(i82437FX);
 BEGIN_OBJECT_PROPERTY_MAP(i82437FX)
 END_OBJECT_PROPERTY_MAP()
 
-i82437FX::i82437FX(Systems::PCIPC* system, Bus* bus) : PCIDevice(0x8086, 0x122D), m_system(system), m_bus(bus) {}
-
-i82437FX::~i82437FX() {}
-
-bool i82437FX::InitializePCIDevice(uint32 pci_bus_number, uint32 pci_device_number)
+i82437FX::i82437FX(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, 0x8086, 0x122D)
 {
-  if (!PCIDevice::InitializePCIDevice(pci_bus_number, pci_device_number))
+}
+
+i82437FX::~i82437FX() = default;
+
+bool i82437FX::Initialize(System* system, Bus* bus)
+{
+  if (!BaseClass::Initialize(system, bus))
     return false;
 
   return true;

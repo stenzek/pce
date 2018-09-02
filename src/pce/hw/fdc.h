@@ -8,6 +8,7 @@
 #include <array>
 
 class ByteStream;
+class InterruptController;
 
 namespace HW {
 
@@ -62,7 +63,7 @@ public:
   static DriveType GetDriveTypeForDiskType(DiskType type);
 
 public:
-  FDC(Model model, DMAController* dma);
+  FDC(const String& identifier, Model model = Model_8272, const ObjectTypeInfo* type_info = &s_type_info);
   ~FDC();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -106,7 +107,7 @@ protected:
   static constexpr uint32 DMA_CHANNEL = 2;
   static constexpr uint32 MAX_COMMAND_LENGTH = 9;
 
-  System* m_system = nullptr;
+  InterruptController* m_interrupt_controller = nullptr;
   DMAController* m_dma = nullptr;
   Clock m_clock;
   Model m_model;

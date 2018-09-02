@@ -13,7 +13,7 @@ class i8259_PIC : public InterruptController
   DECLARE_OBJECT_PROPERTY_MAP(i8259_PIC);
 
 public:
-  i8259_PIC();
+  i8259_PIC(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~i8259_PIC();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -73,8 +73,6 @@ private:
   void CommandPortWriteHandler(uint32 pic_index, uint8 value);
   void DataPortWriteHandler(uint32 pic_index, uint8 value);
   void UpdateInterruptRequest();
-
-  System* m_system = nullptr;
 
   struct PICState
   {

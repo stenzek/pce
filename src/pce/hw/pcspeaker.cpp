@@ -11,7 +11,10 @@ DEFINE_OBJECT_TYPE_INFO(PCSpeaker);
 BEGIN_OBJECT_PROPERTY_MAP(PCSpeaker)
 END_OBJECT_PROPERTY_MAP()
 
-PCSpeaker::PCSpeaker() : m_clock("PC Speaker", OUTPUT_FREQUENCY) {}
+PCSpeaker::PCSpeaker(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("PC Speaker", OUTPUT_FREQUENCY)
+{
+}
 
 PCSpeaker::~PCSpeaker()
 {
@@ -21,7 +24,9 @@ PCSpeaker::~PCSpeaker()
 
 bool PCSpeaker::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   m_clock.SetManager(system->GetTimingManager());
 
   m_output_channel = m_system->GetHostInterface()->GetAudioMixer()->CreateChannel("PC Speaker", OUTPUT_FREQUENCY,

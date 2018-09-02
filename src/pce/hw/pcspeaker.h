@@ -20,7 +20,7 @@ public:
   static constexpr float VOLUME = 0.1f;
 
 public:
-  PCSpeaker();
+  PCSpeaker(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~PCSpeaker();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -40,7 +40,6 @@ private:
   void RenderSampleEvent(CycleCount cycles);
 
   Clock m_clock;
-  System* m_system = nullptr;
   Audio::Channel* m_output_channel = nullptr;
 
   bool m_output_enabled = false;

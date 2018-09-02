@@ -30,13 +30,11 @@ public:
   static const uint32 BIOS_ROM_MIRROR_SIZE = 65536;
 
   Bochs(CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 8000000.0f,
-        uint32 memory_size = 16 * 1024 * 1024);
+        uint32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
   ~Bochs();
 
   void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
 
-  const char* GetSystemName() const override { return "Bochs PC"; }
-  InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
   bool Initialize() override;
   void Reset() override;
 

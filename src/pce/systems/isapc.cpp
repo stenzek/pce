@@ -11,9 +11,9 @@ DEFINE_OBJECT_TYPE_INFO(ISAPC);
 BEGIN_OBJECT_PROPERTY_MAP(ISAPC)
 END_OBJECT_PROPERTY_MAP()
 
-ISAPC::ISAPC() : System() {}
+ISAPC::ISAPC(const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass(type_info) {}
 
-ISAPC::~ISAPC() {}
+ISAPC::~ISAPC() = default;
 
 bool ISAPC::LoadInterleavedROM(PhysicalMemoryAddress address, const char* low_filename, const char* high_filename)
 {

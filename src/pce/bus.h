@@ -12,7 +12,7 @@
 #include "YBaseLib/TaskQueue.h"
 #include "YBaseLib/Timer.h"
 
-#include "pce/component.h"
+#include "common/object.h"
 #include "pce/mmio.h"
 #include "pce/types.h"
 
@@ -20,25 +20,29 @@ class ByteStream;
 class BinaryReader;
 class BinaryWriter;
 
-class Bus : public Component
+class Bus : public Object
 {
+  DECLARE_OBJECT_TYPE_INFO(Bus, Object);
+  DECLARE_OBJECT_NO_FACTORY(Bus);
+  DECLARE_OBJECT_NO_PROPERTIES(Bus);
+
 public:
   using CodeHashType = uint64;
   using CodeInvalidateCallback = std::function<void(PhysicalMemoryAddress)>;
 
-  static const uint32 SERIALIZATION_ID = Component::MakeSerializationID('B', 'U', 'S');
-  static const uint32 MEMORY_PAGE_SIZE = 0x1000; // 4KiB
-  static const uint32 MEMORY_PAGE_OFFSET_MASK = PhysicalMemoryAddress(MEMORY_PAGE_SIZE - 1);
-  static const uint32 MEMORY_PAGE_MASK = ~MEMORY_PAGE_OFFSET_MASK;
+  static const u32 SERIALIZATION_ID = Component::MakeSerializationID('B', 'U', 'S');
+  static const u32 MEMORY_PAGE_SIZE = 0x1000; // 4KiB
+  static const u32 MEMORY_PAGE_OFFSET_MASK = PhysicalMemoryAddress(MEMORY_PAGE_SIZE - 1);
+  static const u32 MEMORY_PAGE_MASK = ~MEMORY_PAGE_OFFSET_MASK;
 
-  Bus(uint32 memory_address_bits);
+  Bus(u32 memory_address_bits, const ObjectTypeInfo* type_info = &s_type_info);
   ~Bus();
 
-  bool Initialize(System* system, Bus* bus) override;
-  void Reset() override;
+  virtual bool Initialize(System* system);
+  virtual void Reset();
 
-  bool LoadState(BinaryReader& reader) override;
-  bool SaveState(BinaryWriter& writer) override;
+  virtual bool LoadState(BinaryReader& reader);
+  virtual bool SaveState(BinaryWriter& writer);
 
   PhysicalMemoryAddress GetMemoryAddressMask() const { return m_physical_memory_address_mask; }
   void SetMemoryAddressMask(PhysicalMemoryAddress mask) { m_physical_memory_address_mask = mask; }

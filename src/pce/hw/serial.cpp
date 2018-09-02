@@ -10,7 +10,7 @@ Log_SetChannel(HW::Serial);
 
 namespace HW {
 DEFINE_OBJECT_TYPE_INFO(Serial);
-DEFINE_OBJECT_GENERIC_FACTORY(Serial);
+DEFINE_GENERIC_COMPONENT_FACTORY(Serial);
 BEGIN_OBJECT_PROPERTY_MAP(Serial)
 END_OBJECT_PROPERTY_MAP()
 
@@ -28,12 +28,13 @@ inline std::size_t GetFifoSize(Serial::Model model)
   }
 }
 
-Serial::Serial(InterruptController* interrupt_controller, Model model, uint32 base_io_address /* = 0x03F8 */,
-               uint32 irq_number /* = 4 */, int32 base_rate /* = 1843200 */)
-  : m_clock("Serial Controller", float(std::max(base_rate / 16, 1))), m_model(model),
-    m_interrupt_controller(interrupt_controller), m_base_io_address(base_io_address), m_irq_number(irq_number),
-    m_fifo_capacity(GetFifoSize(model)), m_fifo_interrupt_size(1), m_input_fifo_size(0), m_output_fifo_size(0),
-    m_input_buffer(ExternalBufferSize), m_output_buffer(ExternalBufferSize)
+Serial::Serial(const String& identifier, Model model /* = Model_8250 */, uint32 base_io_address /* = 0x03F8 */,
+               uint32 irq_number /* = 4 */, int32 base_rate /* = 1843200 */,
+               const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("Serial Controller", float(std::max(base_rate / 16, 1))), m_model(model),
+    m_base_io_address(base_io_address), m_irq_number(irq_number), m_fifo_capacity(GetFifoSize(model)),
+    m_fifo_interrupt_size(1), m_input_fifo_size(0), m_output_fifo_size(0), m_input_buffer(ExternalBufferSize),
+    m_output_buffer(ExternalBufferSize)
 {
 }
 
@@ -41,8 +42,16 @@ Serial::~Serial() {}
 
 bool Serial::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   m_clock.SetManager(system->GetTimingManager());
+  m_interrupt_controller = system->GetComponentByType<InterruptController>();
+  if (!m_interrupt_controller)
+  {
+    Log_ErrorPrintf("Failed to locate interrupt controller.");
+    return false;
+  }
 
   ConnectIOPorts(bus);
 

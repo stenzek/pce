@@ -17,13 +17,25 @@ DEFINE_OBJECT_TYPE_INFO(XT_PPI);
 BEGIN_OBJECT_PROPERTY_MAP(XT_PPI)
 END_OBJECT_PROPERTY_MAP()
 
-XT_PPI::XT_PPI() {}
+XT_PPI::XT_PPI(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info)
+{
+}
 
-XT_PPI::~XT_PPI() {}
+XT_PPI::~XT_PPI() = default;
 
 bool XT_PPI::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
+  m_interrupt_controller = system->GetComponentByType<InterruptController>();
+  if (!m_interrupt_controller)
+  {
+    Log_ErrorPrintf("Failed to locate interrupt controller");
+    return false;
+  }
+
   ConnectIOPorts(bus);
 
   m_system->GetHostInterface()->AddKeyboardCallback(
@@ -111,7 +123,7 @@ void XT_PPI::AddScanCode(GenScanCode scancode, bool key_down)
     return;
   }
 
-  m_system->GetInterruptController()->RaiseInterrupt(KEYBOARD_IRQ);
+  m_interrupt_controller->RaiseInterrupt(KEYBOARD_IRQ);
 }
 
 bool XT_PPI::AppendToOutputBuffer(const void* data, uint32 length)
@@ -261,11 +273,11 @@ void XT_PPI::IOWrite(uint32 port, uint8 value)
         m_speaker_enable_callback(m_port_b.speaker_enable);
       if (m_port_b.clear_keyboard)
       {
-        m_system->GetInterruptController()->LowerInterrupt(KEYBOARD_IRQ);
+        m_interrupt_controller->LowerInterrupt(KEYBOARD_IRQ);
 
         // If there is still data (more keys?) we re-raise the interrupt.
         if (m_output_buffer_pos > 0)
-          m_system->GetInterruptController()->RaiseInterrupt(KEYBOARD_IRQ);
+          m_interrupt_controller->RaiseInterrupt(KEYBOARD_IRQ);
       }
 
       // Clear bits that aren't used.

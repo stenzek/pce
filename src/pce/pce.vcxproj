@@ -45,6 +45,8 @@
     <ClCompile Include="hw\cdrom.cpp" />
     <ClCompile Include="hw\et4000.cpp" />
     <ClCompile Include="hw\i82437fx.cpp" />
+    <ClCompile Include="hw\ide_cdrom.cpp" />
+    <ClCompile Include="hw\pci_bus.cpp" />
     <ClCompile Include="hw\pci_device.cpp" />
     <ClCompile Include="hw\ymf262.cpp" />
     <ClCompile Include="hw\keyboard_scancodes.cpp" />
@@ -101,6 +103,8 @@
     <ClInclude Include="hw\cdrom.h" />
     <ClInclude Include="hw\et4000.h" />
     <ClInclude Include="hw\i82437fx.h" />
+    <ClInclude Include="hw\ide_cdrom.h" />
+    <ClInclude Include="hw\pci_bus.h" />
     <ClInclude Include="hw\pci_device.h" />
     <ClInclude Include="hw\ymf262.h" />
     <ClInclude Include="hw\keyboard_scancodes.h" />

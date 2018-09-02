@@ -16,7 +16,7 @@ namespace HW {
 class SoundBlaster final : public Component
 {
   DECLARE_OBJECT_TYPE_INFO(SoundBlaster, Component);
-  DECLARE_OBJECT_GENERIC_FACTORY(SoundBlaster);
+  DECLARE_GENERIC_COMPONENT_FACTORY(SoundBlaster);
   DECLARE_OBJECT_PROPERTY_MAP(SoundBlaster);
 
 public:
@@ -29,8 +29,8 @@ public:
     SoundBlaster16
   };
 
-  SoundBlaster(Type type = Type::SoundBlaster10, uint32 iobase = 0x220, uint32 irq = 7, uint32 dma = 1,
-               uint32 dma16 = 5);
+  SoundBlaster(const String& identifier, Type type = Type::SoundBlaster10, uint32 iobase = 0x220, uint32 irq = 7,
+               uint32 dma = 1, uint32 dma16 = 5, const ObjectTypeInfo* type_info = &s_type_info);
   ~SoundBlaster();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -130,7 +130,7 @@ private:
   void LowerInterrupt(bool is_16_bit);
 
   Clock m_clock;
-  System* m_system = nullptr;
+  InterruptController* m_interrupt_controller = nullptr;
   DMAController* m_dma_controller = nullptr;
   Type m_type;
   uint32 m_io_base;

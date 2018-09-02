@@ -17,7 +17,7 @@ namespace HW {
 class VGA : public Component
 {
   DECLARE_OBJECT_TYPE_INFO(VGA, Component);
-  DECLARE_OBJECT_GENERIC_FACTORY(VGA);
+  DECLARE_GENERIC_COMPONENT_FACTORY(VGA);
   DECLARE_OBJECT_PROPERTY_MAP(VGA);
 
 public:
@@ -26,7 +26,7 @@ public:
   static const uint32 VRAM_SIZE = 524288;
 
 public:
-  VGA();
+  VGA(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~VGA();
 
   void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
@@ -56,8 +56,6 @@ private:
 
   // void DrawGraphicsLine
 
-  System* m_system = nullptr;
-  Bus* m_bus = nullptr;
   Display* m_display = nullptr;
 
   // 03C2h: Status register 0

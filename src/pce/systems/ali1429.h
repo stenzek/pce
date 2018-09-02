@@ -22,11 +22,9 @@ class ALi1429 : public ISAPC
 
 public:
   ALi1429(CPU_X86::Model model = CPU_X86::MODEL_486, float cpu_frequency = 2000000.0f,
-          uint32 memory_size = 16 * 1024 * 1024);
+          uint32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
   ~ALi1429();
 
-  const char* GetSystemName() const override { return "AMI 486"; }
-  InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
   bool Initialize() override;
   void Reset() override;
 

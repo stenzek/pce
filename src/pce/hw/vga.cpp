@@ -13,11 +13,16 @@ Log_SetChannel(HW::VGA);
 
 namespace HW {
 DEFINE_OBJECT_TYPE_INFO(VGA);
-DEFINE_OBJECT_GENERIC_FACTORY(VGA);
+DEFINE_GENERIC_COMPONENT_FACTORY(VGA);
 BEGIN_OBJECT_PROPERTY_MAP(VGA)
+PROPERTY_TABLE_MEMBER_STRING("BIOSImage", 0, offsetof(VGA, m_bios_file_path), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-VGA::VGA() : m_clock("VGA Retrace", 25175000), m_bios_file_path("romimages\\VGABIOS-lgpl-latest") {}
+VGA::VGA(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("VGA Retrace", 25175000),
+    m_bios_file_path("romimages\\VGABIOS-lgpl-latest")
+{
+}
 
 VGA::~VGA()
 {
@@ -26,8 +31,9 @@ VGA::~VGA()
 
 bool VGA::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
-  m_bus = bus;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   m_display = system->GetHostInterface()->GetDisplay();
   m_clock.SetManager(system->GetTimingManager());
 

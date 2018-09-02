@@ -12,7 +12,7 @@ class ISAPC : public System
   DECLARE_OBJECT_PROPERTY_MAP(ISAPC);
 
 public:
-  ISAPC();
+  ISAPC(const ObjectTypeInfo* type_info = &s_type_info);
   virtual ~ISAPC();
 
   bool LoadInterleavedROM(PhysicalMemoryAddress address, const char* low_filename, const char* high_filename);

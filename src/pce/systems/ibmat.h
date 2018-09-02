@@ -23,14 +23,12 @@ public:
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
   static const uint32 BIOS_ROM_SIZE = 65536;
 
-  IBMAT(float cpu_frequency = 2000000.0f, uint32 memory_size = 1024 * 1024);
+  IBMAT(float cpu_frequency = 2000000.0f, uint32 memory_size = 1024 * 1024,
+        const ObjectTypeInfo* type_info = &s_type_info);
   ~IBMAT();
 
   void SetLowBIOSFilePath(const std::string& path) { m_low_bios_file_path = path; }
   void SetHighBIOSFilePath(const std::string& path) { m_high_bios_file_path = path; }
-
-  const char* GetSystemName() const override { return "IBM AT"; }
-  InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
 
   auto GetFDDController() const { return m_fdd_controller; }
   auto GetHDDController() const { return m_hdd_controller; }

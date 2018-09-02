@@ -12,11 +12,16 @@ Log_SetChannel(HW::SerialMouse);
 
 namespace HW {
 DEFINE_OBJECT_TYPE_INFO(SerialMouse);
-DEFINE_OBJECT_GENERIC_FACTORY(SerialMouse);
+DEFINE_GENERIC_COMPONENT_FACTORY(SerialMouse);
 BEGIN_OBJECT_PROPERTY_MAP(SerialMouse)
+PROPERTY_TABLE_MEMBER_STRING("SerialPortName", 0, offsetof(SerialMouse, m_serial_port_name), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-SerialMouse::SerialMouse(Serial* serial_port) : m_clock("SerialMouse", UPDATES_PER_SEC), m_serial_port(serial_port) {}
+SerialMouse::SerialMouse(const String& identifier, const String& serial_port_name /* = "COM1" */,
+                         const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_serial_port_name(serial_port_name), m_clock("SerialMouse", UPDATES_PER_SEC)
+{
+}
 
 SerialMouse::~SerialMouse()
 {
@@ -26,9 +31,21 @@ SerialMouse::~SerialMouse()
 
 bool SerialMouse::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   m_clock.SetManager(system->GetTimingManager());
   m_update_event = m_clock.NewEvent("Update", 1, std::bind(&SerialMouse::SendUpdate, this), false);
+
+  // Find the serial port.
+  m_serial_port = system->GetComponentByIdentifier<Serial>(m_serial_port_name);
+  if (!m_serial_port)
+  {
+    Log_ErrorPrintf("Failed to find serial port '%s' for serial mouse '%s'", m_serial_port_name.GetCharArray(),
+                    m_identifier.GetCharArray());
+    return false;
+  }
+
   ConnectCallbacks();
   return true;
 }
@@ -93,6 +110,9 @@ void SerialMouse::ConnectCallbacks()
     std::bind(&SerialMouse::OnSerialPortDTRChanged, this, std::placeholders::_1));
   m_serial_port->SetRequestToSendChangedCallback(
     std::bind(&SerialMouse::OnSerialPortRTSChanged, this, std::placeholders::_1));
+
+  Log_InfoPrintf("Attached serial mouse '%s' to serial port '%s'", m_identifier.GetCharArray(),
+                 m_serial_port->GetIdentifier().GetCharArray());
 }
 
 void SerialMouse::OnHostMousePositionChanged(int32 dx, int32 dy)

@@ -2,6 +2,8 @@
 #include "pce/component.h"
 #include <vector>
 
+class PCIBus;
+
 class PCIDevice : public Component
 {
   DECLARE_OBJECT_TYPE_INFO(PCIDevice, Component);
@@ -11,11 +13,19 @@ class PCIDevice : public Component
 public:
   static constexpr uint32 NUM_CONFIG_REGISTERS = 64;
 
-  PCIDevice(uint16 vendor_id, uint16 device_id, uint32 num_functions = 1);
+  PCIDevice(const String& identifier, uint16 vendor_id, uint16 device_id, uint32 num_functions = 1,
+            const ObjectTypeInfo* type_info = &s_type_info);
   ~PCIDevice();
 
-  virtual bool InitializePCIDevice(uint32 pci_bus_number, uint32 pci_device_number);
-  virtual void Reset();
+  u32 GetPCIBusNumber() const { return m_pci_bus_number; }
+  u32 GetPCIDeviceNumber() const { return m_pci_device_number; }
+  void SetLocation(u32 pci_bus_number, u32 pci_device_number);
+
+  // Returns the PCI bus which this device is attached to.
+  PCIBus* GetPCIBus() const;
+
+  virtual bool Initialize(System* system, Bus* bus) override;
+  virtual void Reset() override;
 
   virtual bool LoadState(BinaryReader& reader) override;
   virtual bool SaveState(BinaryWriter& writer) override;
@@ -28,8 +38,8 @@ protected:
   virtual void HandleWriteConfigRegister(uint32 function, uint8 offset, uint8 value);
 
   uint32 m_num_functions = 0;
-  uint32 m_pci_bus_number = 0;
-  uint32 m_pci_device_number = 0;
+  uint32 m_pci_bus_number = 0xFFFFFFFFu;
+  uint32 m_pci_device_number = 0xFFFFFFFFu;
 
   union ConfigSpace
   {

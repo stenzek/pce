@@ -14,20 +14,20 @@ BEGIN_OBJECT_PROPERTY_MAP(IBMXT)
 END_OBJECT_PROPERTY_MAP()
 
 IBMXT::IBMXT(float cpu_frequency /* = 1000000.0f */, uint32 memory_size /* = 640 * 1024 */,
-             VideoType video_type /* = VideoType::Other */)
-  : ISAPC(), m_bios_file_path("romimages/PCXTBIOS.BIN"), m_video_type(video_type)
+             VideoType video_type /* = VideoType::Other */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(type_info), m_bios_file_path("romimages/PCXTBIOS.BIN"), m_video_type(video_type)
 {
-  m_cpu = new CPU_X86::CPU(CPU_X86::MODEL_386, cpu_frequency);
+  m_cpu = new CPU_X86::CPU("CPU", CPU_X86::MODEL_386, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
   AllocatePhysicalMemory(memory_size, true, true);
   AddComponents();
 }
 
-IBMXT::~IBMXT() {}
+IBMXT::~IBMXT() = default;
 
 bool IBMXT::Initialize()
 {
-  if (!ISAPC::Initialize())
+  if (!BaseClass::Initialize())
     return false;
 
   if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS_8K, 8192))
@@ -40,7 +40,7 @@ bool IBMXT::Initialize()
 
 void IBMXT::Reset()
 {
-  ISAPC::Reset();
+  BaseClass::Reset();
 
   m_nmi_mask = 0;
 
@@ -50,7 +50,7 @@ void IBMXT::Reset()
 
 bool IBMXT::LoadSystemState(BinaryReader& reader)
 {
-  if (!ISAPC::LoadSystemState(reader))
+  if (!BaseClass::LoadSystemState(reader))
     return false;
 
   if (reader.ReadUInt32() != SERIALIZATION_ID)
@@ -63,7 +63,7 @@ bool IBMXT::LoadSystemState(BinaryReader& reader)
 
 bool IBMXT::SaveSystemState(BinaryWriter& writer)
 {
-  if (!ISAPC::SaveSystemState(writer))
+  if (!BaseClass::SaveSystemState(writer))
     return false;
 
   writer.WriteUInt32(SERIALIZATION_ID);
@@ -75,19 +75,14 @@ bool IBMXT::SaveSystemState(BinaryWriter& writer)
 
 void IBMXT::AddComponents()
 {
-  m_dma_controller = new HW::i8237_DMA();
-  m_timer = new HW::i8253_PIT();
-  m_interrupt_controller = new HW::i8259_PIC();
-  m_ppi = new HW::XT_PPI();
-  m_speaker = new HW::PCSpeaker();
-  m_fdd_controller = new HW::FDC(HW::FDC::Model_8272, m_dma_controller);
+  m_interrupt_controller = CreateComponent<HW::i8259_PIC>("InterruptController");
+  m_dma_controller = CreateComponent<HW::i8237_DMA>("DMAController");
+  m_timer = CreateComponent<HW::i8253_PIT>("PIT");
+  m_ppi = CreateComponent<HW::XT_PPI>("PPI");
+  m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
 
-  AddComponent(m_interrupt_controller);
-  AddComponent(m_dma_controller);
-  AddComponent(m_timer);
-  AddComponent(m_ppi);
-  AddComponent(m_speaker);
-  AddComponent(m_fdd_controller);
+  m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_82077);
+  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::CHANNEL_PRIMARY);
 }
 
 void IBMXT::ConnectSystemIOPorts()

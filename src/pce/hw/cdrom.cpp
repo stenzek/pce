@@ -10,16 +10,15 @@ Log_SetChannel(HW::CDROM);
 namespace HW {
 
 DEFINE_OBJECT_TYPE_INFO(CDROM);
-DEFINE_OBJECT_GENERIC_FACTORY(CDROM);
 BEGIN_OBJECT_PROPERTY_MAP(CDROM)
 PROPERTY_TABLE_MEMBER_STRING("VendorID", 0, offsetof(CDROM, m_vendor_id_string), nullptr, 0)
 PROPERTY_TABLE_MEMBER_STRING("ModelID", 0, offsetof(CDROM, m_model_id_string), nullptr, 0)
 PROPERTY_TABLE_MEMBER_STRING("FirmwareVersion", 0, offsetof(CDROM, m_firmware_version_string), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-CDROM::CDROM()
-  : m_clock("CDROM", 1000000.0f), m_vendor_id_string("POTATO"), m_model_id_string("POTATOROM"),
-    m_firmware_version_string("1.00")
+CDROM::CDROM(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("CDROM", 1000000.0f), m_vendor_id_string("POTATO"),
+    m_model_id_string("POTATOROM"), m_firmware_version_string("1.00")
 {
 }
 

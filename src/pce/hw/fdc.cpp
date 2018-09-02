@@ -112,16 +112,33 @@ FDC::DriveType FDC::GetDriveTypeForDiskType(DiskType type)
   return DriveType_None;
 }
 
-FDC::FDC(Model model, DMAController* dma) : m_dma(dma), m_clock("Floppy Controller", CLOCK_FREQUENCY), m_model(model) {}
+FDC::FDC(const String& identifier, Model model /* = Model_8272 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("Floppy Controller", CLOCK_FREQUENCY), m_model(model)
+{
+}
 
-FDC::~FDC() {}
+FDC::~FDC() = default;
 
 bool FDC::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
-  m_clock.SetManager(system->GetTimingManager());
-  ConnectIOPorts(bus);
+  if (!BaseClass::Initialize(system, bus))
+    return false;
 
+  m_clock.SetManager(system->GetTimingManager());
+  m_dma = system->GetComponentByType<DMAController>();
+  if (!m_dma)
+  {
+    Log_ErrorPrintf("Failed to find DMA controller for FDC");
+    return false;
+  }
+  m_interrupt_controller = m_system->GetComponentByType<InterruptController>();
+  if (!m_interrupt_controller)
+  {
+    Log_ErrorPrintf("Failed to locate interrupt controller.");
+    return false;
+  }
+
+  ConnectIOPorts(bus);
   m_command_event = m_clock.NewEvent("Floppy Command", 1, std::bind(&FDC::EndCommand, this), false);
   return true;
 }
@@ -1017,13 +1034,13 @@ void FDC::RaiseInterrupt()
   m_interrupt_pending = true;
   m_reset_sense_interrupt_count = 0;
   if (m_DOR.ndmagate)
-    m_system->GetInterruptController()->RaiseInterrupt(6);
+    m_interrupt_controller->RaiseInterrupt(6);
 }
 
 void FDC::LowerInterrupt()
 {
   m_interrupt_pending = false;
-  m_system->GetInterruptController()->LowerInterrupt(6);
+  m_interrupt_controller->LowerInterrupt(6);
 }
 
 void FDC::IOReadStatusRegisterA(uint8* value)

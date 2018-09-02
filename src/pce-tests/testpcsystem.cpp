@@ -37,7 +37,7 @@ TestPCSystem::TestPCSystem(CPU_X86::Model cpu_model /* = CPU_X86::MODEL_486 */, 
   : System()
 {
   m_host_interface = new DummyHostInterface();
-  m_cpu = new CPU_X86::CPU(cpu_model, cpu_frequency, cpu_backend);
+  m_cpu = new CPU_X86::CPU("CPU", cpu_model, cpu_frequency, cpu_backend);
   m_bus = new Bus((cpu_model >= CPU_X86::MODEL_386) ? 32 : 20);
   // AllocatePhysicalMemory(640 * 1024, false);
   m_bus->AllocateRAM(ram_size);
@@ -133,6 +133,5 @@ bool TestPCSystem::Ready()
 
 void TestPCSystem::AddComponents()
 {
-  m_interrupt_controller = new HW::i8259_PIC();
-  AddComponent(m_interrupt_controller);
+  m_interrupt_controller = CreateComponent<HW::i8259_PIC>("InterruptController");
 }

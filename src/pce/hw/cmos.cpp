@@ -12,15 +12,27 @@ namespace HW {
 
 DEFINE_OBJECT_TYPE_INFO(CMOS);
 
-CMOS::CMOS() : m_rtc_clock("CMOS", 32768) {}
+CMOS::CMOS(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_rtc_clock("CMOS", 32768)
+{
+}
 
-CMOS::~CMOS() {}
+CMOS::~CMOS() = default;
 
 bool CMOS::Initialize(System* system, Bus* bus)
 {
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
+  m_interrupt_controller = system->GetComponentByType<InterruptController>();
+  if (!m_interrupt_controller)
+  {
+    Log_ErrorPrintf("Failed to locate interrupt controller");
+    return false;
+  }
+
   std::fill(m_data.begin(), m_data.end(), uint8(0));
 
-  m_system = system;
   ConnectIOPorts(bus);
 
   m_rtc_clock.SetManager(system->GetTimingManager());
@@ -310,7 +322,7 @@ void CMOS::RTCInterruptEvent(CycleCount cycles)
   if (m_data[RTC_REGISTER_STATUS_REGISTER_B] & RTC_SRB_PERIODIC_INTERRUPT_ENABLE &&
       !(m_data[RTC_REGISTER_STATUS_REGISTER_C] & RTC_SRC_PERIODIC_INTERRUPT))
   {
-    m_system->GetInterruptController()->TriggerInterrupt(RTC_INTERRUPT);
+    m_interrupt_controller->TriggerInterrupt(RTC_INTERRUPT);
   }
 
   m_data[RTC_REGISTER_STATUS_REGISTER_C] |= RTC_SRC_PERIODIC_INTERRUPT;

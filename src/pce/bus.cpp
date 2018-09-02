@@ -17,13 +17,15 @@
 #include <limits>
 Log_SetChannel(Bus);
 
+DEFINE_OBJECT_TYPE_INFO(Bus);
+
 // Fix link errors on GCC.
 const uint32 Bus::SERIALIZATION_ID;
 const uint32 Bus::MEMORY_PAGE_SIZE;
 const uint32 Bus::MEMORY_PAGE_OFFSET_MASK;
 const uint32 Bus::MEMORY_PAGE_MASK;
 
-Bus::Bus(uint32 memory_address_bits)
+Bus::Bus(uint32 memory_address_bits, const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass(type_info)
 {
   AllocateMemoryPages(memory_address_bits);
 }
@@ -43,7 +45,7 @@ Bus::~Bus()
   delete[] m_ram_ptr;
 }
 
-bool Bus::Initialize(System* system, Bus* bus)
+bool Bus::Initialize(System* system)
 {
   m_system = system;
   return true;

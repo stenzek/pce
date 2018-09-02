@@ -17,7 +17,7 @@ namespace HW {
 class ET4000 : public Component
 {
   DECLARE_OBJECT_TYPE_INFO(ET4000, Component);
-  DECLARE_OBJECT_GENERIC_FACTORY(ET4000);
+  DECLARE_GENERIC_COMPONENT_FACTORY(ET4000);
   DECLARE_OBJECT_PROPERTY_MAP(ET4000);
 
 public:
@@ -29,7 +29,7 @@ public:
   static const uint32 VRAM_MASK_PER_PLANE = (VRAM_SIZE / 4) - 1;
 
 public:
-  ET4000();
+  ET4000(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~ET4000();
 
   void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
@@ -58,8 +58,6 @@ private:
 
   // void DrawGraphicsLine
 
-  System* m_system = nullptr;
-  Bus* m_bus = nullptr;
   Display* m_display = nullptr;
 
   // 03C2h: Status register 0

@@ -13,21 +13,21 @@ DEFINE_OBJECT_GENERIC_FACTORY(AMI386);
 BEGIN_OBJECT_PROPERTY_MAP(AMI386)
 END_OBJECT_PROPERTY_MAP()
 
-AMI386::AMI386(CPU_X86::Model model /* = CPU_X86::MODEL_486 */, float cpu_frequency /* = 8000000.0f */,
-               uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : ISAPC(), m_bios_file_path("romimages/ami386.bin")
+AMI386::AMI386(CPU_X86::Model model /* = CPU_X86::MODEL_386 */, float cpu_frequency /* = 4000000.0f */,
+               uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(type_info), m_bios_file_path("romimages/ami386.bin")
 {
-  m_cpu = new CPU_X86::CPU(model, cpu_frequency);
+  m_cpu = new CPU_X86::CPU("CPU", model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
   AllocatePhysicalMemory(memory_size, false, true);
   AddComponents();
 }
 
-AMI386::~AMI386() {}
+AMI386::~AMI386() = default;
 
 bool AMI386::Initialize()
 {
-  if (!ISAPC::Initialize())
+  if (!BaseClass::Initialize())
     return false;
 
   if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
@@ -40,7 +40,7 @@ bool AMI386::Initialize()
 
 void AMI386::Reset()
 {
-  ISAPC::Reset();
+  BaseClass::Reset();
 
   m_cmos_lock = false;
   m_refresh_bit = false;
@@ -56,7 +56,7 @@ void AMI386::Reset()
 
 bool AMI386::LoadSystemState(BinaryReader& reader)
 {
-  if (!ISAPC::LoadSystemState(reader))
+  if (!BaseClass::LoadSystemState(reader))
     return false;
 
   reader.SafeReadBool(&m_cmos_lock);
@@ -66,7 +66,7 @@ bool AMI386::LoadSystemState(BinaryReader& reader)
 
 bool AMI386::SaveSystemState(BinaryWriter& writer)
 {
-  if (!ISAPC::SaveSystemState(writer))
+  if (!BaseClass::SaveSystemState(writer))
     return false;
 
   writer.SafeWriteBool(m_cmos_lock);
@@ -164,30 +164,19 @@ void AMI386::UpdateKeyboardControllerOutputPort()
 
 void AMI386::AddComponents()
 {
-  m_keyboard_controller = new HW::i8042_PS2();
-  m_dma_controller = new HW::i8237_DMA();
-  m_timer = new HW::i8253_PIT();
-  m_interrupt_controller = new HW::i8259_PIC();
-  m_cmos = new HW::CMOS();
+  m_interrupt_controller = CreateComponent<HW::i8259_PIC>("InterruptController");
+  m_dma_controller = CreateComponent<HW::i8237_DMA>("DMAController");
+  m_timer = CreateComponent<HW::i8253_PIT>("PIT");
+  m_keyboard_controller = CreateComponent<HW::i8042_PS2>("KeyboardController");
+  m_cmos = CreateComponent<HW::CMOS>("CMOS");
+  m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
 
-  AddComponent(m_interrupt_controller);
-  AddComponent(m_dma_controller);
-  AddComponent(m_timer);
-  AddComponent(m_keyboard_controller);
-  AddComponent(m_cmos);
-
-  m_fdd_controller = new HW::FDC(HW::FDC::Model_8272, m_dma_controller);
-  m_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_PRIMARY);
-
-  AddComponent(m_fdd_controller);
-  AddComponent(m_hdd_controller);
+  m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_8272);
+  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::CHANNEL_PRIMARY);
 
   // Connect channel 0 of the PIT to the interrupt controller
   m_timer->SetChannelOutputChangeCallback(0,
                                           [this](bool value) { m_interrupt_controller->SetInterruptState(0, value); });
-
-  m_speaker = new HW::PCSpeaker();
-  AddComponent(m_speaker);
 
   // Connect channel 2 of the PIT to the speaker
   m_timer->SetChannelOutputChangeCallback(2, [this](bool value) { m_speaker->SetLevel(value); });

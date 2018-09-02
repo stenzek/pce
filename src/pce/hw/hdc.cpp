@@ -16,13 +16,26 @@ DEFINE_OBJECT_TYPE_INFO(HDC);
 BEGIN_OBJECT_PROPERTY_MAP(HDC)
 END_OBJECT_PROPERTY_MAP()
 
-HDC::HDC(CHANNEL channel) : m_channel(channel) {}
+HDC::HDC(const String& identifier, CHANNEL channel /* = CHANNEL_PRIMARY */,
+         const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_channel(channel)
+{
+}
 
-HDC::~HDC() {}
+HDC::~HDC() = default;
 
 bool HDC::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
+  m_interrupt_controller = m_system->GetComponentByType<InterruptController>();
+  if (!m_interrupt_controller)
+  {
+    Log_ErrorPrintf("Failed to locate interrupt controller.");
+    return false;
+  }
+
   ConnectIOPorts(bus);
 
   // Flush the HDD images once a second, to ensure data isn't lost.
@@ -224,7 +237,8 @@ void HDC::CalculateCHSForSize(uint32* cylinders, uint32* heads, uint32* sectors,
 bool HDC::AttachDrive(uint32 number, const char* filename, uint32 cylinders /* = 0 */, uint32 heads /* = 0 */,
                       uint32 sectors /* = 0 */)
 {
-  DebugAssert(number < MAX_DRIVES);
+  if (number >= MAX_DRIVES || m_drives[number])
+    return false;
 
   auto image = HDDImage::Open(filename);
   if (!image)
@@ -261,7 +275,8 @@ bool HDC::AttachDrive(uint32 number, const char* filename, uint32 cylinders /* =
 
 bool HDC::AttachATAPIDevice(uint32 number, CDROM* cdrom)
 {
-  DebugAssert(number < MAX_DRIVES);
+  if (number >= MAX_DRIVES || m_drives[number])
+    return false;
 
   std::unique_ptr<DriveState> drive_state = std::make_unique<DriveState>();
   drive_state->type = DRIVE_TYPE_ATAPI;
@@ -549,7 +564,7 @@ uint8 HDC::GetStatusRegisterValue()
 void HDC::IOReadStatusRegister(uint8* value)
 {
   // Lower interrupt
-  m_system->GetInterruptController()->LowerInterrupt(m_irq_number);
+  m_interrupt_controller->LowerInterrupt(m_irq_number);
   *value = GetStatusRegisterValue();
 }
 
@@ -1697,7 +1712,7 @@ void HDC::RaiseInterrupt()
   if (!m_control_register.disable_interrupts)
   {
     Log_DevPrintf("Raising HDD interrupt");
-    m_system->GetInterruptController()->RaiseInterrupt(m_irq_number);
+    m_interrupt_controller->RaiseInterrupt(m_irq_number);
   }
 }
 

@@ -18,7 +18,6 @@
 #include "pce/cpu_x86/cpu_x86.h"
 #include "pce/host_interface.h"
 #include "pce/hw/adlib.h"
-#include "pce/hw/cdrom.h"
 #include "pce/hw/cga.h"
 #include "pce/hw/cmos.h"
 #include "pce/hw/et4000.h"
@@ -27,6 +26,7 @@
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
+#include "pce/hw/ide_cdrom.h"
 #include "pce/hw/serial.h"
 #include "pce/hw/serial_mouse.h"
 #include "pce/hw/soundblaster.h"
@@ -88,13 +88,14 @@ public:
 
   void Render();
 
-  void AddDeviceFileCallback(const char* title, std::function<void(const std::string&)>&& callback);
+  void AddDeviceCallbacks();
+  void AddDeviceFileCallback(const char* title, std::function<void(const String&)>&& callback);
 
 protected:
   struct DeviceFileEntry
   {
     String title;
-    std::function<void(const std::string&)> callback;
+    std::function<void(const String&)> callback;
   };
 
   // We only pass mouse input through if it's grabbed
@@ -104,6 +105,9 @@ protected:
   void RenderImGui();
   void DoLoadState(uint32 index);
   void DoSaveState(uint32 index);
+
+  void AddFloppyCallbacks();
+  void AddCDROMCallbacks();
 
   std::unique_ptr<DisplaySDL> m_display;
   std::unique_ptr<Audio::Mixer> m_mixer;
@@ -183,22 +187,10 @@ void SDLHostInterface::OnSimulationSpeedUpdate(float speed_percent)
   if (!m_last_message.IsEmpty() && m_last_message_time.GetTimeSeconds() >= 3.0f)
     m_last_message.Clear();
 
-  const char* cpu_backend = "";
-  switch (m_system->GetCPU()->GetCurrentBackend())
-  {
-    case CPUBackendType::Interpreter:
-      cpu_backend = "Interpreter";
-      break;
-    case CPUBackendType::CachedInterpreter:
-      cpu_backend = "Cached Interpreter";
-      break;
-    case CPUBackendType::Recompiler:
-      cpu_backend = "Recompiler";
-      break;
-  }
-
-  SmallString window_title;
-  window_title.Format("PCE | %s | CPU: %s | Speed: %.1f%% | VPS: %.1f%s%s", m_system->GetSystemName(), cpu_backend,
+  LargeString window_title;
+  window_title.Format("PCE | System: %s | CPU: %s (%.2f MHz, %s) | Speed: %.1f%% | VPS: %.1f%s%s",
+                      m_system->GetTypeInfo()->GetTypeName(), m_system->GetCPU()->GetModelString(),
+                      m_system->GetCPU()->GetFrequency() / 1000000.0f, m_system->GetCPU()->GetCurrentBackendString(),
                       speed_percent, m_display->GetFramesPerSecond(), m_last_message.IsEmpty() ? "" : " | ",
                       m_last_message.GetCharArray());
 
@@ -338,7 +330,13 @@ void SDLHostInterface::Render()
   m_display->RenderFrame();
 }
 
-void SDLHostInterface::AddDeviceFileCallback(const char* title, std::function<void(const std::string&)>&& callback)
+void SDLHostInterface::AddDeviceCallbacks()
+{
+  AddFloppyCallbacks();
+  AddCDROMCallbacks();
+}
+
+void SDLHostInterface::AddDeviceFileCallback(const char* title, std::function<void(const String&)>&& callback)
 {
   DeviceFileEntry dfe;
   dfe.title = title;
@@ -480,7 +478,7 @@ void SDLHostInterface::RenderImGui()
       if (ImGui::Button("Mount"))
       {
         const DeviceFileEntry* dfe = m_current_device_file;
-        std::string str(m_current_device_filename);
+        String str(m_current_device_filename);
         m_system->QueueExternalEvent([str, dfe]() { dfe->callback(str); });
         m_current_device_file = nullptr;
       }
@@ -532,6 +530,34 @@ void SDLHostInterface::DoSaveState(uint32 index)
   stream->Release();
 }
 
+void SDLHostInterface::AddFloppyCallbacks()
+{
+  // Find FDC.
+  HW::FDC* fdc = m_system->GetComponentByType<HW::FDC>();
+  if (!fdc)
+    return;
+
+  for (u32 i = 0; i < fdc->GetDriveCount(); i++)
+  {
+    AddDeviceFileCallback(SmallString::FromFormat("Floppy %c", 'A' + i),
+                          [fdc](const String& filename) { LoadFloppy(fdc, 1, filename); });
+  };
+}
+void SDLHostInterface::AddCDROMCallbacks()
+{
+  // Search all CDROMs.
+  u32 index = 0;
+  for (;;)
+  {
+    HW::CDROM* cdrom = m_system->GetComponentByType<HW::CDROM>(index);
+    if (!cdrom)
+      break;
+
+    AddDeviceFileCallback(SmallString::FromFormat("CDROM '%s'", cdrom->GetIdentifier().GetCharArray()),
+                          [cdrom](const String& filename) { cdrom->InsertMedia(filename); });
+  }
+}
+
 static void TestBIOS(SDLHostInterface* host_interface)
 {
   // auto* system = new Systems::PCXT(1000000.0f, 640 * 1024, Systems::PCXT::VideoType::CGA80);
@@ -548,51 +574,38 @@ static void TestBIOS(SDLHostInterface* host_interface)
   // system->GetCPU()->SetBackend(CPUBackendType::Recompiler);
 
 #if 0
-  system->AddComponent(new HW::CGA());
-#elif 1
-  system->AddComponent(new HW::VGA());
+  system->CreateComponent<HW::CGA>("DisplayAdapter");
+#elif 0
+  system->CreateComponent<HW::VGA>("DisplayAdapter");
 #else
-  system->AddComponent(new HW::ET4000());
+  system->CreateComponent<HW::ET4000>("DisplayAdapter");
 #endif
 
 #if 0
   // Adding a serial mouse to COM1, because why not
-  HW::Serial* serial_port_COM1 = new HW::Serial(system->GetInterruptController(), HW::Serial::Model_16550);
-  HW::SerialMouse* serial_mouse = new HW::SerialMouse(serial_port_COM1);
-  system->AddComponent(serial_port_COM1);
-  system->AddComponent(serial_mouse);
+  if (system->GetComponentByIdentifier("COM1"))
+    system->CreateComponent<HW::Serial>("COM1");
+  system->CreateComponent<HW::SerialMouse>("Mouse", "COM1");
 #endif
 
 #if 0
   // Adlib synth card
-  system->AddComponent(new HW::AdLib());
+  system->CreateComponent<HW::AdLib>("AdLib");
 #endif
 #if 0
   // Sound blaster card
-  system->AddComponent(new HW::SoundBlaster(HW::SoundBlaster::Type::SoundBlaster16));
+  system->CreateComponent<HW::SoundBlaster>("SoundBlaster", HW::SoundBlaster::Type::SoundBlaster16));
 #endif
 #if 0
   // cdrom
-  HW::CDROM* cdrom = new HW::CDROM();
-  system->AddComponent(cdrom);
-  system->GetHDDController()->AttachATAPIDevice(1, cdrom);
-  host_interface->AddDeviceFileCallback(
-    "CDROM", [&system, cdrom](const std::string& filename) { cdrom->InsertMedia(filename.c_str()); });
+  system->CreateComponent<HW::IDECDROM>("CDROM", HW::HDC::CHANNEL_PRIMARY, 1);
 #endif
 
   // system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_5_25);
   system->GetFDDController()->SetDriveType(0, HW::FDC::DriveType_3_5);
-  LoadFloppy(system->GetFDDController(), 0, "images\\bootfloppy.img");
-  host_interface->AddDeviceFileCallback("Floppy A", [&system](const std::string& filename) {
-    LoadFloppy(system->GetFDDController(), 0, filename.c_str());
-  });
-  host_interface->AddDeviceFileCallback("Floppy B", [&system](const std::string& filename) {
-    LoadFloppy(system->GetFDDController(), 1, filename.c_str());
-  });
 
   system->GetHDDController()->AttachDrive(0, "images\\blank.img", 243, 16, 63);
 
-#if 0
   system->Start(true);
   while (system->GetState() == System::State::Uninitialized)
   {
@@ -600,6 +613,9 @@ static void TestBIOS(SDLHostInterface* host_interface)
     Thread::Sleep(0);
   }
 
+  host_interface->AddDeviceCallbacks();
+
+#if 0
   {
     ByteStream* stream;
     if (ByteStream_OpenFileStream("savestate_4.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
@@ -612,7 +628,7 @@ static void TestBIOS(SDLHostInterface* host_interface)
     }
   }
 #else
-  system->Start();
+  system->QueueExternalEvent([&]() { system->SetState(System::State::Running); });
 #endif
 
   while (system->GetState() != System::State::Stopped)

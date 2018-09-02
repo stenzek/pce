@@ -1,22 +1,18 @@
 #pragma once
 #include "pce/hw/pci_device.h"
 
-namespace Systems {
-class PCIPC;
-}
-
 namespace HW {
-class i82437FX : public PCIDevice
+class i82437FX final : public PCIDevice
 {
   DECLARE_OBJECT_TYPE_INFO(i82437FX, PCIDevice);
   DECLARE_OBJECT_NO_FACTORY(i82437FX);
   DECLARE_OBJECT_PROPERTY_MAP(i82437FX);
 
 public:
-  i82437FX(Systems::PCIPC* system, Bus* bus);
+  i82437FX(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~i82437FX();
 
-  bool InitializePCIDevice(uint32 pci_bus_number, uint32 pci_device_number) override;
+  bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
 
   bool LoadState(BinaryReader& reader) override;
@@ -32,9 +28,6 @@ private:
 
   void SetPAMMapping(uint32 base, uint32 size, uint8 flag);
   void UpdatePAMMapping(uint8 offset);
-
-  Systems::PCIPC* m_system;
-  Bus* m_bus;
 };
 
 } // namespace HW

@@ -1,62 +1,37 @@
 #include "pce/systems/pcipc.h"
-#include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
-#include "YBaseLib/Memory.h"
-#include "pce/bus.h"
-#include "pce/mmio.h"
+#include "pce/hw/pci_bus.h"
+#include "pce/hw/pci_device.h"
 Log_SetChannel(Systems::PCIPC);
 
 namespace Systems {
 
-PCIPC::PCIPC(PCIConfigSpaceAccessType config_access_type) : Systems::ISAPC(), m_config_access_type(config_access_type)
+DEFINE_OBJECT_TYPE_INFO(PCIPC);
+
+PCIPC::PCIPC(PCIConfigSpaceAccessType config_access_type, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(type_info), m_config_access_type(config_access_type)
 {
 }
 
-PCIPC::~PCIPC() {}
+PCIPC::~PCIPC() = default;
 
-bool PCIPC::AddPCIDevice(PCIDevice* dev)
+PCIBus* PCIPC::GetPCIBus() const
 {
-  // Find a free location
-  for (uint32 bus = 0; bus < NUM_PCI_BUSES; bus++)
-  {
-    for (uint32 device = 0; device < NUM_PCI_DEVICES_PER_BUS; device++)
-    {
-      if (!m_pci_devices[bus][device])
-        return AddPCIDeviceToLocation(dev, bus, device);
-    }
-  }
-
-  return false;
-}
-
-bool PCIPC::AddPCIDeviceToLocation(PCIDevice* dev, uint32 bus_number, int32 device_number)
-{
-  if (bus_number >= NUM_PCI_BUSES || device_number >= NUM_PCI_DEVICES_PER_BUS ||
-      m_pci_devices[bus_number][device_number] != nullptr)
-  {
-    return false;
-  }
-
-  m_pci_devices[bus_number][device_number] = dev;
-  AddComponent(dev);
-  return true;
+  return static_cast<PCIBus*>(m_bus);
 }
 
 bool PCIPC::Initialize()
 {
-  if (!ISAPC::Initialize())
+  if (!BaseClass::Initialize())
     return false;
 
   ConnectPCIBusIOPorts();
-  if (!InitializePCIDevices())
-    return false;
-
   return true;
 }
 
 void PCIPC::Reset()
 {
-  ISAPC::Reset();
+  BaseClass::Reset();
   m_pci_config_type1_address.bits = 0;
   m_pci_config_type2_bus = 0;
   m_pci_config_type2_address.bits = 0;
@@ -103,21 +78,6 @@ void PCIPC::ConnectPCIBusIOPorts()
   }
 }
 
-bool PCIPC::InitializePCIDevices()
-{
-  for (uint32 bus = 0; bus < NUM_PCI_BUSES; bus++)
-  {
-    for (uint32 device = 0; device < NUM_PCI_DEVICES_PER_BUS; device++)
-    {
-      PCIDevice* dev = m_pci_devices[bus][device];
-      if (dev && !dev->InitializePCIDevice(bus, device))
-        return false;
-    }
-  }
-
-  return true;
-}
-
 void PCIPC::IOReadPCIType1ConfigDataByte(uint32 port, uint8* value)
 {
   if (!m_pci_config_type1_address.enable)
@@ -132,7 +92,8 @@ void PCIPC::IOReadPCIType1ConfigDataByte(uint32 port, uint8* value)
   const uint8 reg = m_pci_config_type1_address.reg;
   const uint8 idx = Truncate8(port & 3);
 
-  if (bus >= NUM_PCI_BUSES || device >= NUM_PCI_DEVICES_PER_BUS || !m_pci_devices[bus][device])
+  PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
+  if (!dev)
   {
     Log_TracePrintf("Missing bus %u device %u function %u (%u/%u/%u)", bus, device, function, reg, idx,
                     (reg * 4) + idx);
@@ -140,7 +101,7 @@ void PCIPC::IOReadPCIType1ConfigDataByte(uint32 port, uint8* value)
     return;
   }
 
-  *value = m_pci_devices[bus][device]->ReadConfigRegister(function, reg, idx);
+  dev->ReadConfigRegister(function, reg, idx);
 }
 
 void PCIPC::IOWritePCIType1ConfigDataByte(uint32 port, uint8 value)
@@ -154,14 +115,15 @@ void PCIPC::IOWritePCIType1ConfigDataByte(uint32 port, uint8 value)
   const uint8 reg = m_pci_config_type1_address.reg;
   const uint8 idx = Truncate8(port & 3);
 
-  if (bus >= NUM_PCI_BUSES || device >= NUM_PCI_DEVICES_PER_BUS || !m_pci_devices[bus][device])
+  PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
+  if (!dev)
   {
     Log_TracePrintf("Missing bus %u device %u function %u (%u/%u/%u) <- 0x%02X", bus, device, function, reg, idx,
                     (reg * 4) + idx, value);
     return;
   }
 
-  m_pci_devices[bus][device]->WriteConfigRegister(function, reg, idx, value);
+  dev->WriteConfigRegister(function, reg, idx, value);
 }
 
 void PCIPC::IOReadPCIType2ConfigData(uint32 port, uint8* value)
@@ -178,14 +140,15 @@ void PCIPC::IOReadPCIType2ConfigData(uint32 port, uint8* value)
   const uint8 reg = Truncate8((port >> 2) & 63);
   const uint8 idx = Truncate8(port & 3);
 
-  if (bus >= NUM_PCI_BUSES || device >= NUM_PCI_DEVICES_PER_BUS || !m_pci_devices[bus][device])
+  PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
+  if (!dev)
   {
     Log_DevPrintf("Missing bus %u device %u function %u (%u/%u/%u)", bus, device, function, reg, idx, (reg * 4) + idx);
     *value = 0xFF;
     return;
   }
 
-  *value = m_pci_devices[bus][device]->ReadConfigRegister(function, reg, idx);
+  dev->ReadConfigRegister(function, reg, idx);
 }
 
 void PCIPC::IOWritePCIType2ConfigData(uint32 port, uint8 value)
@@ -199,14 +162,15 @@ void PCIPC::IOWritePCIType2ConfigData(uint32 port, uint8 value)
   const uint8 reg = Truncate8((port >> 2) & 63);
   const uint8 idx = Truncate8(port & 3);
 
-  if (bus >= NUM_PCI_BUSES || device >= NUM_PCI_DEVICES_PER_BUS || !m_pci_devices[bus][device])
+  PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
+  if (!dev)
   {
     Log_DevPrintf("Missing bus %u device %u function %u (%u/%u/%u) <- 0x%02X", bus, device, function, reg, idx,
                   (reg * 4) + idx, value);
     return;
   }
 
-  m_pci_devices[bus][device]->WriteConfigRegister(function, reg, idx, value);
+  dev->WriteConfigRegister(function, reg, idx, value);
 }
 
 } // namespace Systems

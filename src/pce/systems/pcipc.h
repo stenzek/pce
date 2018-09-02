@@ -1,16 +1,17 @@
 #pragma once
 #include "common/bitfield.h"
-#include "pce/component.h"
-#include "pce/hw/pci_device.h"
-#include "pce/system.h"
 #include "pce/systems/isapc.h"
-#include <list>
-#include <memory>
+
+class PCIBus;
 
 namespace Systems {
 
-class PCIPC : public Systems::ISAPC
+class PCIPC : public ISAPC
 {
+  DECLARE_OBJECT_TYPE_INFO(PCIPC, ISAPC);
+  DECLARE_OBJECT_NO_FACTORY(PCIPC);
+  DECLARE_OBJECT_NO_PROPERTIES(PCIPC);
+
 public:
   enum class PCIConfigSpaceAccessType
   {
@@ -18,12 +19,14 @@ public:
     Type2
   };
 
-  PCIPC(PCIConfigSpaceAccessType config_access_type);
+  PCIPC(PCIConfigSpaceAccessType config_access_type, const ObjectTypeInfo* type_info = &s_type_info);
   virtual ~PCIPC();
 
-  // TODO: Needs a better interface, probably with RTTI and AddComponent().
-  bool AddPCIDevice(PCIDevice* dev);
-  bool AddPCIDeviceToLocation(PCIDevice* dev, uint32 bus_number, int32 device_number);
+  PCIBus* GetPCIBus() const;
+
+  // Creates a PCI device, and adds it to the specified location.
+  template<typename T, typename... Args>
+  T* CreatePCIDevice(u32 pci_bus_number, u32 pci_device_number, const String& identifier, Args...);
 
 protected:
   // NOTE: Assumes there is only a single PCI bus, and all devices are attached to it.
@@ -35,7 +38,6 @@ protected:
 
 private:
   void ConnectPCIBusIOPorts();
-  bool InitializePCIDevices();
 
   void IOReadPCIType1ConfigDataByte(uint32 port, uint8* value);
   void IOWritePCIType1ConfigDataByte(uint32 port, uint8 value);
@@ -61,8 +63,6 @@ private:
     uint8 bits;
   };
 
-  PCIDevice* m_pci_devices[NUM_PCI_BUSES][NUM_PCI_DEVICES_PER_BUS] = {};
-
   PCIConfigSpaceAccessType m_config_access_type;
 
   PCIConfigType1Address m_pci_config_type1_address{};
@@ -70,5 +70,14 @@ private:
   PCIConfigType2Address m_pci_config_type2_address{};
   uint8 m_pci_config_type2_bus = 0;
 };
+
+template<typename T, typename... Args>
+T* PCIPC::CreatePCIDevice(u32 pci_bus_number, u32 pci_device_number, const String& identifier, Args... args)
+{
+  T* component = new T(identifier, args...);
+  component->SetLocation(pci_bus_number, pci_device_number);
+  AddComponent(component);
+  return component;
+}
 
 } // namespace Systems

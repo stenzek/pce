@@ -18,7 +18,7 @@ public:
   static constexpr float CLOCK_FREQUENCY = 1193181.6666f;
   static constexpr size_t NUM_CHANNELS = 3;
 
-  i8253_PIT();
+  i8253_PIT(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~i8253_PIT();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -122,7 +122,6 @@ private:
   void UpdateAllChannelsDowncount();
 
   Clock m_clock;
-  System* m_system = nullptr;
 
   std::array<Channel, NUM_CHANNELS> m_channels;
 

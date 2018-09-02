@@ -16,17 +16,22 @@ namespace HW {
 #include "cga_palette.inl"
 
 DEFINE_OBJECT_TYPE_INFO(CGA);
-DEFINE_OBJECT_GENERIC_FACTORY(CGA);
+DEFINE_GENERIC_COMPONENT_FACTORY(CGA);
 BEGIN_OBJECT_PROPERTY_MAP(CGA)
 END_OBJECT_PROPERTY_MAP()
 
-CGA::CGA() : m_clock("CGA", 3579545) {}
+CGA::CGA(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("CGA", 3579545)
+{
+}
 
 CGA::~CGA() {}
 
 bool CGA::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   m_display = system->GetHostInterface()->GetDisplay();
   m_clock.SetManager(system->GetTimingManager());
   ConnectIOPorts(bus);

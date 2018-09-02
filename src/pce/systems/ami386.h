@@ -26,13 +26,11 @@ public:
   static const uint32 BIOS_ROM_SIZE = 65536;
 
   AMI386(CPU_X86::Model model = CPU_X86::MODEL_386, float cpu_frequency = 4000000.0f,
-         uint32 memory_size = 16 * 1024 * 1024);
+         uint32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
   ~AMI386();
 
   void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
 
-  const char* GetSystemName() const override { return "AMI 386"; }
-  InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
   bool Initialize() override;
   void Reset() override;
 

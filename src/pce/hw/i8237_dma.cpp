@@ -14,16 +14,18 @@ DEFINE_OBJECT_TYPE_INFO(i8237_DMA);
 BEGIN_OBJECT_PROPERTY_MAP(i8237_DMA)
 END_OBJECT_PROPERTY_MAP()
 
-i8237_DMA::i8237_DMA() : m_clock("i8237 DMA Controller", 4772726) // 4.773 MHz
+i8237_DMA::i8237_DMA(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("i8237 DMA Controller", 4772726) // 4.773 MHz
 {
 }
 
-i8237_DMA::~i8237_DMA() {}
+i8237_DMA::~i8237_DMA() = default;
 
 bool i8237_DMA::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
-  m_bus = bus;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   m_clock.SetManager(system->GetTimingManager());
 
   ConnectIOPorts();

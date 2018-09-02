@@ -13,6 +13,7 @@
 #define PREFETCH_QUEUE_SIZE 32
 
 class DebuggerInterface;
+class InterruptController;
 
 namespace CPU_X86 {
 
@@ -263,11 +264,11 @@ public:
   // Interrupt hook callback
   using InterruptHookCallback = std::function<bool(uint32 interrupt, Registers* registers)>;
 
-  CPU(Model model, float frequency, CPUBackendType backend_type = CPUBackendType::Interpreter);
+  CPU(const String& identifier, Model model, float frequency, CPUBackendType backend_type = CPUBackendType::Interpreter,
+      const ObjectTypeInfo* type_info = &s_type_info);
   ~CPU();
 
-  System* GetSystem() const { return m_system; }
-  Bus* GetBus() const { return m_bus; }
+  const char* GetModelString() const;
 
   const Registers* GetRegisters() const { return &m_registers; }
   Registers* GetRegisters() { return &m_registers; }
@@ -504,8 +505,7 @@ protected:
   void FlushPrefetchQueue();
   bool FillPrefetchQueue();
 
-  System* m_system = nullptr;
-  Bus* m_bus = nullptr;
+  InterruptController* m_interrupt_controller = nullptr;
   std::unique_ptr<Backend> m_backend;
   std::unique_ptr<DebuggerInterface> m_debugger_interface;
 

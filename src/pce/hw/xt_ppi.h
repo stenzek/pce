@@ -7,6 +7,8 @@
 #include "pce/system.h"
 #include <array>
 
+class InterruptController;
+
 namespace HW {
 
 class XT_PPI : public Component
@@ -16,7 +18,7 @@ class XT_PPI : public Component
   DECLARE_OBJECT_PROPERTY_MAP(XT_PPI);
 
 public:
-  XT_PPI();
+  XT_PPI(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~XT_PPI();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -54,7 +56,7 @@ private:
   void IORead(uint32 port, uint8* value);
   void IOWrite(uint32 port, uint8 value);
 
-  System* m_system = nullptr;
+  InterruptController* m_interrupt_controller;
 
   // Callbacks
   SetBoolCallback m_speaker_gate_callback;

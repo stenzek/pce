@@ -8,6 +8,8 @@
 #include <array>
 #include <deque>
 
+class InterruptController;
+
 namespace HW {
 
 class i8042_PS2 : public Component
@@ -17,7 +19,7 @@ class i8042_PS2 : public Component
   DECLARE_OBJECT_PROPERTY_MAP(i8042_PS2);
 
 public:
-  i8042_PS2();
+  i8042_PS2(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~i8042_PS2();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -83,7 +85,7 @@ private:
   void CreateMousePacket();
 
   Clock m_clock;
-  System* m_system = nullptr;
+  InterruptController* m_interrupt_controller = nullptr;
   OutputPortWrittenCallback m_output_port_written_callback;
 
   union

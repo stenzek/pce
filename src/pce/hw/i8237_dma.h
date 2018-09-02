@@ -30,7 +30,7 @@ public:
     DMAMode_Cascade
   };
 
-  i8237_DMA();
+  i8237_DMA(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~i8237_DMA();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -104,8 +104,6 @@ private:
   void IOWriteMaskReset(uint32 base_channel, uint8 value);
 
   Clock m_clock;
-  System* m_system = nullptr;
-  Bus* m_bus = nullptr;
 
   Channel m_channels[NUM_CHANNELS];
   bool m_flipflops[2] = {};

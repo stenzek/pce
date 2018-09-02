@@ -23,7 +23,7 @@ DEFINE_OBJECT_TYPE_INFO(System);
 BEGIN_OBJECT_PROPERTY_MAP(System)
 END_OBJECT_PROPERTY_MAP()
 
-System::System() = default;
+System::System(const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass(type_info) {}
 
 System::~System()
 {
@@ -129,7 +129,7 @@ bool System::Initialize()
   if (!m_host_interface->Initialize(this))
     Panic("Failed to initialize host interface.");
 
-  m_bus->Initialize(this, nullptr);
+  m_bus->Initialize(this);
   m_cpu->Initialize(this, m_bus);
   for (Component* component : m_components)
   {

@@ -82,7 +82,7 @@ bool MainWindow::createTestSystem(uint32 cpu_model, uint32 ram_mb, const char* b
     std::unique_ptr<Systems::Bochs>(new Systems::Bochs(real_cpu_model, real_cpu_frequency, ram_mb * 1024 * 1024));
   m_system->SetHostInterface(m_host_interface.get());
 
-  m_system->AddComponent(new HW::VGA());
+  m_system->CreateComponent<HW::VGA>("VGA");
 
   m_display_widget->SetDisplayAspectRatio(4, 3);
   return true;

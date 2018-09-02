@@ -17,7 +17,7 @@ namespace HW {
 class Serial : public Component
 {
   DECLARE_OBJECT_TYPE_INFO(Serial, Component);
-  DECLARE_OBJECT_GENERIC_FACTORY(Serial);
+  DECLARE_GENERIC_COMPONENT_FACTORY(Serial);
   DECLARE_OBJECT_PROPERTY_MAP(Serial);
 
 public:
@@ -33,8 +33,8 @@ public:
     Model_16750
   };
 
-  Serial(InterruptController* interrupt_controller = nullptr, Model model = Model_8250, uint32 base_io_address = 0x03F8,
-         uint32 irq_number = 4, int32 base_rate = 1843200);
+  Serial(const String& identifier, Model model = Model_8250, uint32 base_io_address = 0x03F8, uint32 irq_number = 4,
+         int32 base_rate = 1843200, const ObjectTypeInfo* type_info = &s_type_info);
   ~Serial();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -110,8 +110,7 @@ private:
   void UpdateInterruptState();
   void UpdateTransmitEvent();
 
-  System* m_system = nullptr;
-  InterruptController* m_interrupt_controller;
+  InterruptController* m_interrupt_controller = nullptr;
 
   Clock m_clock;
   Model m_model;

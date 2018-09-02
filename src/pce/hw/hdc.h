@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+class InterruptController;
 class HDDImage;
 
 namespace HW {
@@ -27,7 +28,7 @@ public:
   static const uint32 MAX_DRIVES = 2;
 
   // TODO: Flag class
-  enum CHANNEL
+  enum CHANNEL : u32
   {
     CHANNEL_PRIMARY,
     CHANNEL_SECONDARY,
@@ -96,7 +97,7 @@ public:
 
   static void CalculateCHSForSize(uint32* cylinders, uint32* heads, uint32* sectors, uint64 disk_size);
 
-  HDC(CHANNEL channel);
+  HDC(const String& identifier, CHANNEL channel = CHANNEL_PRIMARY, const ObjectTypeInfo* type_info = &s_type_info);
   ~HDC();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -161,7 +162,7 @@ public:
   bool WriteSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, const void* data);
 
 protected:
-  System* m_system = nullptr;
+  InterruptController* m_interrupt_controller = nullptr;
   CHANNEL m_channel = CHANNEL_PRIMARY;
   uint32 m_irq_number = 0;
 

@@ -12,12 +12,17 @@ class Serial;
 class SerialMouse final : public Component
 {
   DECLARE_OBJECT_TYPE_INFO(SerialMouse, Component);
-  DECLARE_OBJECT_GENERIC_FACTORY(SerialMouse);
+  DECLARE_GENERIC_COMPONENT_FACTORY(SerialMouse);
   DECLARE_OBJECT_PROPERTY_MAP(SerialMouse);
 
 public:
-  SerialMouse(Serial* serial_port = nullptr);
+  SerialMouse(const String& identifier, const String& serial_port_name = "COM1",
+              const ObjectTypeInfo* type_info = &s_type_info);
   ~SerialMouse();
+
+  const Serial* GetSerialPort() const { return m_serial_port; }
+  const String& GetSerialPortName() const { return m_serial_port_name; }
+  void SetSerialPortName(const String& name) { m_serial_port_name = name; }
 
   bool Initialize(System* system, Bus* bus) override;
   bool LoadState(BinaryReader& reader) override;
@@ -38,9 +43,9 @@ private:
   void SendUpdate();
 
   Clock m_clock;
+  String m_serial_port_name;
+  Serial* m_serial_port = nullptr;
 
-  System* m_system = nullptr;
-  Serial* m_serial_port;
   bool m_dtr_active = false;
   bool m_active = false;
 

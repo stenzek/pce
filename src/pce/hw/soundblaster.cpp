@@ -14,7 +14,7 @@ Log_SetChannel(HW::SoundBlaster);
 
 namespace HW {
 DEFINE_OBJECT_TYPE_INFO(SoundBlaster);
-DEFINE_OBJECT_GENERIC_FACTORY(SoundBlaster);
+DEFINE_GENERIC_COMPONENT_FACTORY(SoundBlaster);
 BEGIN_OBJECT_PROPERTY_MAP(SoundBlaster)
 END_OBJECT_PROPERTY_MAP()
 
@@ -56,10 +56,11 @@ YMF262::Mode SoundBlaster::GetOPLMode(Type type)
   }
 }
 
-SoundBlaster::SoundBlaster(Type type /* = Type::SoundBlaster10 */, uint32 iobase /* = 0x220 */, uint32 irq /* = 7 */,
-                           uint32 dma /* = 1 */, uint32 dma16 /* = 5 */)
-  : m_clock("Sound Blaster DSP", 44100), m_type(type), m_io_base(iobase), m_irq(irq), m_dma_channel(dma),
-    m_dma_channel_16(dma16), m_ymf262(GetOPLMode(type)), m_dsp_version(GetDSPVersion(type))
+SoundBlaster::SoundBlaster(const String& identifier, Type type /* = Type::SoundBlaster10 */,
+                           uint32 iobase /* = 0x220 */, uint32 irq /* = 7 */, uint32 dma /* = 1 */,
+                           uint32 dma16 /* = 5 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("Sound Blaster DSP", 44100), m_type(type), m_io_base(iobase), m_irq(irq),
+    m_dma_channel(dma), m_dma_channel_16(dma16), m_ymf262(GetOPLMode(type)), m_dsp_version(GetDSPVersion(type))
 {
 }
 
@@ -67,11 +68,17 @@ SoundBlaster::~SoundBlaster() {}
 
 bool SoundBlaster::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
-  m_clock.SetManager(system->GetTimingManager());
-
-  if (!m_ymf262.Initialize(system))
+  if (!BaseClass::Initialize(system, bus) || !m_ymf262.Initialize(system))
     return false;
+
+  m_interrupt_controller = system->GetComponentByType<InterruptController>();
+  if (!m_interrupt_controller)
+  {
+    Log_ErrorPrintf("Failed to locate interrupt controller");
+    return false;
+  }
+
+  m_clock.SetManager(system->GetTimingManager());
 
   // IO port connections
   // Present in all sound blaster models
@@ -269,7 +276,7 @@ void SoundBlaster::RaiseInterrupt(bool is_16_bit)
   bool& interrupt_flag = is_16_bit ? m_interrupt_pending_16 : m_interrupt_pending;
   if (!interrupt_flag)
   {
-    m_system->GetInterruptController()->RaiseInterrupt(m_irq);
+    m_interrupt_controller->RaiseInterrupt(m_irq);
     interrupt_flag = true;
   }
 }
@@ -279,7 +286,7 @@ void SoundBlaster::LowerInterrupt(bool is_16_bit)
   bool& interrupt_flag = is_16_bit ? m_interrupt_pending_16 : m_interrupt_pending;
   if (interrupt_flag)
   {
-    m_system->GetInterruptController()->LowerInterrupt(m_irq);
+    m_interrupt_controller->LowerInterrupt(m_irq);
     interrupt_flag = false;
   }
 }
@@ -341,7 +348,7 @@ void SoundBlaster::ResetDSP(bool soft_reset)
   ClearDSPInputBuffer();
   ClearDSPOutputBuffer();
   if (m_interrupt_pending || m_interrupt_pending_16)
-    m_system->GetInterruptController()->LowerInterrupt(m_irq);
+    m_interrupt_controller->LowerInterrupt(m_irq);
   m_interrupt_pending = false;
   m_interrupt_pending_16 = false;
   m_dsp_test_register = 0;

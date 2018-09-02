@@ -3,8 +3,7 @@
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
-#include "pce/bus.h"
-#include "pce/cpu.h"
+#include "pce/hw/pci_bus.h"
 #include <memory>
 Log_SetChannel(Systems::Bochs);
 
@@ -14,12 +13,12 @@ DEFINE_OBJECT_GENERIC_FACTORY(Bochs);
 BEGIN_OBJECT_PROPERTY_MAP(Bochs)
 END_OBJECT_PROPERTY_MAP()
 
-Bochs::Bochs(CPU_X86::Model model /* = CPU_X86::MODEL_486 */, float cpu_frequency /* = 8000000.0f */,
-             uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : PCIPC(PCIPC::PCIConfigSpaceAccessType::Type1), m_bios_file_path("romimages/BIOS-bochs-latest")
+Bochs::Bochs(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_frequency /* = 8000000.0f */,
+             uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(PCIPC::PCIConfigSpaceAccessType::Type1, type_info), m_bios_file_path("romimages/BIOS-bochs-latest")
 {
-  m_cpu = new CPU_X86::CPU(model, cpu_frequency);
-  m_bus = new Bus(PHYSICAL_MEMORY_BITS);
+  m_bus = new PCIBus(PHYSICAL_MEMORY_BITS);
+  m_cpu = new CPU_X86::CPU("CPU", model, cpu_frequency);
   AllocatePhysicalMemory(memory_size, false, false);
   AddComponents();
 }
@@ -177,22 +176,22 @@ void Bochs::UpdateKeyboardControllerOutputPort()
 
 void Bochs::AddComponents()
 {
-  AddPCIDeviceToLocation((m_sb82437 = new HW::i82437FX(this, m_bus)), 0, 0);
-  AddComponent(m_interrupt_controller = new HW::i8259_PIC());
-  AddComponent(m_dma_controller = new HW::i8237_DMA());
-  AddComponent(m_timer = new HW::i8253_PIT());
-  AddComponent(m_keyboard_controller = new HW::i8042_PS2());
-  AddComponent(m_cmos = new HW::CMOS());
+  m_sb82437 = CreatePCIDevice<HW::i82437FX>(0, 0, "Southbridge");
 
-  AddComponent(m_fdd_controller = new HW::FDC(HW::FDC::Model_82077, m_dma_controller));
-  AddComponent(m_primary_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_PRIMARY));
-  AddComponent(m_secondary_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_SECONDARY));
+  m_interrupt_controller = CreateComponent<HW::i8259_PIC>("InterruptController");
+  m_dma_controller = CreateComponent<HW::i8237_DMA>("DMAController");
+  m_timer = CreateComponent<HW::i8253_PIT>("PIT");
+  m_keyboard_controller = CreateComponent<HW::i8042_PS2>("KeyboardController");
+  m_cmos = CreateComponent<HW::CMOS>("CMOS");
+  m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
+
+  m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_82077);
+  m_primary_hdd_controller = CreateComponent<HW::HDC>("PrimaryHDC", HW::HDC::CHANNEL_PRIMARY);
+  m_secondary_hdd_controller = CreateComponent<HW::HDC>("SecondaryHDC", HW::HDC::CHANNEL_SECONDARY);
 
   // Connect channel 0 of the PIT to the interrupt controller
   m_timer->SetChannelOutputChangeCallback(0,
                                           [this](bool value) { m_interrupt_controller->SetInterruptState(0, value); });
-
-  AddComponent(m_speaker = new HW::PCSpeaker());
 
   // Connect channel 2 of the PIT to the speaker
   m_timer->SetChannelOutputChangeCallback(2, [this](bool value) { m_speaker->SetLevel(value); });

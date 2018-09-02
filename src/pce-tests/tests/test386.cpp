@@ -25,8 +25,7 @@ static void RunTest386(CPUBackendType cpu_backend)
 
   // Add a serial port to the machine at the default COM1 port.
   // We speed this up so the guest spends less time waiting for the serial port..
-  auto* serial_port = new HW::Serial(system->GetInterruptController(), HW::Serial::Model_8250, 0x03F8, 3, 1000000000);
-  system->AddComponent(serial_port);
+  HW::Serial* serial_port = system->CreateComponent<HW::Serial>("COM1", HW::Serial::Model_8250, 0x03F8, 3, 1000000000);
 
   // This is our data buffer that we get back from the guest.
   std::vector<uint8> data_buffer;

@@ -12,7 +12,7 @@ namespace HW {
 class CGA : public Component
 {
   DECLARE_OBJECT_TYPE_INFO(CGA, Component);
-  DECLARE_OBJECT_GENERIC_FACTORY(CGA);
+  DECLARE_GENERIC_COMPONENT_FACTORY(CGA);
   DECLARE_OBJECT_PROPERTY_MAP(CGA);
 
 public:
@@ -32,7 +32,7 @@ public:
   static const uint8 BLINK_INTERVAL = 8;
 
 public:
-  CGA();
+  CGA(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~CGA();
 
   const uint8* GetVRAM() const { return m_vram; }
@@ -55,7 +55,6 @@ private:
   void RenderLineBorder();
   void FlushFrame();
 
-  System* m_system = nullptr;
   Display* m_display;
   uint8 m_vram[VRAM_SIZE];
 

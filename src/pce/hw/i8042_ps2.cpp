@@ -17,13 +17,24 @@ DEFINE_OBJECT_TYPE_INFO(i8042_PS2);
 BEGIN_OBJECT_PROPERTY_MAP(i8042_PS2)
 END_OBJECT_PROPERTY_MAP()
 
-i8042_PS2::i8042_PS2() : m_clock("8042 Keyboard Controller", 1000000.0f) {}
+i8042_PS2::i8042_PS2(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_clock("8042 Keyboard Controller", 1000000.0f)
+{
+}
 
-i8042_PS2::~i8042_PS2() {}
+i8042_PS2::~i8042_PS2() = default;
 
 bool i8042_PS2::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
+  m_interrupt_controller = m_system->GetComponentByType<InterruptController>();
+  if (!m_interrupt_controller)
+  {
+    Log_ErrorPrintf("Failed to locate interrupt controller.");
+    return false;
+  }
 
   m_clock.SetManager(system->GetTimingManager());
   m_command_event = m_clock.NewEvent("Keyboard Command", 10, std::bind(&i8042_PS2::OnCommandEvent, this), false);
@@ -191,12 +202,12 @@ void i8042_PS2::IOReadDataPort(uint8* value)
   if (m_status_register.mouse_buffer_status)
   {
     m_output_port.port_2_interrupt_requested = false;
-    m_system->GetInterruptController()->LowerInterrupt(PORT_2_IRQ);
+    m_interrupt_controller->LowerInterrupt(PORT_2_IRQ);
   }
   else
   {
     m_output_port.port_1_interrupt_requested = false;
-    m_system->GetInterruptController()->LowerInterrupt(PORT_1_IRQ);
+    m_interrupt_controller->LowerInterrupt(PORT_1_IRQ);
   }
 
   *value = m_output_buffer;
@@ -311,7 +322,7 @@ void i8042_PS2::OnTransferEvent()
     if (m_configuration_byte.port_1_interrupt)
     {
       m_output_port.port_1_interrupt_requested = true;
-      m_system->GetInterruptController()->RaiseInterrupt(PORT_1_IRQ);
+      m_interrupt_controller->RaiseInterrupt(PORT_1_IRQ);
     }
   }
   else if (!m_mouse.data_buffer.empty())
@@ -325,7 +336,7 @@ void i8042_PS2::OnTransferEvent()
     if (m_configuration_byte.port_2_interrupt)
     {
       m_output_port.port_2_interrupt_requested = true;
-      m_system->GetInterruptController()->RaiseInterrupt(PORT_2_IRQ);
+      m_interrupt_controller->RaiseInterrupt(PORT_2_IRQ);
     }
   }
 

@@ -12,13 +12,18 @@ DEFINE_OBJECT_TYPE_INFO(i8259_PIC);
 BEGIN_OBJECT_PROPERTY_MAP(i8259_PIC)
 END_OBJECT_PROPERTY_MAP()
 
-i8259_PIC::i8259_PIC() {}
+i8259_PIC::i8259_PIC(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info)
+{
+}
 
-i8259_PIC::~i8259_PIC() {}
+i8259_PIC::~i8259_PIC() = default;
 
 bool i8259_PIC::Initialize(System* system, Bus* bus)
 {
-  m_system = system;
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   ConnectIOPorts(bus);
   return true;
 }

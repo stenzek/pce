@@ -1,5 +1,6 @@
 #pragma once
 #include "pce/hw/fdc.h"
+#include "pce/hw/hdc.h"
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
@@ -30,13 +31,12 @@ public:
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_8K = 0xFE000;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_32K = 0xF8000;
 
-  IBMXT(float cpu_frequency = 1000000.0f, uint32 memory_size = 640 * 1024, VideoType video_type = VideoType::Other);
+  IBMXT(float cpu_frequency = 1000000.0f, uint32 memory_size = 640 * 1024, VideoType video_type = VideoType::Other,
+        const ObjectTypeInfo* type_info = &s_type_info);
   ~IBMXT();
 
   void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
 
-  const char* GetSystemName() const override { return "IBM XT"; }
-  InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
   bool Initialize() override;
   void Reset() override;
 
@@ -68,6 +68,7 @@ private:
   HW::XT_PPI* m_ppi = nullptr;
   HW::PCSpeaker* m_speaker = nullptr;
   HW::FDC* m_fdd_controller = nullptr;
+  HW::HDC* m_hdd_controller = nullptr;
 
   VideoType m_video_type = VideoType::Other;
 

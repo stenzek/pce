@@ -24,9 +24,6 @@ public:
 
   ~TestPCSystem();
 
-  const char* GetSystemName() const override { return "Test Harness PC"; }
-  InterruptController* GetInterruptController() const override { return m_interrupt_controller; }
-
   CPU_X86::CPU* GetX86CPU() const { return static_cast<CPU_X86::CPU*>(m_cpu); }
 
   bool AddMMIOROMFromFile(const char* filename, PhysicalMemoryAddress address);

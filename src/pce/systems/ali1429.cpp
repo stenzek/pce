@@ -13,12 +13,12 @@ DEFINE_OBJECT_GENERIC_FACTORY(ALi1429);
 BEGIN_OBJECT_PROPERTY_MAP(ALi1429)
 END_OBJECT_PROPERTY_MAP()
 
-ALi1429::ALi1429(CPU_X86::Model model /* = CPU_X86::MODEL_486 */, float cpu_frequency /* = 8000000.0f */,
-                 uint32 memory_size /* = 16 * 1024 * 1024 */)
-  : ISAPC(), m_bios_file_path("romimages/4alp001.bin")
+ALi1429::ALi1429(CPU_X86::Model model /* = CPU_X86::MODEL_486 */, float cpu_frequency /* = 2000000.0f */,
+                 uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(type_info), m_bios_file_path("romimages/4alp001.bin")
 {
-  m_cpu = new CPU_X86::CPU(model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
+  m_cpu = new CPU_X86::CPU("CPU", model, cpu_frequency);
   AllocatePhysicalMemory(memory_size, false, false);
   AddComponents();
 }
@@ -27,16 +27,13 @@ ALi1429::~ALi1429() {}
 
 bool ALi1429::Initialize()
 {
-  if (!ISAPC::Initialize())
+  if (!BaseClass::Initialize())
     return false;
 
-  // We have to use MMIO ROMs, because the shadowed region can only be RAM or ROM, not both.
-  // The upper binding is okay to keep as a ROM region, though, since we don't shadow it.
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE) ||
-      !m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_MIRROR_ADDRESS, BIOS_ROM_SIZE))
-  {
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
     return false;
-  }
+
+  m_bus->MirrorRegion(BIOS_ROM_ADDRESS, BIOS_ROM_SIZE, BIOS_ROM_MIRROR_ADDRESS);
 
   ConnectSystemIOPorts();
   SetCMOSVariables();
@@ -228,30 +225,19 @@ void ALi1429::UpdateKeyboardControllerOutputPort()
 
 void ALi1429::AddComponents()
 {
-  m_keyboard_controller = new HW::i8042_PS2();
-  m_dma_controller = new HW::i8237_DMA();
-  m_timer = new HW::i8253_PIT();
-  m_interrupt_controller = new HW::i8259_PIC();
-  m_cmos = new HW::CMOS();
+  m_interrupt_controller = CreateComponent<HW::i8259_PIC>("InterruptController");
+  m_dma_controller = CreateComponent<HW::i8237_DMA>("DMAController");
+  m_timer = CreateComponent<HW::i8253_PIT>("PIT");
+  m_keyboard_controller = CreateComponent<HW::i8042_PS2>("KeyboardController");
+  m_cmos = CreateComponent<HW::CMOS>("CMOS");
+  m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
 
-  AddComponent(m_interrupt_controller);
-  AddComponent(m_dma_controller);
-  AddComponent(m_timer);
-  AddComponent(m_keyboard_controller);
-  AddComponent(m_cmos);
-
-  m_fdd_controller = new HW::FDC(HW::FDC::Model_8272, m_dma_controller);
-  m_hdd_controller = new HW::HDC(HW::HDC::CHANNEL_PRIMARY);
-
-  AddComponent(m_fdd_controller);
-  AddComponent(m_hdd_controller);
+  m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_8272);
+  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::CHANNEL_PRIMARY);
 
   // Connect channel 0 of the PIT to the interrupt controller
   m_timer->SetChannelOutputChangeCallback(0,
                                           [this](bool value) { m_interrupt_controller->SetInterruptState(0, value); });
-
-  m_speaker = new HW::PCSpeaker();
-  AddComponent(m_speaker);
 
   // Connect channel 2 of the PIT to the speaker
   m_timer->SetChannelOutputChangeCallback(2, [this](bool value) { m_speaker->SetLevel(value); });

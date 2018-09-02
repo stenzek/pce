@@ -9,17 +9,17 @@ class ByteStream;
 
 namespace HW {
 // TODO: "SCSI Device" base class
-class CDROM final : public Component
+class CDROM : public Component
 {
   DECLARE_OBJECT_TYPE_INFO(CDROM, Component);
-  DECLARE_OBJECT_GENERIC_FACTORY(CDROM);
+  DECLARE_OBJECT_NO_FACTORY(CDROM);
   DECLARE_OBJECT_PROPERTY_MAP(CDROM);
 
 public:
-  CDROM();
+  CDROM(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~CDROM() override;
 
-  bool Initialize(System* system, Bus* bus) override;
+  virtual bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
@@ -213,4 +213,5 @@ private:
   uint32 m_remaining_sectors = 0;
   bool m_tray_locked = false;
 };
+
 } // namespace HW
