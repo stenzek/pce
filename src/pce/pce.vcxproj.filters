@@ -135,6 +135,7 @@
     <ClCompile Include="hw\ide_cdrom.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="types.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -290,6 +291,7 @@
     <ClInclude Include="hw\ide_cdrom.h">
       <Filter>hw</Filter>
     </ClInclude>
+    <ClInclude Include="system_config_parser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="hw">

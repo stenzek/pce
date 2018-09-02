@@ -90,6 +90,8 @@ bool CPU::Initialize(System* system, Bus* bus)
 
 void CPU::Reset()
 {
+  BaseClass::Reset();
+
   m_pending_cycles = 0;
   m_execution_downcount = 0;
 
@@ -187,6 +189,9 @@ void CPU::Reset()
 
 bool CPU::LoadState(BinaryReader& reader)
 {
+  if (!BaseClass::LoadState(reader))
+    return false;
+
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
@@ -296,6 +301,9 @@ bool CPU::LoadState(BinaryReader& reader)
 
 bool CPU::SaveState(BinaryWriter& writer)
 {
+  if (!BaseClass::SaveState(writer))
+    return false;
+
   writer.WriteUInt32(SERIALIZATION_ID);
   writer.WriteUInt8(static_cast<uint8>(m_model));
 

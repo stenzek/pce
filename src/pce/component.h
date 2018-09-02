@@ -50,7 +50,8 @@ protected:
 template<class T>
 struct GenericComponentFactory final : public ObjectFactory
 {
-  Object* CreateObject() override { return new T(Component::GenerateIdentifier(T::StaticTypeInfo())); }
+  Object* CreateObject(const String& identifier) override { return new T(identifier); }
+  Object* CreateObject() override { return CreateObject(Component::GenerateIdentifier(T::StaticTypeInfo())); }
   void DeleteObject(Object* object) override { delete object; }
 };
 

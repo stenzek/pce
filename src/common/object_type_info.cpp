@@ -20,6 +20,23 @@ ObjectTypeInfo::~ObjectTypeInfo()
   // DebugAssert(m_iTypeIndex == INVALID_TYPE_INDEX);
 }
 
+bool ObjectTypeInfo::CanCreateInstance() const
+{
+  return (m_factory != nullptr);
+}
+
+Object* ObjectTypeInfo::CreateInstance() const
+{
+  DebugAssert(m_factory != nullptr);
+  return m_factory->CreateObject();
+}
+
+void ObjectTypeInfo::DestroyInstance(Object* obj) const
+{
+  DebugAssert(m_factory != nullptr);
+  m_factory->DeleteObject(obj);
+}
+
 bool ObjectTypeInfo::IsDerived(const ObjectTypeInfo* pTypeInfo) const
 {
   const ObjectTypeInfo* current_type = this;

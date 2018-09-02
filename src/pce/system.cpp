@@ -28,7 +28,7 @@ System::System(const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass
 System::~System()
 {
   // We should be stopped first.
-  Assert(m_state == State::Stopped);
+  Assert(m_state == State::Stopped || m_state == State::Uninitialized);
 
   // We want to be sure to clean up the events before the manager.
   m_throttle_event.reset();
@@ -36,7 +36,6 @@ System::~System()
   for (Component* component : m_components)
     delete component;
 
-  delete m_cpu;
   delete m_bus;
 }
 

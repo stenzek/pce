@@ -68,6 +68,7 @@ template<class T>
 struct GenericObjectFactory final : public ObjectFactory
 {
   Object* CreateObject() override { return new T(); }
+  Object* CreateObject(const String& identifier) override { return new T(); }
   void DeleteObject(Object* object) override { delete object; }
 };
 

@@ -26,6 +26,7 @@ class BinaryReader;
 class BinaryWriter;
 class Component;
 class CPUBase;
+class Error;
 class InterruptController;
 class MMIO;
 class HostInterface;
@@ -49,6 +50,9 @@ public:
 
   System(const ObjectTypeInfo* type_info = &s_type_info);
   virtual ~System();
+
+  // Parse a config file, and return the resulting system, if successful.
+  static std::unique_ptr<System> ParseConfig(const char* filename, Error* error);
 
   // Host outputs
   HostInterface* GetHostInterface() const { return m_host_interface; }

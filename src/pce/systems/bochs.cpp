@@ -11,22 +11,31 @@ namespace Systems {
 DEFINE_OBJECT_TYPE_INFO(Bochs);
 DEFINE_OBJECT_GENERIC_FACTORY(Bochs);
 BEGIN_OBJECT_PROPERTY_MAP(Bochs)
+PROPERTY_TABLE_MEMBER_UINT("RAMSize", 0, offsetof(Bochs, m_ram_size), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
 Bochs::Bochs(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_frequency /* = 8000000.0f */,
              uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(PCIPC::PCIConfigSpaceAccessType::Type1, type_info), m_bios_file_path("romimages/BIOS-bochs-latest")
+  : BaseClass(PCIPC::PCIConfigSpaceAccessType::Type1, type_info), m_bios_file_path("romimages/BIOS-bochs-latest"),
+    m_ram_size(memory_size)
 {
   m_bus = new PCIBus(PHYSICAL_MEMORY_BITS);
-  m_cpu = new CPU_X86::CPU("CPU", model, cpu_frequency);
-  AllocatePhysicalMemory(memory_size, false, false);
+  m_cpu = CreateComponent<CPU_X86::CPU>("CPU", model, cpu_frequency);
   AddComponents();
 }
 
-Bochs::~Bochs() {}
+Bochs::~Bochs() = default;
 
 bool Bochs::Initialize()
 {
+  if (m_ram_size < 1 * 1024 * 1024)
+  {
+    Log_ErrorPrintf("Invalid RAM size: %u bytes", m_ram_size);
+    return false;
+  }
+
+  AllocatePhysicalMemory(m_ram_size, false, false);
+
   if (!PCIPC::Initialize())
     return false;
 

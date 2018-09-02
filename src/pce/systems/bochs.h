@@ -61,6 +61,7 @@ private:
   void UpdateKeyboardControllerOutputPort();
 
   std::string m_bios_file_path;
+  u32 m_ram_size = 16 * 1024 * 1024;
 
   HW::i8042_PS2* m_keyboard_controller = nullptr;
   HW::i8237_DMA* m_dma_controller = nullptr;

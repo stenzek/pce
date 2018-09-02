@@ -77,6 +77,7 @@
     <ClCompile Include="systems\ibmat.cpp" />
     <ClCompile Include="systems\isapc.cpp" />
     <ClCompile Include="systems\ibmxt.cpp" />
+    <ClCompile Include="types.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bus.h" />
@@ -114,6 +115,7 @@
     <ClInclude Include="systems\ali1429.h" />
     <ClInclude Include="systems\i430fx.h" />
     <ClInclude Include="systems\pcipc.h" />
+    <ClCompile Include="system_config_parser.cpp" />
     <ClInclude Include="thirdparty\dosbox\dbopl.h" />
     <ClInclude Include="host_interface.h" />
     <ClInclude Include="hw\cga.h" />
@@ -140,6 +142,9 @@
     <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\dep\inih\inih.vcxproj">
+      <Project>{57487a0d-65f4-47c6-be2a-708e516948d7}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\dep\libsamplerate\libsamplerate.vcxproj">
       <Project>{2f2a2b7b-60b3-478c-921e-3633b3c45c3f}</Project>
     </ProjectReference>
@@ -275,7 +280,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -296,7 +301,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -317,7 +322,7 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUGFAST;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -340,7 +345,7 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUGFAST;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -362,7 +367,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -384,7 +389,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>

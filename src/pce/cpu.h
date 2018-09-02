@@ -15,6 +15,12 @@ public:
 
   virtual ~CPUBase() = default;
 
+  virtual bool Initialize(System* system, Bus* bus) override;
+  virtual void Reset() override;
+
+  virtual bool LoadState(BinaryReader& reader) override;
+  virtual bool SaveState(BinaryWriter& writer) override;
+
   virtual const char* GetModelString() const = 0;
 
   float GetFrequency() const { return m_frequency; }

@@ -29,6 +29,11 @@ public:
   const ObjectTypeInfo* GetParentType() const { return m_parent_type; }
   ObjectFactory* GetFactory() const { return m_factory; }
 
+  // can create?
+  bool CanCreateInstance() const;
+  Object* CreateInstance() const;
+  void DestroyInstance(Object* obj) const;
+
   // type information
   // currently only does single inheritance
   bool IsDerived(const ObjectTypeInfo* type) const;
@@ -70,6 +75,7 @@ public:
 struct ObjectFactory
 {
   virtual Object* CreateObject() = 0;
+  virtual Object* CreateObject(const String& identifier) = 0;
   virtual void DeleteObject(Object* object) = 0;
 };
 

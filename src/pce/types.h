@@ -18,3 +18,6 @@ enum class CPUBackendType
   CachedInterpreter,
   Recompiler
 };
+
+// TODO: Put this in a namespace somewhere...
+void RegisterAllTypes();
