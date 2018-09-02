@@ -17,7 +17,7 @@ public:
 
 private:
   u32 m_ide_channel;
-  u32 m_ide_device;
+  u32 m_ide_drive;
 };
 
 } // namespace HW

@@ -13,6 +13,7 @@
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
 #include "pce/hw/ide_cdrom.h"
+#include "pce/hw/ide_hdd.h"
 #include "pce/hw/pci_bus.h"
 #include "pce/hw/pci_device.h"
 #include "pce/hw/pcspeaker.h"
@@ -62,6 +63,7 @@ void RegisterAllTypes()
   REGISTER_HW_TYPE(i8253_PIT);
   REGISTER_HW_TYPE(i8259_PIC);
   REGISTER_HW_TYPE(IDECDROM);
+  REGISTER_HW_TYPE(IDEHDD);
   REGISTER_HW_TYPE(PCSpeaker);
   REGISTER_HW_TYPE(Serial);
   REGISTER_HW_TYPE(SerialMouse);

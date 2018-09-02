@@ -258,6 +258,8 @@ bool HDC::AttachDrive(uint32 number, const char* filename, uint32 cylinders /* =
     return false;
   }
 
+  Log_DevPrintf("Attaching HDD on channel %u drive %u, C/H/S: %u/%u/%u", m_channel, number, cylinders, heads, sectors);
+
   std::unique_ptr<DriveState> drive_state = std::make_unique<DriveState>();
   drive_state->type = DRIVE_TYPE_HDD;
   drive_state->num_cylinders = cylinders;
