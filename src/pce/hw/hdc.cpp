@@ -1414,10 +1414,38 @@ void HDC::HandleATAInitializeDriveParameters()
 
 void HDC::HandleATASetFeatures()
 {
+  DriveState* drive = GetCurrentDrive();
+  DebugAssert(drive);
+
   Log_DevPrintf("ATA set features 0x%02X", ZeroExtend32(m_feature_select));
 
   switch (m_feature_select)
   {
+    case 0x03: // Set transfer mode
+    {
+      u8 transfer_mode = Truncate8((drive->ata_sector_count >> 3) & 0x1F);
+      u8 sub_mode = Truncate8(drive->ata_sector_count & 0x03);
+      Log_DevPrintf("ATA set transfer mode 0x%x 0x%x", transfer_mode, sub_mode);
+      switch (transfer_mode)
+      {
+        case 0: // PIO mode
+        case 1: // PIO flow control transfer mode
+        {
+          // This is okay.
+          CompleteCommand();
+        }
+        break;
+
+        default:
+        {
+          Log_ErrorPrintf("Unknown ATA transfer mode 0x%x 0x%x", transfer_mode, sub_mode);
+          AbortCommand();
+        }
+        break;
+      }
+    }
+    break;
+
     case 0x66: // Use current settings as default
       Log_DevPrintf("ATA use current settings as default");
       CompleteCommand();
