@@ -10,32 +10,39 @@ namespace Systems {
 DEFINE_OBJECT_TYPE_INFO(i430FX);
 DEFINE_OBJECT_GENERIC_FACTORY(i430FX);
 BEGIN_OBJECT_PROPERTY_MAP(i430FX)
+PROPERTY_TABLE_MEMBER_UINT("RAMSize", 0, offsetof(i430FX, m_ram_size), nullptr, 0)
+PROPERTY_TABLE_MEMBER_STRING("BIOSPath", 0, offsetof(i430FX, m_bios_file_path), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
 i430FX::i430FX(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_frequency /* = 2000000.0f */,
                uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(PCIPC::PCIConfigSpaceAccessType::Type1, type_info), m_bios_file_path("romimages/5ifw001.bin")
+  : BaseClass(PCIPC::PCIConfigSpaceAccessType::Type1, type_info), m_bios_file_path("romimages/5ifw001.bin"),
+    m_ram_size(memory_size)
 {
   m_bus = new PCIBus(PHYSICAL_MEMORY_BITS);
-  m_cpu = new CPU_X86::CPU(StaticString("CPU"), model, cpu_frequency);
-  AllocatePhysicalMemory(memory_size, false, false);
+  m_cpu = CreateComponent<CPU_X86::CPU>("CPU", model, cpu_frequency);
   AddComponents();
 }
 
-i430FX::~i430FX() {}
+i430FX::~i430FX() = default;
 
 bool i430FX::Initialize()
 {
+  if (m_ram_size < 1 * 1024 * 1024)
+  {
+    Log_ErrorPrintf("Invalid RAM size: %u bytes", m_ram_size);
+    return false;
+  }
+
+  AllocatePhysicalMemory(m_ram_size, false, false);
+
   if (!BaseClass::Initialize())
     return false;
 
-  // We have to use MMIO ROMs, because the shadowed region can only be RAM or ROM, not both.
-  // The upper binding is okay to keep as a ROM region, though, since we don't shadow it.
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE) ||
-      !m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_MIRROR_ADDRESS, BIOS_ROM_SIZE))
-  {
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
     return false;
-  }
+
+  m_bus->MirrorRegion(BIOS_ROM_ADDRESS + BIOS_ROM_MIRROR_START, BIOS_ROM_MIRROR_SIZE, BIOS_ROM_MIRROR_ADDRESS);
 
   ConnectSystemIOPorts();
   SetCMOSVariables();

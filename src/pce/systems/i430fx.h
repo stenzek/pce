@@ -26,8 +26,11 @@ public:
          uint32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
   ~i430FX();
 
-  bool Initialize() override;
-  void Reset() override;
+  virtual bool Initialize() override;
+  virtual void Reset() override;
+
+  virtual bool LoadSystemState(BinaryReader& reader) override;
+  virtual bool SaveSystemState(BinaryWriter& writer) override;
 
   void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
 
@@ -39,14 +42,13 @@ public:
   auto GetTimer() const { return m_timer; }
   auto GetCMOS() const { return m_cmos; }
 
-private:
+protected:
   static const uint32 PHYSICAL_MEMORY_BITS = 32;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xE0000;
-  static const PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFE0000;
   static const uint32 BIOS_ROM_SIZE = 131072;
-
-  virtual bool LoadSystemState(BinaryReader& reader) override;
-  virtual bool SaveSystemState(BinaryWriter& writer) override;
+  static const PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFF0000;
+  static const uint32 BIOS_ROM_MIRROR_START = 0x10000;
+  static const uint32 BIOS_ROM_MIRROR_SIZE = 65536;
 
   void ConnectSystemIOPorts();
   void AddComponents();
@@ -59,6 +61,7 @@ private:
   void UpdateKeyboardControllerOutputPort();
 
   std::string m_bios_file_path;
+  u32 m_ram_size = 16 * 1024 * 1024;
 
   HW::i82437FX* m_sb82437 = nullptr;
 

@@ -1,4 +1,6 @@
 #include "pce/systems/pcipc.h"
+#include "YBaseLib/BinaryReader.h"
+#include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
 #include "pce/hw/pci_bus.h"
 #include "pce/hw/pci_device.h"
@@ -35,6 +37,28 @@ void PCIPC::Reset()
   m_pci_config_type1_address.bits = 0;
   m_pci_config_type2_bus = 0;
   m_pci_config_type2_address.bits = 0;
+}
+
+bool PCIPC::LoadSystemState(BinaryReader& reader)
+{
+  if (!BaseClass::LoadSystemState(reader))
+    return false;
+
+  m_pci_config_type1_address.bits = reader.ReadUInt32();
+  m_pci_config_type2_address.bits = reader.ReadUInt8();
+  m_pci_config_type2_bus = reader.ReadUInt8();
+  return !reader.GetErrorState();
+}
+
+bool PCIPC::SaveSystemState(BinaryWriter& writer)
+{
+  if (!BaseClass::SaveSystemState(writer))
+    return false;
+
+  writer.WriteUInt32(m_pci_config_type1_address.bits);
+  writer.WriteUInt8(m_pci_config_type2_address.bits);
+  writer.WriteUInt8(m_pci_config_type2_bus);
+  return !writer.InErrorState();
 }
 
 void PCIPC::ConnectPCIBusIOPorts()

@@ -36,6 +36,9 @@ protected:
   virtual bool Initialize() override;
   virtual void Reset() override;
 
+  virtual bool LoadSystemState(BinaryReader& reader) override;
+  virtual bool SaveSystemState(BinaryWriter& writer) override;
+
 private:
   void ConnectPCIBusIOPorts();
 

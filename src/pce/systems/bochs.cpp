@@ -11,40 +11,22 @@ namespace Systems {
 DEFINE_OBJECT_TYPE_INFO(Bochs);
 DEFINE_OBJECT_GENERIC_FACTORY(Bochs);
 BEGIN_OBJECT_PROPERTY_MAP(Bochs)
-PROPERTY_TABLE_MEMBER_UINT("RAMSize", 0, offsetof(Bochs, m_ram_size), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
 Bochs::Bochs(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_frequency /* = 8000000.0f */,
              uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(PCIPC::PCIConfigSpaceAccessType::Type1, type_info), m_bios_file_path("romimages/BIOS-bochs-latest"),
-    m_ram_size(memory_size)
+  : BaseClass(model, cpu_frequency, memory_size, type_info)
 {
-  m_bus = new PCIBus(PHYSICAL_MEMORY_BITS);
-  m_cpu = CreateComponent<CPU_X86::CPU>("CPU", model, cpu_frequency);
-  AddComponents();
+  m_bios_file_path = "romimages/BIOS-bochs-latest";
 }
 
 Bochs::~Bochs() = default;
 
 bool Bochs::Initialize()
 {
-  if (m_ram_size < 1 * 1024 * 1024)
-  {
-    Log_ErrorPrintf("Invalid RAM size: %u bytes", m_ram_size);
-    return false;
-  }
-
-  AllocatePhysicalMemory(m_ram_size, false, false);
-
   if (!BaseClass::Initialize())
     return false;
 
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
-    return false;
-
-  m_bus->MirrorRegion(BIOS_ROM_ADDRESS + BIOS_ROM_MIRROR_START, BIOS_ROM_MIRROR_SIZE, BIOS_ROM_MIRROR_ADDRESS);
-
-  ConnectSystemIOPorts();
   return true;
 }
 
@@ -55,12 +37,6 @@ void Bochs::Reset()
   // Hack: Set the CMOS variables on reset, so things like floppies are picked up.
   // We should probably set this last, or have a PostInitialize function or something.
   SetCMOSVariables();
-
-  m_refresh_bit = false;
-
-  // Default gate A20 to on
-  SetA20State(true);
-  UpdateKeyboardControllerOutputPort();
 }
 
 bool Bochs::LoadSystemState(BinaryReader& reader)
@@ -68,7 +44,6 @@ bool Bochs::LoadSystemState(BinaryReader& reader)
   if (!BaseClass::LoadSystemState(reader))
     return false;
 
-  reader.SafeReadBool(&m_refresh_bit);
   return !reader.GetErrorState();
 }
 
@@ -77,27 +52,11 @@ bool Bochs::SaveSystemState(BinaryWriter& writer)
   if (!BaseClass::SaveSystemState(writer))
     return false;
 
-  writer.SafeWriteBool(m_refresh_bit);
   return !writer.InErrorState();
 }
 
 void Bochs::ConnectSystemIOPorts()
 {
-  // System control ports
-  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&Bochs::IOReadSystemControlPortA, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&Bochs::IOWriteSystemControlPortA, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&Bochs::IOReadSystemControlPortB, this, std::placeholders::_2));
-  m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&Bochs::IOWriteSystemControlPortB, this, std::placeholders::_2));
-
-  // Connect the keyboard controller output port to the lower 2 bits of system control port A.
-  m_keyboard_controller->SetOutputPortWrittenCallback([this](uint8 value, uint8 old_value, bool pulse) {
-    // We're doing something wrong here, the BIOS resets the CPU almost immediately after booting?
-    value &= ~uint8(0x01);
-    IOWriteSystemControlPortA(value & 0x03);
-    IOReadSystemControlPortA(&value);
-    m_keyboard_controller->SetOutputPort(value);
-  });
-
   // Debug ports.
   static const char* debug_port_names[5] = {"panic", "panic2", "info", "debug", "unknown"};
   static const uint32 debug_port_numbers[5] = {0x0400, 0x0401, 0x0402, 0x0403, 0x0500};
@@ -117,96 +76,6 @@ void Bochs::ConnectSystemIOPorts()
       }
     });
   }
-}
-
-void Bochs::IOReadSystemControlPortA(uint8* value)
-{
-  *value = (BoolToUInt8(GetA20State()) << 1);
-}
-
-void Bochs::IOWriteSystemControlPortA(uint8 value)
-{
-  Log_DevPrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
-
-  // b7-6 - Activity Lights
-  // b5 - Reserved
-  // b4 - Watchdog Timeout
-  // b3 - CMOS Security Lock
-  // b2 - Reserved
-  // b1 - A20 Active
-  // b0 - System Reset
-
-  bool new_a20_state = !!(value & (1 << 1));
-  bool system_reset = !!(value & (1 << 0));
-
-  // Update A20 state
-  if (GetA20State() != new_a20_state)
-  {
-    SetA20State(new_a20_state);
-    UpdateKeyboardControllerOutputPort();
-  }
-
-  // System reset?
-  // We do this last as it's going to destroy everything.
-  // TODO: We should probably put it on an event though..
-  if (system_reset)
-  {
-    Log_WarningPrintf("CPU reset via system control port");
-    m_cpu->Reset();
-  }
-}
-
-void Bochs::IOReadSystemControlPortB(uint8* value)
-{
-  *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
-           (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
-           (BoolToUInt8(m_refresh_bit) << 4) |                    // Triggers with each memory refresh
-           (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
-
-  // Seems that we can get away with faking this every read.
-  // The refresh controller steps one refresh address every 15 microseconds. Each refresh cycle
-  // requires eight clock cycles to refresh all of the system's dynamic memory; 256 refresh cycles
-  // are required every 4 milliseconds, but the system hardware refreshes every 3.84ms.
-  m_refresh_bit ^= true;
-}
-
-void Bochs::IOWriteSystemControlPortB(uint8 value)
-{
-  Log_DevPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
-
-  m_timer->SetChannelGateInput(2, !!(value & (1 << 0))); // Timer 2 gate input
-  m_speaker->SetOutputEnabled(!!(value & (1 << 1)));     // Speaker data enable
-}
-
-void Bochs::UpdateKeyboardControllerOutputPort()
-{
-  uint8 value = m_keyboard_controller->GetOutputPort();
-  value &= ~uint8(0x03);
-  value |= (BoolToUInt8(GetA20State()) << 1);
-  m_keyboard_controller->SetOutputPort(value);
-}
-
-void Bochs::AddComponents()
-{
-  m_sb82437 = CreatePCIDevice<HW::i82437FX>(0, 0, "Southbridge");
-
-  m_interrupt_controller = CreateComponent<HW::i8259_PIC>("InterruptController");
-  m_dma_controller = CreateComponent<HW::i8237_DMA>("DMAController");
-  m_timer = CreateComponent<HW::i8253_PIT>("PIT");
-  m_keyboard_controller = CreateComponent<HW::i8042_PS2>("KeyboardController");
-  m_cmos = CreateComponent<HW::CMOS>("CMOS");
-  m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
-
-  m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_82077);
-  m_primary_hdd_controller = CreateComponent<HW::HDC>("PrimaryHDC", HW::HDC::CHANNEL_PRIMARY);
-  m_secondary_hdd_controller = CreateComponent<HW::HDC>("SecondaryHDC", HW::HDC::CHANNEL_SECONDARY);
-
-  // Connect channel 0 of the PIT to the interrupt controller
-  m_timer->SetChannelOutputChangeCallback(0,
-                                          [this](bool value) { m_interrupt_controller->SetInterruptState(0, value); });
-
-  // Connect channel 2 of the PIT to the speaker
-  m_timer->SetChannelOutputChangeCallback(2, [this](bool value) { m_speaker->SetLevel(value); });
 }
 
 void Bochs::SetCMOSVariables()
