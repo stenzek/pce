@@ -125,7 +125,7 @@ void PCIPC::IOReadPCIType1ConfigDataByte(uint32 port, uint8* value)
     return;
   }
 
-  dev->ReadConfigRegister(function, reg, idx);
+  *value = dev->ReadConfigRegister(function, reg, idx);
 }
 
 void PCIPC::IOWritePCIType1ConfigDataByte(uint32 port, uint8 value)
@@ -172,7 +172,7 @@ void PCIPC::IOReadPCIType2ConfigData(uint32 port, uint8* value)
     return;
   }
 
-  dev->ReadConfigRegister(function, reg, idx);
+  *value = dev->ReadConfigRegister(function, reg, idx);
 }
 
 void PCIPC::IOWritePCIType2ConfigData(uint32 port, uint8 value)
