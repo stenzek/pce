@@ -3,6 +3,7 @@
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
+#include "pce/host_interface.h"
 #include "pce/system.h"
 #include <functional>
 Log_SetChannel(HW::CDROM);
@@ -28,6 +29,14 @@ bool CDROM::Initialize(System* system, Bus* bus)
 {
   m_clock.SetManager(system->GetTimingManager());
   m_command_event = m_clock.NewEvent("CDROM Command Event", 1, std::bind(&CDROM::ExecuteCommand, this), false);
+
+  // Create indicator and menu options.
+  system->GetHostInterface()->AddUIIndicator(this, HostInterface::IndicatorType::CDROM);
+  system->GetHostInterface()->AddUIFileCallback(this, "Insert Media...", [this](const String& filename) {
+    if (!InsertMedia(filename))
+      m_system->GetHostInterface()->ReportError("Failed to insert media");
+  });
+  system->GetHostInterface()->AddUICallback(this, "Eject Media", [this]() { EjectMedia(); });
   return true;
 }
 

@@ -724,7 +724,7 @@ void FDC::BeginCommand()
       }
 
       // Not supported, so let's just ignore it for now.
-      Log_WarningPrintf("Perpendicular mode configure 0x02X", cmd.params[0]);
+      Log_WarningPrintf("Perpendicular mode configure 0x%02X", cmd.params[0]);
       m_perpendicular_mode = cmd.params[0];
       TransitionToCommandPhase();
     }

@@ -21,6 +21,7 @@ public:
     None,
     FDD,
     HDD,
+    CDROM,
     Serial
   };
   enum class IndicatorState : u8
