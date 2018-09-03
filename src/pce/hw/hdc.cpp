@@ -440,8 +440,9 @@ void HDC::ConnectIOPorts(Bus* bus)
 
 void HDC::SoftReset()
 {
+  // The 430FX bios seems to require that the error register be 1 after soft reset.
   m_status_register = ATA_SR_DRDY | ATA_SR_DSC; /* | ATA_SR_IDX;*/
-  m_error_register = 0;
+  m_error_register = 0x01;
   m_busy_hold = 0;
   Y_memzero(&m_drive_select, sizeof(m_drive_select));
   m_current_transfer.buffer.clear();
