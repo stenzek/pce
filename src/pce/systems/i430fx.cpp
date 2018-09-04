@@ -54,7 +54,6 @@ void i430FX::Reset()
   BaseClass::Reset();
 
   m_cmos_lock = false;
-  m_refresh_bit = false;
 
   // Set keyboard controller input port up.
   // b7 = Keyboard not inhibited, b5 = POST loop inactive
@@ -71,7 +70,6 @@ bool i430FX::LoadSystemState(BinaryReader& reader)
     return false;
 
   reader.SafeReadBool(&m_cmos_lock);
-  reader.SafeReadBool(&m_refresh_bit);
   return !reader.GetErrorState();
 }
 
@@ -81,7 +79,6 @@ bool i430FX::SaveSystemState(BinaryWriter& writer)
     return false;
 
   writer.SafeWriteBool(m_cmos_lock);
-  writer.SafeWriteBool(m_refresh_bit);
   return !writer.InErrorState();
 }
 
@@ -149,16 +146,16 @@ void i430FX::IOWriteSystemControlPortA(uint8 value)
 
 void i430FX::IOReadSystemControlPortB(uint8* value)
 {
+  // http://qlibdos32.sourceforge.net/tutor/tutor-port61h.php
+  // http://www.ee.hacettepe.edu.tr/~alkar/ELE336/w9-hacettepe[2016].pdf
+  // Port 61h toggles every 15.085us.
+  const SimulationTime num_refresh_cycles = m_timing_manager.GetTotalEmulatedTime() / 15085;
+  const u8 refresh_bit = Truncate8(num_refresh_cycles & 1);
+
   *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
            (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
-           (BoolToUInt8(m_refresh_bit) << 4) |                    // Triggers with each memory refresh
+           (BoolToUInt8(refresh_bit) << 4) |                    // Triggers with each memory refresh
            (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
-
-  // Seems that we can get away with faking this every read.
-  // The refresh controller steps one refresh address every 15 microseconds. Each refresh cycle
-  // requires eight clock cycles to refresh all of the system's dynamic memory; 256 refresh cycles
-  // are required every 4 milliseconds, but the system hardware refreshes every 3.84ms.
-  m_refresh_bit ^= true;
 }
 
 void i430FX::IOWriteSystemControlPortB(uint8 value)

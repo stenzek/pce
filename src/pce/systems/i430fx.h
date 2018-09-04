@@ -79,7 +79,6 @@ protected:
   HW::HDC* m_secondary_hdd_controller = nullptr;
 
   bool m_cmos_lock = false;
-  bool m_refresh_bit = false;
 };
 
 } // namespace Systems
