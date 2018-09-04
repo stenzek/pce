@@ -44,7 +44,7 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
-  Floppy::DriveType GetDriveType_(uint32 drive);
+  Floppy::DriveType GetDriveType_(uint32 drive) const;
   bool IsDrivePresent(uint32 drive) const;
   bool IsDiskPresent(uint32 drive) const;
   uint32 GetDriveCount() const;
@@ -200,8 +200,6 @@ protected:
   bool SeekToNextSector(uint32 drive);
   void ReadCurrentSector(uint32 drive, void* data);
   void WriteCurrentSector(uint32 drive, const void* data);
-  bool ReadSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, void* data);
-  bool WriteSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, const void* data);
 
   bool InReset() const { return !m_DOR.nreset; }
   bool IsDMATransferInProgress() const { return m_current_transfer.active && m_DOR.ndmagate; }
@@ -300,8 +298,8 @@ protected:
   uint8 GetST3(uint32 drive, uint8 bits) const;
 
   // Returns the number of microseconds to move the head one or more tracks.
-  CycleCount CalculateHeadSeekTime(uint32 current_track, uint32 destination_track) const;
-  CycleCount CalculateHeadSeekTime() const;
+  CycleCount CalculateHeadSeekTime(u32 drive, u32 destination_track) const;
+  CycleCount CalculateHeadSeekTime(u32 drive) const;
   CycleCount CalculateSectorReadTime() const;
 };
 

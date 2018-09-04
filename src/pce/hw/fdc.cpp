@@ -237,7 +237,7 @@ bool FDC::SaveState(BinaryWriter& writer)
   return true;
 }
 
-Floppy::DriveType FDC::GetDriveType_(uint32 drive)
+Floppy::DriveType FDC::GetDriveType_(uint32 drive) const
 {
   return (drive < MAX_DRIVES && m_drives[drive].floppy) ? m_drives[drive].floppy->GetDriveType_() :
                                                           Floppy::DriveType_None;
@@ -317,7 +317,9 @@ bool FDC::SeekDrive(uint32 drive, uint32 cylinder, uint32 head, uint32 sector)
   Floppy* floppy = state->floppy;
   if (cylinder >= floppy->GetNumTracks() || head >= floppy->GetNumHeads() || sector < 1 ||
       sector > floppy->GetSectorsPerTrack())
+  {
     return false;
+  }
 
   state->current_cylinder = cylinder;
   state->current_head = head;
@@ -375,24 +377,6 @@ void FDC::WriteCurrentSector(uint32 drive, const void* data)
   DriveState* state = &m_drives[drive];
   Log_DevPrintf("FDC write lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
   state->floppy->Write(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
-}
-
-bool FDC::ReadSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, void* data)
-{
-  if (!SeekDrive(drive, cylinder, head, sector))
-    return false;
-
-  ReadCurrentSector(drive, data);
-  return true;
-}
-
-bool FDC::WriteSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, const void* data)
-{
-  if (!SeekDrive(drive, cylinder, head, sector))
-    return false;
-
-  WriteCurrentSector(drive, data);
-  return true;
 }
 
 uint8 FDC::CurrentCommand::GetExpectedParameterCount() const
@@ -453,18 +437,8 @@ void FDC::BeginCommand()
 
       // Calculate seek time.
       CycleCount seek_time = 1;
-      if (IsDiskPresent(drive_number))
-      {
-        seek_time = CalculateHeadSeekTime(m_drives[drive_number].current_cylinder, 0);
-
-        // We actually seek the drive here, rather than in the End handler.
-        if (!SeekDrive(drive_number, 0, 0, 1))
-        {
-          Panic("Recalibrate host seek failed.");
-          HangController();
-          return;
-        }
-      }
+      if (IsDrivePresent(drive_number))
+        seek_time = CalculateHeadSeekTime(drive_number, 0);
 
       m_MSR.request_for_master = false;
       SetActivity(drive_number);
@@ -479,30 +453,10 @@ void FDC::BeginCommand()
       const uint8 cylinder_number = (cmd.params[1]);
       Log_DevPrintf("Floppy seek drive %u head %u cylinder %u", drive_number, head_number, cylinder_number);
 
-      if (!IsDiskPresent(drive_number))
-      {
-        HangController();
-        return;
-      }
-
-      // Ensure the cylinder/head is in range.
-      DriveState* drive = &m_drives[drive_number];
-      if (cylinder_number >= drive->floppy->GetNumTracks() || head_number >= drive->floppy->GetNumHeads())
-      {
-        EndTransfer(drive_number, ST0_IC_AT, ST1_ND, 0);
-        return;
-      }
-
       // Calculate time to seek.
-      CycleCount seek_time = CalculateHeadSeekTime(drive->current_cylinder, cylinder_number);
-
-      // We actually seek the drive here, rather than in the End handler.
-      if (!SeekDrive(drive_number, cylinder_number, head_number, 1))
-      {
-        Panic("Host seek failed.");
-        HangController();
-        return;
-      }
+      CycleCount seek_time = 1;
+      if (IsDrivePresent(drive_number))
+        seek_time = CalculateHeadSeekTime(drive_number, cylinder_number);
 
       // The End handler just pretty much has to send the result now.
       m_MSR.request_for_master = false;
@@ -578,8 +532,13 @@ void FDC::BeginCommand()
       SetActivity(drive_number, is_write);
 
       // We need to seek to the correct track/cylinder.
-      CycleCount seek_time = CalculateHeadSeekTime(drive->current_cylinder, cylinder_number);
-      if (!SeekDrive(drive_number, cylinder_number, head_number, sector_number))
+      CycleCount seek_time = 0;
+      if (m_implied_seeks)
+      {
+        seek_time = CalculateHeadSeekTime(drive_number, cylinder_number);
+        drive->current_cylinder = cylinder_number;
+      }
+      if (!SeekDrive(drive_number, drive->current_cylinder, head_number, sector_number))
       {
         EndTransfer(drive_number, ST0_IC_AT, ST1_ND, 0);
         return;
@@ -641,7 +600,7 @@ void FDC::BeginCommand()
       const uint8 drive_number = cmd.params[0] & 0x03;
       const uint8 head = (cmd.params[0] >> 2) & 0x01;
 
-      if (!IsDiskPresent(drive_number) || m_DOR.IsMotorOn(drive_number))
+      if (!IsDiskPresent(drive_number) || !m_DOR.IsMotorOn(drive_number))
       {
         Log_DevPrintf("Read ID: disk not present or motor not on");
         HangController();
@@ -650,7 +609,7 @@ void FDC::BeginCommand()
 
       // TODO: Check data rate
       DriveState* drive = &m_drives[drive_number];
-      if (!SeekDrive(drive_number, drive->current_cylinder, head, drive->current_sector))
+      if (!SeekDrive(drive_number, drive->current_cylinder, head, 1))
       {
         // Head not valid.
         EndTransfer(drive_number, ST0_IC_AT, ST1_MA, 0);
@@ -775,10 +734,17 @@ void FDC::EndCommand()
       const uint8 drive_number = cmd.params[0] & 0x03;
 
       // Calculate seek status.
-      if (!IsDiskPresent(drive_number))
-        m_st0 = GetST0(drive_number, ST0_IC_IC | ST0_IC_AT | ST0_SE);
+      if (!IsDrivePresent(drive_number))
+      {
+        // Drive doesn't exist.
+        m_st0 = GetST0(drive_number, ST0_IC_AT | ST0_SE | ST0_EC);
+      }
       else
+      {
+        // Set the current cylinder to zero. LBA will be updated later, on read.
         m_st0 = GetST0(drive_number, ST0_SE);
+        m_drives[drive_number].current_cylinder = 0;
+      }
 
       // No result bytes, but sends interrupt
       m_command_event->Deactivate();
@@ -790,7 +756,22 @@ void FDC::EndCommand()
     case CMD_SEEK: // Seek
     {
       const uint8 drive_number = cmd.params[0] & 0x03;
-      m_st0 = GetST0(drive_number, ST0_SE);
+      const uint8 head_number = (cmd.params[0] >> 2);
+      const uint8 cylinder_number = (cmd.params[1]);
+
+      // Calculate seek status.
+      if (!IsDrivePresent(drive_number))
+      {
+        // Drive doesn't exist.
+        m_st0 = GetST0(drive_number, ST0_IC_AT | ST0_SE | ST0_EC);
+      }
+      else
+      {
+        // Update the current cylinder, even if it is out of range.
+        m_drives[drive_number].current_cylinder = cylinder_number;
+        m_drives[drive_number].current_head = head_number;
+        m_st0 = GetST0(drive_number, ST0_SE);
+      }
 
       // No result bytes, but sends interrupt
       m_command_event->Deactivate();
@@ -1239,17 +1220,21 @@ uint8 FDC::GetST3(uint32 drive, uint8 bits) const
          (Truncate8(m_drives[drive].current_head & 0x01) << 2) | (Truncate8(drive) << 0);
 }
 
-CycleCount FDC::CalculateHeadSeekTime(uint32 current_track, uint32 destination_track) const
+CycleCount FDC::CalculateHeadSeekTime(u32 drive, u32 destination_track) const
 {
+  DebugAssert(IsDrivePresent(drive));
+  const u32 current_track = m_drives[drive].current_cylinder;
   uint32 move_count =
     (current_track >= destination_track) ? (current_track - destination_track) : (destination_track - current_track);
-  return CalculateHeadSeekTime() * CycleCount(std::max(move_count, 1u));
+  CycleCount cycles = CalculateHeadSeekTime(drive) * CycleCount(move_count);
+  Log_DevPrintf("seek time for %u steps = %u usec, %u msec", move_count, cycles, cycles / 1000);
+  return cycles;
 }
 
-CycleCount FDC::CalculateHeadSeekTime() const
+CycleCount FDC::CalculateHeadSeekTime(u32 drive) const
 {
   // SRT value = 16 - (milliseconds * data_rate / 500000) (https://wiki.osdev.org/Floppy_Disk_Controller)
-  uint32 val = uint32(m_step_rate_time ^ 0x0F) + 1;
+  u32 val = u32(m_step_rate_time ^ 0x0F) + 1;
   return (val * 500000) / data_rates[m_data_rate_index];
 }
 
