@@ -170,10 +170,6 @@ bool i8253_PIT::GetChannelGateInput(size_t channel_index)
 
 bool i8253_PIT::GetChannelOutputState(size_t channel_index)
 {
-  // Channel should be up to date before reading the value.
-  m_tick_event->InvokeEarly();
-  UpdateAllChannelsDowncount();
-
   DebugAssert(channel_index < m_channels.size());
   return m_channels[channel_index].output_state;
 }
