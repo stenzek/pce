@@ -113,8 +113,8 @@ public:
   uint32 GetDriveSectors(uint32 number) const;
   uint64 GetDriveLBAs(uint32 number) const;
 
-  bool AttachHDD(uint32 number, IDEHDD* drive);
-  bool AttachATAPIDevice(uint32 number, CDROM* cdrom);
+  bool AttachHDD(uint32 number, IDEHDD* dev);
+  bool AttachATAPIDevice(uint32 number, CDROM* atapi_dev);
   void DetachDrive(uint32 number);
 
   // For HLE bios
@@ -156,11 +156,11 @@ protected:
 
     // TODO: Replace with file IO
     IDEHDD* hdd = nullptr;
+    CDROM* atapi_dev = nullptr;
 
     void SetATAPIInterruptReason(bool is_command, bool data_from_device, bool release);
   };
   std::array<DriveState, MAX_DRIVES> m_drives;
-  std::array<CDROM*, MAX_DRIVES> m_atapi_devices;
   TimingEvent::Pointer m_image_flush_event;
 
   void ConnectIOPorts(Bus* bus);

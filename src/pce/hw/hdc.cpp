@@ -220,30 +220,30 @@ uint64 HDC::GetDriveLBAs(uint32 number) const
   return (number < MAX_DRIVES && m_drives[number].hdd) ? m_drives[number].hdd->GetNumLBAs() : 0;
 }
 
-bool HDC::AttachHDD(uint32 number, IDEHDD* drive)
+bool HDC::AttachHDD(uint32 number, IDEHDD* dev)
 {
   if (number >= MAX_DRIVES || m_drives[number].type != DRIVE_TYPE_NONE)
     return false;
 
   DriveState& drive_state = m_drives[number];
   drive_state.type = DRIVE_TYPE_HDD;
-  drive_state.current_num_cylinders = drive->GetNumCylinders();
-  drive_state.current_num_heads = drive->GetNumHeads();
-  drive_state.current_num_sectors = drive->GetNumSectors();
-  drive_state.hdd = drive;
+  drive_state.current_num_cylinders = dev->GetNumCylinders();
+  drive_state.current_num_heads = dev->GetNumHeads();
+  drive_state.current_num_sectors = dev->GetNumSectors();
+  drive_state.hdd = dev;
   return true;
 }
 
-bool HDC::AttachATAPIDevice(uint32 number, CDROM* cdrom)
+bool HDC::AttachATAPIDevice(uint32 number, CDROM* atapi_dev)
 {
   if (number >= MAX_DRIVES || m_drives[number].type != DRIVE_TYPE_NONE)
     return false;
 
   DriveState& drive_state = m_drives[number];
   drive_state.type = DRIVE_TYPE_ATAPI;
-  m_atapi_devices[number] = cdrom;
+  drive_state.atapi_dev = atapi_dev;
 
-  cdrom->SetCommandCompletedCallback(std::bind(&HDC::HandleATAPICommandCompleted, this, number));
+  atapi_dev->SetCommandCompletedCallback(std::bind(&HDC::HandleATAPICommandCompleted, this, number));
   return true;
 }
 
@@ -251,6 +251,9 @@ void HDC::DetachDrive(uint32 number)
 {
   if (number >= MAX_DRIVES || m_drives[number].type == DRIVE_TYPE_NONE)
     return;
+
+  if (m_drives[number].type == DRIVE_TYPE_ATAPI)
+    m_drives[number].atapi_dev->SetCommandCompletedCallback({});
 
   m_drives[number] = {};
   m_drives[number].type = DRIVE_TYPE_NONE;
@@ -463,7 +466,7 @@ HDC::DriveState* HDC::GetCurrentDrive()
 
 CDROM* HDC::GetCurrentATAPIDevice()
 {
-  return (m_drives[m_drive_select.drive].type == DRIVE_TYPE_ATAPI) ? m_atapi_devices[m_drive_select.drive] : nullptr;
+  return (m_drives[m_drive_select.drive].type == DRIVE_TYPE_ATAPI) ? m_drives[m_drive_select.drive].atapi_dev : nullptr;
 }
 
 void HDC::SetSignature(DriveState* drive)
@@ -1100,8 +1103,7 @@ void HDC::HandleATAPIIdentify()
   response.dword_io_supported = 0;
   response.support = (1 << 9);
   response.pio_timing_mode = 0x200;
-  PutIdentifyString(response.model, sizeof(response.model),
-                    m_atapi_devices[GetCurrentDriveIndex()]->GetModelIDString());
+  PutIdentifyString(response.model, sizeof(response.model), drive->atapi_dev->GetModelIDString());
   for (size_t i = 0; i < countof(response.pio_cycle_time); i++)
     response.pio_cycle_time[i] = 120;
   response.word_80 = (1 << 4);
@@ -1470,8 +1472,7 @@ void HDC::HandleATAPIPacket()
   // 0xFF) << 8);
   Log_DevPrintf("ATAPI packet drive %u", GetCurrentDriveIndex());
   DriveState* drive = GetCurrentDrive();
-  auto* device = GetCurrentATAPIDevice();
-  DebugAssert(drive && device);
+  DebugAssert(drive->atapi_dev);
 
   // Must be in PIO mode now
   if (m_feature_select != 0)
@@ -1480,7 +1481,7 @@ void HDC::HandleATAPIPacket()
     AbortCommand();
     return;
   }
-  else if (device->IsBusy())
+  else if (drive->atapi_dev->IsBusy())
   {
     Log_ErrorPrintf("ATAPI device busy");
     AbortCommand();
@@ -1507,7 +1508,7 @@ void HDC::HandleATAPIPacket()
 void HDC::HandleATAPICommandCompleted(uint32 drive_index)
 {
   DriveState& drive = m_drives[drive_index];
-  auto* device = m_atapi_devices[drive_index];
+  auto* device = drive.atapi_dev;
   DebugAssert(device);
 
   StopTransfer();
@@ -1604,7 +1605,7 @@ void HDC::UpdatePacketCommand(const void* data, size_t data_size)
   DebugAssert(m_current_transfer.is_packet_command && m_current_transfer.drive_index < MAX_DRIVES &&
               m_drives[m_current_transfer.drive_index].type == DRIVE_TYPE_ATAPI);
 
-  auto* device = m_atapi_devices[m_current_transfer.drive_index];
+  auto* device = m_drives[m_current_transfer.drive_index].atapi_dev;
   if (!device->WriteCommandBuffer(data, data_size))
   {
     // Command still incomplete.
@@ -1650,7 +1651,8 @@ void HDC::UpdateTransferBuffer()
   {
     if (m_current_transfer.is_packet_data)
     {
-      auto* dev = m_atapi_devices[m_current_transfer.drive_index];
+      DriveState& drive = m_drives[m_current_transfer.drive_index];
+      auto* dev = drive.atapi_dev;
       if (dev->GetRemainingSectors() > 0)
       {
         // TODO: ATAPI writes
@@ -1659,7 +1661,7 @@ void HDC::UpdateTransferBuffer()
         return;
       }
 
-      m_drives[m_current_transfer.drive_index].SetATAPIInterruptReason(true, true, false);
+      drive.SetATAPIInterruptReason(true, true, false);
     }
 
     CompleteCommand();

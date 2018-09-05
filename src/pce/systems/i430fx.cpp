@@ -154,7 +154,7 @@ void i430FX::IOReadSystemControlPortB(uint8* value)
 
   *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
            (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
-           (BoolToUInt8(refresh_bit) << 4) |                    // Triggers with each memory refresh
+           (BoolToUInt8(refresh_bit) << 4) |                      // Triggers with each memory refresh
            (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
 }
 
