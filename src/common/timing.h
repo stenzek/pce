@@ -54,6 +54,14 @@ public:
   std::unique_ptr<TimingEvent> CreateFrequencyEvent(const char* name, float frequency, TimingEventCallback callback,
                                                     bool active = true);
 
+  // Create specific timed events.
+  std::unique_ptr<TimingEvent> CreateMillisecondIntervalEvent(const char* name, CycleCount ms,
+                                                              TimingEventCallback callback, bool active = true);
+  std::unique_ptr<TimingEvent> CreateMicrosecondIntervalEvent(const char* name, CycleCount us,
+                                                              TimingEventCallback callback, bool active = true);
+  std::unique_ptr<TimingEvent> CreateNanosecondIntervalEvent(const char* name, CycleCount ns,
+                                                             TimingEventCallback callback, bool active = true);
+
 private:
   void UpdateNextEventTime();
 

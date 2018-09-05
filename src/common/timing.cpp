@@ -85,6 +85,39 @@ std::unique_ptr<TimingEvent> TimingManager::CreateFrequencyEvent(const char* nam
   return evt;
 }
 
+std::unique_ptr<TimingEvent> TimingManager::CreateMillisecondIntervalEvent(const char* name, CycleCount ms,
+                                                                           TimingEventCallback callback,
+                                                                           bool active /* = true */)
+{
+  auto evt = std::make_unique<TimingEvent>(this, name, 1000.0f, 1000000000 / 1000, ms, std::move(callback));
+  if (active)
+    evt->Activate();
+
+  return evt;
+}
+
+std::unique_ptr<TimingEvent> TimingManager::CreateMicrosecondIntervalEvent(const char* name, CycleCount us,
+                                                                           TimingEventCallback callback,
+                                                                           bool active /* = true */)
+{
+  auto evt = std::make_unique<TimingEvent>(this, name, 1000000.0f, 1000000000 / 1000000, us, std::move(callback));
+  if (active)
+    evt->Activate();
+
+  return evt;
+}
+
+std::unique_ptr<TimingEvent> TimingManager::CreateNanosecondIntervalEvent(const char* name, CycleCount ns,
+                                                                          TimingEventCallback callback,
+                                                                          bool active /* = true */)
+{
+  auto evt = std::make_unique<TimingEvent>(this, name, 1000.0f, 1000000000 / 1000000000, ns, std::move(callback));
+  if (active)
+    evt->Activate();
+
+  return evt;
+}
+
 void TimingManager::UpdateNextEventTime()
 {
   m_next_event_time =
