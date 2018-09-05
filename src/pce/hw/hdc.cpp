@@ -42,6 +42,8 @@ bool HDC::Initialize(System* system, Bus* bus)
   // Flush the HDD images once a second, to ensure data isn't lost.
   m_image_flush_event = m_system->GetTimingManager()->CreateFrequencyEvent("HDD Image Flush", 1.0f,
                                                                            std::bind(&HDC::FlushImagesEvent, this));
+  m_command_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
+    "HDC Command", 1, std::bind(&HDC::ExecutePendingCommand, this), false);
   return true;
 }
 
@@ -92,12 +94,12 @@ bool HDC::LoadState(BinaryReader& reader)
     drive.multiple_sectors = reader.ReadUInt16();
   }
 
-  m_status_register = reader.ReadUInt8();
-  m_busy_hold = reader.ReadUInt8();
+  m_status_register.bits = reader.ReadUInt8();
   m_error_register = reader.ReadUInt8();
   m_control_register.bits = reader.ReadUInt8();
   m_drive_select.bits = reader.ReadUInt8();
   m_feature_select = reader.ReadUInt8();
+  m_pending_command = reader.ReadUInt8();
 
   size_t buffer_size = reader.ReadUInt32();
   if (buffer_size > 0)
@@ -148,12 +150,12 @@ bool HDC::SaveState(BinaryWriter& writer)
     writer.WriteUInt16(drive.multiple_sectors);
   }
 
-  writer.WriteUInt8(m_status_register);
+  writer.WriteUInt8(m_status_register.bits);
   writer.WriteUInt8(m_error_register);
-  writer.WriteUInt8(m_busy_hold);
   writer.WriteUInt8(m_control_register.bits);
   writer.WriteUInt8(m_drive_select.bits);
   writer.WriteUInt8(m_feature_select);
+  writer.WriteUInt8(m_pending_command);
 
   writer.WriteUInt32(Truncate32(m_current_transfer.buffer.size()));
   if (!m_current_transfer.buffer.empty())
@@ -272,7 +274,7 @@ bool HDC::SeekDrive(uint32 drive, uint64 lba)
   state.current_head = 0;
   state.current_sector = 0;
   state.current_lba = lba;
-  m_status_register |= ATA_SR_DSC;
+  m_status_register.bits |= ATA_SR_DSC;
   return true;
 }
 
@@ -291,7 +293,7 @@ bool HDC::SeekDrive(uint32 drive, uint32 cylinder, uint32 head, uint32 sector)
   state.current_head = head;
   state.current_sector = sector;
   state.current_lba = (cylinder * state.current_num_heads + head) * state.current_num_sectors + (sector - 1);
-  m_status_register |= ATA_SR_DSC;
+  m_status_register.bits |= ATA_SR_DSC;
   return true;
 }
 
@@ -418,30 +420,52 @@ void HDC::ConnectIOPorts(Bus* bus)
 
 void HDC::SoftReset()
 {
+  ClearDriveActivity();
+
   // The 430FX bios seems to require that the error register be 1 after soft reset.
-  m_status_register = ATA_SR_DRDY | ATA_SR_DSC; /* | ATA_SR_IDX;*/
+  m_status_register.Reset();
   m_error_register = 0x01;
-  m_busy_hold = 0;
   Y_memzero(&m_drive_select, sizeof(m_drive_select));
   m_current_transfer.buffer.clear();
   m_current_transfer.buffer_position = 0;
   m_current_transfer.drive_index = MAX_DRIVES;
   m_current_transfer.remaining_sectors = 0;
+  m_pending_command = 0;
+  m_command_event->SetActive(false);
 
   // Set signature bytes in current CHS
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
     DriveState& state = m_drives[i];
-    if (state.type != DRIVE_TYPE_HDD)
-      continue;
+    if (state.type == DRIVE_TYPE_HDD)
+    {
+      // Reset translation? This should be behind a flag check..
+      state.current_num_cylinders = state.hdd ? state.hdd->GetNumCylinders() : 0;
+      state.current_num_heads = state.hdd ? state.hdd->GetNumHeads() : 0;
+      state.current_num_sectors = state.hdd ? state.hdd->GetNumSectors() : 0;
+    }
 
-    state.current_num_cylinders = state.hdd ? state.hdd->GetNumCylinders() : 0;
-    state.current_num_heads = state.hdd ? state.hdd->GetNumHeads() : 0;
-    state.current_num_sectors = state.hdd ? state.hdd->GetNumSectors() : 0;
     SetSignature(&state);
   }
 
   // TODO: Stop any ATAPI commands.
+}
+
+void HDC::SetDriveActivity(u32 drive, bool writing)
+{
+  DriveState& state = m_drives[drive];
+  if (state.type == DRIVE_TYPE_HDD)
+    state.hdd->SetActivity(writing);
+}
+
+void HDC::ClearDriveActivity()
+{
+  // Clear activity on all drives.
+  for (DriveState& state : m_drives)
+  {
+    if (state.type == DRIVE_TYPE_HDD)
+      state.hdd->ClearActivity();
+  }
 }
 
 void HDC::FlushImagesEvent()
@@ -495,7 +519,7 @@ void HDC::SetSignature(DriveState* drive)
   }
 }
 
-uint8 HDC::GetStatusRegisterValue()
+void HDC::IOReadStatusRegister(uint8* value)
 {
   //     *value |= (0 << 7);     // Executing command
   //     *value |= (1 << 6);     // Drive is ready
@@ -506,39 +530,38 @@ uint8 HDC::GetStatusRegisterValue()
   //     *value |= (1 << 1);     // Index - set to 1 each revolution
   //     *value |= (0 << 0);     // Previous command ended in error
 
-  // Clear busy bit. This probably should be done by a timer instead..
-  if (m_busy_hold > 0)
-    m_busy_hold--;
-  if (m_busy_hold == 0)
-  {
-    m_status_register &= ~ATA_SR_BSY;
-    m_status_register |= ATA_SR_DRDY;
-  }
-
-  uint8 value = m_status_register;
-
-  // If BSY is set, don't return DRDY
-  if (m_status_register & ATA_SR_BSY)
-    value &= ~(ATA_SR_DRQ | ATA_SR_DRDY);
-
-  return value;
-}
-
-void HDC::IOReadStatusRegister(uint8* value)
-{
   // Lower interrupt
   m_interrupt_controller->LowerInterrupt(m_irq_number);
-  *value = GetStatusRegisterValue();
+  *value = m_status_register.bits;
 }
 
 void HDC::IOReadAltStatusRegister(uint8* value)
 {
-  *value = GetStatusRegisterValue();
+  *value = m_status_register.bits;
 }
 
 void HDC::IOWriteCommandRegister(uint8 value)
 {
-  HandleATACommand(value);
+  Log_DevPrintf("ATA write command register <- 0x%02X", ZeroExtend32(value));
+
+  // Ignore writes to the command register when busy.
+  if (!m_status_register.IsReady() || m_command_event->IsActive())
+  {
+    Log_WarningPrintf("ATA controller is not ready");
+    return;
+  }
+
+  // Determine how long the command will take to execute.
+  const CycleCount cycles = CalculateCommandTime(value);
+  Log_DevPrintf("Queueing ATA command 0x%02X in %u us", value, unsigned(cycles));
+  m_command_event->Queue(cycles);
+  m_pending_command = value;
+
+  // We're busy now, and can't accept other commands.
+  m_status_register.SetBusy();
+
+  // Set the activity indicator on the current drive, if any.
+  SetDriveActivity(GetCurrentDriveIndex(), IsWriteCommand(value));
 }
 
 void HDC::IOReadErrorRegister(uint8* value)
@@ -562,15 +585,13 @@ void HDC::IOWriteControlRegister(uint8 value)
   else if (m_control_register.software_reset)
   {
     // Preparing for software reset, set BSY
-    m_status_register |= ATA_SR_BSY;
-    m_status_register &= ~ATA_SR_DRDY;
-    m_busy_hold = 4;
+    m_status_register.SetBusy();
   }
 }
 
 void HDC::IOReadDataRegisterByte(uint8* value)
 {
-  if (!(m_status_register & ATA_SR_DRQ) || m_current_transfer.buffer_position == m_current_transfer.buffer.size())
+  if (!m_status_register.IsAcceptingData() || m_current_transfer.buffer_position == m_current_transfer.buffer.size())
   {
     *value = 0;
     return;
@@ -583,7 +604,8 @@ void HDC::IOReadDataRegisterByte(uint8* value)
 
 void HDC::IOReadDataRegisterWord(uint16* value)
 {
-  if (!(m_status_register & ATA_SR_DRQ) || m_current_transfer.buffer_position >= (m_current_transfer.buffer.size() - 1))
+  if (!m_status_register.IsAcceptingData() ||
+      m_current_transfer.buffer_position >= (m_current_transfer.buffer.size() - 1))
   {
     *value = 0;
     return;
@@ -596,7 +618,8 @@ void HDC::IOReadDataRegisterWord(uint16* value)
 
 void HDC::IOReadDataRegisterDWord(uint32* value)
 {
-  if (!(m_status_register & ATA_SR_DRQ) || m_current_transfer.buffer_position >= (m_current_transfer.buffer.size() - 3))
+  if (!m_status_register.IsAcceptingData() ||
+      m_current_transfer.buffer_position >= (m_current_transfer.buffer.size() - 3))
   {
     *value = 0;
     return;
@@ -609,7 +632,7 @@ void HDC::IOReadDataRegisterDWord(uint32* value)
 
 void HDC::IOWriteDataRegisterByte(uint8 value)
 {
-  if (!(m_status_register & ATA_SR_DRQ) || m_current_transfer.buffer_position == m_current_transfer.buffer.size())
+  if (!m_status_register.IsAcceptingData() || m_current_transfer.buffer_position == m_current_transfer.buffer.size())
     return;
 
   if (m_current_transfer.is_packet_command)
@@ -625,7 +648,8 @@ void HDC::IOWriteDataRegisterByte(uint8 value)
 
 void HDC::IOWriteDataRegisterWord(uint16 value)
 {
-  if (!(m_status_register & ATA_SR_DRQ) || m_current_transfer.buffer_position >= (m_current_transfer.buffer.size() - 1))
+  if (!m_status_register.IsAcceptingData() ||
+      m_current_transfer.buffer_position >= (m_current_transfer.buffer.size() - 1))
     return;
 
   if (m_current_transfer.is_packet_command)
@@ -641,7 +665,8 @@ void HDC::IOWriteDataRegisterWord(uint16 value)
 
 void HDC::IOWriteDataRegisterDWord(uint32 value)
 {
-  if (!(m_status_register & ATA_SR_DRQ) || m_current_transfer.buffer_position >= (m_current_transfer.buffer.size() - 3))
+  if (!m_status_register.IsAcceptingData() ||
+      m_current_transfer.buffer_position >= (m_current_transfer.buffer.size() - 3))
     return;
 
   if (m_current_transfer.is_packet_command)
@@ -802,9 +827,76 @@ bool HDC::FlushWriteBuffer(uint32 drive_index, uint32 sector_count)
   return true;
 }
 
-void HDC::HandleATACommand(uint8 command)
+CycleCount HDC::CalculateCommandTime(u8 command) const
 {
-  Log_DevPrintf("Received ATA command 0x%02X", ZeroExtend32(command));
+  const DriveState& ds = m_drives[m_drive_select.drive];
+  switch (ds.type)
+  {
+    case DRIVE_TYPE_HDD:
+    {
+      switch (command)
+      {
+        // Make reads take slightly longer.
+        // TODO: Use number of sectors, etc.
+        case ATA_CMD_READ_PIO:
+        case ATA_CMD_READ_PIO_NO_RETRY:
+        case ATA_CMD_READ_PIO_EXT:
+        case ATA_CMD_READ_DMA:
+        case ATA_CMD_READ_DMA_EXT:
+        case ATA_CMD_READ_VERIFY:
+        case ATA_CMD_READ_VERIFY_EXT:
+        case ATA_CMD_WRITE_PIO:
+        case ATA_CMD_WRITE_PIO_NO_RETRY:
+        case ATA_CMD_WRITE_PIO_EXT:
+        case ATA_CMD_WRITE_DMA:
+        case ATA_CMD_WRITE_DMA_EXT:
+          return 10;
+
+          // Default to 1us for all other commands.
+        default:
+          return 1;
+      }
+    }
+    break;
+
+    case DRIVE_TYPE_ATAPI:
+    {
+      // Most commands are invalid here, but the controller responds immediately so the packet can be written.
+      return 1;
+    }
+
+    case DRIVE_TYPE_NONE:
+    default:
+    {
+      // No drive here, just assume it takes 1us.
+      return 1;
+    }
+  }
+}
+
+bool HDC::IsWriteCommand(u8 command) const
+{
+  switch (command)
+  {
+    case ATA_CMD_WRITE_PIO:
+    case ATA_CMD_WRITE_PIO_NO_RETRY:
+    case ATA_CMD_WRITE_PIO_EXT:
+    case ATA_CMD_WRITE_DMA:
+    case ATA_CMD_WRITE_DMA_EXT:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+void HDC::ExecutePendingCommand()
+{
+  const u8 command = m_pending_command;
+  m_pending_command = 0;
+  m_command_event->Deactivate();
+
+  Log_DevPrintf("Executing ATA command 0x%02X on drive %u", command, GetCurrentDriveIndex());
 
   DriveState& ds = m_drives[m_drive_select.drive];
   if (ds.type == DRIVE_TYPE_NONE)
@@ -1084,6 +1176,7 @@ void HDC::HandleATAIdentify()
   // 512 bytes total
   BeginTransfer(MAX_DRIVES, 1, 1, false);
   std::memcpy(m_current_transfer.buffer.data(), &response, sizeof(response));
+  DataRequestReady();
 }
 
 void HDC::HandleATAPIIdentify()
@@ -1113,6 +1206,7 @@ void HDC::HandleATAPIIdentify()
   // 512 bytes total
   BeginTransfer(MAX_DRIVES, 1, 1, false);
   std::memcpy(m_current_transfer.buffer.data(), &response, sizeof(response));
+  DataRequestReady();
 
   // Signature is reset
   SetSignature(drive);
@@ -1178,6 +1272,8 @@ void HDC::HandleATATransferPIO(bool write, bool extended, bool multiple)
     {
       PrepareWriteBuffer(drive_index, sectors_in_block);
     }
+
+    DataRequestReady();
   }
   else
   {
@@ -1225,6 +1321,8 @@ void HDC::HandleATATransferPIO(bool write, bool extended, bool multiple)
     {
       PrepareWriteBuffer(drive_index, sectors_in_block);
     }
+
+    DataRequestReady();
   }
 }
 
@@ -1492,8 +1590,8 @@ void HDC::HandleATAPIPacket()
   drive->SetATAPIInterruptReason(true, false, false);
 
   // The interrupt isn't raised here.
-  m_status_register &= ~(ATA_SR_BSY | ATA_SR_ERR);
-  m_status_register |= ATA_SR_DRQ | ATA_SR_DRDY;
+  m_status_register.bits &= ~(ATA_SR_BSY | ATA_SR_ERR);
+  m_status_register.bits |= ATA_SR_DRQ | ATA_SR_DRDY;
   m_error_register = 0;
   m_current_transfer.buffer.resize(SECTOR_SIZE);
   m_current_transfer.buffer_position = 0;
@@ -1549,20 +1647,20 @@ void HDC::HandleATAPICommandCompleted(uint32 drive_index)
   device->ClearDataBuffer();
 
   // Clear the busy flag, and raise interrupt.
-  m_status_register = (m_status_register & ~(ATA_SR_BSY | ATA_SR_ERR)) | ATA_SR_DRQ;
+  m_status_register.bits = (m_status_register.bits & ~(ATA_SR_BSY | ATA_SR_ERR)) | ATA_SR_DRQ;
   if (device->GetRemainingSectors() == 0)
-    m_status_register |= ATA_SR_DRDY;
+    m_status_register.bits |= ATA_SR_DRDY;
   m_error_register = 0;
   RaiseInterrupt();
 }
 
-void HDC::AbortCommand(uint8 error /* = ATA_ERR_ABRT */)
+void HDC::AbortCommand(uint8 error /* = ATA_ERR_ABRT */, bool write_fault /* = false */)
 {
   Log_WarningPrintf("Command aborted with error = 0x%02X", ZeroExtend32(error));
   StopTransfer();
+  ClearDriveActivity();
 
-  m_status_register &= ~(ATA_SR_BSY | ATA_SR_DRQ);
-  m_status_register |= ATA_SR_DRDY | ATA_SR_ERR;
+  m_status_register.SetError(write_fault);
   m_error_register = error;
   RaiseInterrupt();
 }
@@ -1570,8 +1668,8 @@ void HDC::AbortCommand(uint8 error /* = ATA_ERR_ABRT */)
 void HDC::CompleteCommand()
 {
   StopTransfer();
-  m_status_register &= ~(ATA_SR_BSY | ATA_SR_DRQ | ATA_SR_ERR);
-  m_status_register |= ATA_SR_DRDY;
+  ClearDriveActivity();
+  m_status_register.SetReady();
   m_error_register = 0;
   RaiseInterrupt();
 }
@@ -1581,8 +1679,8 @@ void HDC::BeginTransfer(uint32 drive_index, uint32 sectors_per_block, uint32 num
   Assert(num_sectors > 0);
   Assert(drive_index < MAX_DRIVES || num_sectors == 1);
 
-  m_status_register &= ~ATA_SR_ERR;
-  m_status_register |= ATA_SR_DRDY | ATA_SR_DRQ;
+  m_status_register.bits &= ~ATA_SR_ERR;
+  m_status_register.bits |= ATA_SR_DRDY | ATA_SR_DRQ;
   m_current_transfer.buffer.resize(SECTOR_SIZE * std::min(sectors_per_block, num_sectors));
   m_current_transfer.buffer_position = 0;
   m_current_transfer.drive_index = drive_index;
@@ -1591,13 +1689,6 @@ void HDC::BeginTransfer(uint32 drive_index, uint32 sectors_per_block, uint32 num
   m_current_transfer.is_write = is_write;
   m_current_transfer.is_packet_command = false;
   m_current_transfer.is_packet_data = false;
-
-  // Busy flag?
-  // m_status_register |= ATA_SR_BSY;
-  // m_busy_hold = 4;
-
-  // Raise interrupt if enabled
-  RaiseInterrupt();
 }
 
 void HDC::UpdatePacketCommand(const void* data, size_t data_size)
@@ -1622,8 +1713,8 @@ void HDC::UpdatePacketCommand(const void* data, size_t data_size)
   }
 
   // Set the busy flag, and wait for the command to complete.
-  m_status_register &= ~(ATA_SR_DRDY | ATA_SR_DRQ);
-  m_status_register |= ATA_SR_BSY;
+  m_status_register.bits &= ~(ATA_SR_DRDY | ATA_SR_DRQ);
+  m_status_register.bits |= ATA_SR_BSY;
 }
 
 void HDC::UpdateTransferBuffer()
@@ -1669,7 +1760,7 @@ void HDC::UpdateTransferBuffer()
   }
 
   // Set busy flag for the next read.
-  m_status_register = (m_status_register & ~(ATA_SR_DRDY | ATA_SR_DRQ)) | ATA_SR_BSY;
+  m_status_register.SetBusy();
 
   // If we're reading, we need to populate the sector buffer
   uint32 sectors_in_block = std::min(m_current_transfer.remaining_sectors, m_current_transfer.sectors_per_block);
@@ -1688,8 +1779,13 @@ void HDC::UpdateTransferBuffer()
     PrepareWriteBuffer(m_current_transfer.drive_index, sectors_in_block);
   }
 
-  // Next read ready.
-  m_status_register = (m_status_register & ~(ATA_SR_BSY)) | ATA_SR_DRQ;
+  // Next read/write ready.
+  DataRequestReady();
+}
+
+void HDC::DataRequestReady()
+{
+  m_status_register.SetDRQ();
 
   // Raise interrupt if enabled
   RaiseInterrupt();

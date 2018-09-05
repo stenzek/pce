@@ -164,6 +164,8 @@ protected:
   TimingEvent::Pointer m_image_flush_event;
 
   void ConnectIOPorts(Bus* bus);
+  void SetDriveActivity(u32 drive, bool writing);
+  void ClearDriveActivity();
   void SoftReset();
   void FlushImagesEvent();
 
@@ -172,9 +174,76 @@ protected:
   CDROM* GetCurrentATAPIDevice();
   void SetSignature(DriveState* drive);
 
-  uint8 m_status_register = 0;
-  uint8 m_busy_hold = 0;
-  uint8 GetStatusRegisterValue();
+  union
+  {
+    BitField<u8, bool, 7, 1> busy;
+    BitField<u8, bool, 6, 1> ready;
+    BitField<u8, bool, 5, 1> write_fault;
+    BitField<u8, bool, 4, 1> seek_complete;
+    BitField<u8, bool, 3, 1> data_request_ready;
+    BitField<u8, bool, 2, 1> corrected_data;
+    BitField<u8, bool, 1, 1> index;
+    BitField<u8, bool, 0, 1> error;
+    uint8 bits;
+
+    // TODO: We can optimize these to manipulate bits directly.
+
+    bool IsAcceptingData() const { return data_request_ready; }
+
+    bool IsReady() const { return ready; }
+
+    void ClearError()
+    {
+      error = false;
+      write_fault = false;
+    }
+
+    void SetReady()
+    {
+      busy = false;
+      ready = true;
+      seek_complete = true;
+      data_request_ready = false;
+      write_fault = false;
+      error = false;
+    }
+
+    void SetError(bool write_fault_ = false)
+    {
+      busy = false;
+      ready = true;
+      seek_complete = false;
+      data_request_ready = false;
+      write_fault = write_fault;
+      error = true;
+    }
+
+    void SetBusy()
+    {
+      busy = true;
+      ready = false;
+      data_request_ready = false;
+      error = false;
+      write_fault = false;
+    }
+
+    void SetDRQ()
+    {
+      busy = false;
+      ready = true;
+      data_request_ready = true;
+      write_fault = write_fault;
+      error = error;
+    }
+
+    void Reset()
+    {
+      bits = 0;
+      ready = true;
+      seek_complete = true;
+    }
+
+  } m_status_register;
   void IOReadStatusRegister(uint8* value);
   void IOReadAltStatusRegister(uint8* value);
   void IOWriteCommandRegister(uint8 value);
@@ -208,6 +277,9 @@ protected:
 
   uint8 m_feature_select = 0;
 
+  TimingEvent::Pointer m_command_event;
+  uint8 m_pending_command = 0;
+
   // Also: LBA0 = Sector, LBA1 = Cylinder low, LBA2 = Cylinder high, head in DS
   // TODO: Byte read/writes need to use a flip-flop in LBA48 mode
   void IOReadCommandBlock(uint32 port, uint8* value);
@@ -219,7 +291,10 @@ protected:
   void PrepareWriteBuffer(uint32 drive_index, uint32 sector_count);
   bool FlushWriteBuffer(uint32 drive_index, uint32 sector_count);
 
-  void HandleATACommand(uint8 command);
+  CycleCount CalculateCommandTime(u8 command) const;
+  bool IsWriteCommand(u8 command) const;
+  void ExecutePendingCommand();
+
   void HandleATADeviceReset();
   void HandleATAIdentify();
   void HandleATARecalibrate();
@@ -234,12 +309,13 @@ protected:
   void HandleATAPIPacket();
   void HandleATAPICommandCompleted(uint32 drive_index);
 
-  void AbortCommand(uint8 error = ATA_ERR_ABRT);
+  void AbortCommand(uint8 error = ATA_ERR_ABRT, bool write_fault = false);
   void CompleteCommand();
 
   void BeginTransfer(uint32 drive_index, uint32 sectors_per_block, uint32 num_sectors, bool is_write);
   void UpdatePacketCommand(const void* data, size_t data_size);
   void UpdateTransferBuffer();
+  void DataRequestReady();
 
   void RaiseInterrupt();
 

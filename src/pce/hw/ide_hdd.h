@@ -31,7 +31,8 @@ public:
   u32 GetIDEChannelNumber() const { return m_ide_channel; }
   u32 GetIDEDriveNumber() const { return m_ide_drive; }
 
-  void SetActivity(bool reading, bool writing);
+  void SetActivity(bool writing);
+  void ClearActivity();
 
 private:
   static const u32 SECTOR_SIZE = 512;

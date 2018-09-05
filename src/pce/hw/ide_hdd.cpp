@@ -119,4 +119,15 @@ bool IDEHDD::SaveState(BinaryWriter& writer)
   return m_image->SaveState(writer.GetStream());
 }
 
+void IDEHDD::SetActivity(bool writing)
+{
+  m_system->GetHostInterface()->SetUIIndicatorState(this, writing ? HostInterface::IndicatorState::Writing :
+                                                                    HostInterface::IndicatorState::Reading);
+}
+
+void IDEHDD::ClearActivity()
+{
+  m_system->GetHostInterface()->SetUIIndicatorState(this, HostInterface::IndicatorState::Off);
+}
+
 } // namespace HW
