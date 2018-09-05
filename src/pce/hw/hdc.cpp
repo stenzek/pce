@@ -63,7 +63,7 @@ bool HDC::LoadState(BinaryReader& reader)
   {
     auto& drive = m_drives[i];
     const bool present = reader.ReadBool();
-    if ((drive && !present) || (!drive && present))
+    if (present != IsDrivePresent(i))
     {
       Log_ErrorPrintf("Save state mismatch for drive %u", i);
       return false;
@@ -72,24 +72,24 @@ bool HDC::LoadState(BinaryReader& reader)
       continue;
 
     const DRIVE_TYPE type = static_cast<DRIVE_TYPE>(reader.ReadUInt32());
-    if (type != drive->type)
+    if (type != drive.type)
     {
       Log_ErrorPrintf("Save state mismatch for drive %u", i);
       return false;
     }
 
-    drive->current_num_cylinders = reader.ReadUInt32();
-    drive->current_num_heads = reader.ReadUInt32();
-    drive->current_num_sectors = reader.ReadUInt32();
-    drive->current_cylinder = reader.ReadUInt32();
-    drive->current_head = reader.ReadUInt32();
-    drive->current_sector = reader.ReadUInt32();
-    drive->current_lba = reader.ReadUInt64();
-    drive->ata_sector_count = reader.ReadUInt16();
-    drive->ata_sector_number = reader.ReadUInt16();
-    drive->ata_cylinder_low = reader.ReadUInt16();
-    drive->ata_cylinder_high = reader.ReadUInt16();
-    drive->multiple_sectors = reader.ReadUInt16();
+    drive.current_num_cylinders = reader.ReadUInt32();
+    drive.current_num_heads = reader.ReadUInt32();
+    drive.current_num_sectors = reader.ReadUInt32();
+    drive.current_cylinder = reader.ReadUInt32();
+    drive.current_head = reader.ReadUInt32();
+    drive.current_sector = reader.ReadUInt32();
+    drive.current_lba = reader.ReadUInt64();
+    drive.ata_sector_count = reader.ReadUInt16();
+    drive.ata_sector_number = reader.ReadUInt16();
+    drive.ata_cylinder_low = reader.ReadUInt16();
+    drive.ata_cylinder_high = reader.ReadUInt16();
+    drive.multiple_sectors = reader.ReadUInt16();
   }
 
   m_status_register = reader.ReadUInt8();
@@ -127,24 +127,25 @@ bool HDC::SaveState(BinaryWriter& writer)
 
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
-    const auto& drive = m_drives[i];
-    writer.WriteBool((drive.get() != nullptr));
-    if (!drive)
+    const bool present = IsDrivePresent(i);
+    writer.WriteBool(present);
+    if (!present)
       continue;
 
-    writer.WriteUInt32(static_cast<uint32>(drive->type));
-    writer.WriteUInt32(drive->current_num_cylinders);
-    writer.WriteUInt32(drive->current_num_heads);
-    writer.WriteUInt32(drive->current_num_sectors);
-    writer.WriteUInt32(drive->current_cylinder);
-    writer.WriteUInt32(drive->current_head);
-    writer.WriteUInt32(drive->current_sector);
-    writer.WriteUInt64(drive->current_lba);
-    writer.WriteUInt16(drive->ata_sector_count);
-    writer.WriteUInt16(drive->ata_sector_number);
-    writer.WriteUInt16(drive->ata_cylinder_low);
-    writer.WriteUInt16(drive->ata_cylinder_high);
-    writer.WriteUInt16(drive->multiple_sectors);
+    const auto& drive = m_drives[i];
+    writer.WriteUInt32(static_cast<uint32>(drive.type));
+    writer.WriteUInt32(drive.current_num_cylinders);
+    writer.WriteUInt32(drive.current_num_heads);
+    writer.WriteUInt32(drive.current_num_sectors);
+    writer.WriteUInt32(drive.current_cylinder);
+    writer.WriteUInt32(drive.current_head);
+    writer.WriteUInt32(drive.current_sector);
+    writer.WriteUInt64(drive.current_lba);
+    writer.WriteUInt16(drive.ata_sector_count);
+    writer.WriteUInt16(drive.ata_sector_number);
+    writer.WriteUInt16(drive.ata_cylinder_low);
+    writer.WriteUInt16(drive.ata_cylinder_high);
+    writer.WriteUInt16(drive.multiple_sectors);
   }
 
   writer.WriteUInt8(m_status_register);
@@ -170,21 +171,17 @@ bool HDC::SaveState(BinaryWriter& writer)
 
 bool HDC::IsDrivePresent(uint32 number) const
 {
-  return (number < MAX_DRIVES && m_drives[number]);
+  return (number < MAX_DRIVES && m_drives[number].type != DRIVE_TYPE_NONE);
 }
 
 uint32 HDC::GetDriveCount() const
 {
-  uint32 count = 0;
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
+  u32 count = 0;
+  for (u32 i = 0; i < MAX_DRIVES; i++)
   {
-    // stop at the first null drive
-    if (!m_drives[i])
-      break;
-
-    count++;
+    if (m_drives[i].type != DRIVE_TYPE_NONE)
+      count++;
   }
-
   return count;
 }
 
@@ -205,49 +202,45 @@ void HDC::CalculateCHSForSize(uint32* cylinders, uint32* heads, uint32* sectors,
 
 uint32 HDC::GetDriveCylinders(uint32 number) const
 {
-  return (number < MAX_DRIVES && m_drives[number] && m_drives[number]->hdd) ? m_drives[number]->hdd->GetNumCylinders() :
-                                                                              0;
+  return (number < MAX_DRIVES && m_drives[number].hdd) ? m_drives[number].hdd->GetNumCylinders() : 0;
 }
 
 uint32 HDC::GetDriveHeads(uint32 number) const
 {
-  return (number < MAX_DRIVES && m_drives[number] && m_drives[number]->hdd) ? m_drives[number]->hdd->GetNumHeads() : 0;
+  return (number < MAX_DRIVES && m_drives[number].hdd) ? m_drives[number].hdd->GetNumHeads() : 0;
 }
 
 uint32 HDC::GetDriveSectors(uint32 number) const
 {
-  return (number < MAX_DRIVES && m_drives[number] && m_drives[number]->hdd) ? m_drives[number]->hdd->GetNumSectors() :
-                                                                              0;
+  return (number < MAX_DRIVES && m_drives[number].hdd) ? m_drives[number].hdd->GetNumSectors() : 0;
 }
 
 uint64 HDC::GetDriveLBAs(uint32 number) const
 {
-  return (number < MAX_DRIVES && m_drives[number] && m_drives[number]->hdd) ? m_drives[number]->hdd->GetNumLBAs() : 0;
+  return (number < MAX_DRIVES && m_drives[number].hdd) ? m_drives[number].hdd->GetNumLBAs() : 0;
 }
 
 bool HDC::AttachHDD(uint32 number, IDEHDD* drive)
 {
-  if (number >= MAX_DRIVES || m_drives[number])
+  if (number >= MAX_DRIVES || m_drives[number].type != DRIVE_TYPE_NONE)
     return false;
 
-  std::unique_ptr<DriveState> drive_state = std::make_unique<DriveState>();
-  drive_state->type = DRIVE_TYPE_HDD;
-  drive_state->current_num_cylinders = drive->GetNumCylinders();
-  drive_state->current_num_heads = drive->GetNumHeads();
-  drive_state->current_num_sectors = drive->GetNumSectors();
-  drive_state->hdd = drive;
-  m_drives[number] = std::move(drive_state);
+  DriveState& drive_state = m_drives[number];
+  drive_state.type = DRIVE_TYPE_HDD;
+  drive_state.current_num_cylinders = drive->GetNumCylinders();
+  drive_state.current_num_heads = drive->GetNumHeads();
+  drive_state.current_num_sectors = drive->GetNumSectors();
+  drive_state.hdd = drive;
   return true;
 }
 
 bool HDC::AttachATAPIDevice(uint32 number, CDROM* cdrom)
 {
-  if (number >= MAX_DRIVES || m_drives[number])
+  if (number >= MAX_DRIVES || m_drives[number].type != DRIVE_TYPE_NONE)
     return false;
 
-  std::unique_ptr<DriveState> drive_state = std::make_unique<DriveState>();
-  drive_state->type = DRIVE_TYPE_ATAPI;
-  m_drives[number] = std::move(drive_state);
+  DriveState& drive_state = m_drives[number];
+  drive_state.type = DRIVE_TYPE_ATAPI;
   m_atapi_devices[number] = cdrom;
 
   cdrom->SetCommandCompletedCallback(std::bind(&HDC::HandleATAPICommandCompleted, this, number));
@@ -256,56 +249,58 @@ bool HDC::AttachATAPIDevice(uint32 number, CDROM* cdrom)
 
 void HDC::DetachDrive(uint32 number)
 {
-  if (number >= MAX_DRIVES || !m_drives[number])
+  if (number >= MAX_DRIVES || m_drives[number].type == DRIVE_TYPE_NONE)
     return;
 
-  m_drives[number].reset();
-  m_atapi_devices[number] = nullptr;
+  m_drives[number] = {};
+  m_drives[number].type = DRIVE_TYPE_NONE;
 }
 
 bool HDC::SeekDrive(uint32 drive, uint64 lba)
 {
-  DebugAssert(drive < MAX_DRIVES && m_drives[drive]);
+  DebugAssert(drive < MAX_DRIVES && m_drives[drive].hdd);
 
-  DriveState* state = m_drives[drive].get();
-  if (lba >= state->hdd->GetNumLBAs())
+  DriveState& state = m_drives[drive];
+  if (lba >= state.hdd->GetNumLBAs())
     return false;
 
   // TODO: Leave CHS unupdated for now?
-  state->current_cylinder = 0;
-  state->current_head = 0;
-  state->current_sector = 0;
-  state->current_lba = lba;
+  state.current_cylinder = 0;
+  state.current_head = 0;
+  state.current_sector = 0;
+  state.current_lba = lba;
   m_status_register |= ATA_SR_DSC;
   return true;
 }
 
 bool HDC::SeekDrive(uint32 drive, uint32 cylinder, uint32 head, uint32 sector)
 {
-  DebugAssert(drive < MAX_DRIVES && m_drives[drive]);
+  DebugAssert(drive < MAX_DRIVES && m_drives[drive].type == DRIVE_TYPE_HDD);
 
-  DriveState* state = m_drives[drive].get();
-  if (cylinder >= state->current_num_cylinders || head >= state->current_num_heads || sector < 1 ||
-      sector > state->current_num_sectors)
+  DriveState& state = m_drives[drive];
+  if (cylinder >= state.current_num_cylinders || head >= state.current_num_heads || sector < 1 ||
+      sector > state.current_num_sectors)
+  {
     return false;
+  }
 
-  state->current_cylinder = cylinder;
-  state->current_head = head;
-  state->current_sector = sector;
-  state->current_lba = (cylinder * state->current_num_heads + head) * state->current_num_sectors + (sector - 1);
+  state.current_cylinder = cylinder;
+  state.current_head = head;
+  state.current_sector = sector;
+  state.current_lba = (cylinder * state.current_num_heads + head) * state.current_num_sectors + (sector - 1);
   m_status_register |= ATA_SR_DSC;
   return true;
 }
 
 bool HDC::SeekToNextSector(uint32 drive)
 {
-  DriveState* state = m_drives[drive].get();
-  if (state->current_sector == 0)
+  DriveState& state = m_drives[drive];
+  if (state.current_sector == 0)
   {
     // using LBA
-    if ((state->current_lba + 1) < state->hdd->GetNumLBAs())
+    if ((state.current_lba + 1) < state.hdd->GetNumLBAs())
     {
-      state->current_lba++;
+      state.current_lba++;
       return true;
     }
     else
@@ -316,71 +311,51 @@ bool HDC::SeekToNextSector(uint32 drive)
   }
 
   // CHS addressing
-  uint32 cylinder = state->current_cylinder;
-  uint32 head = state->current_head;
-  uint32 sector = state->current_sector;
+  uint32 cylinder = state.current_cylinder;
+  uint32 head = state.current_head;
+  uint32 sector = state.current_sector;
 
   // move sectors -> heads -> cylinders
   sector++;
-  if (sector > state->current_num_sectors)
+  if (sector > state.current_num_sectors)
   {
     sector = 1;
     head++;
-    if (head >= state->current_num_heads)
+    if (head >= state.current_num_heads)
     {
       head = 0;
       cylinder++;
-      if (cylinder >= state->current_num_cylinders)
+      if (cylinder >= state.current_num_cylinders)
       {
         // end of disk
         return false;
       }
     }
   }
-  state->current_cylinder = cylinder;
-  state->current_head = head;
-  state->current_sector = sector;
+  state.current_cylinder = cylinder;
+  state.current_head = head;
+  state.current_sector = sector;
 
-  uint64 old_lba = state->current_lba;
-  state->current_lba = (cylinder * state->current_num_heads + head) * state->current_num_sectors + (sector - 1);
-  DebugAssert((old_lba + 1) == state->current_lba);
+  uint64 old_lba = state.current_lba;
+  state.current_lba = (cylinder * state.current_num_heads + head) * state.current_num_sectors + (sector - 1);
+  DebugAssert((old_lba + 1) == state.current_lba);
   return true;
 }
 
 void HDC::ReadCurrentSector(uint32 drive, void* data)
 {
-  DebugAssert(drive < MAX_DRIVES && m_drives[drive]);
-
-  DriveState* state = m_drives[drive].get();
-  Log_DevPrintf("HDC read lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
-  state->hdd->GetImage()->Read(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
+  DebugAssert(drive < MAX_DRIVES);
+  DriveState& state = m_drives[drive];
+  Log_DevPrintf("HDC read lba %u offset %u", state.current_lba, state.current_lba * SECTOR_SIZE);
+  state.hdd->GetImage()->Read(data, state.current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
 void HDC::WriteCurrentSector(uint32 drive, const void* data)
 {
-  DebugAssert(drive < MAX_DRIVES && m_drives[drive]);
-
-  DriveState* state = m_drives[drive].get();
-  Log_DevPrintf("HDC write lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
-  state->hdd->GetImage()->Write(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
-}
-
-bool HDC::ReadSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, void* data)
-{
-  if (!SeekDrive(drive, cylinder, head, sector))
-    return false;
-
-  ReadCurrentSector(drive, data);
-  return true;
-}
-
-bool HDC::WriteSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, const void* data)
-{
-  if (!SeekDrive(drive, cylinder, head, sector))
-    return false;
-
-  WriteCurrentSector(drive, data);
-  return true;
+  DebugAssert(drive < MAX_DRIVES);
+  DriveState& state = m_drives[drive];
+  Log_DevPrintf("HDC write lba %u offset %u", state.current_lba, state.current_lba * SECTOR_SIZE);
+  state.hdd->GetImage()->Write(data, state.current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
 void HDC::ConnectIOPorts(Bus* bus)
@@ -453,14 +428,14 @@ void HDC::SoftReset()
   // Set signature bytes in current CHS
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
-    DriveState* state = m_drives[i].get();
-    if (!state)
+    DriveState& state = m_drives[i];
+    if (state.type != DRIVE_TYPE_HDD)
       continue;
 
-    state->current_num_cylinders = state->hdd ? state->hdd->GetNumCylinders() : 0;
-    state->current_num_heads = state->hdd ? state->hdd->GetNumHeads() : 0;
-    state->current_num_sectors = state->hdd ? state->hdd->GetNumSectors() : 0;
-    SetSignature(state);
+    state.current_num_cylinders = state.hdd ? state.hdd->GetNumCylinders() : 0;
+    state.current_num_heads = state.hdd ? state.hdd->GetNumHeads() : 0;
+    state.current_num_sectors = state.hdd ? state.hdd->GetNumSectors() : 0;
+    SetSignature(&state);
   }
 
   // TODO: Stop any ATAPI commands.
@@ -468,19 +443,27 @@ void HDC::SoftReset()
 
 void HDC::FlushImagesEvent()
 {
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
+  for (u32 i = 0; i < MAX_DRIVES; i++)
   {
-    DriveState* state = m_drives[i].get();
-    if (!state || state->type != DRIVE_TYPE_HDD)
-      continue;
-
-    state->hdd->GetImage()->Flush();
+    if (m_drives[i].hdd)
+      m_drives[i].hdd->GetImage()->Flush();
   }
 }
 
-HW::CDROM* HDC::GetCurrentATAPIDevice()
+uint8 HDC::GetCurrentDriveIndex() const
 {
-  return (m_drives[m_drive_select.drive]->type == DRIVE_TYPE_ATAPI) ? m_atapi_devices[m_drive_select.drive] : nullptr;
+  return m_drive_select.drive;
+}
+
+HDC::DriveState* HDC::GetCurrentDrive()
+{
+  DriveState& ds = m_drives[m_drive_select.drive];
+  return (ds.type != DRIVE_TYPE_NONE) ? &ds : nullptr;
+}
+
+CDROM* HDC::GetCurrentATAPIDevice()
+{
+  return (m_drives[m_drive_select.drive].type == DRIVE_TYPE_ATAPI) ? m_atapi_devices[m_drive_select.drive] : nullptr;
 }
 
 void HDC::SetSignature(DriveState* drive)
@@ -671,39 +654,36 @@ void HDC::IOWriteDataRegisterDWord(uint32 value)
 
 void HDC::IOReadCommandBlock(uint32 port, uint8* value)
 {
-  // Lower 4 bits are the offset into the command block
-  uint32 offset = port & 7;
-
-  // TODO: Handle HOB
-  DriveState* state = GetCurrentDrive();
-  if (!state)
+  const DriveState& state = m_drives[m_drive_select.drive];
+  if (state.type == DRIVE_TYPE_NONE)
   {
     *value = 0;
     return;
   }
 
-  bool hob = m_control_register.high_order_byte_readback;
-
+  // Lower 4 bits are the offset into the command block
+  const u32 offset = port & 7;
+  const bool hob = m_control_register.high_order_byte_readback;
   switch (offset)
   {
       // Number of sectors to read/write
     case 2:
-      *value = Truncate8(hob ? (state->ata_sector_count >> 8) : (state->ata_sector_count));
+      *value = Truncate8(hob ? (state.ata_sector_count >> 8) : (state.ata_sector_count));
       break;
 
       // Sector number/LBA0
     case 3:
-      *value = Truncate8(hob ? (state->ata_sector_number >> 8) : (state->ata_sector_number));
+      *value = Truncate8(hob ? (state.ata_sector_number >> 8) : (state.ata_sector_number));
       break;
 
       // Cylinder low/LBA1
     case 4:
-      *value = Truncate8(hob ? (state->ata_cylinder_low >> 8) : (state->ata_cylinder_low));
+      *value = Truncate8(hob ? (state.ata_cylinder_low >> 8) : (state.ata_cylinder_low));
       break;
 
       // Cylinder high/LBA2
     case 5:
-      *value = Truncate8(hob ? (state->ata_cylinder_high >> 8) : (state->ata_cylinder_high));
+      *value = Truncate8(hob ? (state.ata_cylinder_high >> 8) : (state.ata_cylinder_high));
       break;
 
     default:
@@ -723,8 +703,8 @@ void HDC::IOWriteCommandBlock(uint32 port, uint8 value)
   // We have to write the value to both drives
   for (uint32 i = 0; i < MAX_DRIVES; i++)
   {
-    auto& state = m_drives[i];
-    if (!state)
+    DriveState& state = m_drives[i];
+    if (state.type == DRIVE_TYPE_NONE)
       continue;
 
     switch (offset)
@@ -736,29 +716,29 @@ void HDC::IOWriteCommandBlock(uint32 port, uint8 value)
 
         // Number of sectors to read/write
       case 2:
-        state->ata_sector_count <<= 8;
-        state->ata_sector_count |= ZeroExtend16(value);
+        state.ata_sector_count <<= 8;
+        state.ata_sector_count |= ZeroExtend16(value);
         break;
 
         // Sector number/LBA0
         // Shift bits 0-7 to 24-31
       case 3:
-        state->ata_sector_number <<= 8;
-        state->ata_sector_number |= ZeroExtend16(value);
+        state.ata_sector_number <<= 8;
+        state.ata_sector_number |= ZeroExtend16(value);
         break;
 
         // Cylinder low/LBA1
         // Shift bits 8-15 to 32-39
       case 4:
-        state->ata_cylinder_low <<= 8;
-        state->ata_cylinder_low |= ZeroExtend16(value);
+        state.ata_cylinder_low <<= 8;
+        state.ata_cylinder_low |= ZeroExtend16(value);
         break;
 
         // Cylinder high/LBA2
         // Shift bits 16-23 to 40-47
       case 5:
-        state->ata_cylinder_high <<= 8;
-        state->ata_cylinder_high |= ZeroExtend16(value);
+        state.ata_cylinder_high <<= 8;
+        state.ata_cylinder_high |= ZeroExtend16(value);
         break;
 
       default:
@@ -790,7 +770,7 @@ bool HDC::FillReadBuffer(uint32 drive_index, uint32 sector_count)
   // TODO: Handle end of disk...
   for (uint32 i = 0; i < sector_count; i++)
   {
-    DebugAssert(m_drives[drive_index] && m_drives[drive_index]->current_lba < m_drives[drive_index]->hdd->GetNumLBAs());
+    DebugAssert(m_drives[drive_index].current_lba < m_drives[drive_index].hdd->GetNumLBAs());
     ReadCurrentSector(drive_index, &m_current_transfer.buffer[i * SECTOR_SIZE]);
     if (!SeekToNextSector(drive_index) && (i != (sector_count - 1)))
       return false;
@@ -810,7 +790,7 @@ bool HDC::FlushWriteBuffer(uint32 drive_index, uint32 sector_count)
   // TODO: Handle end of disk...
   for (uint32 i = 0; i < sector_count; i++)
   {
-    DebugAssert(m_drives[drive_index] && m_drives[drive_index]->current_lba < m_drives[drive_index]->hdd->GetNumLBAs());
+    DebugAssert(m_drives[drive_index].current_lba < m_drives[drive_index].hdd->GetNumLBAs());
     WriteCurrentSector(drive_index, &m_current_transfer.buffer[i * SECTOR_SIZE]);
     if (!SeekToNextSector(drive_index) && (i != (sector_count - 1)))
       return false;
@@ -823,15 +803,15 @@ void HDC::HandleATACommand(uint8 command)
 {
   Log_DevPrintf("Received ATA command 0x%02X", ZeroExtend32(command));
 
-  DriveState* drive = GetCurrentDrive();
-  if (!drive)
+  DriveState& ds = m_drives[m_drive_select.drive];
+  if (ds.type == DRIVE_TYPE_NONE)
   {
     // Is this correct?
     AbortCommand();
     return;
   }
 
-  switch (drive->type)
+  switch (ds.type)
   {
     case DRIVE_TYPE_HDD:
     {
@@ -1526,16 +1506,16 @@ void HDC::HandleATAPIPacket()
 
 void HDC::HandleATAPICommandCompleted(uint32 drive_index)
 {
-  DriveState* drive = m_drives[drive_index].get();
+  DriveState& drive = m_drives[drive_index];
   auto* device = m_atapi_devices[drive_index];
-  DebugAssert(drive && device);
+  DebugAssert(device);
 
   StopTransfer();
 
   // Was there an error?
   if (device->HasError())
   {
-    drive->SetATAPIInterruptReason(true, true, false);
+    drive.SetATAPIInterruptReason(true, true, false);
     AbortCommand(device->GetSenseKey() << 4);
     return;
   }
@@ -1543,15 +1523,15 @@ void HDC::HandleATAPICommandCompleted(uint32 drive_index)
   // No response?
   if (device->GetDataResponseSize() == 0)
   {
-    drive->SetATAPIInterruptReason(true, true, false);
+    drive.SetATAPIInterruptReason(true, true, false);
     CompleteCommand();
     return;
   }
 
   // Update the last cylinder with the transfer size.
-  drive->ata_cylinder_low = Truncate8(device->GetDataResponseSize());
-  drive->ata_cylinder_high = Truncate8(device->GetDataResponseSize() >> 8);
-  drive->SetATAPIInterruptReason(false, true, false);
+  drive.ata_cylinder_low = Truncate8(device->GetDataResponseSize());
+  drive.ata_cylinder_high = Truncate8(device->GetDataResponseSize() >> 8);
+  drive.SetATAPIInterruptReason(false, true, false);
 
   // Set up the transfer.
   m_current_transfer.buffer.resize(device->GetDataResponseSize());
@@ -1622,7 +1602,7 @@ void HDC::BeginTransfer(uint32 drive_index, uint32 sectors_per_block, uint32 num
 void HDC::UpdatePacketCommand(const void* data, size_t data_size)
 {
   DebugAssert(m_current_transfer.is_packet_command && m_current_transfer.drive_index < MAX_DRIVES &&
-              m_drives[m_current_transfer.drive_index]->type == DRIVE_TYPE_ATAPI);
+              m_drives[m_current_transfer.drive_index].type == DRIVE_TYPE_ATAPI);
 
   auto* device = m_atapi_devices[m_current_transfer.drive_index];
   if (!device->WriteCommandBuffer(data, data_size))
@@ -1679,7 +1659,7 @@ void HDC::UpdateTransferBuffer()
         return;
       }
 
-      m_drives[m_current_transfer.drive_index]->SetATAPIInterruptReason(true, true, false);
+      m_drives[m_current_transfer.drive_index].SetATAPIInterruptReason(true, true, false);
     }
 
     CompleteCommand();

@@ -123,8 +123,6 @@ public:
   bool SeekToNextSector(uint32 drive);
   void ReadCurrentSector(uint32 drive, void* data);
   void WriteCurrentSector(uint32 drive, const void* data);
-  bool ReadSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, void* data);
-  bool WriteSector(uint32 drive, uint32 cylinder, uint32 head, uint32 sector, const void* data);
 
 protected:
   InterruptController* m_interrupt_controller = nullptr;
@@ -161,7 +159,7 @@ protected:
 
     void SetATAPIInterruptReason(bool is_command, bool data_from_device, bool release);
   };
-  std::array<std::unique_ptr<DriveState>, MAX_DRIVES> m_drives;
+  std::array<DriveState, MAX_DRIVES> m_drives;
   std::array<CDROM*, MAX_DRIVES> m_atapi_devices;
   TimingEvent::Pointer m_image_flush_event;
 
@@ -169,8 +167,8 @@ protected:
   void SoftReset();
   void FlushImagesEvent();
 
-  uint8 GetCurrentDriveIndex() const { return m_drive_select.drive; }
-  DriveState* GetCurrentDrive() { return m_drives[m_drive_select.drive].get(); }
+  uint8 GetCurrentDriveIndex() const;
+  DriveState* GetCurrentDrive();
   CDROM* GetCurrentATAPIDevice();
   void SetSignature(DriveState* drive);
 
