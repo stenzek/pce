@@ -42,6 +42,7 @@
     <ClCompile Include="cpu_x86\cycles.cpp" />
     <ClCompile Include="dma_controller.cpp" />
     <ClCompile Include="hw\adlib.cpp" />
+    <ClCompile Include="hw\ata_device.cpp" />
     <ClCompile Include="hw\cdrom.cpp" />
     <ClCompile Include="hw\et4000.cpp" />
     <ClCompile Include="hw\floppy.cpp" />
@@ -107,6 +108,7 @@
     <ClInclude Include="hw\et4000.h" />
     <ClInclude Include="hw\floppy.h" />
     <ClInclude Include="hw\i82437fx.h" />
+    <ClInclude Include="hw\ata_device.h" />
     <ClInclude Include="hw\ide_cdrom.h" />
     <ClInclude Include="hw\ide_hdd.h" />
     <ClInclude Include="hw\pci_bus.h" />

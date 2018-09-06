@@ -142,6 +142,10 @@
     <ClCompile Include="hw\floppy.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="system_config_parser.cpp" />
+    <ClCompile Include="hw\ata_device.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -297,11 +301,13 @@
     <ClInclude Include="hw\ide_cdrom.h">
       <Filter>hw</Filter>
     </ClInclude>
-    <ClInclude Include="system_config_parser.cpp" />
     <ClInclude Include="hw\ide_hdd.h">
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="hw\floppy.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\ata_device.h">
       <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>

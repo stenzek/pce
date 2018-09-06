@@ -8,6 +8,8 @@
 #include "hdc.h"
 Log_SetChannel(HW::IDEHDD);
 
+// http://margo.student.utwente.nl/el/pc/hd-info/ide-tech.htm
+
 namespace HW {
 
 DEFINE_OBJECT_TYPE_INFO(IDEHDD);
@@ -128,6 +130,38 @@ void IDEHDD::SetActivity(bool writing)
 void IDEHDD::ClearActivity()
 {
   m_system->GetHostInterface()->SetUIIndicatorState(this, HostInterface::IndicatorState::Off);
+}
+
+void IDEHDD::DoReset(bool is_hardware_reset)
+{
+  // The 430FX bios seems to require that the error register be 1 after soft reset.
+  // The IDE spec agrees that the initial value is 1.
+  m_registers.status.Reset();
+  m_registers.error = static_cast<ATA_ERR>(0x01);
+  SetSignature();
+
+  // TODO: This should be behind a flag check.
+  if (is_hardware_reset)
+  {
+    m_current_num_cylinders = m_cylinders;
+    m_current_num_heads = m_heads;
+    m_current_num_sectors = m_sectors;
+  }
+}
+
+void IDEHDD::SetSignature()
+{
+  m_registers.sector_count = 1;
+  m_registers.sector_number = 1;
+  m_registers.cylinder_low = 0;
+  m_registers.cylinder_high = 0;
+}
+
+void IDEHDD::SetupBuffer(u32 num_sectors)
+{
+  DebugAssert(num_sectors > 0);
+  m_buffer.data.resize(num_sectors * SECTOR_SIZE);
+  m_buffer.position = 0;
 }
 
 } // namespace HW

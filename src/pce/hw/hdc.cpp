@@ -726,7 +726,7 @@ void HDC::IOWriteCommandBlock(uint32 port, uint8 value)
   Log_DevPrintf("ATA write command block %04X -> 0x%02X", port, ZeroExtend32(value));
 
   // Lower 4 bits are the offset into the command block
-  uint32 offset = port & 7;
+  uint32 offset = port & 15;
 
   // We have to write the value to both drives
   for (uint32 i = 0; i < MAX_DRIVES; i++)
