@@ -186,8 +186,8 @@ void i430FX::AddComponents()
   m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
 
   m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_82077);
-  m_primary_hdd_controller = CreateComponent<HW::HDC>("PrimaryHDC", HW::HDC::CHANNEL_PRIMARY);
-  m_secondary_hdd_controller = CreateComponent<HW::HDC>("SecondaryHDC", HW::HDC::CHANNEL_SECONDARY);
+  m_primary_hdd_controller = CreateComponent<HW::HDC>("PrimaryHDC", HW::HDC::Channel::Primary);
+  m_secondary_hdd_controller = CreateComponent<HW::HDC>("SecondaryHDC", HW::HDC::Channel::Secondary);
 
   // Connect channel 0 of the PIT to the interrupt controller
   m_timer->SetChannelOutputChangeCallback(0,

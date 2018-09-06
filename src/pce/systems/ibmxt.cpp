@@ -81,8 +81,8 @@ void IBMXT::AddComponents()
   m_ppi = CreateComponent<HW::XT_PPI>("PPI");
   m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
 
-  m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_82077);
-  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::CHANNEL_PRIMARY);
+  m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_8272);
+  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::Channel::Primary);
 }
 
 void IBMXT::ConnectSystemIOPorts()

@@ -31,7 +31,7 @@ bool IDECDROM::Initialize(System* system, Bus* bus)
     return false;
   }
 
-  if (!hdc->AttachATAPIDevice(m_ide_drive, this))
+  // if (!hdc->AttachATAPIDevice(m_ide_drive, this))
   {
     Log_ErrorPrintf("Failed to attach CDROM to IDE channel %u device %u", m_ide_channel, m_ide_drive);
     return false;

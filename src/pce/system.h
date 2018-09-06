@@ -180,6 +180,7 @@ protected:
   // Throttle event
   Timer m_elapsed_real_time;
   SimulationTime m_last_emulated_time = 0;
+  SimulationTime m_extra_sleep_time = 0;
   TimingEvent::Pointer m_throttle_event;
   bool m_speed_limiter_enabled = true;
 

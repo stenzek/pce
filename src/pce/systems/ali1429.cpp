@@ -233,7 +233,7 @@ void ALi1429::AddComponents()
   m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
 
   m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_8272);
-  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::CHANNEL_PRIMARY);
+  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::Channel::Primary);
 
   // Connect channel 0 of the PIT to the interrupt controller
   m_timer->SetChannelOutputChangeCallback(0,
@@ -295,33 +295,33 @@ void ALi1429::SetCMOSVariables()
 
   // HDD information
   m_cmos->SetVariable(0x12, 0);
-  if (m_hdd_controller->IsDrivePresent(0))
+  if (m_hdd_controller->IsHDDPresent(0))
   {
     m_cmos->SetVariable(0x12, m_cmos->GetVariable(0x12) | 0xF0);
     m_cmos->SetVariable(0x19, 47); // user-defined type
-    m_cmos->SetVariable(0x1B, Truncate8(m_hdd_controller->GetDriveCylinders(0)));
-    m_cmos->SetVariable(0x1C, Truncate8(m_hdd_controller->GetDriveCylinders(0) >> 8));
-    m_cmos->SetVariable(0x1D, Truncate8(m_hdd_controller->GetDriveHeads(0)));
+    m_cmos->SetVariable(0x1B, Truncate8(m_hdd_controller->GetHDDCylinders(0)));
+    m_cmos->SetVariable(0x1C, Truncate8(m_hdd_controller->GetHDDCylinders(0) >> 8));
+    m_cmos->SetVariable(0x1D, Truncate8(m_hdd_controller->GetHDDHeads(0)));
     m_cmos->SetVariable(0x1E, 0xFF);
     m_cmos->SetVariable(0x1F, 0xFF);
-    m_cmos->SetVariable(0x20, 0xC0 | ((m_hdd_controller->GetDriveHeads(0) > 8) ? 8 : 0));
+    m_cmos->SetVariable(0x20, 0xC0 | ((m_hdd_controller->GetHDDHeads(0) > 8) ? 8 : 0));
     m_cmos->SetVariable(0x21, m_cmos->GetVariable(0x1B));
     m_cmos->SetVariable(0x22, m_cmos->GetVariable(0x1C));
-    m_cmos->SetVariable(0x23, Truncate8(m_hdd_controller->GetDriveSectors(0)));
+    m_cmos->SetVariable(0x23, Truncate8(m_hdd_controller->GetHDDSectors(0)));
   }
-  if (m_hdd_controller->IsDrivePresent(1))
+  if (m_hdd_controller->IsHDDPresent(1))
   {
     m_cmos->SetVariable(0x12, m_cmos->GetVariable(0x12) | 0x0F);
     m_cmos->SetVariable(0x1A, 48); // user-defined type
-    m_cmos->SetVariable(0x24, Truncate8(m_hdd_controller->GetDriveCylinders(1)));
-    m_cmos->SetVariable(0x25, Truncate8(m_hdd_controller->GetDriveCylinders(1) >> 8));
-    m_cmos->SetVariable(0x26, Truncate8(m_hdd_controller->GetDriveHeads(1)));
+    m_cmos->SetVariable(0x24, Truncate8(m_hdd_controller->GetHDDCylinders(1)));
+    m_cmos->SetVariable(0x25, Truncate8(m_hdd_controller->GetHDDCylinders(1) >> 8));
+    m_cmos->SetVariable(0x26, Truncate8(m_hdd_controller->GetHDDHeads(1)));
     m_cmos->SetVariable(0x27, 0xFF);
     m_cmos->SetVariable(0x28, 0xFF);
-    m_cmos->SetVariable(0x29, 0xC0 | ((m_hdd_controller->GetDriveHeads(1) > 8) ? 8 : 0));
+    m_cmos->SetVariable(0x29, 0xC0 | ((m_hdd_controller->GetHDDHeads(1) > 8) ? 8 : 0));
     m_cmos->SetVariable(0x2A, m_cmos->GetVariable(0x1B));
     m_cmos->SetVariable(0x2B, m_cmos->GetVariable(0x1C));
-    m_cmos->SetVariable(0x2C, Truncate8(m_hdd_controller->GetDriveSectors(1)));
+    m_cmos->SetVariable(0x2C, Truncate8(m_hdd_controller->GetHDDSectors(1)));
   }
 
   // Adjust CMOS checksum over 10-2D

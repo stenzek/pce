@@ -17,7 +17,7 @@ Bochs::Bochs(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_freq
              uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(model, cpu_frequency, memory_size, type_info)
 {
-  m_bios_file_path = "romimages/BIOS-bochs-latest";
+  m_bios_file_path = "romimages/BIOS-bochs-latest-debug";
 }
 
 Bochs::~Bochs() = default;
@@ -27,6 +27,7 @@ bool Bochs::Initialize()
   if (!BaseClass::Initialize())
     return false;
 
+  ConnectSystemIOPorts();
   return true;
 }
 
@@ -150,7 +151,7 @@ void Bochs::SetCMOSVariables()
   // Legacy - 0 - C: -> A:, 1 - A: -> C:
   m_cmos->SetVariable(0x2D, (0 << 5));
   // 0x00 - undefined, 0x01 - first floppy, 0x02 - first HDD, 0x03 - first cdrom
-  if (m_primary_hdd_controller->GetDriveCount() > 0)
+  if (m_primary_hdd_controller->GetDeviceCount() > 0)
     m_cmos->SetVariable(0x3D, 0x02);
   else
     m_cmos->SetVariable(0x3D, 0x01);
@@ -159,34 +160,33 @@ void Bochs::SetCMOSVariables()
   m_cmos->SetVariable(0x38, 0x01);
 
   // HDD information
-  m_cmos->SetVariable(0x12, 0);
-  if (m_primary_hdd_controller->IsDrivePresent(0))
+  if (m_primary_hdd_controller->IsHDDPresent(0))
   {
     m_cmos->SetVariable(0x12, m_cmos->GetVariable(0x12) | 0xF0);
     m_cmos->SetVariable(0x19, 47); // user-defined type
-    m_cmos->SetVariable(0x1B, Truncate8(m_primary_hdd_controller->GetDriveCylinders(0)));
-    m_cmos->SetVariable(0x1C, Truncate8(m_primary_hdd_controller->GetDriveCylinders(0) >> 8));
-    m_cmos->SetVariable(0x1D, Truncate8(m_primary_hdd_controller->GetDriveHeads(0)));
+    m_cmos->SetVariable(0x1B, Truncate8(m_primary_hdd_controller->GetHDDCylinders(0)));
+    m_cmos->SetVariable(0x1C, Truncate8(m_primary_hdd_controller->GetHDDCylinders(0) >> 8));
+    m_cmos->SetVariable(0x1D, Truncate8(m_primary_hdd_controller->GetHDDHeads(0)));
     m_cmos->SetVariable(0x1E, 0xFF);
     m_cmos->SetVariable(0x1F, 0xFF);
-    m_cmos->SetVariable(0x20, 0xC0 | ((m_primary_hdd_controller->GetDriveHeads(0) > 8) ? 8 : 0));
+    m_cmos->SetVariable(0x20, 0xC0 | ((m_primary_hdd_controller->GetHDDHeads(0) > 8) ? 8 : 0));
     m_cmos->SetVariable(0x21, m_cmos->GetVariable(0x1B));
     m_cmos->SetVariable(0x22, m_cmos->GetVariable(0x1C));
-    m_cmos->SetVariable(0x23, Truncate8(m_primary_hdd_controller->GetDriveSectors(0)));
+    m_cmos->SetVariable(0x23, Truncate8(m_primary_hdd_controller->GetHDDSectors(0)));
   }
-  if (m_primary_hdd_controller->IsDrivePresent(1))
+  if (m_primary_hdd_controller->IsHDDPresent(1))
   {
     m_cmos->SetVariable(0x12, m_cmos->GetVariable(0x12) | 0x0F);
-    m_cmos->SetVariable(0x1A, 47); // user-defined type
-    m_cmos->SetVariable(0x24, Truncate8(m_primary_hdd_controller->GetDriveCylinders(1)));
-    m_cmos->SetVariable(0x25, Truncate8(m_primary_hdd_controller->GetDriveCylinders(1) >> 8));
-    m_cmos->SetVariable(0x26, Truncate8(m_primary_hdd_controller->GetDriveHeads(1)));
+    m_cmos->SetVariable(0x1A, 48); // user-defined type
+    m_cmos->SetVariable(0x24, Truncate8(m_primary_hdd_controller->GetHDDCylinders(1)));
+    m_cmos->SetVariable(0x25, Truncate8(m_primary_hdd_controller->GetHDDCylinders(1) >> 8));
+    m_cmos->SetVariable(0x26, Truncate8(m_primary_hdd_controller->GetHDDHeads(1)));
     m_cmos->SetVariable(0x27, 0xFF);
     m_cmos->SetVariable(0x28, 0xFF);
-    m_cmos->SetVariable(0x29, 0xC0 | ((m_primary_hdd_controller->GetDriveHeads(1) > 8) ? 8 : 0));
+    m_cmos->SetVariable(0x29, 0xC0 | ((m_primary_hdd_controller->GetHDDHeads(1) > 8) ? 8 : 0));
     m_cmos->SetVariable(0x2A, m_cmos->GetVariable(0x1B));
     m_cmos->SetVariable(0x2B, m_cmos->GetVariable(0x1C));
-    m_cmos->SetVariable(0x2C, Truncate8(m_primary_hdd_controller->GetDriveSectors(1)));
+    m_cmos->SetVariable(0x2C, Truncate8(m_primary_hdd_controller->GetHDDSectors(1)));
   }
 }
 

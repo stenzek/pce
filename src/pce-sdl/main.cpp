@@ -501,12 +501,12 @@ static void Run(SDLHostInterface* host_interface, System* system)
 #if 0
   {
     ByteStream* stream;
-    if (ByteStream_OpenFileStream("savestate_4.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
+    if (ByteStream_OpenFileStream("savestate_1.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
     {
       Log_InfoPrintf("Loading state...");
       system->LoadState(stream);
       system->QueueExternalEvent([&]() { system->SetState(System::State::Running); });
-      //host_interface->InjectKeyEvent(GenScanCode_Return, true);
+      // host_interface->InjectKeyEvent(GenScanCode_Return, true);
       stream->Release();
     }
   }

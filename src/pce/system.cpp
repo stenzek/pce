@@ -95,7 +95,6 @@ void System::SetSpeedLimiterEnabled(bool enabled)
     // Clear the emulation timers, since the real time will be out of sync now.
     m_timing_manager.ResetTotalEmulatedTime();
     m_elapsed_real_time.Reset();
-    m_last_emulated_time = 0;
     m_speed_elapsed_real_time.Reset();
     m_speed_elapsed_simulation_time = 0;
     m_host_interface->GetDisplay()->ResetFramesRendered();
@@ -310,7 +309,6 @@ void System::OnSimulationResumed()
   // Ensure timers are zeroed before starting.
   m_timing_manager.ResetTotalEmulatedTime();
   m_elapsed_real_time.Reset();
-  m_last_emulated_time = 0;
   m_speed_elapsed_real_time.Reset();
   m_speed_elapsed_simulation_time = 0;
   m_host_interface->GetDisplay()->ResetFramesRendered();
@@ -322,9 +320,11 @@ void System::OnSimulationResumed()
 
 void System::ThrottleEventCallback()
 {
-  // Update emulation speed.
-  m_speed_elapsed_simulation_time += m_timing_manager.GetTotalEmulatedTime() - m_last_emulated_time;
+  SimulationTime elapsed_sim_time = m_timing_manager.GetEmulatedTimeDifference(m_last_emulated_time);
   m_last_emulated_time = m_timing_manager.GetTotalEmulatedTime();
+
+  // Update emulation speed.
+  m_speed_elapsed_simulation_time += elapsed_sim_time;
   double speed_real_time = m_speed_elapsed_real_time.GetTimeNanoseconds();
   if (speed_real_time >= 1000000000.0)
   {
@@ -359,31 +359,38 @@ void System::ThrottleEventCallback()
 
   if (m_speed_limiter_enabled)
   {
-    SimulationTime total_real_time = SimulationTime(m_elapsed_real_time.GetTimeNanoseconds());
-    SimulationTime total_simulated_time = m_timing_manager.GetTotalEmulatedTime();
-    SimulationTime diff = total_simulated_time - total_real_time;
-    // Log_ErrorPrintf("Throttle: System too %s, diff %.4f", (diff > 0) ? "fast" : "slow", float(diff) / 1000000.0f);
+    SimulationTime elapsed_real_time = SimulationTime(m_elapsed_real_time.GetTimeNanoseconds());
+    SimulationTime diff = elapsed_sim_time - (elapsed_real_time + m_extra_sleep_time);
+    // Log_ErrorPrintf("Elapsed simtime %u, realtime %u, diff %d", (u32)elapsed_sim_time, (u32)elapsed_real_time,
+    // (s32)diff);  Log_ErrorPrintf("Throttle: System too %s, diff %.4f", (diff > 0) ? "fast" : "slow", float(diff) /
+    // 1000000.0f);
+    m_extra_sleep_time = 0;
 
     if (diff > 0)
     {
       int32 sleep_time = int32(diff / 1000000);
+      // Log_ErrorPrintf("Sleep time: %u", sleep_time);
       if (sleep_time > 0)
+      {
+        // When sleeping, it's likely the OS will wake us up after the time we request, not at the exact time.
+        // Therefore, we need to add this time to the "elapsed time" when computing the next sleep time.
+        Timer sleep_timer;
         Thread::Sleep(sleep_time);
+        m_extra_sleep_time = static_cast<SimulationTime>(sleep_timer.GetTimeNanoseconds()) - diff;
+      }
     }
     else
     {
-      // If we fall below a certain point, reset the timers.
+#ifdef Y_BUILD_CONFIG_RELEASE
       const SimulationTime max_variance_ms = 50;
       if (diff < -(max_variance_ms * 1000000))
       {
-#ifdef Y_BUILD_CONFIG_RELEASE
         Log_ErrorPrintf("System too slow, lost %d ms", int32(-diff / 1000000));
-#endif
-        m_elapsed_real_time.Reset();
-        m_timing_manager.ResetTotalEmulatedTime();
-        m_last_emulated_time = 0;
       }
+#endif
     }
+
+    m_elapsed_real_time.Reset();
   }
 }
 

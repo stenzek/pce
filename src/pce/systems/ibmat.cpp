@@ -102,8 +102,8 @@ void IBMAT::AddComponents()
   m_keyboard_controller = CreateComponent<HW::i8042_PS2>("KeyboardController");
   m_cmos = CreateComponent<HW::CMOS>("CMOS");
 
-  m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_82077);
-  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::CHANNEL_PRIMARY);
+  m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_8272);
+  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::Channel::Primary);
 }
 
 void IBMAT::SetCMOSVariables()
