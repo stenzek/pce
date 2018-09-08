@@ -61,12 +61,18 @@ private:
   void AbortCommand(ATA_ERR error = ATA_ERR_ABRT, bool device_fault = false);
 
   void SetupBuffer(u32 num_sectors, u32 block_size, bool is_write);
+  void SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors);
   void FillReadBuffer();
   void FlushWriteBuffer();
+  void BufferReady(bool raise_interrupt);
   void ResetBuffer();
   void OnBufferEnd();
+  void ExecutePendingReadWrite();
+  void OnReadWriteEnd();
 
   CycleCount CalculateCommandTime(u8 command) const;
+  CycleCount CalculateSeekTime(u64 from_lba, u64 to_lba) const;
+  CycleCount CalculateReadWriteTime(u32 num_sectors) const;
   bool IsWriteCommand(u8 command) const;
   bool HasPendingCommand() const;
   void ExecutePendingCommand();
@@ -84,8 +90,9 @@ private:
   String m_image_filename;
   std::unique_ptr<HDDImage> m_image;
 
-  TimingEvent::Pointer m_command_event;
   TimingEvent::Pointer m_flush_event;
+  TimingEvent::Pointer m_command_event;
+  TimingEvent::Pointer m_read_write_event;
 
   u64 m_lbas;
   u32 m_cylinders;

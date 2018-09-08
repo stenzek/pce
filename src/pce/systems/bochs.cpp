@@ -17,7 +17,7 @@ Bochs::Bochs(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_freq
              uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(model, cpu_frequency, memory_size, type_info)
 {
-  m_bios_file_path = "romimages/BIOS-bochs-latest-debug";
+  m_bios_file_path = "romimages/BIOS-bochs-latest";
 }
 
 Bochs::~Bochs() = default;

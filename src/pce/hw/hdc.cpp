@@ -42,7 +42,7 @@ bool HDC::Initialize(System* system, Bus* bus)
 void HDC::Reset()
 {
   BaseClass::Reset();
-  
+
   std::fill_n(m_device_interrupt_lines, NUM_DEVICES, false);
   UpdateHostInterruptLine();
 }

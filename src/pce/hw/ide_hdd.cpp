@@ -77,7 +77,9 @@ bool IDEHDD::Initialize(System* system, Bus* bus)
   m_flush_event =
     m_system->GetTimingManager()->CreateFrequencyEvent("HDD Image Flush", 1.0f, std::bind(&IDEHDD::FlushImage, this));
   m_command_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
-    "HDC Command", 1, std::bind(&IDEHDD::ExecutePendingCommand, this), false);
+    "ATA HDD Command", 1, std::bind(&IDEHDD::ExecutePendingCommand, this), false);
+  m_read_write_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
+    "ATA HDD Read/Write", 1, std::bind(&IDEHDD::ExecutePendingReadWrite, this), false);
 
   // Create indicator and menu options.
   system->GetHostInterface()->AddUIIndicator(this, HostInterface::IndicatorType::HDD);
@@ -340,8 +342,16 @@ void IDEHDD::SetupBuffer(u32 num_sectors, u32 block_size, bool is_write)
   m_buffer.remaining_sectors = num_sectors;
   m_buffer.block_size = block_size;
   m_buffer.is_write = is_write;
-  m_buffer.valid = true;
-  m_registers.status.SetDRQ();
+}
+
+void IDEHDD::SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors)
+{
+  const CycleCount rw_time = CalculateReadWriteTime(num_sectors);
+  Log_DevPrintf("Sector r/w time for %u sectors at lba %" PRIu64 ": %u us", num_sectors, m_current_lba,
+                static_cast<unsigned>(rw_time));
+
+  DebugAssert(!m_read_write_event->IsActive());
+  m_read_write_event->Queue(seek_time + rw_time);
 }
 
 void IDEHDD::FillReadBuffer()
@@ -362,6 +372,14 @@ void IDEHDD::FlushWriteBuffer()
   m_current_lba += sector_count;
 }
 
+void IDEHDD::BufferReady(bool raise_interrupt)
+{
+  m_buffer.valid = true;
+  m_registers.status.SetDRQ();
+  if (raise_interrupt)
+    RaiseInterrupt();
+}
+
 void IDEHDD::ResetBuffer()
 {
   m_buffer.size = 0;
@@ -374,10 +392,41 @@ void IDEHDD::ResetBuffer()
 
 void IDEHDD::OnBufferEnd()
 {
-  // If it's a write, the buffer must be written to the backing image.
   if (m_buffer.is_write)
+  {
+    // If it's a write, the buffer must be written to the backing image.
     FlushWriteBuffer();
 
+    // Setup the write event.
+    m_registers.status.SetBusy();
+    SetupReadWriteEvent(0, std::min(m_buffer.remaining_sectors, m_buffer.block_size));
+    return;
+  }
+  else
+  {
+    OnReadWriteEnd();
+  }
+}
+
+void IDEHDD::ExecutePendingReadWrite()
+{
+  m_read_write_event->Deactivate();
+
+  if (m_buffer.is_write)
+  {
+    // Write completed.
+    OnReadWriteEnd();
+  }
+  else
+  {
+    // Command is a read, the buffer is now ready for the host to access.
+    FillReadBuffer();
+    BufferReady(true);
+  }
+}
+
+void IDEHDD::OnReadWriteEnd()
+{
   // Are we finished with the command?
   const u32 transferred_sectors = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
   m_buffer.remaining_sectors -= transferred_sectors;
@@ -389,9 +438,6 @@ void IDEHDD::OnBufferEnd()
     return;
   }
 
-  // TODO: This should be timed...
-  m_registers.status.SetBusy();
-
   // Reset buffer position for the next block.
   const u32 next_transfer_sectors = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
   m_buffer.size = next_transfer_sectors * SECTOR_SIZE;
@@ -399,13 +445,16 @@ void IDEHDD::OnBufferEnd()
   if (m_buffer.data.size() < m_buffer.size)
     m_buffer.data.resize(m_buffer.size);
 
-  // Fill buffer contents for reads.
-  if (!m_buffer.is_write)
-    FillReadBuffer();
-
-  // Buffer ready. Both read and write commands raise an interrupt here.
-  m_registers.status.SetDRQ();
-  RaiseInterrupt();
+  if (m_buffer.is_write)
+  {
+    // Writes - request data from host.
+    BufferReady(true);
+  }
+  else
+  {
+    // Reads - do the read.
+    SetupReadWriteEvent(0, next_transfer_sectors);
+  }
 }
 
 void IDEHDD::WriteCommandRegister(u8 value)
@@ -435,6 +484,7 @@ void IDEHDD::WriteCommandRegister(u8 value)
 
 CycleCount IDEHDD::CalculateCommandTime(u8 command) const
 {
+#if 0
   switch (command)
   {
     // Make reads take slightly longer.
@@ -460,6 +510,19 @@ CycleCount IDEHDD::CalculateCommandTime(u8 command) const
     default:
       return 1;
   }
+#else
+  return 1;
+#endif
+}
+
+CycleCount IDEHDD::CalculateSeekTime(u64 from_lba, u64 to_lba) const
+{
+  return 1;
+}
+
+CycleCount IDEHDD::CalculateReadWriteTime(u32 num_sectors) const
+{
+  return 1 * num_sectors;
 }
 
 bool IDEHDD::IsWriteCommand(u8 command) const
@@ -641,7 +704,7 @@ void IDEHDD::HandleATAIdentify()
   // 512 bytes total
   SetupBuffer(1, 1, false);
   std::memcpy(m_buffer.data.data(), &response, sizeof(response));
-  RaiseInterrupt();
+  BufferReady(true);
 }
 
 void IDEHDD::HandleATARecalibrate()
@@ -710,8 +773,13 @@ void IDEHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
   SetupBuffer(count, multiple ? m_multiple_sectors : 1, write);
   if (!write)
   {
-    FillReadBuffer();
-    RaiseInterrupt();
+    // Reads are delayed.
+    SetupReadWriteEvent(0, std::min(m_buffer.remaining_sectors, m_buffer.block_size));
+  }
+  else
+  {
+    // Writes begin immediately, and write to the disk after the host sends the data.
+    BufferReady(true);
   }
 }
 
@@ -892,5 +960,4 @@ void IDEHDD::HandleATASetFeatures()
       return;
   }
 }
-
 } // namespace HW
