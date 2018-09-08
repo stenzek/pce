@@ -493,7 +493,7 @@ void ET4000::IODACStateRegisterRead(uint8* value) // 3c7
 
 void ET4000::IODACReadAddressWrite(uint8 value) // 3c7
 {
-  Log_DevPrintf("DAC read address write: %u", value);
+  Log_TracePrintf("DAC read address write: %u", value);
   m_dac_read_address = value;
   m_dac_state_register = 0;
 }
@@ -506,7 +506,7 @@ void ET4000::IODACWriteAddressRead(uint8* value) // 3c8
 
 void ET4000::IODACWriteAddressWrite(uint8 value) // 3c8
 {
-  Log_DevPrintf("DAC write address write: %u", value);
+  Log_TracePrintf("DAC write address write: %u", value);
   m_dac_write_address = value;
   m_dac_color_index = 0;
   m_dac_state_register = 0;

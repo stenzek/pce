@@ -111,7 +111,7 @@ void i430FX::IOReadSystemControlPortA(uint8* value)
 
 void i430FX::IOWriteSystemControlPortA(uint8 value)
 {
-  Log_DevPrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
+  Log_TracePrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
 
   // b7-6 - Activity Lights
   // b5 - Reserved

@@ -525,7 +525,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
 
     case 0xD0: // Read output port
     {
-      Log_DevPrintf("KBC read output port");
+      Log_TracePrintf("KBC read output port");
       SetOutputBuffer(0, m_output_port.raw);
       return true;
     }
@@ -536,7 +536,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
         return false;
 
       const uint8 old_value = m_output_port.raw;
-      Log_DevPrintf("KBC write output port: 0x%02X -> 0x%02X", ZeroExtend32(old_value), ZeroExtend32(data));
+      Log_TracePrintf("KBC write output port: 0x%02X -> 0x%02X", ZeroExtend32(old_value), ZeroExtend32(data));
       m_output_port.raw = data;
 
       // This can control the A20 gate as a legacy method, so pass it to the system.
