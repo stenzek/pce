@@ -437,8 +437,7 @@ bool CDROM::BeginCommand()
 
   // Unknown command.
   Log_ErrorPrintf("Unhandled SCSI command 0x%02X", ZeroExtend32(opcode));
-  m_command_buffer.clear();
-  m_error = true;
+  AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_ILLEGAL_OPCODE);
   return true;
 }
 
