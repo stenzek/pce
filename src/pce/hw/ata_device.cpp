@@ -67,12 +67,23 @@ bool ATADevice::LoadState(BinaryReader& reader)
 
   m_registers.status.bits = reader.ReadUInt8();
   m_registers.drive_select.bits = reader.ReadUInt8();
-  m_registers.error = static_cast<ATA_ERR>(reader.ReadUInt8());
+  m_registers.error = reader.ReadUInt8();
   m_registers.feature_select = reader.ReadUInt8();
   m_registers.sector_count = reader.ReadUInt16();
   m_registers.sector_number = reader.ReadUInt16();
   m_registers.cylinder_low = reader.ReadUInt16();
   m_registers.cylinder_high = reader.ReadUInt16();
+
+  m_buffer.size = reader.ReadUInt32();
+  m_buffer.position = reader.ReadUInt32();
+  m_buffer.is_write = reader.ReadBool();
+  m_buffer.valid = reader.ReadBool();
+  if (m_buffer.size > 0)
+  {
+    m_buffer.data.resize(m_buffer.size);
+    reader.ReadBytes(m_buffer.data.data(), m_buffer.size);
+  }
+
   return !reader.GetErrorState();
 }
 
@@ -90,6 +101,14 @@ bool ATADevice::SaveState(BinaryWriter& writer)
   writer.WriteUInt16(m_registers.sector_number);
   writer.WriteUInt16(m_registers.cylinder_low);
   writer.WriteUInt16(m_registers.cylinder_high);
+
+  writer.WriteUInt32(m_buffer.size);
+  writer.WriteUInt32(m_buffer.position);
+  writer.WriteBool(m_buffer.is_write);
+  writer.WriteBool(m_buffer.valid);
+  if (m_buffer.size > 0)
+    writer.WriteBytes(m_buffer.data.data(), m_buffer.size);
+
   return !writer.InErrorState();
 }
 
@@ -152,7 +171,15 @@ void ATADevice::WriteCommandBlockDriveSelect(u8 value)
   m_registers.drive_select.bits = value;
 }
 
-void ATADevice::DoReset(bool is_hardware_reset) {}
+void ATADevice::DoReset(bool is_hardware_reset)
+{
+  // The 430FX bios seems to require that the error register be 1 after soft reset.
+  // The IDE spec agrees that the initial value is 1.
+  m_registers.status.Reset();
+  m_registers.error = 1;
+  m_ata_controller->SetDeviceInterruptLine(m_ata_drive_number, false);
+  ResetBuffer();
+}
 
 void ATADevice::PutIdentifyString(char* buffer, uint32 buffer_size, const char* str)
 {
@@ -172,6 +199,57 @@ void ATADevice::RaiseInterrupt()
 {
   Log_TracePrintf("Raising ATA interrupt line %u/%u", m_ata_channel_number, m_ata_drive_number);
   m_ata_controller->SetDeviceInterruptLine(m_ata_drive_number, true);
+}
+
+void ATADevice::ReadDataPort(void* buffer, u32 size)
+{
+  if (!m_buffer.valid || m_buffer.is_write)
+    return;
+
+  const u32 bytes_to_copy = std::min(size, m_buffer.size - m_buffer.position);
+  std::memcpy(buffer, &m_buffer.data[m_buffer.position], bytes_to_copy);
+  m_buffer.position += bytes_to_copy;
+
+  if (m_buffer.position == m_buffer.size)
+    OnBufferEnd();
+}
+
+void ATADevice::WriteDataPort(const void* buffer, u32 size)
+{
+  if (!m_buffer.valid || !m_buffer.is_write)
+    return;
+
+  const u32 bytes_to_copy = std::min(size, m_buffer.size - m_buffer.position);
+  std::memcpy(&m_buffer.data[m_buffer.position], buffer, bytes_to_copy);
+  m_buffer.position += bytes_to_copy;
+
+  if (m_buffer.position == m_buffer.size)
+    OnBufferEnd();
+}
+
+void ATADevice::SetupBuffer(u32 size, bool is_write)
+{
+  m_buffer.size = size;
+  m_buffer.position = 0;
+  if (m_buffer.data.size() < m_buffer.size)
+    m_buffer.data.resize(m_buffer.size);
+  m_buffer.is_write = is_write;
+}
+
+void ATADevice::ResetBuffer()
+{
+  m_buffer.size = 0;
+  m_buffer.position = 0;
+  m_buffer.is_write = false;
+  m_buffer.valid = false;
+}
+
+void ATADevice::BufferReady(bool raise_interrupt)
+{
+  m_buffer.valid = true;
+  m_registers.status.SetDRQ();
+  if (raise_interrupt)
+    RaiseInterrupt();
 }
 
 } // namespace HW

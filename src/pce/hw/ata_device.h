@@ -231,9 +231,9 @@ public:
   // Command register.
   virtual void WriteCommandRegister(u8 value) = 0;
 
-  // Data port.
-  virtual void ReadDataPort(void* buffer, u32 size) = 0;
-  virtual void WriteDataPort(const void* buffer, u32 size) = 0;
+  // Data port. TODO: Make specific size overloads.
+  void ReadDataPort(void* buffer, u32 size);
+  void WriteDataPort(const void* buffer, u32 size);
 
 protected:
   static const u32 SERIALIZATION_ID = MakeSerializationID('A', 'T', 'A', 'D');
@@ -241,6 +241,11 @@ protected:
   static void PutIdentifyString(char* buffer, uint32 buffer_size, const char* str);
 
   void RaiseInterrupt();
+
+  void SetupBuffer(u32 size, bool is_write);
+  void ResetBuffer();
+  void BufferReady(bool raise_interrupt);
+  virtual void OnBufferEnd() = 0;
 
   HDC* m_ata_controller = nullptr;
   u32 m_ata_channel_number;
@@ -250,7 +255,7 @@ protected:
   {
     ATAStatusRegister status;
     ATADriveSelectRegister drive_select;
-    ATA_ERR error;
+    u8 error;
     u8 feature_select;
 
     u16 sector_count;
@@ -258,6 +263,16 @@ protected:
     u16 cylinder_low;
     u16 cylinder_high;
   } m_registers = {};
+
+  // Current buffer being transferred.
+  struct
+  {
+    std::vector<byte> data;
+    u32 size;
+    u32 position;
+    bool is_write;
+    bool valid;
+  } m_buffer = {};
 };
 
 } // namespace HW

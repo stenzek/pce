@@ -123,17 +123,8 @@ bool ATAHDD::LoadState(BinaryReader& reader)
 
   m_current_command = reader.ReadUInt16();
 
-  m_buffer.size = reader.ReadUInt32();
-  m_buffer.position = reader.ReadUInt32();
-  m_buffer.remaining_sectors = reader.ReadUInt32();
-  m_buffer.block_size = reader.ReadUInt32();
-  m_buffer.is_write = reader.ReadBool();
-  m_buffer.valid = reader.ReadBool();
-  if (m_buffer.size > 0)
-  {
-    m_buffer.data.resize(m_buffer.size);
-    reader.ReadBytes(m_buffer.data.data(), m_buffer.size);
-  }
+  m_transfer_remaining_sectors = reader.ReadUInt32();
+  m_transfer_block_size = reader.ReadUInt32();
 
   if (reader.GetErrorState())
     return false;
@@ -162,14 +153,8 @@ bool ATAHDD::SaveState(BinaryWriter& writer)
 
   writer.WriteUInt16(m_current_command);
 
-  writer.WriteUInt32(m_buffer.size);
-  writer.WriteUInt32(m_buffer.position);
-  writer.WriteUInt32(m_buffer.remaining_sectors);
-  writer.WriteUInt32(m_buffer.block_size);
-  writer.WriteBool(m_buffer.is_write);
-  writer.WriteBool(m_buffer.valid);
-  if (m_buffer.size > 0)
-    writer.WriteBytes(m_buffer.data.data(), m_buffer.size);
+  writer.WriteUInt32(m_transfer_remaining_sectors);
+  writer.WriteUInt32(m_transfer_block_size);
 
   if (writer.InErrorState())
     return false;
@@ -177,38 +162,9 @@ bool ATAHDD::SaveState(BinaryWriter& writer)
   return m_image->SaveState(writer.GetStream());
 }
 
-void ATAHDD::ReadDataPort(void* buffer, u32 size)
-{
-  if (!m_buffer.valid || m_buffer.is_write)
-    return;
-
-  const u32 bytes_to_copy = std::min(size, m_buffer.size - m_buffer.position);
-  std::memcpy(buffer, &m_buffer.data[m_buffer.position], bytes_to_copy);
-  m_buffer.position += bytes_to_copy;
-
-  if (m_buffer.position == m_buffer.size)
-    OnBufferEnd();
-}
-
-void ATAHDD::WriteDataPort(const void* buffer, u32 size)
-{
-  if (!m_buffer.valid || !m_buffer.is_write)
-    return;
-
-  const u32 bytes_to_copy = std::min(size, m_buffer.size - m_buffer.position);
-  std::memcpy(&m_buffer.data[m_buffer.position], buffer, bytes_to_copy);
-  m_buffer.position += bytes_to_copy;
-
-  if (m_buffer.position == m_buffer.size)
-    OnBufferEnd();
-}
-
 void ATAHDD::DoReset(bool is_hardware_reset)
 {
-  // The 430FX bios seems to require that the error register be 1 after soft reset.
-  // The IDE spec agrees that the initial value is 1.
-  m_registers.status.Reset();
-  m_registers.error = static_cast<ATA_ERR>(0x01);
+  BaseClass::DoReset(is_hardware_reset);
   SetSignature();
 
   // TODO: This should be behind a flag check.
@@ -224,7 +180,8 @@ void ATAHDD::DoReset(bool is_hardware_reset)
   // Abort any commands.
   m_command_event->SetActive(false);
   m_current_command = INVALID_COMMAND;
-  ResetBuffer();
+  m_transfer_remaining_sectors = 0;
+  m_transfer_block_size = 0;
   ClearActivity();
 }
 
@@ -311,12 +268,16 @@ bool ATAHDD::SeekLBA(const u64 lba)
 
 void ATAHDD::CompleteCommand(bool seek_complete /* = false */, bool raise_interrupt /* = true */)
 {
+  m_transfer_remaining_sectors = 0;
+  m_transfer_block_size = 0;
+  ResetBuffer();
+
   m_current_command = INVALID_COMMAND;
   m_registers.status.SetReady();
   if (seek_complete)
     m_registers.status.seek_complete = true;
 
-  m_registers.error = static_cast<ATA_ERR>(0x00);
+  m_registers.error = 0;
   ClearActivity();
 
   if (raise_interrupt)
@@ -325,6 +286,10 @@ void ATAHDD::CompleteCommand(bool seek_complete /* = false */, bool raise_interr
 
 void ATAHDD::AbortCommand(ATA_ERR error /* = ATA_ERR_ABRT */, bool device_fault /* = false */)
 {
+  m_transfer_remaining_sectors = 0;
+  m_transfer_block_size = 0;
+  ResetBuffer();
+
   m_current_command = INVALID_COMMAND;
   m_registers.status.SetError(device_fault);
   m_registers.error = error;
@@ -332,16 +297,12 @@ void ATAHDD::AbortCommand(ATA_ERR error /* = ATA_ERR_ABRT */, bool device_fault 
   ClearActivity();
 }
 
-void ATAHDD::SetupBuffer(u32 num_sectors, u32 block_size, bool is_write)
+void ATAHDD::SetupTransfer(u32 num_sectors, u32 block_size, bool is_write)
 {
   DebugAssert(num_sectors > 0);
-  m_buffer.size = std::min(block_size, num_sectors) * SECTOR_SIZE;
-  m_buffer.position = 0;
-  if (m_buffer.data.size() < m_buffer.size)
-    m_buffer.data.resize(m_buffer.size);
-  m_buffer.remaining_sectors = num_sectors;
-  m_buffer.block_size = block_size;
-  m_buffer.is_write = is_write;
+  SetupBuffer(std::min(block_size, num_sectors) * SECTOR_SIZE, is_write);
+  m_transfer_remaining_sectors = num_sectors;
+  m_transfer_block_size = block_size;
 }
 
 void ATAHDD::SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors)
@@ -356,7 +317,7 @@ void ATAHDD::SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors)
 
 void ATAHDD::FillReadBuffer()
 {
-  const u32 sector_count = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
+  const u32 sector_count = std::min(m_transfer_remaining_sectors, m_transfer_block_size);
   DebugAssert(m_buffer.size >= (sector_count * SECTOR_SIZE));
   DebugAssert((m_current_lba + sector_count) * SECTOR_SIZE <= m_image->GetImageSize());
   m_image->Read(m_buffer.data.data(), m_current_lba * SECTOR_SIZE, sector_count * SECTOR_SIZE);
@@ -365,29 +326,11 @@ void ATAHDD::FillReadBuffer()
 
 void ATAHDD::FlushWriteBuffer()
 {
-  const u32 sector_count = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
+  const u32 sector_count = std::min(m_transfer_remaining_sectors, m_transfer_block_size);
   DebugAssert(m_buffer.size >= (sector_count * SECTOR_SIZE));
   DebugAssert((m_current_lba + sector_count) * SECTOR_SIZE <= m_image->GetImageSize());
   m_image->Write(m_buffer.data.data(), m_current_lba * SECTOR_SIZE, sector_count * SECTOR_SIZE);
   m_current_lba += sector_count;
-}
-
-void ATAHDD::BufferReady(bool raise_interrupt)
-{
-  m_buffer.valid = true;
-  m_registers.status.SetDRQ();
-  if (raise_interrupt)
-    RaiseInterrupt();
-}
-
-void ATAHDD::ResetBuffer()
-{
-  m_buffer.size = 0;
-  m_buffer.position = 0;
-  m_buffer.remaining_sectors = 0;
-  m_buffer.block_size = 0;
-  m_buffer.is_write = false;
-  m_buffer.valid = false;
 }
 
 void ATAHDD::OnBufferEnd()
@@ -399,7 +342,7 @@ void ATAHDD::OnBufferEnd()
 
     // Setup the write event.
     m_registers.status.SetBusy();
-    SetupReadWriteEvent(0, std::min(m_buffer.remaining_sectors, m_buffer.block_size));
+    SetupReadWriteEvent(0, std::min(m_transfer_remaining_sectors, m_transfer_block_size));
     return;
   }
   else
@@ -428,23 +371,18 @@ void ATAHDD::ExecutePendingReadWrite()
 void ATAHDD::OnReadWriteEnd()
 {
   // Are we finished with the command?
-  const u32 transferred_sectors = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
-  m_buffer.remaining_sectors -= transferred_sectors;
-  if (m_buffer.remaining_sectors == 0)
+  const u32 transferred_sectors = std::min(m_transfer_remaining_sectors, m_transfer_block_size);
+  m_transfer_remaining_sectors -= transferred_sectors;
+  if (m_transfer_remaining_sectors == 0)
   {
     // Read commands do not raise an interrupt after the command finishes, but write commands do.
-    ResetBuffer();
     CompleteCommand(true, IsWriteCommand(Truncate8(m_current_command)));
     return;
   }
 
   // Reset buffer position for the next block.
-  const u32 next_transfer_sectors = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
-  m_buffer.size = next_transfer_sectors * SECTOR_SIZE;
-  m_buffer.position = 0;
-  if (m_buffer.data.size() < m_buffer.size)
-    m_buffer.data.resize(m_buffer.size);
-
+  const u32 next_transfer_sectors = std::min(m_transfer_remaining_sectors, m_transfer_block_size);
+  SetupBuffer(next_transfer_sectors * SECTOR_SIZE, m_buffer.is_write);
   if (m_buffer.is_write)
   {
     // Writes - request data from host.
@@ -468,18 +406,21 @@ void ATAHDD::WriteCommandRegister(u8 value)
     return;
   }
 
-  // Determine how long the command will take to execute.
-  const CycleCount cycles = CalculateCommandTime(value);
-  Log_DevPrintf("Queueing ATA command 0x%02X in %u us", value, unsigned(cycles));
-  m_command_event->Queue(cycles);
-  m_current_command = ZeroExtend16(value);
-
   // We're busy now, and can't accept other commands.
   m_registers.status.SetBusy();
 
   // Set the activity indicator.
   m_system->GetHostInterface()->SetUIIndicatorState(
     this, IsWriteCommand(value) ? HostInterface::IndicatorState::Writing : HostInterface::IndicatorState::Reading);
+
+  // Determine how long the command will take to execute.
+  const CycleCount cycles = CalculateCommandTime(value);
+  Log_DevPrintf("Queueing ATA command 0x%02X in %u us", value, unsigned(cycles));
+  m_current_command = ZeroExtend16(value);
+  if (cycles > 0)
+    m_command_event->Queue(cycles);
+  else
+    ExecutePendingCommand();
 }
 
 CycleCount ATAHDD::CalculateCommandTime(u8 command) const
@@ -549,7 +490,7 @@ bool ATAHDD::HasPendingCommand() const
 void ATAHDD::ExecutePendingCommand()
 {
   const u8 command = Truncate8(m_current_command);
-  m_command_event->Deactivate();
+  m_command_event->SetActive(false);
 
   Log_TracePrintf("Executing ATA command 0x%02X on drive %u/%u", command, m_ata_channel_number, m_ata_drive_number);
 
@@ -702,7 +643,7 @@ void ATAHDD::HandleATAIdentify()
   response.lba48_sectors = m_lbas;
 
   // 512 bytes total
-  SetupBuffer(1, 1, false);
+  SetupTransfer(1, 1, false);
   std::memcpy(m_buffer.data.data(), &response, sizeof(response));
   BufferReady(true);
 }
@@ -770,11 +711,11 @@ void ATAHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
   }
 
   // Setup transfer and fire irq
-  SetupBuffer(count, multiple ? m_multiple_sectors : 1, write);
+  SetupTransfer(count, multiple ? m_multiple_sectors : 1, write);
   if (!write)
   {
     // Reads are delayed.
-    SetupReadWriteEvent(0, std::min(m_buffer.remaining_sectors, m_buffer.block_size));
+    SetupReadWriteEvent(0, std::min(m_transfer_remaining_sectors, m_transfer_block_size));
   }
   else
   {
@@ -890,7 +831,7 @@ void ATAHDD::HandleATASetMultipleMode()
 void ATAHDD::HandleATAExecuteDriveDiagnostic()
 {
   Log_DevPrintf("ATA execute drive diagnostic %u/%u", m_ata_channel_number, m_ata_drive_number);
-  m_registers.error = static_cast<ATA_ERR>(0x01); // No error detected
+  m_registers.error = 1; // No error detected
   CompleteCommand();
 }
 

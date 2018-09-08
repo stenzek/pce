@@ -29,9 +29,6 @@ public:
 
   void WriteCommandRegister(u8 value) override;
 
-  void ReadDataPort(void* buffer, u32 size) override;
-  void WriteDataPort(const void* buffer, u32 size) override;
-
   HDDImage* GetImage() const { return m_image.get(); }
 
   u64 GetNumLBAs() const { return m_lbas; }
@@ -60,13 +57,11 @@ private:
   void CompleteCommand(bool seek_complete = false, bool raise_interrupt = true);
   void AbortCommand(ATA_ERR error = ATA_ERR_ABRT, bool device_fault = false);
 
-  void SetupBuffer(u32 num_sectors, u32 block_size, bool is_write);
+  void SetupTransfer(u32 num_sectors, u32 block_size, bool is_write);
   void SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors);
   void FillReadBuffer();
   void FlushWriteBuffer();
-  void BufferReady(bool raise_interrupt);
-  void ResetBuffer();
-  void OnBufferEnd();
+  void OnBufferEnd() override;
   void ExecutePendingReadWrite();
   void OnReadWriteEnd();
 
@@ -116,16 +111,8 @@ private:
   u16 m_current_command = INVALID_COMMAND;
 
   // Current buffer being transferred.
-  struct
-  {
-    std::vector<byte> data;
-    u32 size;
-    u32 position;
-    u32 remaining_sectors;
-    u32 block_size;
-    bool is_write;
-    bool valid;
-  } m_buffer = {};
+  u32 m_transfer_remaining_sectors = 0;
+  u32 m_transfer_block_size = 0;
 };
 
 } // namespace HW
