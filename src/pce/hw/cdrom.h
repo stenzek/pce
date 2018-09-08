@@ -176,6 +176,7 @@ private:
   void HandleModeSenseCommand();
   void HandleReadCommand();
   void HandleMechanismStatusCommand();
+  void HandleSeekCommand();
 
   Clock m_clock;
   SmallString m_vendor_id_string;

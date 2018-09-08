@@ -6,6 +6,7 @@
 #include "pce/host_interface.h"
 #include "pce/system.h"
 #include <functional>
+#include <cinttypes>
 Log_SetChannel(HW::CDROM);
 
 namespace HW {
@@ -422,6 +423,16 @@ bool CDROM::BeginCommand()
       QueueCommand(1);
       return true;
     }
+
+    case SCSI_CMD_SEEK_10:
+    {
+      if (m_command_buffer.size() < 10)
+        return false;
+
+      uint64 lba = ZeroExtend64(ReadCommandBufferDWord(2));
+      QueueCommand(CalculateSeekTime(m_current_lba, lba));
+      return true;
+    }
   }
 
   // Unknown command.
@@ -490,6 +501,10 @@ void CDROM::ExecuteCommand()
 
     case SCSI_CMD_MECHANISM_STATUS:
       HandleMechanismStatusCommand();
+      break;
+
+    case SCSI_CMD_SEEK_10:
+      HandleSeekCommand();
       break;
   }
 
@@ -1053,6 +1068,28 @@ void CDROM::HandleMechanismStatusCommand()
   WriteDataBufferByte(5, 0 /* number of slots available */);
   WriteDataBufferWord(6, 0 /* length of slot tables */);
 
+  UpdateSenseInfo(SENSE_NO_STATUS, 0);
+  CompleteCommand();
+}
+
+void CDROM::HandleSeekCommand()
+{
+  const u64 lba = ZeroExtend64(ReadCommandBufferDWord(2));
+  Log_DevPrintf("CDROM seek LBA=%" PRIu64, lba);
+
+  if (!HasMedia())
+  {
+    AbortCommand(SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
+    return;
+  }
+
+  if (lba >= m_media.total_sectors)
+  {
+    AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_LOGICAL_BLOCK_OUT_OF_RANGE);
+    return;
+  }
+
+  m_current_lba = lba;
   UpdateSenseInfo(SENSE_NO_STATUS, 0);
   CompleteCommand();
 }
