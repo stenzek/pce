@@ -567,7 +567,6 @@ void HostInterface::WaitForCallingThread()
 
 void HostInterface::ShutdownSystem()
 {
-  Log_InfoPrintf("Stopping simulation");
   m_system->SetState(System::State::Paused);
   OnSimulationPaused();
   m_system->SetState(System::State::Stopped);

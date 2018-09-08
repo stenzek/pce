@@ -452,4 +452,6 @@ void SDLHostInterface::Run()
     if (m_display->NeedsRender())
       Render();
   }
+
+  StopSimulation();
 }

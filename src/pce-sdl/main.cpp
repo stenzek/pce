@@ -3,6 +3,7 @@
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/Log.h"
 #include <SDL.h>
+#include <cstdio>
 
 static s32 s_load_save_state_index = -1;
 
@@ -10,6 +11,12 @@ static s32 s_load_save_state_index = -1;
 #undef main
 int main(int argc, char* argv[])
 {
+  if (argc < 2)
+  {
+    std::fprintf(stderr, "Usage: %s <path to system ini>\n", argv[0]);
+    return -1;
+  }
+
   RegisterAllTypes();
 
   // set log flags
