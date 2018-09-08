@@ -86,7 +86,7 @@ bool ATAHDD::Initialize(System* system, Bus* bus)
   system->GetHostInterface()->AddUICallback(this, "Commit Log to Image", [this]() { m_image->CommitLog(); });
   system->GetHostInterface()->AddUICallback(this, "Revert Log and Reset", [this]() {
     m_image->CommitLog();
-    m_system->ExternalReset();
+    m_system->Reset();
   });
   return true;
 }

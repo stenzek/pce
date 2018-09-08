@@ -5,8 +5,8 @@
 #include "YBaseLib/Log.h"
 #include "pce/host_interface.h"
 #include "pce/system.h"
-#include <functional>
 #include <cinttypes>
+#include <functional>
 Log_SetChannel(HW::CDROM);
 
 namespace HW {

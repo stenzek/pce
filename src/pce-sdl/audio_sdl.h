@@ -8,7 +8,7 @@ public:
   Mixer_SDL(SDL_AudioDeviceID device_id, float output_sample_rate);
   virtual ~Mixer_SDL();
 
-  static std::unique_ptr<Mixer> Create();
+  static std::unique_ptr<Mixer_SDL> Create();
 
 protected:
   void RenderSamples(Audio::OutputFormatType* buf, size_t num_samples);

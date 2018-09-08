@@ -448,26 +448,24 @@ void CPU::ExecuteCycles(CycleCount cycles)
 {
   m_execution_downcount += cycles;
 
-  while (m_system->GetState() == System::State::Running && !m_system->HasExternalEvents() && m_execution_downcount > 0)
+  while (m_system->GetState() == System::State::Running && m_execution_downcount > 0)
   {
     // If we're halted, don't even bother calling into the backend.
     if (m_halted)
     {
+      CommitPendingCycles();
+
       // Run as many ticks until we hit the downcount.
-      SimulationTime time_to_execute =
+      const SimulationTime time_to_execute =
         std::max(m_system->GetTimingManager()->GetNextEventTime() - m_system->GetTimingManager()->GetPendingTime(),
                  SimulationTime(0));
-      time_to_execute = std::min(cycles * m_cycle_period, time_to_execute);
 
       // Align the execution time to the cycle period, this way we don't drift due to halt.
-      time_to_execute += (m_cycle_period - (time_to_execute % m_cycle_period));
-      if (time_to_execute > 0)
-      {
-        m_system->GetTimingManager()->AddPendingTime(time_to_execute);
-        cycles -= time_to_execute / m_cycle_period;
-      }
-
-      m_execution_downcount = 0;
+      const CycleCount cycles_to_next_event =
+        std::max((time_to_execute + m_cycle_period - 1) / m_cycle_period, CycleCount(1));
+      const CycleCount cycles_to_idle = std::min(m_execution_downcount, cycles_to_next_event);
+      m_system->GetTimingManager()->AddPendingTime(cycles_to_idle * m_cycle_period);
+      m_execution_downcount -= cycles_to_idle;
       continue;
     }
 
@@ -1143,9 +1141,9 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
 
 void CPU::RaisePageFault(LinearMemoryAddress linear_address, AccessType access_type, bool page_present)
 {
-  Log_WarningPrintf("Page fault at linear address 0x%08X: %s,%s,%s", linear_address,
-                    page_present ? "Present" : "Not Present", access_type == AccessType::Write ? "Write" : "Read",
-                    InUserMode() ? "User Mode" : "Supervisor Mode");
+  Log_DevPrintf("Page fault at linear address 0x%08X: %s,%s,%s", linear_address,
+                page_present ? "Present" : "Not Present", access_type == AccessType::Write ? "Write" : "Read",
+                InUserMode() ? "User Mode" : "Supervisor Mode");
 
   // Determine bits of error code
   uint32 error_code = (((page_present) ? (1u << 0) : 0) |                     // P
@@ -2018,10 +2016,14 @@ void CPU::DispatchExternalInterrupt()
 void CPU::RaiseException(uint32 interrupt, uint32 error_code)
 {
   if (interrupt == Interrupt_PageFault)
-    Log_WarningPrintf("Raise exception %u error code 0x%08X EIP 0x%08X address 0x%08X", interrupt, error_code,
-                      m_current_EIP, m_registers.CR2);
+  {
+    Log_DevPrintf("Raise exception %u error code 0x%08X EIP 0x%08X address 0x%08X", interrupt, error_code,
+                  m_current_EIP, m_registers.CR2);
+  }
   else
-    Log_WarningPrintf("Raise exception %u error code 0x%08X EIP 0x%08X", interrupt, error_code, m_current_EIP);
+  {
+    Log_DevPrintf("Raise exception %u error code 0x%08X EIP 0x%08X", interrupt, error_code, m_current_EIP);
+  }
 
   // If we're throwing an exception on a double-fault, this is a triple fault, and the CPU should reset.
   if (m_current_exception == Interrupt_DoubleFault)

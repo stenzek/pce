@@ -220,9 +220,6 @@ bool DisplayD3D::UpdateFramebufferTexture()
 
 void DisplayD3D::RenderImpl()
 {
-  if (!UpdateFramebufferTexture())
-    return;
-
   int window_width = int(m_window_width);
   int window_height = std::max(1, int(m_window_height) - int(MAIN_MENU_BAR_HEIGHT));
   float display_ratio = float(m_display_width) / float(m_display_height);
@@ -247,26 +244,30 @@ void DisplayD3D::RenderImpl()
   m_context->ClearRenderTargetView(m_swap_chain_rtv.Get(), clear_color.data());
 
   m_context->OMSetRenderTargets(1, m_swap_chain_rtv.GetAddressOf(), nullptr);
-  m_context->RSSetState(m_rasterizer_state.Get());
-  m_context->OMSetDepthStencilState(m_depth_state.Get(), 0);
-  m_context->OMSetBlendState(m_blend_state.Get(), nullptr, 0xFFFFFFFF);
 
-  D3D11_VIEWPORT vp =
-    CD3D11_VIEWPORT(float(viewport_x), float(viewport_y), float(viewport_width), float(viewport_height));
-  m_context->RSSetViewports(1, &vp);
+  if (UpdateFramebufferTexture())
+  {
+    m_context->RSSetState(m_rasterizer_state.Get());
+    m_context->OMSetDepthStencilState(m_depth_state.Get(), 0);
+    m_context->OMSetBlendState(m_blend_state.Get(), nullptr, 0xFFFFFFFF);
 
-  m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  m_context->VSSetShader(m_vertex_shader.Get(), nullptr, 0);
-  m_context->PSSetShader(m_pixel_shader.Get(), nullptr, 0);
-  m_context->PSSetShaderResources(0, 1, m_framebuffer_texture_srv.GetAddressOf());
-  m_context->PSSetSamplers(0, 1, m_sampler_state.GetAddressOf());
+    D3D11_VIEWPORT vp =
+      CD3D11_VIEWPORT(float(viewport_x), float(viewport_y), float(viewport_width), float(viewport_height));
+    m_context->RSSetViewports(1, &vp);
 
-  m_context->Draw(3, 0);
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_context->VSSetShader(m_vertex_shader.Get(), nullptr, 0);
+    m_context->PSSetShader(m_pixel_shader.Get(), nullptr, 0);
+    m_context->PSSetShaderResources(0, 1, m_framebuffer_texture_srv.GetAddressOf());
+    m_context->PSSetSamplers(0, 1, m_sampler_state.GetAddressOf());
+
+    m_context->Draw(3, 0);
+  }
 
   ImGui::Render();
   ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-  m_swap_chain->Present(0, 0);
+  m_swap_chain->Present(1, 0);
 
   ImGui_ImplDX11_NewFrame();
 }

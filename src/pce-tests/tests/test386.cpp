@@ -53,23 +53,9 @@ static void RunTest386(CPUBackendType cpu_backend)
   EXPECT_TRUE(system->Ready()) << "system did not initialize successfully";
 
   // Put a cap on the number of cycles, a runtime of 2 minutes should do.
-  CycleCount remaining_cycles = CycleCount(system->GetCPU()->GetFrequency() * 120);
-  bool completed_cleanly = false;
-  while (remaining_cycles > 0)
-  {
-    CycleCount slice_cycles = std::min(remaining_cycles, CycleCount(system->GetCPU()->GetFrequency()));
-    remaining_cycles -= slice_cycles;
-    system->GetX86CPU()->ExecuteCycles(slice_cycles);
-
-    if (system->GetX86CPU()->IsHalted() ||
-        (system->GetX86CPU()->GetRegisters()->CS == 0xF000 && system->GetX86CPU()->GetRegisters()->EIP == 0xE04B))
-    {
-      completed_cleanly = true;
-      break;
-    }
-  }
-
-  EXPECT_TRUE(completed_cleanly);
+  system->ExecuteSlice(120 * static_cast<SimulationTime>(1000000000));
+  EXPECT_TRUE(system->GetX86CPU()->IsHalted());
+  EXPECT_TRUE(system->GetX86CPU()->GetRegisters()->CS == 0xF000 && system->GetX86CPU()->GetRegisters()->EIP == 0xE04B);
 
   // Compare output with known correct output.
   // TODO: Refactor this into a general diff method.
@@ -109,8 +95,6 @@ static void RunTest386(CPUBackendType cpu_backend)
       }
     }
   }
-
-  system->Stop();
 }
 
 TEST(Test386, Interpreter)

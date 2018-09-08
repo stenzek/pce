@@ -20,22 +20,13 @@ static bool RunTest(CPUBackendType backend, const char* code_file, const char* e
   EXPECT_TRUE(system->Ready()) << "system did not initialize successfully";
 
   // Put a cap on the number of cycles, a runtime of 10 seconds should do.
-  CycleCount remaining_cycles = CycleCount(system->GetCPU()->GetFrequency() * 10);
-  while (!system->GetX86CPU()->IsHalted() && remaining_cycles > 0)
-  {
-    CycleCount slice_cycles = std::min(remaining_cycles, CycleCount(system->GetCPU()->GetFrequency()));
-    remaining_cycles -= slice_cycles;
-    system->GetX86CPU()->ExecuteCycles(slice_cycles);
-  }
+  system->ExecuteSlice(10 * static_cast<SimulationTime>(1000000000));
 
   // CPU should be halted at the end of the test.
   EXPECT_TRUE(system->GetX86CPU()->IsHalted())
     << "TIMEOUT: CPU is not halted indicating the test did not finish in time";
   if (!system->GetX86CPU()->IsHalted())
-  {
-    system->Stop();
     return false;
-  }
 
   // Read back results
   actual_buffer.Resize(expected_buffer.GetSize());
@@ -80,7 +71,6 @@ static bool RunTest(CPUBackendType backend, const char* code_file, const char* e
     }
   }
 
-  system->Stop();
   return result;
 }
 

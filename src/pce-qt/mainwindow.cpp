@@ -1,14 +1,9 @@
 #include "pce-qt/mainwindow.h"
-#include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
-#include "YBaseLib/Timer.h"
-#include "common/audio.h"
 #include "pce-qt/debuggerwindow.h"
 #include "pce-qt/displaywidget.h"
-#include "pce-qt/scancodes_qt.h"
+#include "pce-qt/hostinterface.h"
 #include "pce/debugger_interface.h"
-#include "pce/hw/vga.h"
-#include "pce/systems/bochs.h"
 #include <QtGui/QKeyEvent>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QFileDialog>
@@ -34,133 +29,23 @@ MainWindow::MainWindow(QWidget* parent /*= nullptr*/) : QMainWindow(parent)
   m_ui->statusbar->addWidget(m_status_fps, 0);
 
   connectSignals();
+
+  m_display_widget->SetDisplayAspectRatio(4, 3);
+  m_host_interface = QtHostInterface::Create(this, m_display_widget);
+  m_host_interface->start();
+
+  // Transfer the OpenGL widget to the worker thread before starting the system, so it can render.
+  m_display_widget->moveGLContextToThread(m_host_interface.get());
+
+  // Ensure input goes to the simulated PC.
+  // m_display_widget->setFocus();
+
   adjustSize();
 }
 
-MainWindow::~MainWindow() {}
-
-bool MainWindow::createTestSystem(uint32 cpu_model, uint32 ram_mb, const char* bios_filename,
-                                  const char* vgabios_filename)
+MainWindow::~MainWindow()
 {
-  m_host_interface = HostInterface::Create(this, m_display_widget);
-
-  CPU_X86::Model real_cpu_model;
-  float real_cpu_frequency;
-  if (cpu_model == 0)
-  {
-    real_cpu_model = CPU_X86::MODEL_386;
-    real_cpu_frequency = 4000000.0f;
-  }
-  else
-  {
-    real_cpu_model = CPU_X86::MODEL_486;
-    real_cpu_frequency = 8000000.0f;
-  }
-
-  m_system =
-    std::unique_ptr<Systems::Bochs>(new Systems::Bochs(real_cpu_model, real_cpu_frequency, ram_mb * 1024 * 1024));
-  m_system->SetHostInterface(m_host_interface.get());
-
-  m_system->CreateComponent<HW::VGA>("VGA");
-
-  m_display_widget->SetDisplayAspectRatio(4, 3);
-  return true;
-}
-
-bool MainWindow::isSystemStopped() const
-{
-  return (m_system->GetState() == System::State::Stopped);
-}
-
-bool MainWindow::startSystem(bool start_paused /* = false */)
-{
-  // Since we use the core notification for knowing when the system starts, we have to clear the simulation
-  // thread ID. Otherwise SetState() will assume that the UI thread is the simulation thread.
-  m_system->ClearSimulationThreadID();
-
-  // Start the worker thread.
-  const System::State initial_state = start_paused ? System::State::Paused : System::State::Running;
-  m_system_thread =
-    std::make_unique<SystemThread>(m_system.get(), m_display_widget, QThread::currentThread(), initial_state);
-  m_system_thread->start();
-
-  // Transfer the OpenGL widget to the worker thread before starting the system, so it can render.
-  m_display_widget->moveGLContextToThread(m_system_thread.get());
-
-  // Ensure input goes to the simulated PC.
-  m_display_widget->setFocus();
-  return true;
-}
-
-void MainWindow::pauseSystem()
-{
-  Assert(m_system->GetState() == System::State::Running);
-  m_system->SetState(System::State::Paused);
-}
-
-void MainWindow::stopSystem()
-{
-  Assert(m_system->GetState() != System::State::Stopped);
-  m_system->SetState(System::State::Stopped);
-
-  // Clean up the worker thread, when we start again it'll be recreated.
-  m_system_thread->wait();
-  m_system_thread.reset();
-}
-
-void MainWindow::runMainLoop()
-{
-#if 0
-    // Poll input at 60hz
-    Timer exec_timer;
-    const float exec_time = 1.0f / 60.0f;
-    System::State last_state = m_system->GetState();
-
-    for (;;)
-    {
-        exec_timer.Reset();
-        m_system->Run();
-        if (last_state != m_system->GetState())
-        {
-            last_state = m_system->GetState();
-            if (last_state == System::State::Stopped)
-                break;
-
-            if (m_debugger_window)
-            {
-                if (last_state == System::State::Paused)
-                    m_debugger_window->onExecutionStopped();
-                else
-                    m_debugger_window->onExecutionContinued();
-            }                
-        }
-
-        QApplication::sendPostedEvents();
-
-        float sleep_time = exec_time - float(exec_timer.GetTimeSeconds());
-        if (sleep_time > 0.0f)
-            QApplication::processEvents(QEventLoop::AllEvents, uint32(sleep_time * 1000.0f));
-        else
-            QApplication::processEvents(QEventLoop::AllEvents);
-    }
-#endif
-}
-
-MainWindow::SystemThread::SystemThread(System* system, DisplayWidget* display_widget, QThread* ui_thread,
-                                       System::State initial_state)
-  : m_system(system), m_display_widget(display_widget), m_ui_thread(ui_thread), m_initial_state(initial_state)
-{
-}
-
-void MainWindow::SystemThread::run()
-{
-  // Run the system simulation, sleeping when paused.
-  m_system->Start(true);
-  m_system->SetState(m_initial_state);
-  m_system->Run(false);
-
-  // Move the OpenGL thread back to the UI thread before exiting.
-  m_display_widget->moveGLContextToThread(m_ui_thread);
+  m_host_interface.reset();
 }
 
 void MainWindow::onEnableDebuggerActionToggled(bool checked)
@@ -202,7 +87,7 @@ void MainWindow::enableDebugger()
 {
   Assert(!m_debugger_window);
 
-  DebuggerInterface* debugger_interface = m_system->GetCPU()->GetDebuggerInterface();
+  DebuggerInterface* debugger_interface = m_host_interface->GetSystem()->GetCPU()->GetDebuggerInterface();
   if (!debugger_interface)
   {
     QMessageBox::critical(this, "Error", "Failed to get debugger interface", QMessageBox::Ok);
@@ -235,55 +120,4 @@ void MainWindow::onDisplayWidgetKeyPressed(QKeyEvent* event)
 void MainWindow::onDisplayWidgetKeyReleased(QKeyEvent* event)
 {
   m_host_interface->HandleQKeyEvent(event);
-}
-
-std::unique_ptr<MainWindow::HostInterface> MainWindow::HostInterface::Create(MainWindow* main_window,
-                                                                             DisplayWidget* display_widget)
-{
-  auto audio_mixer = Audio::NullMixer::Create();
-  if (!audio_mixer)
-    Panic("Failed to create audio mixer");
-
-  auto hi = std::make_unique<HostInterface>();
-  hi->m_main_window = main_window;
-  hi->m_display_widget = display_widget;
-  hi->m_audio_mixer = std::move(audio_mixer);
-  return hi;
-}
-
-bool MainWindow::HostInterface::HandleQKeyEvent(const QKeyEvent* event)
-{
-  GenScanCode scancode;
-  if (!MapQTKeyToGenScanCode(&scancode, static_cast<Qt::Key>(event->key())))
-    return false;
-
-  this->ExecuteKeyboardCallback(scancode, event->type() == QEvent::KeyPress);
-  return true;
-}
-
-Display* MainWindow::HostInterface::GetDisplay() const
-{
-  return static_cast<Display*>(m_display_widget);
-}
-
-Audio::Mixer* MainWindow::HostInterface::GetAudioMixer() const
-{
-  return m_audio_mixer.get();
-}
-
-void MainWindow::HostInterface::ReportMessage(const char* message)
-{
-  m_main_window->m_status_message->setText(message);
-}
-
-void MainWindow::HostInterface::OnSimulationResumed() {}
-
-void MainWindow::HostInterface::OnSimulationPaused() {}
-
-void MainWindow::HostInterface::OnSimulationStopped() {}
-
-void MainWindow::HostInterface::OnSimulationSpeedUpdate(float speed_percent)
-{
-  m_main_window->m_status_speed->setText(QString::asprintf("Emulation Speed: %.2f%%", speed_percent));
-  m_main_window->m_status_fps->setText(QString::asprintf("VPS: %.1f", m_display_widget->GetFramesPerSecond()));
 }

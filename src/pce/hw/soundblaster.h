@@ -9,6 +9,7 @@
 #include <array>
 #include <deque>
 
+class InterruptController;
 class DMAController;
 
 namespace HW {

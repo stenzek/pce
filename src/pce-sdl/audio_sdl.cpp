@@ -43,7 +43,7 @@ Mixer_SDL::~Mixer_SDL()
   SDL_CloseAudioDevice(m_device_id);
 }
 
-std::unique_ptr<Mixer> Mixer_SDL::Create()
+std::unique_ptr<Mixer_SDL> Mixer_SDL::Create()
 {
   auto mixer = std::make_unique<Mixer_SDL>(0, 44100.0f);
   SDL_AudioSpec spec = {44100,          AUDIO_F32,  static_cast<Uint8>(NumOutputChannels), 0, 4096, 0, 0,

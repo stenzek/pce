@@ -11,6 +11,8 @@
     <ClCompile Include="scancodes_qt.cpp" />
     <ClCompile Include="moc_displaywidget.cpp" />
     <ClCompile Include="rcc_icons.cpp" />
+    <ClCompile Include="hostinterface.cpp" />
+    <ClCompile Include="moc_hostinterface.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mainwindow.h" />
@@ -20,6 +22,7 @@
     <ClInclude Include="ui_debuggerwindow.h" />
     <ClInclude Include="debuggermodels.h" />
     <ClInclude Include="scancodes_qt.h" />
+    <ClInclude Include="hostinterface.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="mainwindow.ui" />

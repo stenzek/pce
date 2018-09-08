@@ -19,28 +19,30 @@ Log_SetChannel(Main);
 class SDLHostInterface : public HostInterface
 {
 public:
-  SDLHostInterface() = default;
+  // using DisplayType = DisplayGL;
+  using DisplayType = DisplayD3D;
+  using MixerType = Mixer_SDL;
+  // using MixerType = Audio::NullMixer;
+
+  SDLHostInterface(std::unique_ptr<DisplayType> display, std::unique_ptr<MixerType> mixer);
   ~SDLHostInterface();
 
   static std::unique_ptr<SDLHostInterface> Create();
+  static TinyString GetSaveStateFilename(u32 index);
 
-  bool Initialize(System* system) override;
-  void Reset() override;
-  void Cleanup() override;
+  bool CreateSystem(const char* filename, s32 save_state_index = -1);
 
-  DisplaySDL* GetDisplay() const override { return m_display.get(); }
+  Display* GetDisplay() const override { return m_display.get(); }
   Audio::Mixer* GetAudioMixer() const override { return m_mixer.get(); }
-  bool NeedsRender() const { return m_display->NeedsRender(); }
+  // bool NeedsRender() const { return m_display->NeedsRender(); }
 
   void ReportMessage(const char* message) override;
-  void OnSimulationSpeedUpdate(float speed_percent) override;
 
-  bool HandleSDLEvent(const SDL_Event* ev);
-  void InjectKeyEvent(GenScanCode sc, bool down);
-
-  void Render();
+  void Run();
 
 protected:
+  void OnSimulationSpeedUpdate(float speed_percent) override;
+
   // We only pass mouse input through if it's grabbed
   bool IsMouseGrabbed() const;
   void GrabMouse();
@@ -49,12 +51,33 @@ protected:
   void DoLoadState(uint32 index);
   void DoSaveState(uint32 index);
 
-  std::unique_ptr<DisplaySDL> m_display;
-  std::unique_ptr<Audio::Mixer> m_mixer;
+  bool HandleSDLEvent(const SDL_Event* ev);
+  void Render();
+
+  std::unique_ptr<DisplayType> m_display;
+  std::unique_ptr<MixerType> m_mixer;
+  std::thread m_simulation_thread;
 
   String m_last_message;
   Timer m_last_message_time;
+
+  bool m_running = false;
 };
+
+SDLHostInterface::SDLHostInterface(std::unique_ptr<DisplayType> display, std::unique_ptr<MixerType> mixer)
+  : m_display(std::move(display)), m_mixer(std::move(mixer))
+{
+  m_simulation_thread = std::thread([this]() { SimulationThreadRoutine(); });
+}
+
+SDLHostInterface::~SDLHostInterface()
+{
+  StopSimulationThread();
+  m_simulation_thread.join();
+  m_mixer.reset();
+  m_display.reset();
+  ImGui::DestroyContext();
+}
 
 std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
 {
@@ -62,8 +85,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
   ImGui::CreateContext();
   ImGui::GetIO().IniFilename = nullptr;
 
-  // std::unique_ptr<DisplaySDL> display = DisplayGL::Create();
-  std::unique_ptr<DisplaySDL> display = DisplayD3D::Create();
+  auto display = DisplayType::Create();
   if (!display)
   {
     Panic("Failed to create display");
@@ -71,43 +93,47 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create()
     return nullptr;
   }
 
-  std::unique_ptr<SDLHostInterface> hi = std::make_unique<SDLHostInterface>();
-  hi->m_display = std::move(display);
-  return hi;
-}
-
-SDLHostInterface::~SDLHostInterface()
-{
-  ImGui::DestroyContext();
-}
-
-bool SDLHostInterface::Initialize(System* system)
-{
-  if (!HostInterface::Initialize(system))
-    return false;
-
-  m_mixer = Mixer_SDL::Create();
-  // m_mixer = Audio::NullMixer::Create();
-  if (!m_mixer)
+  auto mixer = MixerType::Create();
+  if (!mixer)
   {
     Panic("Failed to create audio mixer");
+    display.reset();
+    ImGui::DestroyContext();
     return false;
   }
 
-  m_display->SetDisplayAspectRatio(4, 3);
+  display->SetDisplayAspectRatio(4, 3);
+
+  return std::make_unique<SDLHostInterface>(std::move(display), std::move(mixer));
+}
+
+TinyString SDLHostInterface::GetSaveStateFilename(u32 index)
+{
+  return TinyString::FromFormat("savestate_%u.bin", index);
+}
+
+bool SDLHostInterface::CreateSystem(const char* filename, s32 save_state_index /* = -1 */)
+{
+  Error error;
+  if (!HostInterface::CreateSystem(filename, &error))
+  {
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Creating system failed", error.GetErrorCodeAndDescription(),
+                             m_display->GetSDLWindow());
+    return false;
+  }
+
+  if (save_state_index >= 0)
+  {
+    // Load the save state.
+    HostInterface::LoadSystemState(GetSaveStateFilename(static_cast<u32>(save_state_index)), &error);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Loading save state failed", error.GetErrorCodeAndDescription(),
+                             m_display->GetSDLWindow());
+  }
+
+  // Resume execution.
+  ResumeSimulation();
+  m_running = true;
   return true;
-}
-
-void SDLHostInterface::Reset()
-{
-  HostInterface::Reset();
-}
-
-void SDLHostInterface::Cleanup()
-{
-  HostInterface::Cleanup();
-  m_mixer.reset();
-  m_display.reset();
 }
 
 void SDLHostInterface::ReportMessage(const char* message)
@@ -160,7 +186,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
       uint32 button = SDLButtonToHostButton(ev->button.button);
       if (IsMouseGrabbed())
       {
-        m_system->QueueExternalEvent([this, button]() { ExecuteMouseButtonChangeCallbacks(button, true); });
+        ExecuteMouseButtonChangeCallbacks(button, true);
         return true;
       }
     }
@@ -171,7 +197,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
       uint32 button = SDLButtonToHostButton(ev->button.button);
       if (IsMouseGrabbed())
       {
-        m_system->QueueExternalEvent([this, button]() { ExecuteMouseButtonChangeCallbacks(button, false); });
+        ExecuteMouseButtonChangeCallbacks(button, false);
         return true;
       }
       else
@@ -190,7 +216,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
 
       int32 dx = ev->motion.xrel;
       int32 dy = ev->motion.yrel;
-      m_system->QueueExternalEvent([this, dx, dy]() { ExecuteMousePositionChangeCallbacks(dx, dy); });
+      ExecuteMousePositionChangeCallbacks(dx, dy);
       return true;
     }
     break;
@@ -212,7 +238,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
       GenScanCode scancode;
       if (MapSDLScanCode(&scancode, ev->key.keysym.scancode))
       {
-        m_system->QueueExternalEvent([this, scancode]() { ExecuteKeyboardCallback(scancode, true); });
+        ExecuteKeyboardCallbacks(scancode, true);
         return false;
       }
     }
@@ -225,19 +251,18 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* ev)
       GenScanCode scancode;
       if (MapSDLScanCode(&scancode, ev->key.keysym.scancode))
       {
-        m_system->QueueExternalEvent([this, scancode]() { ExecuteKeyboardCallback(scancode, false); });
+        ExecuteKeyboardCallbacks(scancode, false);
         return false;
       }
     }
     break;
+
+    case SDL_QUIT:
+      m_running = false;
+      break;
   }
 
   return false;
-}
-
-void SDLHostInterface::InjectKeyEvent(GenScanCode sc, bool down)
-{
-  m_system->QueueExternalEvent([this, sc, down]() { ExecuteKeyboardCallback(sc, down); });
 }
 
 bool SDLHostInterface::IsMouseGrabbed() const
@@ -272,39 +297,39 @@ void SDLHostInterface::RenderImGui()
     if (ImGui::BeginMenu("System"))
     {
       if (ImGui::MenuItem("Reset"))
-        m_system->ExternalReset();
+        ResetSystem();
 
       ImGui::Separator();
 
       if (ImGui::BeginMenu("CPU Backend"))
       {
-        CPUBackendType current_backend = m_system->GetCPU()->GetCurrentBackend();
+        CPUBackendType current_backend = GetCPUBackend();
         if (ImGui::MenuItem("Interpreter", nullptr, current_backend == CPUBackendType::Interpreter))
-          m_system->SetCPUBackend(CPUBackendType::Interpreter);
+          SetCPUBackend(CPUBackendType::Interpreter);
         if (ImGui::MenuItem("Cached Interpreter", nullptr, current_backend == CPUBackendType::CachedInterpreter))
-          m_system->SetCPUBackend(CPUBackendType::CachedInterpreter);
+          SetCPUBackend(CPUBackendType::CachedInterpreter);
         if (ImGui::MenuItem("Recompiler", nullptr, current_backend == CPUBackendType::Recompiler))
-          m_system->SetCPUBackend(CPUBackendType::Recompiler);
+          SetCPUBackend(CPUBackendType::Recompiler);
 
         ImGui::EndMenu();
       }
 
       if (ImGui::BeginMenu("CPU Speed"))
       {
-        float frequency = m_system->GetCPU()->GetFrequency();
+        float frequency = GetCPUFrequency();
         if (ImGui::InputFloat("Frequency", &frequency, 1000000.0f))
         {
           frequency = std::max(frequency, 1000000.0f);
-          m_system->QueueExternalEvent([this, frequency]() { m_system->GetCPU()->SetFrequency(float(frequency)); });
+          SetCPUFrequency(frequency);
         }
         ImGui::EndMenu();
       }
 
-      if (ImGui::MenuItem("Enable Speed Limiter", nullptr, m_system->IsSpeedLimiterEnabled()))
-        m_system->SetSpeedLimiterEnabled(!m_system->IsSpeedLimiterEnabled());
+      if (ImGui::MenuItem("Enable Speed Limiter", nullptr, IsSpeedLimiterEnabled()))
+        SetSpeedLimiterEnabled(!IsSpeedLimiterEnabled());
 
       if (ImGui::MenuItem("Flush Code Cache"))
-        m_system->QueueExternalEvent([this]() { m_system->GetCPU()->FlushCodeCache(); });
+        FlushCPUCodeCache();
 
       ImGui::Separator();
 
@@ -329,7 +354,7 @@ void SDLHostInterface::RenderImGui()
       }
 
       if (ImGui::MenuItem("Exit"))
-        Log_DevPrintf("TODO");
+        m_running = false;
 
       ImGui::EndMenu();
     }
@@ -380,7 +405,7 @@ void SDLHostInterface::RenderImGui()
               {
                 const auto& callback = it.second;
                 String str(path);
-                m_system->QueueExternalEvent([&callback, str]() { callback(str); });
+                QueueExternalEvent([&callback, str]() { callback(str); }, false);
               }
             }
           }
@@ -390,7 +415,7 @@ void SDLHostInterface::RenderImGui()
             if (ImGui::MenuItem(it.first))
             {
               const auto& callback = it.second;
-              m_system->QueueExternalEvent([&callback]() { callback(); });
+              QueueExternalEvent([&callback]() { callback(); }, false);
             }
           }
 
@@ -441,80 +466,22 @@ void SDLHostInterface::RenderImGui()
 
 void SDLHostInterface::DoLoadState(uint32 index)
 {
-  SmallString filename;
-  filename.Format("savestate_%u.bin", index);
-
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
+  Error error;
+  if (!LoadSystemState(TinyString::FromFormat("savestate_%u.bin", index), &error))
   {
-    Log_ErrorPrintf("Failed to open %s", filename.GetCharArray());
-    return;
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Loading save state failed", error.GetErrorCodeAndDescription(),
+                             m_display->GetSDLWindow());
   }
-
-  m_system->LoadState(stream);
-  stream->Release();
 }
 
 void SDLHostInterface::DoSaveState(uint32 index)
 {
-  SmallString filename;
-  filename.Format("savestate_%u.bin", index);
-
-  ByteStream* stream;
-  if (!ByteStream_OpenFileStream(filename,
-                                 BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_WRITE | BYTESTREAM_OPEN_TRUNCATE |
-                                   BYTESTREAM_OPEN_SEEKABLE | BYTESTREAM_OPEN_ATOMIC_UPDATE,
-                                 &stream))
-  {
-    Log_ErrorPrintf("Failed to open %s", filename.GetCharArray());
-    return;
-  }
-
-  m_system->SaveState(stream);
-  stream->Release();
+  SaveSystemState(TinyString::FromFormat("savestate_%u.bin", index));
 }
 
-std::unique_ptr<System> CreateSystem(const char* filename)
+void SDLHostInterface::Run()
 {
-  Error error;
-  std::unique_ptr<System> system = System::ParseConfig(filename, &error);
-  if (!system)
-  {
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Parse Error", error.GetErrorCodeAndDescription(), nullptr);
-    return nullptr;
-  }
-
-  return system;
-}
-
-static void Run(SDLHostInterface* host_interface, System* system)
-{
-  system->SetHostInterface(host_interface);
-
-  system->Start(true);
-  while (system->GetState() == System::State::Uninitialized)
-  {
-    SDL_PumpEvents();
-    Thread::Sleep(0);
-  }
-
-#if 0
-  {
-    ByteStream* stream;
-    if (ByteStream_OpenFileStream("savestate_1.bin", BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_SEEKABLE, &stream))
-    {
-      Log_InfoPrintf("Loading state...");
-      system->LoadState(stream);
-      system->QueueExternalEvent([&]() { system->SetState(System::State::Running); });
-      // host_interface->InjectKeyEvent(GenScanCode_Return, true);
-      stream->Release();
-    }
-  }
-#else
-  system->QueueExternalEvent([&]() { system->SetState(System::State::Running); });
-#endif
-
-  while (system->GetState() != System::State::Stopped)
+  while (m_running)
   {
     // SDL event loop...
     for (;;)
@@ -522,25 +489,29 @@ static void Run(SDLHostInterface* host_interface, System* system)
       SDL_Event ev;
       if (!SDL_PollEvent(&ev))
       {
+#if 0
         // If we don't have to render, sleep until we get an event.
-        if (!host_interface->GetDisplay()->NeedsRender())
+        if (!m_display->NeedsRender())
         {
           SDL_WaitEvent(nullptr);
           continue;
         }
         else
+#endif
         {
           break;
         }
       }
 
-      host_interface->HandleSDLEvent(&ev);
+      HandleSDLEvent(&ev);
     }
 
-    if (host_interface->NeedsRender())
-      host_interface->Render();
+    // if (m_display->NeedsRender())
+    Render();
   }
 }
+
+s32 s_load_save_state_index = -1;
 
 // SDL requires the entry point declared without c++ decoration
 #undef main
@@ -551,8 +522,8 @@ int main(int argc, char* argv[])
   // set log flags
   // g_pLog->SetConsoleOutputParams(true);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_PROFILE);
-  // g_pLog->SetConsoleOutputParams(true, "Bus HW::Serial", LOGLEVEL_PROFILE);
-  g_pLog->SetConsoleOutputParams(true, "CPU_X86::CPU Bus HW::Serial", LOGLEVEL_PROFILE);
+  g_pLog->SetConsoleOutputParams(true, "Bus HW::Serial", LOGLEVEL_PROFILE);
+  // g_pLog->SetConsoleOutputParams(true, "CPU_X86::CPU Bus HW::Serial", LOGLEVEL_PROFILE);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_INFO);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_WARNING);
   // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_ERROR);
@@ -560,7 +531,7 @@ int main(int argc, char* argv[])
   // g_pLog->SetDebugOutputParams(true);
 
 #ifdef Y_BUILD_CONFIG_RELEASE
-  g_pLog->SetFilterLevel(LOGLEVEL_ERROR);
+  g_pLog->SetFilterLevel(LOGLEVEL_WARNING);
 #else
   g_pLog->SetFilterLevel(LOGLEVEL_PROFILE);
 #endif
@@ -575,19 +546,25 @@ int main(int argc, char* argv[])
   // create display and host interface
   std::unique_ptr<SDLHostInterface> host_interface = SDLHostInterface::Create();
   if (!host_interface)
+  {
     Panic("Failed to create host interface");
+    SDL_Quit();
+    return -1;
+  }
 
   // create system
-  std::unique_ptr<System> system = CreateSystem(argv[1]);
-  if (!system)
+  if (!host_interface->CreateSystem(argv[1], s_load_save_state_index))
+  {
+    host_interface.reset();
+    SDL_Quit();
     return -1;
+  }
 
-  Run(host_interface.get(), system.get());
+  // run
+  host_interface->Run();
 
   // done
-  system.reset();
   host_interface.reset();
-
   SDL_Quit();
   return 0;
 }
