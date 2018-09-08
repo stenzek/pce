@@ -56,15 +56,13 @@ private:
   bool SeekCHS(const u32 cylinder, const u32 head, const u32 sector);
   bool SeekLBA(const u64 lba);
 
-  void CompleteCommand(bool seek_complete = false);
+  void CompleteCommand(bool seek_complete = false, bool raise_interrupt = true);
   void AbortCommand(ATA_ERR error = ATA_ERR_ABRT, bool device_fault = false);
 
   void SetupBuffer(u32 num_sectors, u32 block_size, bool is_write);
   void FillReadBuffer();
   void FlushWriteBuffer();
   void ResetBuffer();
-
-  void OnBufferReady();
   void OnBufferEnd();
 
   CycleCount CalculateCommandTime(u8 command) const;

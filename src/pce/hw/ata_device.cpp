@@ -170,7 +170,7 @@ void ATADevice::PutIdentifyString(char* buffer, uint32 buffer_size, const char* 
 
 void ATADevice::RaiseInterrupt()
 {
-  Log_DevPrintf("Raising ATA interrupt line %u/%u", m_ata_channel_number, m_ata_drive_number);
+  Log_TracePrintf("Raising ATA interrupt line %u/%u", m_ata_channel_number, m_ata_drive_number);
   m_ata_controller->SetDeviceInterruptLine(m_ata_drive_number, true);
 }
 

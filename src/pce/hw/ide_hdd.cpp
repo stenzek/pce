@@ -302,7 +302,7 @@ bool IDEHDD::SeekLBA(const u64 lba)
   return true;
 }
 
-void IDEHDD::CompleteCommand(bool seek_complete /* = false */)
+void IDEHDD::CompleteCommand(bool seek_complete /* = false */, bool raise_interrupt /* = true */)
 {
   m_current_command = INVALID_COMMAND;
   m_registers.status.SetReady();
@@ -310,8 +310,10 @@ void IDEHDD::CompleteCommand(bool seek_complete /* = false */)
     m_registers.status.seek_complete = true;
 
   m_registers.error = static_cast<ATA_ERR>(0x00);
-  RaiseInterrupt();
   ClearActivity();
+
+  if (raise_interrupt)
+    RaiseInterrupt();
 }
 
 void IDEHDD::AbortCommand(ATA_ERR error /* = ATA_ERR_ABRT */, bool device_fault /* = false */)
@@ -333,6 +335,8 @@ void IDEHDD::SetupBuffer(u32 num_sectors, u32 block_size, bool is_write)
   m_buffer.remaining_sectors = num_sectors;
   m_buffer.block_size = block_size;
   m_buffer.is_write = is_write;
+  m_buffer.valid = true;
+  m_registers.status.SetDRQ();
 }
 
 void IDEHDD::FillReadBuffer()
@@ -351,13 +355,6 @@ void IDEHDD::FlushWriteBuffer()
   DebugAssert((m_current_lba + sector_count) * SECTOR_SIZE <= m_image->GetImageSize());
   m_image->Write(m_buffer.data.data(), m_current_lba * SECTOR_SIZE, sector_count * SECTOR_SIZE);
   m_current_lba += sector_count;
-}
-
-void IDEHDD::OnBufferReady()
-{
-  m_registers.status.SetDRQ();
-  m_buffer.valid = true;
-  RaiseInterrupt();
 }
 
 void IDEHDD::ResetBuffer()
@@ -381,8 +378,9 @@ void IDEHDD::OnBufferEnd()
   m_buffer.remaining_sectors -= transferred_sectors;
   if (m_buffer.remaining_sectors == 0)
   {
+    // Read commands do not raise an interrupt after the command finishes, but write commands do.
     ResetBuffer();
-    CompleteCommand();
+    CompleteCommand(true, IsWriteCommand(Truncate8(m_current_command)));
     return;
   }
 
@@ -400,13 +398,14 @@ void IDEHDD::OnBufferEnd()
   if (!m_buffer.is_write)
     FillReadBuffer();
 
-  // Buffer ready.
-  OnBufferReady();
+  // Buffer ready. Both read and write commands raise an interrupt here.
+  m_registers.status.SetDRQ();
+  RaiseInterrupt();
 }
 
 void IDEHDD::WriteCommandRegister(u8 value)
 {
-  Log_DevPrintf("ATA drive %u/%u command register <- 0x%02X", m_ata_channel_number, m_ata_drive_number, value);
+  Log_TracePrintf("ATA drive %u/%u command register <- 0x%02X", m_ata_channel_number, m_ata_drive_number, value);
 
   // Ignore writes to the command register when busy.
   if (!m_registers.status.IsReady() || HasPendingCommand())
@@ -442,12 +441,15 @@ CycleCount IDEHDD::CalculateCommandTime(u8 command) const
     case ATA_CMD_READ_DMA_EXT:
     case ATA_CMD_READ_VERIFY:
     case ATA_CMD_READ_VERIFY_EXT:
+      return 10;
+
+      // Writes should respond immediately, but the actual write takes time.
     case ATA_CMD_WRITE_PIO:
     case ATA_CMD_WRITE_PIO_NO_RETRY:
     case ATA_CMD_WRITE_PIO_EXT:
     case ATA_CMD_WRITE_DMA:
     case ATA_CMD_WRITE_DMA_EXT:
-      return 10;
+      return 1;
 
       // Default to 1us for all other commands.
     default:
@@ -481,7 +483,7 @@ void IDEHDD::ExecutePendingCommand()
   const u8 command = Truncate8(m_current_command);
   m_command_event->Deactivate();
 
-  Log_DevPrintf("Executing ATA command 0x%02X on drive %u/%u", command, m_ata_channel_number, m_ata_drive_number);
+  Log_TracePrintf("Executing ATA command 0x%02X on drive %u/%u", command, m_ata_channel_number, m_ata_drive_number);
 
   switch (command)
   {
@@ -634,7 +636,7 @@ void IDEHDD::HandleATAIdentify()
   // 512 bytes total
   SetupBuffer(1, 1, false);
   std::memcpy(m_buffer.data.data(), &response, sizeof(response));
-  OnBufferReady();
+  RaiseInterrupt();
 }
 
 void IDEHDD::HandleATARecalibrate()
@@ -702,8 +704,10 @@ void IDEHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
   // Setup transfer and fire irq
   SetupBuffer(count, multiple ? m_multiple_sectors : 1, write);
   if (!write)
+  {
     FillReadBuffer();
-  OnBufferReady();
+    RaiseInterrupt();
+  }
 }
 
 void IDEHDD::HandleATAReadVerifySectors(bool extended, bool with_retry)

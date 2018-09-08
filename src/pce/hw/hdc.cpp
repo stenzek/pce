@@ -42,6 +42,9 @@ bool HDC::Initialize(System* system, Bus* bus)
 void HDC::Reset()
 {
   BaseClass::Reset();
+  
+  std::fill_n(m_device_interrupt_lines, NUM_DEVICES, false);
+  UpdateHostInterruptLine();
 }
 
 bool HDC::LoadState(BinaryReader& reader)
@@ -76,6 +79,8 @@ bool HDC::SaveState(BinaryWriter& writer)
   for (uint32 i = 0; i < NUM_DEVICES; i++)
     writer.WriteBool(IsDevicePresent(i));
 
+  writer.WriteUInt8(m_control_register.bits);
+  writer.WriteUInt8(m_drive_select_register.bits);
   return !writer.InErrorState();
 }
 
@@ -132,9 +137,16 @@ void HDC::DetachDevice(u32 number)
 
 void HDC::SetDeviceInterruptLine(u32 number, bool active)
 {
+  m_device_interrupt_lines[number] = active;
+  UpdateHostInterruptLine();
+}
+
+void HDC::UpdateHostInterruptLine()
+{
   // TODO: Is this correct?
-  if (active && number == m_drive_select_register.drive && !m_control_register.disable_interrupts)
-    m_interrupt_controller->RaiseInterrupt(m_irq_number);
+  const bool state =
+    (!m_control_register.disable_interrupts) && (m_device_interrupt_lines[0] | m_device_interrupt_lines[1]);
+  m_interrupt_controller->SetInterruptState(m_irq_number, state);
 }
 
 void HDC::ConnectIOPorts(Bus* bus)
@@ -203,11 +215,19 @@ void HDC::SoftReset()
   {
     if (m_devices[i])
       m_devices[i]->DoReset(false);
+
+    m_device_interrupt_lines[i] = false;
   }
+
+  UpdateHostInterruptLine();
 }
 
 void HDC::IOReadStatusRegister(u8* value)
 {
+  // Lower interrupt
+  std::fill_n(m_device_interrupt_lines, NUM_DEVICES, false);
+  UpdateHostInterruptLine();
+
   if (m_control_register.software_reset)
   {
     *value = (1 << 7);
@@ -215,9 +235,6 @@ void HDC::IOReadStatusRegister(u8* value)
   }
 
   const ATADevice* device = GetCurrentDevice();
-
-  // Lower interrupt
-  m_interrupt_controller->LowerInterrupt(m_irq_number);
   *value = device ? device->ReadStatusRegister() : 0xFF;
 }
 
@@ -235,13 +252,16 @@ void HDC::IOReadAltStatusRegister(u8* value)
 
 void HDC::IOWriteCommandRegister(u8 value)
 {
-  Log_DevPrintf("ATA write command register <- 0x%02X", ZeroExtend32(value));
+  Log_TracePrintf("ATA write command register <- 0x%02X", ZeroExtend32(value));
 
-  ATADevice* device = GetCurrentDevice();
-  if (!device)
+  const u8 index = GetCurrentDeviceIndex();
+  if (!m_devices[index])
     return;
 
-  device->WriteCommandRegister(value);
+  m_device_interrupt_lines[index] = false;
+  UpdateHostInterruptLine();
+
+  m_devices[index]->WriteCommandRegister(value);
 }
 
 void HDC::IOReadErrorRegister(u8* value)
@@ -252,7 +272,7 @@ void HDC::IOReadErrorRegister(u8* value)
 
 void HDC::IOWriteControlRegister(u8 value)
 {
-  Log_DevPrintf("ATA write control register <- 0x%02X", ZeroExtend32(value));
+  Log_TracePrintf("ATA write control register <- 0x%02X", ZeroExtend32(value));
 
   decltype(m_control_register) old_value = m_control_register;
   m_control_register.bits = value;
@@ -260,7 +280,7 @@ void HDC::IOWriteControlRegister(u8 value)
   if (!m_control_register.software_reset && old_value.software_reset)
   {
     // Software reset
-    Log_DevPrintf("Software reset");
+    Log_DevPrintf("ATA controller software reset");
     SoftReset();
   }
 }
@@ -280,7 +300,7 @@ void HDC::IOWriteDriveSelectRegister(u8 value)
   }
 
   m_drive_select_register.bits = value;
-  Log_DevPrintf("ATA write drive select 0x%02X (drive %u)", value, m_drive_select_register.drive.GetValue());
+  Log_TracePrintf("ATA write drive select 0x%02X (drive %u)", value, m_drive_select_register.drive.GetValue());
 }
 
 void HDC::IOReadDataRegisterByte(u8* value)
@@ -357,7 +377,7 @@ void HDC::IOReadCommandBlockCylinderHigh(u8* value)
 
 void HDC::IOWriteCommandBlockFeatures(u8 value)
 {
-  Log_DevPrintf("ATA write command block features 0x%02X", value);
+  Log_TracePrintf("ATA write command block features 0x%02X", value);
   for (u32 i = 0; i < NUM_DEVICES; i++)
   {
     if (m_devices[i])
@@ -367,7 +387,7 @@ void HDC::IOWriteCommandBlockFeatures(u8 value)
 
 void HDC::IOWriteCommandBlockSectorCount(u8 value)
 {
-  Log_DevPrintf("ATA write command block sector count 0x%02X", value);
+  Log_TracePrintf("ATA write command block sector count 0x%02X", value);
   for (u32 i = 0; i < NUM_DEVICES; i++)
   {
     if (m_devices[i])
@@ -377,7 +397,7 @@ void HDC::IOWriteCommandBlockSectorCount(u8 value)
 
 void HDC::IOWriteCommandBlockSectorNumber(u8 value)
 {
-  Log_DevPrintf("ATA write command block sector number 0x%02X", value);
+  Log_TracePrintf("ATA write command block sector number 0x%02X", value);
   for (u32 i = 0; i < NUM_DEVICES; i++)
   {
     if (m_devices[i])
@@ -387,7 +407,7 @@ void HDC::IOWriteCommandBlockSectorNumber(u8 value)
 
 void HDC::IOWriteCommandBlockCylinderLow(u8 value)
 {
-  Log_DevPrintf("ATA write command block cylinder low 0x%02X", value);
+  Log_TracePrintf("ATA write command block cylinder low 0x%02X", value);
   for (u32 i = 0; i < NUM_DEVICES; i++)
   {
     if (m_devices[i])
@@ -397,7 +417,7 @@ void HDC::IOWriteCommandBlockCylinderLow(u8 value)
 
 void HDC::IOWriteCommandBlockCylinderHigh(u8 value)
 {
-  Log_DevPrintf("ATA write command block cylinder high 0x%02X", value);
+  Log_TracePrintf("ATA write command block cylinder high 0x%02X", value);
   for (u32 i = 0; i < NUM_DEVICES; i++)
   {
     if (m_devices[i])
