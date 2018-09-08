@@ -1,5 +1,7 @@
 #include "ata_device.h"
 #include "../system.h"
+#include "YBaseLib/BinaryReader.h"
+#include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
 #include "hdc.h"
 Log_SetChannel(HW::ATADevice);
@@ -54,12 +56,41 @@ void ATADevice::Reset()
 
 bool ATADevice::LoadState(BinaryReader& reader)
 {
-  return false;
+  if (reader.ReadUInt32() != SERIALIZATION_ID)
+    return false;
+
+  if (reader.ReadUInt32() != m_ata_channel_number || reader.ReadUInt32() != m_ata_drive_number)
+  {
+    Log_ErrorPrintf("Save state channel/drive mismatch");
+    return false;
+  }
+
+  m_registers.status.bits = reader.ReadUInt8();
+  m_registers.drive_select.bits = reader.ReadUInt8();
+  m_registers.error = static_cast<ATA_ERR>(reader.ReadUInt8());
+  m_registers.feature_select = reader.ReadUInt8();
+  m_registers.sector_count = reader.ReadUInt16();
+  m_registers.sector_number = reader.ReadUInt16();
+  m_registers.cylinder_low = reader.ReadUInt16();
+  m_registers.cylinder_high = reader.ReadUInt16();
+  return !reader.GetErrorState();
 }
 
 bool ATADevice::SaveState(BinaryWriter& writer)
 {
-  return false;
+  writer.WriteUInt32(SERIALIZATION_ID);
+  writer.WriteUInt32(m_ata_channel_number);
+  writer.WriteUInt32(m_ata_drive_number);
+
+  writer.WriteUInt8(m_registers.status.bits);
+  writer.WriteUInt8(m_registers.drive_select.bits);
+  writer.WriteUInt8(m_registers.error);
+  writer.WriteUInt8(m_registers.feature_select);
+  writer.WriteUInt16(m_registers.sector_count);
+  writer.WriteUInt16(m_registers.sector_number);
+  writer.WriteUInt16(m_registers.cylinder_low);
+  writer.WriteUInt16(m_registers.cylinder_high);
+  return !writer.InErrorState();
 }
 
 u8 ATADevice::ReadCommandBlockSectorCount(bool hob) const
@@ -139,6 +170,7 @@ void ATADevice::PutIdentifyString(char* buffer, uint32 buffer_size, const char* 
 
 void ATADevice::RaiseInterrupt()
 {
+  Log_DevPrintf("Raising ATA interrupt line %u/%u", m_ata_channel_number, m_ata_drive_number);
   m_ata_controller->SetDeviceInterruptLine(m_ata_drive_number, true);
 }
 

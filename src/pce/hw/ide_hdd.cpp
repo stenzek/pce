@@ -96,61 +96,108 @@ void IDEHDD::Reset()
 
 bool IDEHDD::LoadState(BinaryReader& reader)
 {
+  if (!BaseClass::LoadState(reader))
+    return false;
+
+  if (reader.ReadUInt32() != SERIALIZATION_ID)
+    return false;
+
   const u64 num_lbas = reader.ReadUInt64();
   const u32 num_cylinders = reader.ReadUInt32();
   const u32 num_heads = reader.ReadUInt32();
   const u32 num_sectors = reader.ReadUInt32();
-  const u32 channel = reader.ReadUInt32();
-  const u32 drive = reader.ReadUInt32();
-  if (num_cylinders != m_cylinders || num_heads != m_heads || num_sectors != m_sectors_per_track ||
-      num_lbas != m_lbas || channel != m_ata_channel_number || drive != m_ata_drive_number)
+  if (num_cylinders != m_cylinders || num_heads != m_heads || num_sectors != m_sectors_per_track || num_lbas != m_lbas)
   {
     Log_ErrorPrintf("Save state geometry mismatch");
     return false;
   }
+
+  m_current_num_cylinders = reader.ReadUInt32();
+  m_current_num_heads = reader.ReadUInt32();
+  m_current_num_sectors_per_track = reader.ReadUInt32();
+  m_multiple_sectors = reader.ReadUInt32();
+
+  m_current_lba = reader.ReadUInt64();
+
+  m_current_command = reader.ReadUInt16();
+
+  m_buffer.size = reader.ReadUInt32();
+  m_buffer.position = reader.ReadUInt32();
+  m_buffer.remaining_sectors = reader.ReadUInt32();
+  m_buffer.block_size = reader.ReadUInt32();
+  m_buffer.is_write = reader.ReadBool();
+  m_buffer.valid = reader.ReadBool();
+  if (m_buffer.size > 0)
+  {
+    m_buffer.data.resize(m_buffer.size);
+    reader.ReadBytes(m_buffer.data.data(), m_buffer.size);
+  }
+
+  if (reader.GetErrorState())
+    return false;
 
   return m_image->LoadState(reader.GetStream());
 }
 
 bool IDEHDD::SaveState(BinaryWriter& writer)
 {
-  bool result = true;
+  if (!BaseClass::SaveState(writer))
+    return false;
 
-  result &= writer.SafeWriteUInt64(m_lbas);
-  result &= writer.SafeWriteUInt32(m_cylinders);
-  result &= writer.SafeWriteUInt32(m_heads);
-  result &= writer.SafeWriteUInt32(m_sectors_per_track);
-  result &= writer.SafeWriteUInt32(m_ata_channel_number);
-  result &= writer.SafeWriteUInt32(m_ata_drive_number);
-  if (!result)
+  writer.WriteUInt32(SERIALIZATION_ID);
+
+  writer.WriteUInt64(m_lbas);
+  writer.WriteUInt32(m_cylinders);
+  writer.WriteUInt32(m_heads);
+  writer.WriteUInt32(m_sectors_per_track);
+
+  writer.WriteUInt32(m_current_num_cylinders);
+  writer.WriteUInt32(m_current_num_heads);
+  writer.WriteUInt32(m_current_num_sectors_per_track);
+  writer.WriteUInt32(m_multiple_sectors);
+
+  writer.WriteUInt64(m_current_lba);
+
+  writer.WriteUInt16(m_current_command);
+
+  writer.WriteUInt32(m_buffer.size);
+  writer.WriteUInt32(m_buffer.position);
+  writer.WriteUInt32(m_buffer.remaining_sectors);
+  writer.WriteUInt32(m_buffer.block_size);
+  writer.WriteBool(m_buffer.is_write);
+  writer.WriteBool(m_buffer.valid);
+  if (m_buffer.size > 0)
+    writer.WriteBytes(m_buffer.data.data(), m_buffer.size);
+
+  if (writer.InErrorState())
     return false;
 
   return m_image->SaveState(writer.GetStream());
 }
 
-void IDEHDD::ReadDataPort(void* buffer, size_t size)
+void IDEHDD::ReadDataPort(void* buffer, u32 size)
 {
   if (!m_buffer.valid || m_buffer.is_write)
     return;
 
-  size_t bytes_to_copy = std::min(size, m_buffer.data.size() - m_buffer.position);
+  const u32 bytes_to_copy = std::min(size, m_buffer.size - m_buffer.position);
   std::memcpy(buffer, &m_buffer.data[m_buffer.position], bytes_to_copy);
   m_buffer.position += bytes_to_copy;
 
-  if (m_buffer.position == m_buffer.data.size())
+  if (m_buffer.position == m_buffer.size)
     OnBufferEnd();
 }
 
-void IDEHDD::WriteDataPort(const void* buffer, size_t size)
+void IDEHDD::WriteDataPort(const void* buffer, u32 size)
 {
   if (!m_buffer.valid || !m_buffer.is_write)
     return;
 
-  size_t bytes_to_copy = std::min(size, m_buffer.data.size() - m_buffer.position);
+  const u32 bytes_to_copy = std::min(size, m_buffer.size - m_buffer.position);
   std::memcpy(&m_buffer.data[m_buffer.position], buffer, bytes_to_copy);
   m_buffer.position += bytes_to_copy;
 
-  if (m_buffer.position == m_buffer.data.size())
+  if (m_buffer.position == m_buffer.size)
     OnBufferEnd();
 }
 
@@ -201,13 +248,13 @@ bool IDEHDD::ComputeCHSGeometry(const u64 size, u32& cylinders, u32& heads, u32&
   if (sectors_per_track == 0)
     sectors_per_track = DEFAULT_SECTORS;
   if (heads == 0)
-    heads = DEFAULT_SECTORS;
+    heads = DEFAULT_HEADS;
 
   const u32 cylinder_size = heads * sectors_per_track * SECTOR_SIZE;
   cylinders = static_cast<u32>(size / cylinder_size);
   if ((size % cylinder_size) != 0)
   {
-    Log_ErrorPrintf("Image size " PRId64 " with H/S %u/%u does not evenly divide by cylinder size", size, heads,
+    Log_ErrorPrintf("Image size %" PRId64 " with H/S %u/%u does not evenly divide by cylinder size", size, heads,
                     sectors_per_track, cylinder_size);
     return false;
   }
@@ -279,8 +326,10 @@ void IDEHDD::AbortCommand(ATA_ERR error /* = ATA_ERR_ABRT */, bool device_fault 
 void IDEHDD::SetupBuffer(u32 num_sectors, u32 block_size, bool is_write)
 {
   DebugAssert(num_sectors > 0);
-  m_buffer.data.resize(std::min(block_size, num_sectors) * SECTOR_SIZE);
+  m_buffer.size = std::min(block_size, num_sectors) * SECTOR_SIZE;
   m_buffer.position = 0;
+  if (m_buffer.data.size() < m_buffer.size)
+    m_buffer.data.resize(m_buffer.size);
   m_buffer.remaining_sectors = num_sectors;
   m_buffer.block_size = block_size;
   m_buffer.is_write = is_write;
@@ -289,7 +338,7 @@ void IDEHDD::SetupBuffer(u32 num_sectors, u32 block_size, bool is_write)
 void IDEHDD::FillReadBuffer()
 {
   const u32 sector_count = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
-  DebugAssert(m_buffer.data.size() >= (sector_count * SECTOR_SIZE));
+  DebugAssert(m_buffer.size >= (sector_count * SECTOR_SIZE));
   DebugAssert((m_current_lba + sector_count) * SECTOR_SIZE <= m_image->GetImageSize());
   m_image->Read(m_buffer.data.data(), m_current_lba * SECTOR_SIZE, sector_count * SECTOR_SIZE);
   m_current_lba += sector_count;
@@ -298,7 +347,7 @@ void IDEHDD::FillReadBuffer()
 void IDEHDD::FlushWriteBuffer()
 {
   const u32 sector_count = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
-  DebugAssert(m_buffer.data.size() >= (sector_count * SECTOR_SIZE));
+  DebugAssert(m_buffer.size >= (sector_count * SECTOR_SIZE));
   DebugAssert((m_current_lba + sector_count) * SECTOR_SIZE <= m_image->GetImageSize());
   m_image->Write(m_buffer.data.data(), m_current_lba * SECTOR_SIZE, sector_count * SECTOR_SIZE);
   m_current_lba += sector_count;
@@ -313,6 +362,7 @@ void IDEHDD::OnBufferReady()
 
 void IDEHDD::ResetBuffer()
 {
+  m_buffer.size = 0;
   m_buffer.position = 0;
   m_buffer.remaining_sectors = 0;
   m_buffer.block_size = 0;
@@ -341,8 +391,10 @@ void IDEHDD::OnBufferEnd()
 
   // Reset buffer position for the next block.
   const u32 next_transfer_sectors = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
-  m_buffer.data.resize(next_transfer_sectors * SECTOR_SIZE);
+  m_buffer.size = next_transfer_sectors * SECTOR_SIZE;
   m_buffer.position = 0;
+  if (m_buffer.data.size() < m_buffer.size)
+    m_buffer.data.resize(m_buffer.size);
 
   // Fill buffer contents for reads.
   if (!m_buffer.is_write)

@@ -53,6 +53,7 @@ public:
   void DetachDevice(u32 number);
 
   void SetDeviceInterruptLine(u32 number, bool active);
+  void UpdateHostInterruptLine();
 
 protected:
   InterruptController* m_interrupt_controller = nullptr;
@@ -76,7 +77,10 @@ protected:
     BitField<u8, bool, 6, 1> lba_enable;
   } m_drive_select_register = {};
 
-  ATADevice* GetCurrentDevice() const { return m_devices[m_drive_select_register.drive]; }
+  bool m_device_interrupt_lines[NUM_DEVICES] = {};
+
+  u8 GetCurrentDeviceIndex() const { return m_drive_select_register.drive; }
+  ATADevice* GetCurrentDevice() const { return m_devices[GetCurrentDeviceIndex()]; }
 
   void ConnectIOPorts(Bus* bus);
 

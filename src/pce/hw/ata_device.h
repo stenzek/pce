@@ -232,10 +232,12 @@ public:
   virtual void WriteCommandRegister(u8 value) = 0;
 
   // Data port.
-  virtual void ReadDataPort(void* buffer, size_t size) = 0;
-  virtual void WriteDataPort(const void* buffer, size_t size) = 0;
+  virtual void ReadDataPort(void* buffer, u32 size) = 0;
+  virtual void WriteDataPort(const void* buffer, u32 size) = 0;
 
 protected:
+  static const u32 SERIALIZATION_ID = MakeSerializationID('A', 'T', 'A', 'D');
+
   static void PutIdentifyString(char* buffer, uint32 buffer_size, const char* str);
 
   void RaiseInterrupt();

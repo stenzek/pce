@@ -29,8 +29,8 @@ public:
 
   void WriteCommandRegister(u8 value) override;
 
-  void ReadDataPort(void* buffer, size_t size) override;
-  void WriteDataPort(const void* buffer, size_t size) override;
+  void ReadDataPort(void* buffer, u32 size) override;
+  void WriteDataPort(const void* buffer, u32 size) override;
 
   HDDImage* GetImage() const { return m_image.get(); }
 
@@ -43,6 +43,7 @@ protected:
   void DoReset(bool is_hardware_reset) override;
 
 private:
+  static const u32 SERIALIZATION_ID = MakeSerializationID('A', 'T', 'A', 'H');
   static const u32 SECTOR_SIZE = 512;
   static const u16 INVALID_COMMAND = 0x100;
 
@@ -112,7 +113,8 @@ private:
   struct
   {
     std::vector<byte> data;
-    size_t position;
+    u32 size;
+    u32 position;
     u32 remaining_sectors;
     u32 block_size;
     bool is_write;
