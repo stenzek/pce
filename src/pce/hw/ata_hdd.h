@@ -8,14 +8,14 @@ namespace HW {
 
 // TODO: Move common stuff to "base HDD" class, like CDROM.
 
-class IDEHDD final : public ATADevice
+class ATAHDD final : public ATADevice
 {
-  DECLARE_OBJECT_TYPE_INFO(IDEHDD, ATADevice);
-  DECLARE_GENERIC_COMPONENT_FACTORY(IDEHDD);
-  DECLARE_OBJECT_PROPERTY_MAP(IDEHDD);
+  DECLARE_OBJECT_TYPE_INFO(ATAHDD, ATADevice);
+  DECLARE_GENERIC_COMPONENT_FACTORY(ATAHDD);
+  DECLARE_OBJECT_PROPERTY_MAP(ATAHDD);
 
 public:
-  IDEHDD(const String& identifier, const char* image_filename = "", u32 cylinders = 0, u32 heads = 0, u32 sectors = 0,
+  ATAHDD(const String& identifier, const char* image_filename = "", u32 cylinders = 0, u32 heads = 0, u32 sectors = 0,
          u32 ide_channel = 0, u32 ide_device = 0, const ObjectTypeInfo* type_info = &s_type_info);
 
   // Pass in 0/0/0 for complete autodetection, otherwise heads/sectors are used to compute cylinders.

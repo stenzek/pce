@@ -2,6 +2,8 @@
 #include "pce/cpu.h"
 #include "pce/cpu_x86/cpu_x86.h"
 #include "pce/hw/adlib.h"
+#include "pce/hw/ata_cdrom.h"
+#include "pce/hw/ata_hdd.h"
 #include "pce/hw/cdrom.h"
 #include "pce/hw/cga.h"
 #include "pce/hw/cmos.h"
@@ -13,8 +15,6 @@
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
-#include "pce/hw/ide_cdrom.h"
-#include "pce/hw/ide_hdd.h"
 #include "pce/hw/pci_bus.h"
 #include "pce/hw/pci_device.h"
 #include "pce/hw/pcspeaker.h"
@@ -52,7 +52,11 @@ void RegisterAllTypes()
 
   REGISTER_TYPE(CPU_X86::CPU);
 
+  REGISTER_HW_TYPE(ATADevice);
+
   REGISTER_HW_TYPE(AdLib);
+  REGISTER_HW_TYPE(ATAHDD);
+  REGISTER_HW_TYPE(ATACDROM);
   REGISTER_HW_TYPE(CDROM);
   REGISTER_HW_TYPE(CGA);
   REGISTER_HW_TYPE(CMOS);
@@ -64,8 +68,6 @@ void RegisterAllTypes()
   REGISTER_HW_TYPE(i8237_DMA);
   REGISTER_HW_TYPE(i8253_PIT);
   REGISTER_HW_TYPE(i8259_PIC);
-  REGISTER_HW_TYPE(IDECDROM);
-  REGISTER_HW_TYPE(IDEHDD);
   REGISTER_HW_TYPE(PCSpeaker);
   REGISTER_HW_TYPE(Serial);
   REGISTER_HW_TYPE(SerialMouse);

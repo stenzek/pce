@@ -47,8 +47,8 @@
     <ClCompile Include="hw\et4000.cpp" />
     <ClCompile Include="hw\floppy.cpp" />
     <ClCompile Include="hw\i82437fx.cpp" />
-    <ClCompile Include="hw\ide_cdrom.cpp" />
-    <ClCompile Include="hw\ide_hdd.cpp" />
+    <ClCompile Include="hw\ata_cdrom.cpp" />
+    <ClCompile Include="hw\ata_hdd.cpp" />
     <ClCompile Include="hw\pci_bus.cpp" />
     <ClCompile Include="hw\pci_device.cpp" />
     <ClCompile Include="hw\ymf262.cpp" />
@@ -110,8 +110,8 @@
     <ClInclude Include="hw\floppy.h" />
     <ClInclude Include="hw\i82437fx.h" />
     <ClInclude Include="hw\ata_device.h" />
-    <ClInclude Include="hw\ide_cdrom.h" />
-    <ClInclude Include="hw\ide_hdd.h" />
+    <ClInclude Include="hw\ata_cdrom.h" />
+    <ClInclude Include="hw\ata_hdd.h" />
     <ClInclude Include="hw\pci_bus.h" />
     <ClInclude Include="hw\pci_device.h" />
     <ClInclude Include="hw\ymf262.h" />

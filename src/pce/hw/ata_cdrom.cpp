@@ -1,25 +1,25 @@
-#include "ide_cdrom.h"
+#include "ata_cdrom.h"
 #include "YBaseLib/Log.h"
 #include "hdc.h"
 #include "pce/system.h"
-Log_SetChannel(HW::IDECDROM);
+Log_SetChannel(HW::ATACDROM);
 
 namespace HW {
 
-DEFINE_OBJECT_TYPE_INFO(IDECDROM);
-DEFINE_GENERIC_COMPONENT_FACTORY(IDECDROM);
-BEGIN_OBJECT_PROPERTY_MAP(IDECDROM)
-PROPERTY_TABLE_MEMBER_UINT("Channel", 0, offsetof(IDECDROM, m_ide_channel), nullptr, 0)
-PROPERTY_TABLE_MEMBER_UINT("Drive", 0, offsetof(IDECDROM, m_ide_drive), nullptr, 0)
+DEFINE_OBJECT_TYPE_INFO(ATACDROM);
+DEFINE_GENERIC_COMPONENT_FACTORY(ATACDROM);
+BEGIN_OBJECT_PROPERTY_MAP(ATACDROM)
+PROPERTY_TABLE_MEMBER_UINT("Channel", 0, offsetof(ATACDROM, m_ide_channel), nullptr, 0)
+PROPERTY_TABLE_MEMBER_UINT("Drive", 0, offsetof(ATACDROM, m_ide_drive), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-IDECDROM::IDECDROM(const String& identifier, u32 ide_channel /* = 0 */, u32 ide_device /* = 0 */,
+ATACDROM::ATACDROM(const String& identifier, u32 ide_channel /* = 0 */, u32 ide_device /* = 0 */,
                    const ObjectTypeInfo* type_info /* = &s_type_info */)
   : m_ide_channel(ide_channel), m_ide_drive(ide_device), BaseClass(identifier, type_info)
 {
 }
 
-bool IDECDROM::Initialize(System* system, Bus* bus)
+bool ATACDROM::Initialize(System* system, Bus* bus)
 {
   if (!BaseClass::Initialize(system, bus))
     return false;

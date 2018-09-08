@@ -4,7 +4,7 @@
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/hw/ata_device.h"
-#include "pce/hw/ide_hdd.h"
+#include "pce/hw/ata_hdd.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 #include <cstring>
@@ -97,24 +97,24 @@ u32 HDC::GetDeviceCount() const
 
 bool HDC::IsHDDPresent(u32 number) const
 {
-  return (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->IsDerived<IDEHDD>() : false;
+  return (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->IsDerived<ATAHDD>() : false;
 }
 
 u32 HDC::GetHDDCylinders(u32 number) const
 {
-  const IDEHDD* hdd = (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->SafeCast<IDEHDD>() : nullptr;
+  const ATAHDD* hdd = (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->SafeCast<ATAHDD>() : nullptr;
   return hdd ? hdd->GetNumCylinders() : 0;
 }
 
 u32 HDC::GetHDDHeads(u32 number) const
 {
-  const IDEHDD* hdd = (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->SafeCast<IDEHDD>() : nullptr;
+  const ATAHDD* hdd = (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->SafeCast<ATAHDD>() : nullptr;
   return hdd ? hdd->GetNumHeads() : 0;
 }
 
 u32 HDC::GetHDDSectors(u32 number) const
 {
-  const IDEHDD* hdd = (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->SafeCast<IDEHDD>() : nullptr;
+  const ATAHDD* hdd = (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->SafeCast<ATAHDD>() : nullptr;
   return hdd ? hdd->GetNumSectors() : 0;
 }
 

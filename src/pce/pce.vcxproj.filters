@@ -132,18 +132,18 @@
     <ClCompile Include="hw\pci_bus.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="hw\ide_cdrom.cpp">
-      <Filter>hw</Filter>
-    </ClCompile>
     <ClCompile Include="types.cpp" />
-    <ClCompile Include="hw\ide_hdd.cpp">
-      <Filter>hw</Filter>
-    </ClCompile>
     <ClCompile Include="hw\floppy.cpp">
       <Filter>hw</Filter>
     </ClCompile>
     <ClCompile Include="system_config_parser.cpp" />
     <ClCompile Include="hw\ata_device.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\ata_hdd.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\ata_cdrom.cpp">
       <Filter>hw</Filter>
     </ClCompile>
   </ItemGroup>
@@ -298,12 +298,6 @@
     <ClInclude Include="hw\pci_bus.h">
       <Filter>hw</Filter>
     </ClInclude>
-    <ClInclude Include="hw\ide_cdrom.h">
-      <Filter>hw</Filter>
-    </ClInclude>
-    <ClInclude Include="hw\ide_hdd.h">
-      <Filter>hw</Filter>
-    </ClInclude>
     <ClInclude Include="hw\floppy.h">
       <Filter>hw</Filter>
     </ClInclude>
@@ -311,6 +305,12 @@
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="hw\cmos_info.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\ata_hdd.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\ata_cdrom.h">
       <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>

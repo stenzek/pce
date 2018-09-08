@@ -1,4 +1,4 @@
-#include "ide_hdd.h"
+#include "ata_hdd.h"
 #include "../host_interface.h"
 #include "../system.h"
 #include "YBaseLib/BinaryReader.h"
@@ -6,22 +6,22 @@
 #include "YBaseLib/Log.h"
 #include "common/hdd_image.h"
 #include <cinttypes>
-Log_SetChannel(HW::IDEHDD);
+Log_SetChannel(HW::ATAHDD);
 
 // http://margo.student.utwente.nl/el/pc/hd-info/ide-tech.htm
 
 namespace HW {
 
-DEFINE_OBJECT_TYPE_INFO(IDEHDD);
-DEFINE_GENERIC_COMPONENT_FACTORY(IDEHDD);
-BEGIN_OBJECT_PROPERTY_MAP(IDEHDD)
-PROPERTY_TABLE_MEMBER_STRING("ImageFile", 0, offsetof(IDEHDD, m_image_filename), nullptr, 0)
-PROPERTY_TABLE_MEMBER_UINT("Cylinders", 0, offsetof(IDEHDD, m_cylinders), nullptr, 0)
-PROPERTY_TABLE_MEMBER_UINT("Heads", 0, offsetof(IDEHDD, m_heads), nullptr, 0)
-PROPERTY_TABLE_MEMBER_UINT("Sectors", 0, offsetof(IDEHDD, m_sectors_per_track), nullptr, 0)
+DEFINE_OBJECT_TYPE_INFO(ATAHDD);
+DEFINE_GENERIC_COMPONENT_FACTORY(ATAHDD);
+BEGIN_OBJECT_PROPERTY_MAP(ATAHDD)
+PROPERTY_TABLE_MEMBER_STRING("ImageFile", 0, offsetof(ATAHDD, m_image_filename), nullptr, 0)
+PROPERTY_TABLE_MEMBER_UINT("Cylinders", 0, offsetof(ATAHDD, m_cylinders), nullptr, 0)
+PROPERTY_TABLE_MEMBER_UINT("Heads", 0, offsetof(ATAHDD, m_heads), nullptr, 0)
+PROPERTY_TABLE_MEMBER_UINT("Sectors", 0, offsetof(ATAHDD, m_sectors_per_track), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-IDEHDD::IDEHDD(const String& identifier, const char* image_filename /* = "" */, u32 cylinders /* = 0 */,
+ATAHDD::ATAHDD(const String& identifier, const char* image_filename /* = "" */, u32 cylinders /* = 0 */,
                u32 heads /* = 0 */, u32 sectors /* = 0 */, u32 ide_channel /* = 0 */, u32 ide_device /* = 0 */,
                const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(identifier, ide_channel, ide_device, type_info), m_cylinders(cylinders), m_heads(heads),
@@ -29,7 +29,7 @@ IDEHDD::IDEHDD(const String& identifier, const char* image_filename /* = "" */, 
 {
 }
 
-bool IDEHDD::Initialize(System* system, Bus* bus)
+bool ATAHDD::Initialize(System* system, Bus* bus)
 {
   if (!BaseClass::Initialize(system, bus))
     return false;
@@ -75,11 +75,11 @@ bool IDEHDD::Initialize(System* system, Bus* bus)
 
   // Flush the HDD images once a second, to ensure data isn't lost.
   m_flush_event =
-    m_system->GetTimingManager()->CreateFrequencyEvent("HDD Image Flush", 1.0f, std::bind(&IDEHDD::FlushImage, this));
+    m_system->GetTimingManager()->CreateFrequencyEvent("HDD Image Flush", 1.0f, std::bind(&ATAHDD::FlushImage, this));
   m_command_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
-    "ATA HDD Command", 1, std::bind(&IDEHDD::ExecutePendingCommand, this), false);
+    "ATA HDD Command", 1, std::bind(&ATAHDD::ExecutePendingCommand, this), false);
   m_read_write_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
-    "ATA HDD Read/Write", 1, std::bind(&IDEHDD::ExecutePendingReadWrite, this), false);
+    "ATA HDD Read/Write", 1, std::bind(&ATAHDD::ExecutePendingReadWrite, this), false);
 
   // Create indicator and menu options.
   system->GetHostInterface()->AddUIIndicator(this, HostInterface::IndicatorType::HDD);
@@ -91,12 +91,12 @@ bool IDEHDD::Initialize(System* system, Bus* bus)
   return true;
 }
 
-void IDEHDD::Reset()
+void ATAHDD::Reset()
 {
   BaseClass::Reset();
 }
 
-bool IDEHDD::LoadState(BinaryReader& reader)
+bool ATAHDD::LoadState(BinaryReader& reader)
 {
   if (!BaseClass::LoadState(reader))
     return false;
@@ -141,7 +141,7 @@ bool IDEHDD::LoadState(BinaryReader& reader)
   return m_image->LoadState(reader.GetStream());
 }
 
-bool IDEHDD::SaveState(BinaryWriter& writer)
+bool ATAHDD::SaveState(BinaryWriter& writer)
 {
   if (!BaseClass::SaveState(writer))
     return false;
@@ -177,7 +177,7 @@ bool IDEHDD::SaveState(BinaryWriter& writer)
   return m_image->SaveState(writer.GetStream());
 }
 
-void IDEHDD::ReadDataPort(void* buffer, u32 size)
+void ATAHDD::ReadDataPort(void* buffer, u32 size)
 {
   if (!m_buffer.valid || m_buffer.is_write)
     return;
@@ -190,7 +190,7 @@ void IDEHDD::ReadDataPort(void* buffer, u32 size)
     OnBufferEnd();
 }
 
-void IDEHDD::WriteDataPort(const void* buffer, u32 size)
+void ATAHDD::WriteDataPort(const void* buffer, u32 size)
 {
   if (!m_buffer.valid || !m_buffer.is_write)
     return;
@@ -203,7 +203,7 @@ void IDEHDD::WriteDataPort(const void* buffer, u32 size)
     OnBufferEnd();
 }
 
-void IDEHDD::DoReset(bool is_hardware_reset)
+void ATAHDD::DoReset(bool is_hardware_reset)
 {
   // The 430FX bios seems to require that the error register be 1 after soft reset.
   // The IDE spec agrees that the initial value is 1.
@@ -228,7 +228,7 @@ void IDEHDD::DoReset(bool is_hardware_reset)
   ClearActivity();
 }
 
-void IDEHDD::SetSignature()
+void ATAHDD::SetSignature()
 {
   m_registers.sector_count = 1;
   m_registers.sector_number = 1;
@@ -236,17 +236,17 @@ void IDEHDD::SetSignature()
   m_registers.cylinder_high = 0;
 }
 
-void IDEHDD::ClearActivity()
+void ATAHDD::ClearActivity()
 {
   m_system->GetHostInterface()->SetUIIndicatorState(this, HostInterface::IndicatorState::Off);
 }
 
-void IDEHDD::FlushImage()
+void ATAHDD::FlushImage()
 {
   m_image->Flush();
 }
 
-bool IDEHDD::ComputeCHSGeometry(const u64 size, u32& cylinders, u32& heads, u32& sectors_per_track)
+bool ATAHDD::ComputeCHSGeometry(const u64 size, u32& cylinders, u32& heads, u32& sectors_per_track)
 {
   // assume 16 heads/63 sectors per track
   const u32 DEFAULT_SECTORS = 63;
@@ -269,7 +269,7 @@ bool IDEHDD::ComputeCHSGeometry(const u64 size, u32& cylinders, u32& heads, u32&
   return true;
 }
 
-void IDEHDD::TranslateLBAToCHS(const u64 lba, u32* cylinder, u32* head, u32* sector) const
+void ATAHDD::TranslateLBAToCHS(const u64 lba, u32* cylinder, u32* head, u32* sector) const
 {
   const u32 head_size = m_current_num_sectors_per_track;
   const u32 cylinder_size = m_current_num_heads * head_size;
@@ -280,7 +280,7 @@ void IDEHDD::TranslateLBAToCHS(const u64 lba, u32* cylinder, u32* head, u32* sec
   *sector = Truncate32((lba % cylinder_size) % head_size) + 1;
 }
 
-u64 IDEHDD::TranslateCHSToLBA(const u32 cylinder, const u32 head, const u32 sector) const
+u64 ATAHDD::TranslateCHSToLBA(const u32 cylinder, const u32 head, const u32 sector) const
 {
   const u32 head_size = m_current_num_sectors_per_track;
   const u32 cylinder_size = m_current_num_heads * head_size;
@@ -292,7 +292,7 @@ u64 IDEHDD::TranslateCHSToLBA(const u32 cylinder, const u32 head, const u32 sect
   return lba;
 }
 
-bool IDEHDD::SeekCHS(const u32 cylinder, const u32 head, const u32 sector)
+bool ATAHDD::SeekCHS(const u32 cylinder, const u32 head, const u32 sector)
 {
   if (sector == 0)
     return false;
@@ -300,7 +300,7 @@ bool IDEHDD::SeekCHS(const u32 cylinder, const u32 head, const u32 sector)
   return SeekLBA(TranslateCHSToLBA(cylinder, head, sector));
 }
 
-bool IDEHDD::SeekLBA(const u64 lba)
+bool ATAHDD::SeekLBA(const u64 lba)
 {
   if (lba >= m_lbas)
     return false;
@@ -309,7 +309,7 @@ bool IDEHDD::SeekLBA(const u64 lba)
   return true;
 }
 
-void IDEHDD::CompleteCommand(bool seek_complete /* = false */, bool raise_interrupt /* = true */)
+void ATAHDD::CompleteCommand(bool seek_complete /* = false */, bool raise_interrupt /* = true */)
 {
   m_current_command = INVALID_COMMAND;
   m_registers.status.SetReady();
@@ -323,7 +323,7 @@ void IDEHDD::CompleteCommand(bool seek_complete /* = false */, bool raise_interr
     RaiseInterrupt();
 }
 
-void IDEHDD::AbortCommand(ATA_ERR error /* = ATA_ERR_ABRT */, bool device_fault /* = false */)
+void ATAHDD::AbortCommand(ATA_ERR error /* = ATA_ERR_ABRT */, bool device_fault /* = false */)
 {
   m_current_command = INVALID_COMMAND;
   m_registers.status.SetError(device_fault);
@@ -332,7 +332,7 @@ void IDEHDD::AbortCommand(ATA_ERR error /* = ATA_ERR_ABRT */, bool device_fault 
   ClearActivity();
 }
 
-void IDEHDD::SetupBuffer(u32 num_sectors, u32 block_size, bool is_write)
+void ATAHDD::SetupBuffer(u32 num_sectors, u32 block_size, bool is_write)
 {
   DebugAssert(num_sectors > 0);
   m_buffer.size = std::min(block_size, num_sectors) * SECTOR_SIZE;
@@ -344,7 +344,7 @@ void IDEHDD::SetupBuffer(u32 num_sectors, u32 block_size, bool is_write)
   m_buffer.is_write = is_write;
 }
 
-void IDEHDD::SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors)
+void ATAHDD::SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors)
 {
   const CycleCount rw_time = CalculateReadWriteTime(num_sectors);
   Log_DevPrintf("Sector r/w time for %u sectors at lba %" PRIu64 ": %u us", num_sectors, m_current_lba,
@@ -354,7 +354,7 @@ void IDEHDD::SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors)
   m_read_write_event->Queue(seek_time + rw_time);
 }
 
-void IDEHDD::FillReadBuffer()
+void ATAHDD::FillReadBuffer()
 {
   const u32 sector_count = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
   DebugAssert(m_buffer.size >= (sector_count * SECTOR_SIZE));
@@ -363,7 +363,7 @@ void IDEHDD::FillReadBuffer()
   m_current_lba += sector_count;
 }
 
-void IDEHDD::FlushWriteBuffer()
+void ATAHDD::FlushWriteBuffer()
 {
   const u32 sector_count = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
   DebugAssert(m_buffer.size >= (sector_count * SECTOR_SIZE));
@@ -372,7 +372,7 @@ void IDEHDD::FlushWriteBuffer()
   m_current_lba += sector_count;
 }
 
-void IDEHDD::BufferReady(bool raise_interrupt)
+void ATAHDD::BufferReady(bool raise_interrupt)
 {
   m_buffer.valid = true;
   m_registers.status.SetDRQ();
@@ -380,7 +380,7 @@ void IDEHDD::BufferReady(bool raise_interrupt)
     RaiseInterrupt();
 }
 
-void IDEHDD::ResetBuffer()
+void ATAHDD::ResetBuffer()
 {
   m_buffer.size = 0;
   m_buffer.position = 0;
@@ -390,7 +390,7 @@ void IDEHDD::ResetBuffer()
   m_buffer.valid = false;
 }
 
-void IDEHDD::OnBufferEnd()
+void ATAHDD::OnBufferEnd()
 {
   if (m_buffer.is_write)
   {
@@ -408,7 +408,7 @@ void IDEHDD::OnBufferEnd()
   }
 }
 
-void IDEHDD::ExecutePendingReadWrite()
+void ATAHDD::ExecutePendingReadWrite()
 {
   m_read_write_event->Deactivate();
 
@@ -425,7 +425,7 @@ void IDEHDD::ExecutePendingReadWrite()
   }
 }
 
-void IDEHDD::OnReadWriteEnd()
+void ATAHDD::OnReadWriteEnd()
 {
   // Are we finished with the command?
   const u32 transferred_sectors = std::min(m_buffer.remaining_sectors, m_buffer.block_size);
@@ -457,7 +457,7 @@ void IDEHDD::OnReadWriteEnd()
   }
 }
 
-void IDEHDD::WriteCommandRegister(u8 value)
+void ATAHDD::WriteCommandRegister(u8 value)
 {
   Log_TracePrintf("ATA drive %u/%u command register <- 0x%02X", m_ata_channel_number, m_ata_drive_number, value);
 
@@ -482,7 +482,7 @@ void IDEHDD::WriteCommandRegister(u8 value)
     this, IsWriteCommand(value) ? HostInterface::IndicatorState::Writing : HostInterface::IndicatorState::Reading);
 }
 
-CycleCount IDEHDD::CalculateCommandTime(u8 command) const
+CycleCount ATAHDD::CalculateCommandTime(u8 command) const
 {
 #if 0
   switch (command)
@@ -515,17 +515,17 @@ CycleCount IDEHDD::CalculateCommandTime(u8 command) const
 #endif
 }
 
-CycleCount IDEHDD::CalculateSeekTime(u64 from_lba, u64 to_lba) const
+CycleCount ATAHDD::CalculateSeekTime(u64 from_lba, u64 to_lba) const
 {
   return 1;
 }
 
-CycleCount IDEHDD::CalculateReadWriteTime(u32 num_sectors) const
+CycleCount ATAHDD::CalculateReadWriteTime(u32 num_sectors) const
 {
   return 1 * num_sectors;
 }
 
-bool IDEHDD::IsWriteCommand(u8 command) const
+bool ATAHDD::IsWriteCommand(u8 command) const
 {
   switch (command)
   {
@@ -541,12 +541,12 @@ bool IDEHDD::IsWriteCommand(u8 command) const
   }
 }
 
-bool IDEHDD::HasPendingCommand() const
+bool ATAHDD::HasPendingCommand() const
 {
   return (m_current_command != INVALID_COMMAND);
 }
 
-void IDEHDD::ExecutePendingCommand()
+void ATAHDD::ExecutePendingCommand()
 {
   const u8 command = Truncate8(m_current_command);
   m_command_event->Deactivate();
@@ -642,14 +642,14 @@ void IDEHDD::ExecutePendingCommand()
   }
 }
 
-void IDEHDD::HandleATADeviceReset()
+void ATAHDD::HandleATADeviceReset()
 {
   Log_DevPrintf("ATAPI reset drive %u/%u", m_ata_channel_number, m_ata_drive_number);
   CompleteCommand();
   DoReset(false);
 }
 
-void IDEHDD::HandleATAIdentify()
+void ATAHDD::HandleATAIdentify()
 {
   Log_DevPrintf("ATA identify drive %u/%u", m_ata_channel_number, m_ata_drive_number);
 
@@ -707,14 +707,14 @@ void IDEHDD::HandleATAIdentify()
   BufferReady(true);
 }
 
-void IDEHDD::HandleATARecalibrate()
+void ATAHDD::HandleATARecalibrate()
 {
   Log_DevPrintf("ATA recalibrate drive %u/%u", m_ata_channel_number, m_ata_drive_number);
   m_current_lba = 0;
   CompleteCommand(true);
 }
 
-void IDEHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
+void ATAHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
 {
   if (multiple && m_multiple_sectors == 0)
   {
@@ -783,7 +783,7 @@ void IDEHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
   }
 }
 
-void IDEHDD::HandleATAReadVerifySectors(bool extended, bool with_retry)
+void ATAHDD::HandleATAReadVerifySectors(bool extended, bool with_retry)
 {
   // Using CHS mode?
   if (!m_registers.drive_select.lba_enable)
@@ -869,7 +869,7 @@ void IDEHDD::HandleATAReadVerifySectors(bool extended, bool with_retry)
   }
 }
 
-void IDEHDD::HandleATASetMultipleMode()
+void ATAHDD::HandleATASetMultipleMode()
 {
   // TODO: We should probably set an upper bound on the number of sectors
   const u16 multiple_sectors = (m_registers.sector_count & 0xFF);
@@ -887,14 +887,14 @@ void IDEHDD::HandleATASetMultipleMode()
   }
 }
 
-void IDEHDD::HandleATAExecuteDriveDiagnostic()
+void ATAHDD::HandleATAExecuteDriveDiagnostic()
 {
   Log_DevPrintf("ATA execute drive diagnostic %u/%u", m_ata_channel_number, m_ata_drive_number);
   m_registers.error = static_cast<ATA_ERR>(0x01); // No error detected
   CompleteCommand();
 }
 
-void IDEHDD::HandleATAInitializeDriveParameters()
+void ATAHDD::HandleATAInitializeDriveParameters()
 {
   u32 num_cylinders = ZeroExtend32(m_cylinders);
   u32 num_heads = ZeroExtend32(m_registers.drive_select.head.GetValue()) + 1;
@@ -917,7 +917,7 @@ void IDEHDD::HandleATAInitializeDriveParameters()
   CompleteCommand();
 }
 
-void IDEHDD::HandleATASetFeatures()
+void ATAHDD::HandleATASetFeatures()
 {
   Log_DevPrintf("ATA drive %u/%u set features 0x%02X", m_ata_channel_number, m_ata_drive_number,
                 m_registers.feature_select);
