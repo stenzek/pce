@@ -71,7 +71,7 @@ protected:
     // TODO: Move some of these to Floppy?
     uint32 current_cylinder = 0;
     uint32 current_head = 0;
-    uint32 current_sector = 0;
+    uint32 current_sector = 1;
     uint32 current_lba = 0;
 
     bool write_protect = false;

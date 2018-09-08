@@ -106,6 +106,29 @@ void FDC::Reset(bool software_reset)
   {
     m_specify_lock = false;
   }
+
+  // Hardware resets seek back to zero.
+  // Software resets reset head/sector, some BIOSes break without doing this.
+  for (uint32 i = 0; i < MAX_DRIVES; i++)
+  {
+    DriveState& drive = m_drives[i];
+    if (!drive.floppy)
+    {
+      continue;
+    }
+    else if (drive.floppy->IsDiskInserted())
+    {
+      SeekDrive(i, software_reset ? m_drives[i].current_cylinder : 0, 0, 1);
+    }
+    else
+    {
+      // Zero out everything.
+      drive.current_cylinder = 0;
+      drive.current_head = 0;
+      drive.current_sector = 1;
+      drive.current_lba = 0;
+    }
+  }
 }
 
 bool FDC::LoadState(BinaryReader& reader)
