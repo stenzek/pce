@@ -39,7 +39,7 @@ bool i430FX::Initialize()
   if (!BaseClass::Initialize())
     return false;
 
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path, BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
     return false;
 
   m_bus->MirrorRegion(BIOS_ROM_ADDRESS + BIOS_ROM_MIRROR_START, BIOS_ROM_MIRROR_SIZE, BIOS_ROM_MIRROR_ADDRESS);

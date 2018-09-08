@@ -32,7 +32,7 @@ public:
   virtual bool LoadSystemState(BinaryReader& reader) override;
   virtual bool SaveSystemState(BinaryWriter& writer) override;
 
-  void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
+  void SetBIOSFilePath(const String& path) { m_bios_file_path = path; }
 
   auto GetFDDController() const { return m_fdd_controller; }
   auto GetHDDController() const { return m_primary_hdd_controller; }
@@ -60,7 +60,7 @@ protected:
   void IOWriteSystemControlPortB(uint8 value);
   void UpdateKeyboardControllerOutputPort();
 
-  std::string m_bios_file_path;
+  String m_bios_file_path;
   u32 m_ram_size = 16 * 1024 * 1024;
 
   HW::i82437FX* m_sb82437 = nullptr;
