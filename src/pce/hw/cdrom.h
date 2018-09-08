@@ -8,12 +8,15 @@
 class ByteStream;
 
 namespace HW {
+
 // TODO: "SCSI Device" base class
 class CDROM : public Component
 {
   DECLARE_OBJECT_TYPE_INFO(CDROM, Component);
   DECLARE_OBJECT_NO_FACTORY(CDROM);
   DECLARE_OBJECT_PROPERTY_MAP(CDROM);
+
+  friend class ATACDROM;
 
 public:
   CDROM(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
@@ -47,6 +50,7 @@ public:
 
   // Returns true if the command is completed.
   bool WriteCommandBuffer(const void* data, size_t data_len);
+  void ClearCommandBuffer() { m_command_buffer.clear(); }
 
   // Media changing.
   bool InsertMedia(const char* filename);
