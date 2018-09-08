@@ -45,6 +45,7 @@
     <ClCompile Include="display_d3d.cpp" />
     <ClCompile Include="display_gl.cpp" />
     <ClCompile Include="display_sdl.cpp" />
+    <ClCompile Include="host_interface.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="scancodes_sdl.cpp" />
   </ItemGroup>
@@ -53,6 +54,7 @@
     <ClInclude Include="display_d3d.h" />
     <ClInclude Include="display_gl.h" />
     <ClInclude Include="display_sdl.h" />
+    <ClInclude Include="host_interface.h" />
     <ClInclude Include="scancodes_sdl.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
