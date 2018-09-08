@@ -441,8 +441,8 @@ void CDROM::QueueCommand(CycleCount time_in_microseconds)
 
 void CDROM::ExecuteCommand()
 {
-  Log_DevPrintf("CDROM executing command 0x%02X length %zu", ZeroExtend32(m_command_buffer[0]),
-                m_command_buffer.size());
+  Log_TracePrintf("CDROM executing command 0x%02X length %zu", ZeroExtend32(m_command_buffer[0]),
+                  m_command_buffer.size());
 
   m_data_buffer.clear();
   m_data_response_size = 0;

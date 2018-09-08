@@ -77,12 +77,17 @@ void ATACDROM::WriteCommandRegister(u8 value)
 
   // Determine how long the command will take to execute.
   const CycleCount cycles = CalculateCommandTime(value);
-  Log_DevPrintf("Queueing ATAPI command 0x%02X in %u us", value, unsigned(cycles));
   m_current_command = ZeroExtend16(value);
   if (cycles > 0)
+  {
+    Log_DevPrintf("Queueing ATAPI command 0x%02X in %u us", value, unsigned(cycles));
     m_command_event->Queue(cycles);
+  }
   else
+  {
+    // Some commands, e.g. PACKET, we execute immediately.
     ExecutePendingCommand();
+  }
 }
 
 void ATACDROM::DoReset(bool is_hardware_reset)
@@ -253,7 +258,7 @@ void ATACDROM::OnBufferEnd()
   // If we're here and it's a write, it means the packet was written by the host.
   if (m_buffer.is_write)
   {
-    Log_DevPrintf("ATAPI PACKET received from host of %u bytes", m_buffer.size);
+    Log_TracePrintf("ATAPI PACKET received from host of %u bytes", m_buffer.size);
     m_buffer.valid = false;
 
     // Command now in progress.

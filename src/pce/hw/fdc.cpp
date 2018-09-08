@@ -609,7 +609,8 @@ void FDC::BeginCommand()
     {
       const uint8 drive_number = cmd.params[0] & 0x03;
       const uint8 head = (cmd.params[0] >> 2) & 0x01;
-      SeekDrive(drive_number, m_drives[drive_number].current_cylinder, head, m_drives[drive_number].current_sector);
+      if (IsDiskPresent(drive_number))
+        SeekDrive(drive_number, m_drives[drive_number].current_cylinder, head, m_drives[drive_number].current_sector);
 
       // Writes ST3 to the result, but does not raise an interrupt.
       ClearFIFO();
