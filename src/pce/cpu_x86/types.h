@@ -139,6 +139,31 @@ enum CR0Bit : uint32
   CR0Bit_PG = (1u << 31)  // Paging Enable
 };
 
+enum CR4Bit : uint32
+{
+  CR4Bit_VME = (1u << 0),         // VIF in V8086 Mode
+  CR4Bit_PVI = (1u << 1),         // VIF in Protected Mode
+  CR4Bit_TSD = (1u << 2),         // Time Stamp Disable
+  CR4Bit_DE = (1u << 3),          // Debugging Extensions
+  CR4Bit_PSE = (1u << 4),         // Page Size Extension
+  CR4Bit_PAE = (1u << 5),         // Physical Address Extension
+  CR4Bit_MCE = (1u << 6),         // Machine Check Extension
+  CR4Bit_PGE = (1u << 7),         // Page Global Enabled
+  CR4Bit_PCE = (1u << 8),         // Performance-Monitoring Counter enable
+  CR4Bit_OSFXSR = (1u << 9),      // Operating system support for FXSAVE and FXRSTOR instructions
+  CR4Bit_OSXMMEXCPT = (1u << 10), // Operating System Support for Unmasked SIMD Floating-Point Exceptions
+  CR4Bit_UMIP = (1u << 11),       // User-Mode Instruction Prevention
+  CR4Bit_LA57 = (1u << 12),       // (none specified)
+  CR4Bit_VMXE = (1u << 13),       // Virtual Machine Extensions Enable
+  CR4Bit_SMXE = (1u << 14),       // Safer Mode Extensions Enable
+  CR4Bit_FSGSBASE = (1u << 16),   // Enables the instructions RDFSBASE, RDGSBASE, WRFSBASE, and WRGSBASE.
+  CR4Bit_PCIDE = (1u << 17),      // PCID Enable
+  CR4Bit_OSXSAVE = (1u << 18),    // XSAVE and Processor Extended States Enable
+  CR4Bit_SMEP = (1u << 20),       // Supervisor Mode Execution Protection Enable
+  CR4Bit_SMAP = (1u << 21),       // Supervisor Mode Access Prevention Enable
+  CR4Bit_PKE = (1u << 22)         // Protection Key Enable
+};
+
 enum class AccessType : uint8
 {
   Read = 0,

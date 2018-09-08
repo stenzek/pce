@@ -94,6 +94,7 @@ void CPU::Reset()
 
   m_pending_cycles = 0;
   m_execution_downcount = 0;
+  m_tsc_cycles = 0;
 
   Y_memzero(&m_registers, sizeof(m_registers));
   Y_memzero(&m_fpu_registers, sizeof(m_fpu_registers));
@@ -481,9 +482,15 @@ void CPU::ExecuteCycles(CycleCount cycles)
 
 void CPU::CommitPendingCycles()
 {
+  m_tsc_cycles += m_pending_cycles;
   m_execution_downcount -= m_pending_cycles;
   m_system->GetTimingManager()->AddPendingTime(m_pending_cycles * GetCyclePeriod());
   m_pending_cycles = 0;
+}
+
+u64 CPU::ReadTSC() const
+{
+  return static_cast<u64>(m_tsc_cycles + m_pending_cycles);
 }
 
 void CPU::FlushCodeCache()
@@ -943,11 +950,11 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
 
     case Reg32_CR4:
     {
-      if (m_registers.CR4 != value)
+      if (m_registers.CR4.bits != value)
         Log_DevPrintf("CR4 <- 0x%08X", value);
 
-      uint32 old_value = m_registers.CR4;
-      m_registers.CR4 = value;
+      uint32 old_value = m_registers.CR4.bits;
+      m_registers.CR4.bits = value;
       m_backend->OnControlRegisterLoaded(Reg32_CR4, old_value, value);
     }
     break;
@@ -3854,7 +3861,7 @@ void CPU::ExecuteCPUIDInstruction()
 
         case MODEL_PENTIUM:
           m_registers.EDX = CPUID_FLAG_FPU /*| CPUID_FLAG_DE */ /*| CPUID_FLAG_VME*/ /*| CPUID_FLAG_PSE*/
-                            /*| CPUID_FLAG_TSC*/                                     /* | CPUID_FLAG_MSR*/
+                            | CPUID_FLAG_TSC                                         /* | CPUID_FLAG_MSR*/
                             |
                             /*| CPUID_FLAG_MCE */ CPUID_FLAG_CX8;
           break;

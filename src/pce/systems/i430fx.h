@@ -22,7 +22,7 @@ class i430FX : public PCIPC
   DECLARE_OBJECT_PROPERTY_MAP(i430FX);
 
 public:
-  i430FX(CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 2000000.0f,
+  i430FX(CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 75000000.0f,
          uint32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
   ~i430FX();
 

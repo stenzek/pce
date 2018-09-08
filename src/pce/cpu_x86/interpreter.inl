@@ -5705,7 +5705,7 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
         value = cpu->m_registers.CR3;
         break;
       case 4:
-        value = cpu->m_registers.CR4;
+        value = cpu->m_registers.CR4.bits;
         break;
       default:
         cpu->RaiseException(Interrupt_InvalidOpcode);
@@ -5767,11 +5767,24 @@ void Interpreter::Execute_Operation_CPUID(CPU* cpu)
 
 void Interpreter::Execute_Operation_RDTSC(CPU* cpu)
 {
+  // TODO: Support on Intel DX4+.
+  if (cpu->m_model < MODEL_PENTIUM)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
   // TSD flag in CR4 controls whether this is privileged or unprivileged
-  // Log_WarningPrintf("RDTSC instruction");
+  if (cpu->m_registers.CR4.TSD && cpu->GetCPL() != 0)
+  {
+    cpu->RaiseException(Interrupt_GeneralProtectionFault);
+    return;
+  }
+
+  const u64 tsc = cpu->ReadTSC();
+  cpu->m_registers.EAX = Truncate32(tsc);
+  cpu->m_registers.EDX = Truncate32(tsc >> 32);
   cpu->AddCycles(CYCLES_RDTSC);
-  cpu->m_registers.EDX = 0;
-  cpu->m_registers.EAX = 0;
 }
 } // namespace CPU_X86
 

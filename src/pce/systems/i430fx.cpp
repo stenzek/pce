@@ -14,7 +14,7 @@ PROPERTY_TABLE_MEMBER_UINT("RAMSize", 0, offsetof(i430FX, m_ram_size), nullptr, 
 PROPERTY_TABLE_MEMBER_STRING("BIOSPath", 0, offsetof(i430FX, m_bios_file_path), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-i430FX::i430FX(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_frequency /* = 2000000.0f */,
+i430FX::i430FX(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_frequency /* = 75000000.0f */,
                uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(PCIPC::PCIConfigSpaceAccessType::Type1, type_info), m_bios_file_path("romimages/5ifw001.bin"),
     m_ram_size(memory_size)

@@ -161,7 +161,14 @@ public:
       uint32 CR1;
       uint32 CR2;
       uint32 CR3;
-      uint32 CR4;
+      union
+      {
+        uint32 bits;
+        BitField<uint32, bool, 0, 1> VME;
+        BitField<uint32, bool, 1, 1> PVI;
+        BitField<uint32, bool, 2, 1> TSD;
+        BitField<uint32, bool, 3, 1> DE;
+      } CR4;
 
       uint32 DR0;
       uint32 DR1;
@@ -300,6 +307,7 @@ public:
     m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + static_cast<int>(rm_reg)]);
   }
   void CommitPendingCycles();
+  u64 ReadTSC() const;
 
   // Calculates the physical address of memory with the specified segment and offset.
   // If code is set, it is assumed to be reading instructions, otherwise data.
@@ -513,6 +521,7 @@ protected:
   // Pending time is added at the start of the block, then committed at the next block execution.
   CycleCount m_pending_cycles = 0;
   CycleCount m_execution_downcount = 0;
+  CycleCount m_tsc_cycles = 0;
 
   // CPU model that determines behavior.
   Model m_model = MODEL_386;
