@@ -74,8 +74,8 @@ bool IDEHDD::Initialize(System* system, Bus* bus)
   m_current_num_sectors_per_track = m_sectors_per_track;
 
   // Flush the HDD images once a second, to ensure data isn't lost.
-  // m_flush_event = m_system->GetTimingManager()->CreateFrequencyEvent("HDD Image Flush", 1.0f,
-  // std::bind(&IDEHDD::FlushImage, this));
+  m_flush_event =
+    m_system->GetTimingManager()->CreateFrequencyEvent("HDD Image Flush", 1.0f, std::bind(&IDEHDD::FlushImage, this));
   m_command_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
     "HDC Command", 1, std::bind(&IDEHDD::ExecutePendingCommand, this), false);
 
@@ -237,6 +237,11 @@ void IDEHDD::SetSignature()
 void IDEHDD::ClearActivity()
 {
   m_system->GetHostInterface()->SetUIIndicatorState(this, HostInterface::IndicatorState::Off);
+}
+
+void IDEHDD::FlushImage()
+{
+  m_image->Flush();
 }
 
 bool IDEHDD::ComputeCHSGeometry(const u64 size, u32& cylinders, u32& heads, u32& sectors_per_track)

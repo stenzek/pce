@@ -49,6 +49,7 @@ private:
 
   void SetSignature();
   void ClearActivity();
+  void FlushImage();
 
   void TranslateLBAToCHS(const u64 lba, u32* cylinder, u32* head, u32* sector) const;
   u64 TranslateCHSToLBA(const u32 cylinder, const u32 head, const u32 sector) const;
