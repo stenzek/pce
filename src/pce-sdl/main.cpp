@@ -1,7 +1,7 @@
-#include "host_interface.h"
-#include "pce/types.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/Log.h"
+#include "host_interface.h"
+#include "pce/types.h"
 #include <SDL.h>
 #include <cstdio>
 

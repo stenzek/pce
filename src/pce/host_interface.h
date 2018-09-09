@@ -163,6 +163,7 @@ private:
   SimulationTime GetSimulationSliceTime() const;
   SimulationTime GetMaxSimulationSliceTime() const;
   SimulationTime GetMaxSimulationVarianceTime() const;
+  void HandleStateChange();
   bool ExecuteExternalEvents();
   void ExecuteSlice();
   void UpdateExecutionSpeed();
@@ -194,6 +195,7 @@ private:
   Barrier m_simulation_thread_barrier{2};
   Semaphore m_simulation_thread_semaphore;
   std::atomic_bool m_simulation_thread_running{true};
+  System::State m_last_system_state = System::State::Stopped;
 
   // External event queue
   std::queue<std::pair<ExternalEventCallback, bool>> m_external_events;

@@ -1,9 +1,9 @@
-#include "pce/host_interface.h"
 #include "pce-sdl/audio_sdl.h"
 #include "pce-sdl/display_d3d.h"
 #include "pce-sdl/display_gl.h"
 #include "pce-sdl/display_sdl.h"
 #include "pce-sdl/scancodes_sdl.h"
+#include "pce/host_interface.h"
 
 class SDLHostInterface : public HostInterface
 {

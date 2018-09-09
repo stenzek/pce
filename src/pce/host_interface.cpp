@@ -42,6 +42,7 @@ bool HostInterface::CreateSystem(const char* inifile, Error* error)
       OnSystemInitialized();
       Log_InfoPrintf("System initialized successfully.");
       m_system->SetState(System::State::Paused);
+      m_last_system_state = System::State::Paused;
       initialization_result = true;
     },
     true);
@@ -406,29 +407,17 @@ void HostInterface::SimulationThreadRoutine()
   {
     // Wait until something wakes us up.
     m_simulation_thread_semaphore.Wait();
-
-    if (ExecuteExternalEvents())
-    {
-      // These take precedence over normal execution.
-      continue;
-    }
-
-    // If we're running, execute a slice.
+    ExecuteExternalEvents();
     if (!m_system)
       continue;
 
     // Main execution loop.
-    while (m_system->GetState() != System::State::Paused)
+    HandleStateChange();
+    while (m_system && m_system->GetState() == System::State::Running)
     {
-      if (m_system->GetState() == System::State::Stopped)
-      {
-        ShutdownSystem();
-        break;
-      }
-
-      // Normal execution.
       ExecuteSlice();
       ExecuteExternalEvents();
+      HandleStateChange();
     }
   }
 
@@ -453,6 +442,22 @@ SimulationTime HostInterface::GetMaxSimulationVarianceTime() const
 {
   // If we're over 40ms behind, reset things.
   return INT64_C(40000000);
+}
+
+void HostInterface::HandleStateChange()
+{
+  const System::State new_state = m_system->GetState();
+  if (m_last_system_state == new_state)
+    return;
+
+  if (new_state == System::State::Paused)
+    OnSimulationPaused();
+  else if (new_state == System::State::Running)
+    OnSimulationResumed();
+  else if (new_state == System::State::Stopped)
+    ShutdownSystem();
+
+  m_last_system_state = new_state;
 }
 
 bool HostInterface::ExecuteExternalEvents()
@@ -573,9 +578,6 @@ void HostInterface::WaitForCallingThread()
 
 void HostInterface::ShutdownSystem()
 {
-  m_system->SetState(System::State::Paused);
-  OnSimulationPaused();
-  m_system->SetState(System::State::Stopped);
   OnSystemDestroy();
   m_system.reset();
   WaitForCallingThread();
