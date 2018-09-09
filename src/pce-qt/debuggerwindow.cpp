@@ -11,20 +11,21 @@ DebuggerWindow::DebuggerWindow(DebuggerInterface* debugger_interface, QWidget* p
   m_ui->setupUi(this);
   connectSignals();
   createModels();
-  onExecutionStopped();
+  setMonitorUIState(true);
+  refreshAll();
 }
 
 DebuggerWindow::~DebuggerWindow() {}
 
-void DebuggerWindow::onExecutionContinued()
-{
-  setMonitorUIState(false);
-}
-
-void DebuggerWindow::onExecutionStopped()
+void DebuggerWindow::onSimulationPaused()
 {
   setMonitorUIState(true);
   refreshAll();
+}
+
+void DebuggerWindow::onSimulationResumed()
+{
+  setMonitorUIState(false);
 }
 
 void DebuggerWindow::refreshAll()
@@ -43,16 +44,7 @@ void DebuggerWindow::onRunActionTriggered(bool checked)
   if (m_debugger_interface->IsStepping() == !checked)
     return;
 
-  if (checked)
-  {
-    m_debugger_interface->SetStepping(false);
-    onExecutionContinued();
-  }
-  else
-  {
-    m_debugger_interface->SetStepping(true);
-    onExecutionStopped();
-  }
+  m_debugger_interface->SetStepping(checked);
 }
 
 void DebuggerWindow::onSingleStepActionTriggered()

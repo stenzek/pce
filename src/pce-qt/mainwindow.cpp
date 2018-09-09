@@ -28,8 +28,6 @@ MainWindow::MainWindow(QWidget* parent /*= nullptr*/) : QMainWindow(parent)
   m_status_fps = new QLabel(this);
   m_ui->statusbar->addWidget(m_status_fps, 0);
 
-  connectSignals();
-
   m_display_widget->SetDisplayAspectRatio(4, 3);
   m_host_interface = QtHostInterface::Create(this, m_display_widget);
   m_host_interface->start();
@@ -37,10 +35,10 @@ MainWindow::MainWindow(QWidget* parent /*= nullptr*/) : QMainWindow(parent)
   // Transfer the OpenGL widget to the worker thread before starting the system, so it can render.
   m_display_widget->moveGLContextToThread(m_host_interface.get());
 
-  // Ensure input goes to the simulated PC.
-  // m_display_widget->setFocus();
-
+  connectSignals();
   adjustSize();
+
+  setUIState(false, false);
 }
 
 MainWindow::~MainWindow()
@@ -81,6 +79,18 @@ void MainWindow::connectSignals()
 
   connect(m_display_widget, SIGNAL(onKeyPressed(QKeyEvent*)), this, SLOT(onDisplayWidgetKeyPressed(QKeyEvent*)));
   connect(m_display_widget, SIGNAL(onKeyReleased(QKeyEvent*)), this, SLOT(onDisplayWidgetKeyReleased(QKeyEvent*)));
+
+  connect(m_host_interface.get(), SIGNAL(onSystemInitialized()), this, SLOT(onSystemInitialized()));
+  connect(m_host_interface.get(), SIGNAL(onSystemDestroy()), this, SLOT(onSystemDestroy()));
+  connect(m_host_interface.get(), SIGNAL(onSimulationPaused()), this, SLOT(onSimulationPaused()));
+  connect(m_host_interface.get(), SIGNAL(onSimulationResumed()), this, SLOT(onSimulationResumed()));
+  connect(m_host_interface.get(), SIGNAL(onSimulationSpeedUpdate(float)), this, SLOT(onSimulationSpeedUpdate(float)));
+  connect(m_host_interface.get(), SIGNAL(onStatusMessage(QString)), this, SLOT(onStatusMessage(QString)));
+  connect(m_host_interface.get(), SIGNAL(onDebuggerEnabled(bool)), this, SLOT(onDebuggerEnabled(bool)));
+
+  connect(m_ui->actionReset, SIGNAL(triggered()), m_host_interface.get(), SLOT(resetSimulation()));
+  connect(m_ui->actionPause, SIGNAL(toggled(bool)), m_host_interface.get(), SLOT(pauseSimulation(bool)));
+  connect(m_ui->actionSend_Ctrl_Alt_Delete, SIGNAL(triggered()), m_host_interface.get(), SLOT(sendCtrlAltDel()));
 }
 
 void MainWindow::enableDebugger()
@@ -112,6 +122,18 @@ void MainWindow::disableDebugger()
   m_debugger_interface = nullptr;
 }
 
+void MainWindow::setUIState(bool started, bool running)
+{
+  m_ui->actionPower->setEnabled(started);
+  m_ui->actionPower->setChecked(started);
+  m_ui->actionPause->setEnabled(started);
+  m_ui->actionPause->setChecked(!running);
+  m_ui->actionReset->setEnabled(started);
+  m_ui->actionLoadState->setEnabled(running);
+  m_ui->actionSaveState->setEnabled(running);
+  m_ui->actionSend_Ctrl_Alt_Delete->setEnabled(started);
+}
+
 void MainWindow::onDisplayWidgetKeyPressed(QKeyEvent* event)
 {
   m_host_interface->HandleQKeyEvent(event);
@@ -120,4 +142,46 @@ void MainWindow::onDisplayWidgetKeyPressed(QKeyEvent* event)
 void MainWindow::onDisplayWidgetKeyReleased(QKeyEvent* event)
 {
   m_host_interface->HandleQKeyEvent(event);
+}
+
+void MainWindow::onSystemInitialized()
+{
+  setUIState(true, false);
+}
+
+void MainWindow::onSystemDestroy()
+{
+  setUIState(false, false);
+  m_status_fps->setText("Stopped");
+  m_status_fps->setText(QString());
+}
+
+void MainWindow::onSimulationPaused()
+{
+  setUIState(true, false);
+  m_status_speed->setText("Paused");
+  m_status_fps->setText(QString());
+}
+
+void MainWindow::onSimulationResumed()
+{
+  // Ensure input goes to the simulated PC.
+  m_display_widget->setFocus();
+  setUIState(true, true);
+}
+
+void MainWindow::onSimulationSpeedUpdate(float speed_percent)
+{
+  m_status_speed->setText(QString::asprintf("Emulation Speed: %.2f%%", speed_percent));
+  m_status_fps->setText(QString::asprintf("VPS: %.1f", m_display_widget->GetFramesPerSecond()));
+}
+
+void MainWindow::onStatusMessage(QString message)
+{
+  m_status_message->setText(message);
+}
+
+void MainWindow::onDebuggerEnabled(bool enabled)
+{
+  m_ui->actionEnableDebugger->setChecked(enabled);
 }

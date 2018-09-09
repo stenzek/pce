@@ -1,6 +1,8 @@
 #include "YBaseLib/Log.h"
-#include "pce-qt/debuggerwindow.h"
-#include "pce-qt/mainwindow.h"
+#include "debuggerwindow.h"
+#include "hostinterface.h"
+#include "mainwindow.h"
+#include "pce/types.h"
 #include <QtWidgets/QApplication>
 #include <memory>
 
@@ -16,11 +18,15 @@ static void InitLogging()
 int main(int argc, char* argv[])
 {
   InitLogging();
+  RegisterAllTypes();
 
   QApplication app(argc, argv);
 
   std::unique_ptr<MainWindow> window = std::make_unique<MainWindow>();
   window->show();
+
+  if (argc > 1)
+    window->GetHostInterface()->startSimulation(argv[1], false);
 
   // window->onEnableDebuggerActionToggled(true);
 

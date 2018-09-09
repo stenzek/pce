@@ -20,8 +20,8 @@
 QT_BEGIN_MOC_NAMESPACE
 struct qt_meta_stringdata_DebuggerWindow_t
 {
-  QByteArrayData data[7];
-  char stringdata0[107];
+  QByteArrayData data[9];
+  char stringdata0[146];
 };
 #define QT_MOC_LITERAL(idx, ofs, len)                                                                                  \
   Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(                                                             \
@@ -29,15 +29,18 @@ struct qt_meta_stringdata_DebuggerWindow_t
 static const qt_meta_stringdata_DebuggerWindow_t qt_meta_stringdata_DebuggerWindow = {
   {
     QT_MOC_LITERAL(0, 0, 14),  // "DebuggerWindow"
-    QT_MOC_LITERAL(1, 15, 10), // "refreshAll"
-    QT_MOC_LITERAL(2, 26, 0),  // ""
-    QT_MOC_LITERAL(3, 27, 22), // "onCloseActionTriggered"
-    QT_MOC_LITERAL(4, 50, 20), // "onRunActionTriggered"
-    QT_MOC_LITERAL(5, 71, 7),  // "checked"
-    QT_MOC_LITERAL(6, 79, 27)  // "onSingleStepActionTriggered"
+    QT_MOC_LITERAL(1, 15, 18), // "onSimulationPaused"
+    QT_MOC_LITERAL(2, 34, 0),  // ""
+    QT_MOC_LITERAL(3, 35, 19), // "onSimulationResumed"
+    QT_MOC_LITERAL(4, 55, 10), // "refreshAll"
+    QT_MOC_LITERAL(5, 66, 22), // "onCloseActionTriggered"
+    QT_MOC_LITERAL(6, 89, 20), // "onRunActionTriggered"
+    QT_MOC_LITERAL(7, 110, 7), // "checked"
+    QT_MOC_LITERAL(8, 118, 27) // "onSingleStepActionTriggered"
 
   },
-  "DebuggerWindow\0refreshAll\0\0"
+  "DebuggerWindow\0onSimulationPaused\0\0"
+  "onSimulationResumed\0refreshAll\0"
   "onCloseActionTriggered\0onRunActionTriggered\0"
   "checked\0onSingleStepActionTriggered"};
 #undef QT_MOC_LITERAL
@@ -48,7 +51,7 @@ static const uint qt_meta_data_DebuggerWindow[] = {
   7,     // revision
   0,     // classname
   0, 0,  // classinfo
-  4, 14, // methods
+  6, 14, // methods
   0, 0,  // properties
   0, 0,  // enums/sets
   0, 0,  // constructors
@@ -56,11 +59,12 @@ static const uint qt_meta_data_DebuggerWindow[] = {
   0,     // signalCount
 
   // slots: name, argc, parameters, tag, flags
-  1, 0, 34, 2, 0x0a /* Public */, 3, 0, 35, 2, 0x0a /* Public */, 4, 1, 36, 2, 0x0a /* Public */, 6, 0, 39, 2,
-  0x0a /* Public */,
+  1, 0, 44, 2, 0x0a /* Public */, 3, 0, 45, 2, 0x0a /* Public */, 4, 0, 46, 2, 0x0a /* Public */, 5, 0, 47, 2,
+  0x0a /* Public */, 6, 1, 48, 2, 0x0a /* Public */, 8, 0, 51, 2, 0x0a /* Public */,
 
   // slots: parameters
-  QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Bool, 5, QMetaType::Void,
+  QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Bool, 7,
+  QMetaType::Void,
 
   0 // eod
 };
@@ -75,15 +79,21 @@ void DebuggerWindow::qt_static_metacall(QObject* _o, QMetaObject::Call _c, int _
     switch (_id)
     {
       case 0:
-        _t->refreshAll();
+        _t->onSimulationPaused();
         break;
       case 1:
-        _t->onCloseActionTriggered();
+        _t->onSimulationResumed();
         break;
       case 2:
-        _t->onRunActionTriggered((*reinterpret_cast<bool(*)>(_a[1])));
+        _t->refreshAll();
         break;
       case 3:
+        _t->onCloseActionTriggered();
+        break;
+      case 4:
+        _t->onRunActionTriggered((*reinterpret_cast<bool(*)>(_a[1])));
+        break;
+      case 5:
         _t->onSingleStepActionTriggered();
         break;
       default:;
@@ -116,15 +126,15 @@ int DebuggerWindow::qt_metacall(QMetaObject::Call _c, int _id, void** _a)
     return _id;
   if (_c == QMetaObject::InvokeMetaMethod)
   {
-    if (_id < 4)
+    if (_id < 6)
       qt_static_metacall(this, _c, _id, _a);
-    _id -= 4;
+    _id -= 6;
   }
   else if (_c == QMetaObject::RegisterMethodArgumentMetaType)
   {
-    if (_id < 4)
+    if (_id < 6)
       *reinterpret_cast<int*>(_a[0]) = -1;
-    _id -= 4;
+    _id -= 6;
   }
   return _id;
 }

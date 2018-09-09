@@ -13,10 +13,10 @@ public:
   explicit DebuggerWindow(DebuggerInterface* debugger_interface, QWidget* parent = nullptr);
   ~DebuggerWindow();
 
-  void onExecutionContinued();
-  void onExecutionStopped();
-
 public Q_SLOTS:
+  void onSimulationPaused();
+  void onSimulationResumed();
+
   void refreshAll();
   void onCloseActionTriggered();
   void onRunActionTriggered(bool checked);

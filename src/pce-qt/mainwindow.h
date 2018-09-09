@@ -25,6 +25,8 @@ public:
   explicit MainWindow(QWidget* parent = nullptr);
   ~MainWindow();
 
+  QtHostInterface* GetHostInterface() const { return m_host_interface.get(); }
+
 public Q_SLOTS:
   void onEnableDebuggerActionToggled(bool checked);
   void onResetActionTriggered();
@@ -35,10 +37,20 @@ public Q_SLOTS:
   void onDisplayWidgetKeyPressed(QKeyEvent* event);
   void onDisplayWidgetKeyReleased(QKeyEvent* event);
 
+private Q_SLOTS:
+  void onSystemInitialized();
+  void onSystemDestroy();
+  void onSimulationPaused();
+  void onSimulationResumed();
+  void onSimulationSpeedUpdate(float speed_percent);
+  void onStatusMessage(QString message);
+  void onDebuggerEnabled(bool enabled);
+
 private:
   void connectSignals();
   void enableDebugger();
   void disableDebugger();
+  void setUIState(bool started, bool running);
 
   std::unique_ptr<Ui::MainWindow> m_ui;
   DisplayWidget* m_display_widget = nullptr;

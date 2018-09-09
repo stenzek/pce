@@ -1,10 +1,15 @@
 #include "pce-qt/hostinterface.h"
+#include "YBaseLib/Error.h"
 #include "YBaseLib/Log.h"
 #include "common/audio.h"
+#include "pce-qt/debuggerwindow.h"
 #include "pce-qt/displaywidget.h"
 #include "pce-qt/mainwindow.h"
 #include "pce-qt/scancodes_qt.h"
+#include "pce/cpu.h"
+#include "pce/debugger_interface.h"
 #include <QtGui/QKeyEvent>
+#include <QtWidgets/QMessageBox>
 Log_SetChannel(QtHostInterface);
 
 std::unique_ptr<QtHostInterface> QtHostInterface::Create(MainWindow* main_window, DisplayWidget* display_widget)
@@ -43,19 +48,137 @@ Audio::Mixer* QtHostInterface::GetAudioMixer() const
 
 void QtHostInterface::ReportMessage(const char* message)
 {
-  m_main_window->m_status_message->setText(message);
+  emit onStatusMessage(QString(message));
 }
 
-void QtHostInterface::OnSimulationResumed() {}
+void QtHostInterface::startSimulation(const QString filename, bool start_paused)
+{
+  if (m_system)
+    return;
 
-void QtHostInterface::OnSimulationPaused() {}
+  Error error;
+  if (!CreateSystem(filename.toStdString().c_str(), &error))
+  {
+    QString message = error.GetErrorCodeAndDescription().GetCharArray();
+    QMessageBox::critical(m_main_window, "System creation error", message);
+    return;
+  }
 
-void QtHostInterface::OnSystemDestroy() {}
+  if (!start_paused)
+    ResumeSimulation();
+}
+
+void QtHostInterface::pauseSimulation(bool paused)
+{
+  if (!m_system)
+    return;
+
+  if (paused)
+  {
+    if (m_system->GetState() != System::State::Paused)
+      PauseSimulation();
+  }
+  else
+  {
+    if (m_system->GetState() == System::State::Paused)
+      ResumeSimulation();
+  }
+}
+
+void QtHostInterface::resetSimulation()
+{
+  if (!m_system)
+    return;
+
+  ResetSystem();
+}
+
+void QtHostInterface::stopSimulation()
+{
+  if (!m_system)
+    return;
+
+  StopSimulation();
+}
+
+void QtHostInterface::sendCtrlAltDel()
+{
+  if (!m_system)
+    return;
+
+  SendCtrlAltDel();
+}
+
+void QtHostInterface::enableDebugger(bool enabled)
+{
+  if (!m_system || enabled == isDebuggerEnabled())
+    return;
+
+  const bool was_paused = (m_system->GetState() == System::State::Paused);
+
+  if (enabled)
+  {
+    if (!was_paused)
+      PauseSimulation();
+
+    m_debugger_interface = m_system->GetCPU()->GetDebuggerInterface();
+    if (!m_debugger_interface)
+    {
+      QMessageBox::critical(m_main_window, "Error", "Failed to get debugger interface", QMessageBox::Ok);
+      if (!was_paused)
+        ResumeSimulation();
+
+      return;
+    }
+
+    m_debugger_window = new DebuggerWindow(m_debugger_interface, m_main_window);
+    connect(this, SIGNAL(onSimulationPaused()), m_debugger_window, SLOT(onSimulationPaused()));
+    connect(this, SIGNAL(onSimulationResumed()), m_debugger_window, SLOT(onSimulationResumed()));
+    m_debugger_window->show();
+  }
+  else
+  {
+    if (!was_paused)
+      PauseSimulation();
+
+    // TODO: Improve this.
+    m_debugger_interface = nullptr;
+    delete m_debugger_window;
+    m_debugger_window = nullptr;
+    ResumeSimulation();
+  }
+
+  emit onDebuggerEnabled(enabled);
+}
+
+void QtHostInterface::OnSystemInitialized()
+{
+  HostInterface::OnSystemInitialized();
+  emit onSystemInitialized();
+}
+
+void QtHostInterface::OnSystemDestroy()
+{
+  HostInterface::OnSystemDestroy();
+  emit onSystemDestroy();
+}
+
+void QtHostInterface::OnSimulationResumed()
+{
+  HostInterface::OnSimulationResumed();
+  emit onSimulationResumed();
+}
+
+void QtHostInterface::OnSimulationPaused()
+{
+  HostInterface::OnSimulationPaused();
+  emit onSimulationPaused();
+}
 
 void QtHostInterface::OnSimulationSpeedUpdate(float speed_percent)
 {
-  m_main_window->m_status_speed->setText(QString::asprintf("Emulation Speed: %.2f%%", speed_percent));
-  m_main_window->m_status_fps->setText(QString::asprintf("VPS: %.1f", m_display_widget->GetFramesPerSecond()));
+  HostInterface::OnSimulationSpeedUpdate(speed_percent);
+  emit onSimulationSpeedUpdate(speed_percent);
 }
 
 void QtHostInterface::YieldToUI()
