@@ -85,7 +85,7 @@ bool ATAHDD::Initialize(System* system, Bus* bus)
   system->GetHostInterface()->AddUIIndicator(this, HostInterface::IndicatorType::HDD);
   system->GetHostInterface()->AddUICallback(this, "Commit Log to Image", [this]() { m_image->CommitLog(); });
   system->GetHostInterface()->AddUICallback(this, "Revert Log and Reset", [this]() {
-    m_image->CommitLog();
+    m_image->RevertLog();
     m_system->Reset();
   });
   return true;
