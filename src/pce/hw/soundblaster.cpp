@@ -16,6 +16,10 @@ namespace HW {
 DEFINE_OBJECT_TYPE_INFO(SoundBlaster);
 DEFINE_GENERIC_COMPONENT_FACTORY(SoundBlaster);
 BEGIN_OBJECT_PROPERTY_MAP(SoundBlaster)
+PROPERTY_TABLE_MEMBER_UINT("IOBase", 0, offsetof(SoundBlaster, m_io_base), nullptr, 0)
+PROPERTY_TABLE_MEMBER_UINT("IRQ", 0, offsetof(SoundBlaster, m_irq), nullptr, 0)
+PROPERTY_TABLE_MEMBER_UINT("DMA", 0, offsetof(SoundBlaster, m_dma_channel), nullptr, 0)
+PROPERTY_TABLE_MEMBER_UINT("Board", 0, offsetof(SoundBlaster, m_type), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
 uint32 SoundBlaster::GetDSPVersion(Type type)
@@ -70,6 +74,12 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
 {
   if (!BaseClass::Initialize(system, bus) || !m_ymf262.Initialize(system))
     return false;
+
+  if (m_type < Type::SoundBlaster10 || m_type >= Type::SoundBlaster16)
+  {
+    Log_ErrorPrintf("Invalid board type");
+    return false;
+  }
 
   m_interrupt_controller = system->GetComponentByType<InterruptController>();
   if (!m_interrupt_controller)
@@ -427,11 +437,11 @@ void SoundBlaster::HandleDSPCommand()
   bool has_byte_param = (GetDSPInputBufferLength() > 1);
   bool has_word_param = (GetDSPInputBufferLength() > 2);
   if (has_word_param)
-    Log_ErrorPrintf("DSP command %02X %04X", ZeroExtend32(GetDSPCommand()), ZeroExtend32(GetDSPCommandParameterWord()));
+    Log_TracePrintf("DSP command %02X %04X", ZeroExtend32(GetDSPCommand()), ZeroExtend32(GetDSPCommandParameterWord()));
   if (has_byte_param)
-    Log_ErrorPrintf("DSP command %02X %02X", ZeroExtend32(GetDSPCommand()), ZeroExtend32(GetDSPCommandParameterByte()));
+    Log_TracePrintf("DSP command %02X %02X", ZeroExtend32(GetDSPCommand()), ZeroExtend32(GetDSPCommandParameterByte()));
   else
-    Log_ErrorPrintf("DSP command %02X", ZeroExtend32(GetDSPCommand()));
+    Log_TracePrintf("DSP command %02X", ZeroExtend32(GetDSPCommand()));
 
   switch (command)
   {

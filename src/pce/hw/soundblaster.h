@@ -21,7 +21,7 @@ class SoundBlaster final : public Component
   DECLARE_OBJECT_PROPERTY_MAP(SoundBlaster);
 
 public:
-  enum class Type
+  enum class Type : u32
   {
     SoundBlaster10,
     SoundBlaster20,
