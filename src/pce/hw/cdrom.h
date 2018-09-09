@@ -162,6 +162,8 @@ private:
   void CompleteCommand();
   void AbortCommand(SENSE_KEY key, uint8 asc);
   void RaiseInterrupt();
+  void SetIndicator();
+  void ClearIndicator();
 
   // Returns the time in microseconds to move the head/laser to the specified LBA.
   CycleCount CalculateSeekTime(uint64 current_lba, uint64 destination_lba) const;

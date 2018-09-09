@@ -28,6 +28,9 @@ CDROM::~CDROM() {}
 
 bool CDROM::Initialize(System* system, Bus* bus)
 {
+  if (!BaseClass::Initialize(system, bus))
+    return false;
+
   m_clock.SetManager(system->GetTimingManager());
   m_command_event = m_clock.NewEvent("CDROM Command Event", 1, std::bind(&CDROM::ExecuteCommand, this), false);
 
@@ -448,6 +451,7 @@ void CDROM::QueueCommand(CycleCount time_in_microseconds)
   m_error = false;
   m_busy = true;
   m_command_event->Queue(time_in_microseconds);
+  SetIndicator();
 }
 
 void CDROM::ExecuteCommand()
@@ -518,6 +522,7 @@ void CDROM::CompleteCommand()
   m_error = false;
   m_remaining_sectors = 0;
   RaiseInterrupt();
+  ClearIndicator();
 }
 
 void CDROM::AbortCommand(SENSE_KEY key, uint8 asc)
@@ -528,6 +533,7 @@ void CDROM::AbortCommand(SENSE_KEY key, uint8 asc)
   m_error = true;
   m_remaining_sectors = 0;
   RaiseInterrupt();
+  ClearIndicator();
 }
 
 void CDROM::RaiseInterrupt()
@@ -535,6 +541,16 @@ void CDROM::RaiseInterrupt()
   Log_DevPrintf("Raising CDROM interrupt");
   if (m_interrupt_callback)
     m_interrupt_callback();
+}
+
+void CDROM::SetIndicator()
+{
+  m_system->GetHostInterface()->SetUIIndicatorState(this, HostInterface::IndicatorState::Reading);
+}
+
+void CDROM::ClearIndicator()
+{
+  m_system->GetHostInterface()->SetUIIndicatorState(this, HostInterface::IndicatorState::Off);
 }
 
 CycleCount CDROM::CalculateSeekTime(uint64 current_lba, uint64 destination_lba) const
@@ -1036,6 +1052,7 @@ void CDROM::HandleReadCommand()
   m_error = false;
   m_busy = true;
   RaiseInterrupt();
+  SetIndicator();
 }
 
 bool CDROM::TransferNextSector()
