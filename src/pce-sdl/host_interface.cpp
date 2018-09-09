@@ -320,16 +320,7 @@ void SDLHostInterface::RenderImGui()
       ImGui::Separator();
 
       if (ImGui::MenuItem("Send CTRL+ALT+DEL"))
-      {
-        // This has no delay, but the scancodes will still get enqueued.
-        InjectKeyEvent(GenScanCode_LeftControl, true);
-        InjectKeyEvent(GenScanCode_LeftAlt, true);
-        InjectKeyEvent(GenScanCode_Delete, true);
-        InjectKeyEvent(GenScanCode_LeftControl, false);
-        InjectKeyEvent(GenScanCode_LeftAlt, false);
-        InjectKeyEvent(GenScanCode_Delete, false);
-        ReportMessage("Sent CTRL+ALT+DEL to machine.");
-      }
+        SendCtrlAltDel();
 
       ImGui::Separator();
 

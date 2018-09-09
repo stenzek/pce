@@ -117,6 +117,9 @@ public:
   // Helper to check if the caller is on the simulation thread.
   bool IsOnSimulationThread() const;
 
+  // Sends CTRL+ALT+DELETE to the simulated machine.
+  void SendCtrlAltDel();
+
   // UI elements.
   using UICallback = std::function<void()>;
   using UIFileCallback = std::function<void(const String&)>;

@@ -280,6 +280,18 @@ bool HostInterface::IsOnSimulationThread() const
   return (m_simulation_thread_id == std::this_thread::get_id());
 }
 
+void HostInterface::SendCtrlAltDel()
+{
+  // This has no delay, but the scancodes will still get enqueued.
+  InjectKeyEvent(GenScanCode_LeftControl, true);
+  InjectKeyEvent(GenScanCode_LeftAlt, true);
+  InjectKeyEvent(GenScanCode_Delete, true);
+  InjectKeyEvent(GenScanCode_LeftControl, false);
+  InjectKeyEvent(GenScanCode_LeftAlt, false);
+  InjectKeyEvent(GenScanCode_Delete, false);
+  ReportMessage("Sent CTRL+ALT+DEL to machine.");
+}
+
 void HostInterface::OnSystemInitialized()
 {
   m_elapsed_real_time.Reset();
