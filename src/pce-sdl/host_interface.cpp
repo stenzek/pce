@@ -428,29 +428,16 @@ void SDLHostInterface::Run()
 {
   while (m_running)
   {
-    // SDL event loop...
     for (;;)
     {
       SDL_Event ev;
-      if (!SDL_PollEvent(&ev))
-      {
-        // If we don't have to render, sleep until we get an event.
-        if (!m_display->NeedsRender())
-        {
-          SDL_WaitEvent(nullptr);
-          continue;
-        }
-        else
-        {
-          break;
-        }
-      }
-
-      HandleSDLEvent(&ev);
+      if (SDL_PollEvent(&ev))
+        HandleSDLEvent(&ev);
+      else
+        break;
     }
 
-    if (m_display->NeedsRender())
-      Render();
+    Render();
   }
 
   StopSimulation();

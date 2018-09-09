@@ -23,18 +23,11 @@ bool DisplaySDL::Initialize()
   if (!m_window)
     return false;
 
-  m_render_event_type = SDL_RegisterEvents(1);
   return true;
 }
 
 bool DisplaySDL::HandleSDLEvent(const SDL_Event* ev)
 {
-  if (ev->type == m_render_event_type)
-  {
-    m_needs_render = true;
-    return true;
-  }
-
   if (ev->type == SDL_WINDOWEVENT && ev->window.event == SDL_WINDOWEVENT_RESIZED)
   {
     OnWindowResized();
@@ -146,14 +139,6 @@ void DisplaySDL::DisplayFramebuffer()
     std::lock_guard<std::mutex> guard(m_framebuffer_mutex);
     m_read_framebuffer_index = m_write_framebuffer_index;
     m_write_framebuffer_index = (m_write_framebuffer_index + 1) % NUM_FRAMEBUFFERS;
-  }
-
-  // Push event to present the current FB.
-  {
-    SDL_Event ev;
-    std::memset(&ev, 0, sizeof(ev));
-    ev.type = m_render_event_type;
-    SDL_PushEvent(&ev);
   }
 
   // Set up the next framebuffer.

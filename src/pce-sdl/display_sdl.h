@@ -53,7 +53,6 @@ protected:
   uint32 m_write_framebuffer_index = 0;
   std::mutex m_framebuffer_mutex;
 
-  uint32 m_render_event_type = 0;
   bool m_needs_render = false;
   bool m_ui_active = false;
 
