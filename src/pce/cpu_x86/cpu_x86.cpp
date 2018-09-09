@@ -205,6 +205,7 @@ bool CPU::LoadState(BinaryReader& reader)
 
   reader.SafeReadInt64(&m_pending_cycles);
   reader.SafeReadInt64(&m_execution_downcount);
+  reader.SafeReadInt64(&m_tsc_cycles);
   reader.SafeReadUInt32(&m_current_EIP);
   reader.SafeReadUInt32(&m_current_ESP);
 
@@ -310,6 +311,7 @@ bool CPU::SaveState(BinaryWriter& writer)
 
   writer.WriteInt64(m_pending_cycles);
   writer.WriteInt64(m_execution_downcount);
+  writer.WriteInt64(m_tsc_cycles);
   writer.WriteUInt32(m_current_EIP);
   writer.WriteUInt32(m_current_ESP);
 
