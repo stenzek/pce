@@ -8,6 +8,9 @@
 
 #include "pce/types.h"
 
+class BinaryReader;
+class BinaryWriter;
+
 class TimingManager;
 class TimingEvent;
 
@@ -62,7 +65,13 @@ public:
   std::unique_ptr<TimingEvent> CreateNanosecondIntervalEvent(const char* name, CycleCount ns,
                                                              TimingEventCallback callback, bool active = true);
 
+  // Event serialization
+  bool LoadState(BinaryReader& reader);
+  bool SaveState(BinaryWriter& writer);
+
 private:
+  static const u32 SAVE_STATE_SIGNATURE = 0x50435353;
+
   void UpdateNextEventTime();
 
   std::vector<TimingEvent*> m_events;

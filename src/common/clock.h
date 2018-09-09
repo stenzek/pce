@@ -9,9 +9,6 @@
 #include "timing.h"
 #include "types.h"
 
-class BinaryReader;
-class BinaryWriter;
-
 // Notes:
 // - TODO: A negative frequency here indicates a multiplier rather than divider.
 // - Events will only be signaled at the clock source frequency.
@@ -40,10 +37,6 @@ public:
   // Frequency events don't use clock cycles, but instead execute hz times a second.
   std::unique_ptr<TimingEvent> NewFrequencyEvent(const char* name, float frequency, TimingEventCallback callback,
                                                  bool active = true);
-
-  // Event serialization
-  static bool LoadTimingState(TimingManager* manager, BinaryReader& reader);
-  static bool SaveTimingState(TimingManager* manager, BinaryWriter& writer);
 
 private:
   TimingManager* m_manager = nullptr;

@@ -136,7 +136,7 @@ bool System::LoadState(BinaryReader& reader)
     return false;
 
   // Load clock events
-  if (!Clock::LoadTimingState(&m_timing_manager, reader))
+  if (!m_timing_manager.LoadState(reader))
     return false;
 
   return !reader.GetErrorState();
@@ -166,7 +166,7 @@ bool System::SaveState(BinaryWriter& writer)
     return false;
 
   // Write clock events
-  if (!Clock::SaveTimingState(&m_timing_manager, writer))
+  if (!m_timing_manager.SaveState(writer))
     return false;
 
   return !writer.InErrorState();

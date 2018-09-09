@@ -1,6 +1,8 @@
 #include "timing.h"
+#include "YBaseLib/BinaryReader.h"
+#include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
-Log_SetChannel(Clock);
+Log_SetChannel(TimingManager);
 
 constexpr SimulationTime POLL_FREQUENCY = INT64_C(100000000);
 
@@ -203,6 +205,93 @@ void TimingManager::RunEvents()
   }
 
   m_running_events = false;
+}
+
+bool TimingManager::LoadState(BinaryReader& reader)
+{
+  u32 signature;
+  if (!reader.SafeReadUInt32(&signature) || signature != SAVE_STATE_SIGNATURE)
+  {
+    Log_ErrorPrintf("Invalid signature.");
+    return false;
+  }
+
+  if (!reader.SafeReadInt64(&m_pending_time) || !reader.SafeReadInt64(&m_next_event_time) ||
+      !reader.SafeReadInt64(&m_total_emulated_time))
+  {
+    return false;
+  }
+
+  // Load timestamps for the clock events.
+  // Any oneshot events should be recreated by the load state method, so we can fix up their times here.
+  uint32 event_count;
+  if (!reader.SafeReadUInt32(&event_count))
+    return false;
+
+  SmallString event_name;
+  for (uint32 i = 0; i < event_count; i++)
+  {
+    if (!reader.SafeReadCString(&event_name))
+      return false;
+
+    CycleCount downcount, time_since_last_run;
+    if (!reader.SafeReadInt64(&downcount) || !reader.SafeReadInt64(&time_since_last_run))
+      return false;
+
+    TimingEvent* event = FindActiveEvent(event_name);
+    if (!event)
+    {
+      Log_WarningPrintf("Save state has event '%s', but couldn't find this event when loading.",
+                        event_name.GetCharArray());
+      continue;
+    }
+
+    // Using reschedule is safe here since we call sort afterwards.
+    event->m_downcount = downcount;
+    event->m_time_since_last_run = time_since_last_run;
+  }
+
+  SortEvents();
+
+  Log_DevPrintf("Loaded %u events from save state.", event_count);
+  return true;
+}
+
+bool TimingManager::SaveState(BinaryWriter& writer)
+{
+  if (!writer.SafeWriteUInt32(SAVE_STATE_SIGNATURE))
+    return false;
+
+  if (!writer.SafeWriteInt64(m_pending_time) || !writer.SafeWriteInt64(m_next_event_time) ||
+      !writer.SafeWriteInt64(m_total_emulated_time))
+  {
+    return false;
+  }
+
+  // Event count placeholder.
+  uint64 count_offset = writer.GetStreamPosition();
+  if (!writer.SafeWriteUInt32(0))
+    return false;
+
+  uint32 event_count = 0;
+  for (const TimingEvent* evt : m_events)
+  {
+    if (!writer.SafeWriteCString(evt->GetName()))
+      return false;
+
+    if (!writer.SafeWriteInt64(evt->m_downcount) || !writer.SafeWriteInt64(evt->m_time_since_last_run))
+      return false;
+
+    event_count++;
+  }
+
+  uint64 end_offset = writer.GetStreamPosition();
+  if (!writer.SafeSeekAbsolute(count_offset) || !writer.SafeWriteUInt32(event_count) ||
+      !writer.SafeSeekAbsolute(end_offset))
+    return false;
+
+  Log_DevPrintf("Wrote %u events to save state.", event_count);
+  return true;
 }
 
 TimingEvent::TimingEvent(TimingManager* manager, const char* name, float frequency, SimulationTime cycle_period,

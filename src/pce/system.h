@@ -27,8 +27,6 @@ class System : public Object
   friend HostInterface;
 
 public:
-  static const uint32 SERIALIZATION_ID = Component::MakeSerializationID('S', 'Y', 'S');
-
   enum class State : uint32
   {
     Initializing,
@@ -98,11 +96,14 @@ private:
   bool SaveComponentsState(BinaryWriter& writer);
 
 protected:
-  // Host outputs
   HostInterface* m_host_interface = nullptr;
   CPUBase* m_cpu = nullptr;
   Bus* m_bus = nullptr;
   TimingManager m_timing_manager;
+
+private:
+  static const uint32 SERIALIZATION_ID = Component::MakeSerializationID('S', 'Y', 'S');
+
   PODArray<Component*> m_components;
   State m_state = State::Initializing;
 };
