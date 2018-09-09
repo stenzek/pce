@@ -51,6 +51,8 @@ public:
   virtual void FlushCodeCache() = 0;
 
 protected:
+  void UpdateCyclePeriod();
+
   SimulationTime m_cycle_period;
   float m_frequency;
   CPUBackendType m_backend_type;

@@ -16,7 +16,7 @@ CPUBase::CPUBase(const String& identifier, float frequency, CPUBackendType backe
 
 bool CPUBase::Initialize(System* system, Bus* bus)
 {
-  m_cycle_period = SimulationTime(double(1000000000) / double(m_frequency));
+  UpdateCyclePeriod();
   return BaseClass::Initialize(system, bus);
 }
 
@@ -30,6 +30,7 @@ bool CPUBase::LoadState(BinaryReader& reader)
   if (!reader.SafeReadFloat(&m_frequency) || m_frequency <= 0.0f)
     return false;
 
+  UpdateCyclePeriod();
   return true;
 }
 
@@ -44,7 +45,7 @@ bool CPUBase::SaveState(BinaryWriter& writer)
 void CPUBase::SetFrequency(float frequency)
 {
   m_frequency = frequency;
-  m_cycle_period = SimulationTime(double(1000000000) / double(frequency));
+  UpdateCyclePeriod();
 }
 
 SimulationTime CPUBase::GetCyclePeriod() const
@@ -77,4 +78,9 @@ const char* CPUBase::GetCurrentBackendString() const
     default:
       return "Unknown";
   }
+}
+
+void CPUBase::UpdateCyclePeriod()
+{
+  m_cycle_period = SimulationTime(double(1000000000) / double(m_frequency));
 }
