@@ -211,7 +211,7 @@ void ATACDROM::HandleATAPIIdentify()
   response.flags |= (2 << 14); // atapi device
   PutIdentifyString(response.serial_number, sizeof(response.serial_number), "DERP123");
   PutIdentifyString(response.firmware_revision, sizeof(response.firmware_revision), "HURR101");
-  response.dword_io_supported = 0;
+  response.dword_io_supported = 1;
   response.support = (1 << 9);
   response.pio_timing_mode = 0x200;
   PutIdentifyString(response.model, sizeof(response.model), m_cdrom.GetModelIDString());
