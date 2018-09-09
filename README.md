@@ -11,7 +11,7 @@ PC emulator targeting a range of systems from 8086 through to Pentium
  - 80286
  - 80386
  - 80486
- - Pentium (Incomplete)
+ - Pentium (minus system management mode)
 
 ## Peripherals
  - i8237 DMA Controller
@@ -24,24 +24,30 @@ PC emulator targeting a range of systems from 8086 through to Pentium
  - CGA Graphics Card
  - VGA Graphics Card
  - Tseng Labs ET4000 SVGA Graphics Card
- - Generic Hard Disk Controller (Fast Timing)
- - Generic Floppy Disk Controller (Fast Timing)
+ - Generic Hard Disk Controller (ATA)
+ - Generic Floppy Disk Controller
  - Serial Mouse
+ - ATAPI CDROM
 
 ## Systems
  - IBM XT/Clones
  - IBM AT/Clones
  - AMI 386 Clone
  - Bochs Bios Based
+ - i430FX Chipset
 
 # Screenshots
-Generic XT clone booting
+Windows 98
 
-![Generic XT clone booting](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/xt.png)
+![Windows 98](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/win98.png)
 
 Debugger UI
 
 ![Debugger UI](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/debugger.png)
+
+Generic XT clone booting
+
+![Generic XT clone booting](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/xt.png)
 
 Windows 3.11
 
@@ -50,7 +56,6 @@ Windows 3.11
 Windows 95
 
 ![Windows 95](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/win95.png)
-
 
 Various Games
 
