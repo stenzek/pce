@@ -161,6 +161,7 @@ protected:
 
 private:
   SimulationTime GetSimulationSliceTime() const;
+  SimulationTime GetMaxSimulationSliceTime() const;
   SimulationTime GetMaxSimulationVarianceTime() const;
   bool ExecuteExternalEvents();
   void ExecuteSlice();

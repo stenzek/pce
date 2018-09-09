@@ -443,6 +443,12 @@ SimulationTime HostInterface::GetSimulationSliceTime() const
   return INT64_C(16666667);
 }
 
+SimulationTime HostInterface::GetMaxSimulationSliceTime() const
+{
+  // Execute at maximum half a second of simulation.
+  return INT64_C(500000000);
+}
+
 SimulationTime HostInterface::GetMaxSimulationVarianceTime() const
 {
   // If we're over 40ms behind, reset things.
@@ -491,7 +497,7 @@ void HostInterface::ExecuteSlice()
   m_elapsed_real_time.Reset();
 
   // Simulate the system for the passed time.
-  const SimulationTime time_to_simulate = m_pending_execution_time;
+  const SimulationTime time_to_simulate = std::min(m_pending_execution_time, GetMaxSimulationSliceTime());
   const SimulationTime actual_time_simulated = m_system->ExecuteSlice(time_to_simulate);
   m_pending_execution_time -= actual_time_simulated;
   UpdateExecutionSpeed();

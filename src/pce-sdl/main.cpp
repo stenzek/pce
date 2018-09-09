@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
   // g_pLog->SetConsoleOutputParams(true, "CPU_X86::CPU Bus HW::Serial", LOGLEVEL_PROFILE);
 
 #ifdef Y_BUILD_CONFIG_RELEASE
-  g_pLog->SetFilterLevel(LOGLEVEL_WARNING);
+  g_pLog->SetFilterLevel(LOGLEVEL_INFO);
 #else
   g_pLog->SetFilterLevel(LOGLEVEL_PROFILE);
 #endif
