@@ -46,7 +46,7 @@ private:
   void HandleATAPIIdentify();
   void HandleATAPIPacket();
 
-  void CommandCompletedCallback();
+  void InterruptCallback();
 
   CDROM m_cdrom;
 

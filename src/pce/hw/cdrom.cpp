@@ -171,21 +171,22 @@ bool CDROM::InsertMedia(const char* filename)
   m_current_lba = 0;
   Log_InfoPrintf("Inserted CD media '%s': %u sectors", filename, uint32(m_media.total_sectors));
 
-  // TODO: Fire interrupt.
+  // Notify the host that the media has changed.
   UpdateSenseInfo(SENSE_UNIT_ATTENTION, ASC_MEDIUM_MAY_HAVE_CHANGED);
-
+  RaiseInterrupt();
   return true;
 }
 
 void CDROM::EjectMedia()
 {
+  // If a command is in progress, abort it.
+  if (IsBusy())
+    AbortCommand(SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
+
   SAFE_RELEASE(m_media.stream);
   m_media.filename.Clear();
   m_media.total_sectors = 0;
   m_current_lba = 0;
-
-  // TODO: Fire interrupt.
-  UpdateSenseInfo(SENSE_UNIT_ATTENTION, ASC_MEDIUM_MAY_HAVE_CHANGED);
 }
 
 void CDROM::UpdateSenseInfo(SENSE_KEY key, uint8 asc)
@@ -289,9 +290,9 @@ void CDROM::WriteDataBufferLBA48(uint32 offset, uint64 value)
   m_data_buffer[offset + 5] = Truncate8(value);
 }
 
-void CDROM::SetCommandCompletedCallback(CommandCompletedCallback callback)
+void CDROM::SetInterruptCallback(InterruptCallback callback)
 {
-  m_command_completed_callback = std::move(callback);
+  m_interrupt_callback = std::move(callback);
 }
 
 bool CDROM::WriteCommandBuffer(const void* data, size_t data_len)
@@ -516,9 +517,7 @@ void CDROM::CompleteCommand()
   m_busy = false;
   m_error = false;
   m_remaining_sectors = 0;
-
-  if (m_command_completed_callback)
-    m_command_completed_callback();
+  RaiseInterrupt();
 }
 
 void CDROM::AbortCommand(SENSE_KEY key, uint8 asc)
@@ -528,9 +527,14 @@ void CDROM::AbortCommand(SENSE_KEY key, uint8 asc)
   m_busy = false;
   m_error = true;
   m_remaining_sectors = 0;
+  RaiseInterrupt();
+}
 
-  if (m_command_completed_callback)
-    m_command_completed_callback();
+void CDROM::RaiseInterrupt()
+{
+  Log_DevPrintf("Raising CDROM interrupt");
+  if (m_interrupt_callback)
+    m_interrupt_callback();
 }
 
 CycleCount CDROM::CalculateSeekTime(uint64 current_lba, uint64 destination_lba) const
@@ -548,12 +552,21 @@ void CDROM::HandleTestUnitReadyCommand()
   Log_DevPrintf("CDROM test unit ready");
 
   // if not ready
-  if (HasMedia())
-    UpdateSenseInfo(SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
+  if (!HasMedia())
+  {
+    AbortCommand(SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
+  }
+  else if (m_sense.key == SENSE_UNIT_ATTENTION)
+  {
+    // Preserve the unit attention flag.
+    AbortCommand(SENSE_UNIT_ATTENTION, m_sense.asc);
+  }
   else
+  {
+    // No error.
     UpdateSenseInfo(SENSE_NO_STATUS, 0);
-
-  CompleteCommand();
+    CompleteCommand();
+  }
 }
 
 void CDROM::HandlePreventMediumRemovalCommand()
@@ -1022,8 +1035,7 @@ void CDROM::HandleReadCommand()
   // Multiple sector transfer. Keep the busy flag set.
   m_error = false;
   m_busy = true;
-  if (m_command_completed_callback)
-    m_command_completed_callback();
+  RaiseInterrupt();
 }
 
 bool CDROM::TransferNextSector()
@@ -1048,9 +1060,7 @@ bool CDROM::TransferNextSector()
   }
 
   // >1 remaining sector.
-  if (m_command_completed_callback)
-    m_command_completed_callback();
-
+  RaiseInterrupt();
   return true;
 }
 

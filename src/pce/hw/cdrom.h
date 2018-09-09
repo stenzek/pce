@@ -45,8 +45,8 @@ public:
   }
   void ClearErrorFlag() { m_error = false; }
 
-  using CommandCompletedCallback = std::function<void()>;
-  void SetCommandCompletedCallback(CommandCompletedCallback callback);
+  using InterruptCallback = std::function<void()>;
+  void SetInterruptCallback(InterruptCallback callback);
 
   // Returns true if the command is completed.
   bool WriteCommandBuffer(const void* data, size_t data_len);
@@ -161,6 +161,7 @@ private:
   void ExecuteCommand();
   void CompleteCommand();
   void AbortCommand(SENSE_KEY key, uint8 asc);
+  void RaiseInterrupt();
 
   // Returns the time in microseconds to move the head/laser to the specified LBA.
   CycleCount CalculateSeekTime(uint64 current_lba, uint64 destination_lba) const;
@@ -188,7 +189,7 @@ private:
   uint32 m_data_response_size = 0;
 
   std::unique_ptr<TimingEvent> m_command_event;
-  CommandCompletedCallback m_command_completed_callback;
+  InterruptCallback m_interrupt_callback;
 
   bool m_busy = false;
   bool m_error = false;

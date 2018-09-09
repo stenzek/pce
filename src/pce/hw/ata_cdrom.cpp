@@ -32,7 +32,7 @@ bool ATACDROM::Initialize(System* system, Bus* bus)
 
   m_command_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
     "ATAPI Command", 1, std::bind(&ATACDROM::ExecutePendingCommand, this), false);
-  m_cdrom.SetCommandCompletedCallback(std::bind(&ATACDROM::CommandCompletedCallback, this));
+  m_cdrom.SetInterruptCallback(std::bind(&ATACDROM::InterruptCallback, this));
 
   return true;
 }
@@ -292,7 +292,7 @@ void ATACDROM::OnBufferEnd()
   CompleteCommand(true);
 }
 
-void ATACDROM::CommandCompletedCallback()
+void ATACDROM::InterruptCallback()
 {
   // Empty out the buffer (since we used it when writing).
   ResetBuffer();
@@ -302,6 +302,7 @@ void ATACDROM::CommandCompletedCallback()
   {
     SetInterruptReason(true, true, false);
     AbortCommand(m_cdrom.GetSenseKey() << 4);
+    m_cdrom.ClearErrorFlag();
     return;
   }
 
@@ -320,6 +321,7 @@ void ATACDROM::CommandCompletedCallback()
   // Update the command block with the response size.
   m_registers.cylinder_low = Truncate8(m_cdrom.GetDataResponseSize());
   m_registers.cylinder_high = Truncate8(m_cdrom.GetDataResponseSize() >> 8);
+  m_cdrom.ClearDataBuffer();
 
   // Notify host.
   SetInterruptReason(false, true, false);

@@ -585,7 +585,7 @@ void ATAHDD::ExecutePendingCommand()
 
 void ATAHDD::HandleATADeviceReset()
 {
-  Log_DevPrintf("ATAPI reset drive %u/%u", m_ata_channel_number, m_ata_drive_number);
+  Log_DevPrintf("ATA reset drive %u/%u", m_ata_channel_number, m_ata_drive_number);
   CompleteCommand();
   DoReset(false);
 }
