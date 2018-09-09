@@ -98,7 +98,7 @@ void HostInterface::SaveSystemState(const char* filename)
 {
   ByteStream* stream =
     FileSystem::OpenFile(filename, BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_WRITE |
-                                     BYTESTREAM_OPEN_STREAMED | BYTESTREAM_OPEN_ATOMIC_UPDATE);
+                                     BYTESTREAM_OPEN_TRUNCATE | BYTESTREAM_OPEN_ATOMIC_UPDATE);
   if (!stream)
   {
     ReportFormattedError("Failed to open file '%s'", filename);
