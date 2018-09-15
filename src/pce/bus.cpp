@@ -28,12 +28,25 @@ const uint32 Bus::MEMORY_PAGE_MASK;
 Bus::Bus(uint32 memory_address_bits, const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass(type_info)
 {
   AllocateMemoryPages(memory_address_bits);
+  m_ioport_handlers = new IOPortConnection*[NUM_IOPORTS];
+  std::memset(m_ioport_handlers, 0, sizeof(IOPortConnection*) * NUM_IOPORTS);
 }
 
 Bus::~Bus()
 {
   for (auto& it : m_rom_regions)
     SAFE_RELEASE(it.mmio_handler);
+
+  for (u32 i = 0; i < NUM_IOPORTS; i++)
+  {
+    IOPortConnection* conn = m_ioport_handlers[i];
+    while (conn)
+    {
+      IOPortConnection* temp = conn;
+      conn = conn->next;
+      delete temp;
+    }
+  }
 
   for (uint32 i = 0; i < m_num_physical_memory_pages; i++)
   {
@@ -119,278 +132,305 @@ void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, b
 #endif
 }
 
-Bus::IOPortConnection* Bus::GetIOPortConnectionForOwner(uint32 port, void* owner)
+Bus::IOPortConnection* Bus::GetIOPortConnection(u16 port, const void* owner)
 {
-  auto range = m_ioport_handlers.equal_range(port);
-  for (auto iter = range.first; iter != range.second; iter++)
+  IOPortConnection* conn = m_ioport_handlers[port];
+  while (conn)
   {
-    if (iter->second.owner == owner)
-      return &iter->second;
+    if (conn->owner == owner)
+      return conn;
+
+    conn = conn->next;
   }
 
-  return nullptr;
+  return conn;
 }
 
-Bus::IOPortConnection* Bus::CreateIOPortConnectionEntry(uint32 port, void* owner)
+Bus::IOPortConnection* Bus::CreateIOPortConnection(u16 port, const void* owner)
 {
-  auto result = m_ioport_handlers.emplace(port, IOPortConnection());
-  result->second.owner = owner;
-  return &result->second;
+  // Add to tracking list.
+  auto iter = m_ioport_owners.find(owner);
+  if (iter == m_ioport_owners.end())
+    iter = m_ioport_owners.emplace(owner, std::vector<u16>()).first;
+  if (std::find(iter->second.begin(), iter->second.end(), port) == iter->second.end())
+    iter->second.push_back(port);
+
+  IOPortConnection* conn = new IOPortConnection();
+  conn->owner = owner;
+  conn->next = nullptr;
+
+  IOPortConnection* exiting_conn = m_ioport_handlers[port];
+  if (!exiting_conn)
+  {
+    m_ioport_handlers[port] = conn;
+    return conn;
+  }
+
+  // Add to end of linked list.
+  while (exiting_conn->next)
+    exiting_conn = exiting_conn->next;
+
+  exiting_conn->next = conn;
+  return conn;
 }
 
-void Bus::ConnectIOPortRead(uint32 port, void* owner, IOPortReadByteHandler read_callback)
+void Bus::RemoveIOPortConnection(u16 port, const void* owner)
 {
-  IOPortConnection* connection = GetIOPortConnectionForOwner(port, owner);
+  IOPortConnection* conn = m_ioport_handlers[port];
+  IOPortConnection* prev = nullptr;
+  while (conn)
+  {
+    if (conn->owner != owner)
+    {
+      prev = conn;
+      conn = conn->next;
+      continue;
+    }
+
+    // Remove from linked list.
+    if (prev)
+      prev->next = conn->next;
+    else
+      m_ioport_handlers[port] = conn;
+
+    IOPortConnection* temp = conn;
+    conn = conn->next;
+    delete temp;
+  }
+}
+
+void Bus::ConnectIOPortRead(u16 port, const void* owner, IOPortReadByteHandler read_callback)
+{
+  IOPortConnection* connection = GetIOPortConnection(port, owner);
   if (!connection)
-    connection = CreateIOPortConnectionEntry(port, owner);
+    connection = CreateIOPortConnection(port, owner);
 
   connection->read_byte_handler = std::move(read_callback);
 }
 
-void Bus::ConnectIOPortReadWord(uint32 port, void* owner, IOPortReadWordHandler read_callback)
+void Bus::ConnectIOPortReadWord(u16 port, const void* owner, IOPortReadWordHandler read_callback)
 {
-  IOPortConnection* connection = GetIOPortConnectionForOwner(port, owner);
+  IOPortConnection* connection = GetIOPortConnection(port, owner);
   if (!connection)
-    connection = CreateIOPortConnectionEntry(port, owner);
+    connection = CreateIOPortConnection(port, owner);
 
   connection->read_word_handler = std::move(read_callback);
 }
 
-void Bus::ConnectIOPortReadDWord(uint32 port, void* owner, IOPortReadDWordHandler read_callback)
+void Bus::ConnectIOPortReadDWord(u16 port, const void* owner, IOPortReadDWordHandler read_callback)
 {
-  IOPortConnection* connection = GetIOPortConnectionForOwner(port, owner);
+  IOPortConnection* connection = GetIOPortConnection(port, owner);
   if (!connection)
-    connection = CreateIOPortConnectionEntry(port, owner);
+    connection = CreateIOPortConnection(port, owner);
 
   connection->read_dword_handler = std::move(read_callback);
 }
 
-void Bus::ConnectIOPortWrite(uint32 port, void* owner, IOPortWriteByteHandler write_callback)
+void Bus::ConnectIOPortWrite(u16 port, const void* owner, IOPortWriteByteHandler write_callback)
 {
-  IOPortConnection* connection = GetIOPortConnectionForOwner(port, owner);
+  IOPortConnection* connection = GetIOPortConnection(port, owner);
   if (!connection)
-    connection = CreateIOPortConnectionEntry(port, owner);
+    connection = CreateIOPortConnection(port, owner);
 
   connection->write_byte_handler = std::move(write_callback);
 }
 
-void Bus::ConnectIOPortWriteWord(uint32 port, void* owner, IOPortWriteWordHandler write_callback)
+void Bus::ConnectIOPortWriteWord(u16 port, const void* owner, IOPortWriteWordHandler write_callback)
 {
-  IOPortConnection* connection = GetIOPortConnectionForOwner(port, owner);
+  IOPortConnection* connection = GetIOPortConnection(port, owner);
   if (!connection)
-    connection = CreateIOPortConnectionEntry(port, owner);
+    connection = CreateIOPortConnection(port, owner);
 
   connection->write_word_handler = std::move(write_callback);
 }
 
-void Bus::ConnectIOPortWriteDWord(uint32 port, void* owner, IOPortWriteDWordHandler write_callback)
+void Bus::ConnectIOPortWriteDWord(u16 port, const void* owner, IOPortWriteDWordHandler write_callback)
 {
-  IOPortConnection* connection = GetIOPortConnectionForOwner(port, owner);
+  IOPortConnection* connection = GetIOPortConnection(port, owner);
   if (!connection)
-    connection = CreateIOPortConnectionEntry(port, owner);
+    connection = CreateIOPortConnection(port, owner);
 
   connection->write_dword_handler = std::move(write_callback);
 }
 
-void Bus::DisconnectIOPorts(void* owner)
+void Bus::DisconnectIOPort(u16 port, const void* owner)
 {
-  for (auto iter = m_ioport_handlers.begin(); iter != m_ioport_handlers.end();)
-  {
-    if (iter->second.owner != owner)
-    {
-      iter++;
-      continue;
-    }
+  RemoveIOPortConnection(port, owner);
 
-    m_ioport_handlers.erase(iter++);
+  auto iter = m_ioport_owners.find(owner);
+  if (iter != m_ioport_owners.end())
+  {
+    // Remove from port tracking list.
+    auto iter2 = std::find(iter->second.begin(), iter->second.end(), port);
+    if (iter2 != iter->second.end())
+      iter->second.erase(iter2);
+
+    // Remove from list when the last one is done.
+    if (iter->second.empty())
+      m_ioport_owners.erase(owner);
   }
 }
 
-bool Bus::ReadIOPortByte(uint32 port, uint8* value)
+void Bus::DisconnectIOPorts(const void* owner)
 {
-  // Start with a value of 0.
-  // Should bits not set by devices left as floating/1 though?
-  *value = 0;
+  auto iter = m_ioport_owners.find(owner);
+  if (iter == m_ioport_owners.end())
+    return;
 
-  auto range = m_ioport_handlers.equal_range(port);
-  bool found_handler = false;
-  for (auto iter = range.first; iter != range.second; iter++)
-  {
-    if (!iter->second.read_byte_handler)
-      continue;
+  for (const u16 port : iter->second)
+    RemoveIOPortConnection(port, owner);
 
-    iter->second.read_byte_handler(port, value);
-    found_handler = true;
-  }
+  m_ioport_owners.erase(iter);
+}
 
-  if (!found_handler)
+void Bus::ReadIOPortByte(u16 port, u8* value)
+{
+  *value = 0xFF;
+
+  const IOPortConnection* conn = m_ioport_handlers[port];
+  if (!conn)
   {
     Log_DevPrintf("Unknown IO port 0x%04X (read)", port);
-    *value = 0xFF;
-    return false;
+    return;
   }
 
-  Log_TracePrintf("Read from ioport 0x%04X: 0x%02X", port, *value);
-  return true;
+  do
+  {
+    if (conn->read_byte_handler)
+      conn->read_byte_handler(port, value);
+
+    conn = conn->next;
+  } while (conn);
+
+  // Log_TracePrintf("Read from ioport 0x%04X: 0x%02X", port, *value);
 }
 
-bool Bus::ReadIOPortWord(uint32 port, uint16* value)
+void Bus::ReadIOPortWord(u16 port, u16* value)
 {
-  // Start with a value of 0.
-  // Should bits not set by devices left as floating/1 though?
-  *value = 0;
-
-  auto range = m_ioport_handlers.equal_range(port);
-  bool found_handler = false;
-  for (auto iter = range.first; iter != range.second; iter++)
-  {
-    if (!iter->second.read_word_handler)
-      continue;
-
-    iter->second.read_word_handler(port, value);
-    found_handler = true;
-  }
-
   // If this port does not support 16-bit IO, write as two 8-bit ports.
-  if (!found_handler)
+  const IOPortConnection* conn = m_ioport_handlers[port];
+  if (!conn || !conn->read_word_handler)
   {
-    uint8 b0, b1;
-    if (!ReadIOPortByte(port + 0, &b0))
-      b0 = 0xFF;
-    if (!ReadIOPortByte(port + 1, &b1))
-      b1 = 0xFF;
+    u8 b0, b1;
+    ReadIOPortByte(port + 0, &b0);
+    ReadIOPortByte(port + 1, &b1);
     *value = ZeroExtend16(b0) | (ZeroExtend16(b1) << 8);
-    return true;
+    return;
   }
 
-  Log_TracePrintf("Read from ioport 0x%04X: 0x%04X", port, ZeroExtend32(*value));
-  return true;
+  *value = 0xFFFF;
+  do
+  {
+    if (conn->read_word_handler)
+      conn->read_word_handler(port, value);
+
+    conn = conn->next;
+  } while (conn);
+
+  // Log_TracePrintf("Read from ioport 0x%04X: 0x%04X", port, ZeroExtend32(*value));
 }
 
-bool Bus::ReadIOPortDWord(uint32 port, uint32* value)
+void Bus::ReadIOPortDWord(u16 port, u32* value)
 {
-  // Start with a value of 0.
-  // Should bits not set by devices left as floating/1 though?
-  *value = 0;
-
-  auto range = m_ioport_handlers.equal_range(port);
-  bool found_handler = false;
-  for (auto iter = range.first; iter != range.second; iter++)
-  {
-    if (!iter->second.read_dword_handler)
-      continue;
-
-    iter->second.read_dword_handler(port, value);
-    found_handler = true;
-  }
-
   // If this port does not support 32-bit IO, write as two 16-bit ports, which will
   // turn into 2 8-bit ports.
-  if (!found_handler)
+  const IOPortConnection* conn = m_ioport_handlers[port];
+  if (!conn || !conn->read_dword_handler)
   {
     uint16 b0, b1;
-    if (!ReadIOPortWord(port + 0, &b0))
-      b0 = 0xFFFF;
-    if (!ReadIOPortWord(port + 2, &b1))
-      b1 = 0xFFFF;
+    ReadIOPortWord(port + 0, &b0);
+    ReadIOPortWord(port + 2, &b1);
     *value = ZeroExtend32(b0) | (ZeroExtend32(b1) << 16);
-    return true;
+    return;
   }
 
-  Log_TracePrintf("Read from ioport 0x%04X: 0x%04X", port, ZeroExtend32(*value));
-  return true;
+  *value = UINT32_C(0xFFFFFFFF);
+  do
+  {
+    if (conn->read_dword_handler)
+      conn->read_dword_handler(port, value);
+
+    conn = conn->next;
+  } while (conn);
+
+  // Log_TracePrintf("Read from ioport 0x%04X: 0x%04X", port, ZeroExtend32(*value));
 }
 
-bool Bus::WriteIOPortByte(uint32 port, uint8 value)
+void Bus::WriteIOPortByte(u16 port, u8 value)
 {
-  auto range = m_ioport_handlers.equal_range(port);
-  bool found_handler = false;
-  for (auto iter = range.first; iter != range.second; iter++)
-  {
-    if (!iter->second.write_byte_handler)
-      continue;
-
-    if (!found_handler)
-      Log_TracePrintf("Write to ioport 0x%04X: 0x%02X", port, value);
-
-    iter->second.write_byte_handler(port, value);
-    found_handler = true;
-  }
-
-  if (!found_handler)
+  const IOPortConnection* conn = m_ioport_handlers[port];
+  if (!conn)
   {
     Log_DevPrintf("Unknown IO port 0x%04X (write), value = %04X", port, value);
-    return false;
+    return;
   }
 
-  return true;
+  do
+  {
+    if (conn->write_byte_handler)
+      conn->write_byte_handler(port, value);
+
+    conn = conn->next;
+  } while (conn);
+
+  // Log_TracePrintf("Write to ioport 0x%04X: 0x%02X", port, value);
 }
 
-bool Bus::WriteIOPortWord(uint32 port, uint16 value)
+void Bus::WriteIOPortWord(u16 port, u16 value)
 {
-  auto range = m_ioport_handlers.equal_range(port);
-  bool found_handler = false;
-  for (auto iter = range.first; iter != range.second; iter++)
-  {
-    if (!iter->second.write_word_handler)
-      continue;
-
-    if (!found_handler)
-      Log_TracePrintf("Write to ioport 0x%04X: 0x%04X", port, ZeroExtend32(value));
-
-    iter->second.write_word_handler(port, value);
-    found_handler = true;
-  }
-
   // If this port does not support 16-bit IO, write as two 8-bit ports.
-  if (!found_handler)
+  const IOPortConnection* conn = m_ioport_handlers[port];
+  if (!conn || !conn->write_word_handler)
   {
-    bool result = WriteIOPortByte(port + 0, Truncate8(value >> 0));
-    result |= WriteIOPortByte(port + 1, Truncate8(value >> 8));
-    return result;
+    WriteIOPortByte(port + 0, Truncate8(value >> 0));
+    WriteIOPortByte(port + 1, Truncate8(value >> 8));
+    return;
   }
 
-  return true;
+  do
+  {
+    if (conn->write_word_handler)
+      conn->write_word_handler(port, value);
+
+    conn = conn->next;
+  } while (conn);
+
+  // Log_TracePrintf("Write to ioport 0x%04X: 0x%04X", port, ZeroExtend32(value));
 }
 
-bool Bus::WriteIOPortDWord(uint32 port, uint32 value)
+void Bus::WriteIOPortDWord(u16 port, u32 value)
 {
-  auto range = m_ioport_handlers.equal_range(port);
-  bool found_handler = false;
-  for (auto iter = range.first; iter != range.second; iter++)
-  {
-    if (!iter->second.write_dword_handler)
-      continue;
-
-    if (!found_handler)
-      Log_TracePrintf("Write to ioport 0x%04X: 0x%04X", port, ZeroExtend32(value));
-
-    iter->second.write_dword_handler(port, value);
-    found_handler = true;
-  }
-
   // If this port does not support 32-bit IO, write as two 16-bit ports
   // (which will turn into 2 8-bit ports).
-  if (!found_handler)
+  const IOPortConnection* conn = m_ioport_handlers[port];
+  if (!conn || !conn->write_dword_handler)
   {
-    bool result = WriteIOPortWord(port + 0, Truncate16(value >> 0));
-    result |= WriteIOPortWord(port + 2, Truncate16(value >> 16));
-    return result;
+    WriteIOPortWord(port + 0, Truncate16(value >> 0));
+    WriteIOPortWord(port + 2, Truncate16(value >> 16));
+    return;
   }
 
-  return true;
+  do
+  {
+    if (conn->write_dword_handler)
+      conn->write_dword_handler(port, value);
+
+    conn = conn->next;
+  } while (conn);
+
+  // Log_TracePrintf("Write to ioport 0x%04X: 0x%04X", port, ZeroExtend32(value));
 }
 
-void Bus::ConnectIOPortReadToPointer(uint32 port, void* owner, const uint8* var)
+void Bus::ConnectIOPortReadToPointer(u16 port, const void* owner, const u8* var)
 {
-  IOPortReadByteHandler read_handler = [var](uint32 cb_port, uint8* value) { *value = *var; };
+  IOPortReadByteHandler read_handler = [var](u16 cb_port, u8* value) { *value = *var; };
 
   ConnectIOPortRead(port, owner, std::move(read_handler));
 }
 
-void Bus::ConnectIOPortWriteToPointer(uint32 port, void* owner, uint8* var)
+void Bus::ConnectIOPortWriteToPointer(u16 port, const void* owner, u8* var)
 {
-  IOPortWriteByteHandler write_handler = [var](uint32 cb_port, uint8 cb_value) { *var = cb_value; };
+  IOPortWriteByteHandler write_handler = [var](u32 cb_port, u8 cb_value) { *var = cb_value; };
 
   ConnectIOPortWrite(port, owner, std::move(write_handler));
 }

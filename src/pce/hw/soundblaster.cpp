@@ -92,41 +92,41 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
 
   // IO port connections
   // Present in all sound blaster models
-  for (uint32 port_offset : {0x06, 0x08, 0x09, 0x0A, 0x0C, 0x0E, 0x0F})
-    bus->ConnectIOPortRead(m_io_base + port_offset, this,
+  for (u32 port_offset : {0x06, 0x08, 0x09, 0x0A, 0x0C, 0x0E, 0x0F})
+    bus->ConnectIOPortRead(Truncate16(m_io_base + port_offset), this,
                            std::bind(&SoundBlaster::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));
-  for (uint32 port_offset : {0x06, 0x08, 0x09, 0x0C})
-    bus->ConnectIOPortWrite(m_io_base + port_offset, this,
+  for (u32 port_offset : {0x06, 0x08, 0x09, 0x0C})
+    bus->ConnectIOPortWrite(Truncate16(m_io_base + port_offset), this,
                             std::bind(&SoundBlaster::IOPortWrite, this, std::placeholders::_1, std::placeholders::_2));
 
   // Mixer ports are in SB2.0+
   if (m_type >= Type::SoundBlasterPro)
   {
-    for (uint32 port_offset : {0x04, 0x05})
-      bus->ConnectIOPortRead(m_io_base + port_offset, this,
+    for (u32 port_offset : {0x04, 0x05})
+      bus->ConnectIOPortRead(Truncate16(m_io_base + port_offset), this,
                              std::bind(&SoundBlaster::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));
-    for (uint32 port_offset : {0x04, 0x05})
+    for (u32 port_offset : {0x04, 0x05})
       bus->ConnectIOPortWrite(
-        m_io_base + port_offset, this,
+        Truncate16(m_io_base + port_offset), this,
         std::bind(&SoundBlaster::IOPortWrite, this, std::placeholders::_1, std::placeholders::_2));
   }
   // Stereo FM ports on SBPro+
   if (m_type >= Type::SoundBlasterPro)
   {
-    for (uint32 port_offset : {0x00, 0x01, 0x02, 0x03})
-      bus->ConnectIOPortRead(m_io_base + port_offset, this,
+    for (u32 port_offset : {0x00, 0x01, 0x02, 0x03})
+      bus->ConnectIOPortRead(Truncate16(m_io_base + port_offset), this,
                              std::bind(&SoundBlaster::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));
-    for (uint32 port_offset : {0x00, 0x01, 0x02, 0x03})
+    for (u32 port_offset : {0x00, 0x01, 0x02, 0x03})
       bus->ConnectIOPortWrite(
-        m_io_base + port_offset, this,
+        Truncate16(m_io_base + port_offset), this,
         std::bind(&SoundBlaster::IOPortWrite, this, std::placeholders::_1, std::placeholders::_2));
   }
 
   // Also connect up the adlib ports at the hardwired locations
-  bus->ConnectIOPortRead(0x0388, this, [this](uint32, uint8* value) { *value = m_ymf262.ReadAddressPort(0); });
-  bus->ConnectIOPortRead(0x0389, this, [this](uint32, uint8* value) { *value = m_ymf262.ReadDataPort(0); });
-  bus->ConnectIOPortWrite(0x0388, this, [this](uint32, uint8 value) { m_ymf262.WriteAddressPort(0, value); });
-  bus->ConnectIOPortWrite(0x0389, this, [this](uint32, uint8 value) { m_ymf262.WriteDataPort(0, value); });
+  bus->ConnectIOPortRead(0x0388, this, [this](u16, u8* value) { *value = m_ymf262.ReadAddressPort(0); });
+  bus->ConnectIOPortRead(0x0389, this, [this](u16, u8* value) { *value = m_ymf262.ReadDataPort(0); });
+  bus->ConnectIOPortWrite(0x0388, this, [this](u16, u8 value) { m_ymf262.WriteAddressPort(0, value); });
+  bus->ConnectIOPortWrite(0x0389, this, [this](u16, u8 value) { m_ymf262.WriteDataPort(0, value); });
 
   // DSP output channel
   m_dac_state.output_channel = m_system->GetHostInterface()->GetAudioMixer()->CreateChannel(
@@ -186,7 +186,7 @@ bool SoundBlaster::SaveState(BinaryWriter& writer)
   return !writer.InErrorState();
 }
 
-void SoundBlaster::IOPortRead(uint32 port, uint8* value)
+void SoundBlaster::IOPortRead(u16 port, u8* value)
 {
   switch (port & 0x0F)
   {
@@ -238,7 +238,7 @@ void SoundBlaster::IOPortRead(uint32 port, uint8* value)
   }
 }
 
-void SoundBlaster::IOPortWrite(uint32 port, uint8 value)
+void SoundBlaster::IOPortWrite(u16 port, u8 value)
 {
   switch (port & 0x0F)
   {

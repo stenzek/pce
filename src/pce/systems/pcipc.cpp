@@ -65,16 +65,14 @@ void PCIPC::ConnectPCIBusIOPorts()
 {
   if (m_config_access_type == PCIConfigSpaceAccessType::Type1)
   {
-    m_bus->ConnectIOPortReadDWord(0x0CF8, this,
-                                  [this](uint32, uint32* value) { *value = m_pci_config_type1_address.bits; });
-    m_bus->ConnectIOPortWriteDWord(0x0CF8, this,
-                                   [this](uint32, uint32 value) { m_pci_config_type1_address.bits = value; });
+    m_bus->ConnectIOPortReadDWord(0x0CF8, this, [this](u16, u32* value) { *value = m_pci_config_type1_address.bits; });
+    m_bus->ConnectIOPortWriteDWord(0x0CF8, this, [this](u16, u32 value) { m_pci_config_type1_address.bits = value; });
 
     auto read_func =
       std::bind(&PCIPC::IOReadPCIType1ConfigDataByte, this, std::placeholders::_1, std::placeholders::_2);
     auto write_func =
       std::bind(&PCIPC::IOWritePCIType1ConfigDataByte, this, std::placeholders::_1, std::placeholders::_2);
-    for (uint32 i = 0x0CFC; i <= 0x0CFF; i++)
+    for (u16 i = 0x0CFC; i <= 0x0CFF; i++)
     {
       m_bus->ConnectIOPortRead(i, this, read_func);
       m_bus->ConnectIOPortWrite(i, this, write_func);
@@ -90,7 +88,7 @@ void PCIPC::ConnectPCIBusIOPorts()
     // Accessors.
     auto read_func = std::bind(&PCIPC::IOReadPCIType2ConfigData, this, std::placeholders::_1, std::placeholders::_2);
     auto write_func = std::bind(&PCIPC::IOWritePCIType2ConfigData, this, std::placeholders::_1, std::placeholders::_2);
-    for (uint32 i = 0; i < 0x1000; i++)
+    for (u16 i = 0; i < 0x1000; i++)
     {
       // Top 4 bits must be 1100, and bottom two bits must be 00.
       if ((i >> 12) != 0b1100)
@@ -102,7 +100,7 @@ void PCIPC::ConnectPCIBusIOPorts()
   }
 }
 
-void PCIPC::IOReadPCIType1ConfigDataByte(uint32 port, uint8* value)
+void PCIPC::IOReadPCIType1ConfigDataByte(u16 port, u8* value)
 {
   if (!m_pci_config_type1_address.enable)
   {
@@ -110,11 +108,11 @@ void PCIPC::IOReadPCIType1ConfigDataByte(uint32 port, uint8* value)
     return;
   }
 
-  const uint8 function = m_pci_config_type1_address.function;
-  const uint8 bus = m_pci_config_type1_address.bus;
-  const uint8 device = m_pci_config_type1_address.device;
-  const uint8 reg = m_pci_config_type1_address.reg;
-  const uint8 idx = Truncate8(port & 3);
+  const u8 function = m_pci_config_type1_address.function;
+  const u8 bus = m_pci_config_type1_address.bus;
+  const u8 device = m_pci_config_type1_address.device;
+  const u8 reg = m_pci_config_type1_address.reg;
+  const u8 idx = Truncate8(port & 3);
 
   PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
   if (!dev)
@@ -128,16 +126,16 @@ void PCIPC::IOReadPCIType1ConfigDataByte(uint32 port, uint8* value)
   *value = dev->ReadConfigRegister(function, reg, idx);
 }
 
-void PCIPC::IOWritePCIType1ConfigDataByte(uint32 port, uint8 value)
+void PCIPC::IOWritePCIType1ConfigDataByte(u16 port, u8 value)
 {
   if (!m_pci_config_type1_address.enable)
     return;
 
-  const uint8 function = m_pci_config_type1_address.function;
-  const uint8 bus = m_pci_config_type1_address.bus;
-  const uint8 device = m_pci_config_type1_address.device;
-  const uint8 reg = m_pci_config_type1_address.reg;
-  const uint8 idx = Truncate8(port & 3);
+  const u8 function = m_pci_config_type1_address.function;
+  const u8 bus = m_pci_config_type1_address.bus;
+  const u8 device = m_pci_config_type1_address.device;
+  const u8 reg = m_pci_config_type1_address.reg;
+  const u8 idx = Truncate8(port & 3);
 
   PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
   if (!dev)
@@ -150,7 +148,7 @@ void PCIPC::IOWritePCIType1ConfigDataByte(uint32 port, uint8 value)
   dev->WriteConfigRegister(function, reg, idx, value);
 }
 
-void PCIPC::IOReadPCIType2ConfigData(uint32 port, uint8* value)
+void PCIPC::IOReadPCIType2ConfigData(u16 port, u8* value)
 {
   if (!m_pci_config_type2_address.key)
   {
@@ -158,11 +156,11 @@ void PCIPC::IOReadPCIType2ConfigData(uint32 port, uint8* value)
     return;
   }
 
-  const uint8 function = m_pci_config_type2_address.function;
-  const uint8 bus = m_pci_config_type2_bus;
-  const uint8 device = Truncate8((port >> 8) & 15);
-  const uint8 reg = Truncate8((port >> 2) & 63);
-  const uint8 idx = Truncate8(port & 3);
+  const u8 function = m_pci_config_type2_address.function;
+  const u8 bus = m_pci_config_type2_bus;
+  const u8 device = Truncate8((port >> 8) & 15);
+  const u8 reg = Truncate8((port >> 2) & 63);
+  const u8 idx = Truncate8(port & 3);
 
   PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
   if (!dev)
@@ -175,7 +173,7 @@ void PCIPC::IOReadPCIType2ConfigData(uint32 port, uint8* value)
   *value = dev->ReadConfigRegister(function, reg, idx);
 }
 
-void PCIPC::IOWritePCIType2ConfigData(uint32 port, uint8 value)
+void PCIPC::IOWritePCIType2ConfigData(u16 port, u8 value)
 {
   if (!m_pci_config_type2_address.key)
     return;

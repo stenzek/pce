@@ -92,8 +92,8 @@ private:
   };
 
   void ConnectIOPorts(Bus* bus);
-  void HandleIORead(uint32 address, uint8* value);
-  void HandleIOWrite(uint32 address, uint8 value);
+  void HandleIORead(u16 address, u8* value);
+  void HandleIOWrite(u16 address, u8 value);
 
   bool IsFifoEnabled() const { return m_interrupt_identification_register.fifo_enabled; }
   size_t GetEffectiveFifoSize() const

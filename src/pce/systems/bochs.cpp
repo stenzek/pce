@@ -60,12 +60,12 @@ void Bochs::ConnectSystemIOPorts()
 {
   // Debug ports.
   static const char* debug_port_names[5] = {"panic", "panic2", "info", "debug", "unknown"};
-  static const uint32 debug_port_numbers[5] = {0x0400, 0x0401, 0x0402, 0x0403, 0x0500};
+  static const u16 debug_port_numbers[5] = {0x0400, 0x0401, 0x0402, 0x0403, 0x0500};
   for (uint32 i = 0; i < countof(debug_port_names); i++)
   {
     const char* port_name = debug_port_names[i];
     std::shared_ptr<std::string> str = std::make_shared<std::string>();
-    m_bus->ConnectIOPortWrite(debug_port_numbers[i], this, [port_name, str](uint32 port, uint8 value) {
+    m_bus->ConnectIOPortWrite(debug_port_numbers[i], this, [port_name, str](u16 port, u8 value) {
       if (value == '\n')
       {
         Log_DevPrintf("%s port message (%04X): %s", port_name, port, str->c_str());

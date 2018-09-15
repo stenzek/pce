@@ -34,6 +34,7 @@ public:
   static const u32 MEMORY_PAGE_SIZE = 0x1000; // 4KiB
   static const u32 MEMORY_PAGE_OFFSET_MASK = PhysicalMemoryAddress(MEMORY_PAGE_SIZE - 1);
   static const u32 MEMORY_PAGE_MASK = ~MEMORY_PAGE_OFFSET_MASK;
+  static const u32 NUM_IOPORTS = 0x10000;
 
   Bus(u32 memory_address_bits, const ObjectTypeInfo* type_info = &s_type_info);
   ~Bus();
@@ -68,36 +69,37 @@ public:
   void MirrorRegion(PhysicalMemoryAddress start, uint32 size, PhysicalMemoryAddress mirror_start);
 
   // IO port read/write callbacks
-  using IOPortReadByteHandler = std::function<void(uint32 port, uint8* value)>;
-  using IOPortReadWordHandler = std::function<void(uint32 port, uint16* value)>;
-  using IOPortReadDWordHandler = std::function<void(uint32 port, uint32* value)>;
-  using IOPortWriteByteHandler = std::function<void(uint32 port, uint8 value)>;
-  using IOPortWriteWordHandler = std::function<void(uint32 port, uint16 value)>;
-  using IOPortWriteDWordHandler = std::function<void(uint32 port, uint32 value)>;
+  using IOPortReadByteHandler = std::function<void(u16 port, u8* value)>;
+  using IOPortReadWordHandler = std::function<void(u16 port, u16* value)>;
+  using IOPortReadDWordHandler = std::function<void(u16 port, u32* value)>;
+  using IOPortWriteByteHandler = std::function<void(u16 port, u8 value)>;
+  using IOPortWriteWordHandler = std::function<void(u16 port, u16 value)>;
+  using IOPortWriteDWordHandler = std::function<void(u16 port, u32 value)>;
 
   // IO port connections
-  void ConnectIOPortRead(uint32 port, void* owner, IOPortReadByteHandler read_callback);
-  void ConnectIOPortWrite(uint32 port, void* owner, IOPortWriteByteHandler write_callback);
-  void DisconnectIOPorts(void* owner);
+  void ConnectIOPortRead(u16 port, const void* owner, IOPortReadByteHandler read_callback);
+  void ConnectIOPortWrite(u16 port, const void* owner, IOPortWriteByteHandler write_callback);
+  void DisconnectIOPort(u16 port, const void* owner);
+  void DisconnectIOPorts(const void* owner);
 
   // Multi-byte IO reads/writes
   // If a port is not configured for multi-byte IO, the ports following it will be used instead.
-  void ConnectIOPortReadWord(uint32 port, void* owner, IOPortReadWordHandler read_callback);
-  void ConnectIOPortReadDWord(uint32 port, void* owner, IOPortReadDWordHandler read_callback);
-  void ConnectIOPortWriteWord(uint32 port, void* owner, IOPortWriteWordHandler write_callback);
-  void ConnectIOPortWriteDWord(uint32 port, void* owner, IOPortWriteDWordHandler write_callback);
-
-  // IO port handler accessors (mainly for CPU)
-  bool ReadIOPortByte(uint32 port, uint8* value);
-  bool ReadIOPortWord(uint32 port, uint16* value);
-  bool ReadIOPortDWord(uint32 port, uint32* value);
-  bool WriteIOPortByte(uint32 port, uint8 value);
-  bool WriteIOPortWord(uint32 port, uint16 value);
-  bool WriteIOPortDWord(uint32 port, uint32 value);
+  void ConnectIOPortReadWord(u16 port, const void* owner, IOPortReadWordHandler read_callback);
+  void ConnectIOPortReadDWord(u16 port, const void* owner, IOPortReadDWordHandler read_callback);
+  void ConnectIOPortWriteWord(u16 port, const void* owner, IOPortWriteWordHandler write_callback);
+  void ConnectIOPortWriteDWord(u16 port, const void* owner, IOPortWriteDWordHandler write_callback);
 
   // Connecting an IO port to a single variable
-  void ConnectIOPortReadToPointer(uint32 port, void* owner, const uint8* var);
-  void ConnectIOPortWriteToPointer(uint32 port, void* owner, uint8* var);
+  void ConnectIOPortReadToPointer(u16 port, const void* owner, const u8* var);
+  void ConnectIOPortWriteToPointer(u16 port, const void* owner, u8* var);
+
+  // IO port handler accessors (mainly for CPU)
+  void ReadIOPortByte(u16 port, u8* value);
+  void ReadIOPortWord(u16 port, u16* value);
+  void ReadIOPortDWord(u16 port, u32* value);
+  void WriteIOPortByte(u16 port, u8 value);
+  void WriteIOPortWord(u16 port, u16 value);
+  void WriteIOPortDWord(u16 port, u32 value);
 
   // Reads/writes memory. Words must be within the same 4KiB page.
   // Reads of unmapped memory return -1.
@@ -193,7 +195,8 @@ protected:
 
   struct IOPortConnection
   {
-    void* owner = nullptr;
+    const void* owner;
+    IOPortConnection* next;
     IOPortReadByteHandler read_byte_handler;
     IOPortReadWordHandler read_word_handler;
     IOPortReadDWordHandler read_dword_handler;
@@ -219,13 +222,15 @@ protected:
   void CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write, uint32 value);
 
   // Obtain IO port connection for owner.
-  IOPortConnection* GetIOPortConnectionForOwner(uint32 port, void* owner);
-  IOPortConnection* CreateIOPortConnectionEntry(uint32 port, void* owner);
+  IOPortConnection* GetIOPortConnection(u16 port, const void* owner);
+  IOPortConnection* CreateIOPortConnection(u16 port, const void* owner);
+  void RemoveIOPortConnection(u16 port, const void* owner);
 
   System* m_system = nullptr;
 
   // IO ports
-  std::unordered_multimap<uint32, IOPortConnection> m_ioport_handlers;
+  IOPortConnection** m_ioport_handlers = nullptr;
+  std::unordered_map<const void*, std::vector<u16>> m_ioport_owners;
 
   // System memory map
   PhysicalMemoryPage* m_physical_memory_pages = nullptr;

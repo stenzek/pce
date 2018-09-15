@@ -24,8 +24,8 @@ public:
   void Reset() override;
 
 private:
-  void IOPortRead(uint32 port, uint8* value);
-  void IOPortWrite(uint32 port, uint8 value);
+  void IOPortRead(u16 port, u8* value);
+  void IOPortWrite(u16 port, u8 value);
 
   YMF262 m_chip;
   u32 m_io_base = 0x0388;

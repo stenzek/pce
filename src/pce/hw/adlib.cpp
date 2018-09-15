@@ -31,9 +31,9 @@ bool AdLib::Initialize(System* system, Bus* bus)
   // IO port connections
   for (uint32 i = 0; i < 18; i++)
   {
-    bus->ConnectIOPortRead(m_io_base + i, this,
+    bus->ConnectIOPortRead(Truncate16(m_io_base + i), this,
                            std::bind(&AdLib::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));
-    bus->ConnectIOPortWrite(m_io_base + i, this,
+    bus->ConnectIOPortWrite(Truncate16(m_io_base + i), this,
                             std::bind(&AdLib::IOPortWrite, this, std::placeholders::_1, std::placeholders::_2));
   }
 
@@ -55,7 +55,7 @@ bool AdLib::SaveState(BinaryWriter& writer)
   return m_chip.SaveState(writer);
 }
 
-void AdLib::IOPortRead(uint32 port, uint8* value)
+void AdLib::IOPortRead(u16 port, u8* value)
 {
   switch (port)
   {
@@ -69,7 +69,7 @@ void AdLib::IOPortRead(uint32 port, uint8* value)
   }
 }
 
-void AdLib::IOPortWrite(uint32 port, uint8 value)
+void AdLib::IOPortWrite(u16 port, u8 value)
 {
   switch (port)
   {

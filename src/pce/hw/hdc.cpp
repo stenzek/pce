@@ -151,7 +151,7 @@ void HDC::UpdateHostInterruptLine()
 
 void HDC::ConnectIOPorts(Bus* bus)
 {
-  uint32 BAR0, BAR1;
+  u16 BAR0, BAR1;
   if (m_channel == Channel::Primary)
   {
     // Primary channel

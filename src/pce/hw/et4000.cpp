@@ -801,7 +801,8 @@ bool ET4000::IsBIOSAddressMapped(uint32 offset, uint32 size)
   switch (rmap & 3)
   {
     case 0: // C0000-C3FFF
-      return (last_byte <= 0x3FFF);
+      // return (last_byte <= 0x3FFF);
+      return true;
 
     case 1: // Disabled
       return false;

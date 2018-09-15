@@ -237,16 +237,16 @@ void Serial::ConnectIOPorts(Bus* bus)
 {
   auto read_func = std::bind(&Serial::HandleIORead, this, std::placeholders::_1, std::placeholders::_2);
   auto write_func = std::bind(&Serial::HandleIOWrite, this, std::placeholders::_1, std::placeholders::_2);
-  for (uint32 offset = 0; offset <= 7; offset++)
+  for (u16 offset = 0; offset <= 7; offset++)
   {
-    bus->ConnectIOPortRead(m_base_io_address + offset, this, read_func);
-    bus->ConnectIOPortWrite(m_base_io_address + offset, this, write_func);
+    bus->ConnectIOPortRead(Truncate16(m_base_io_address + offset), this, read_func);
+    bus->ConnectIOPortWrite(Truncate16(m_base_io_address + offset), this, write_func);
   }
 }
 
-void Serial::HandleIORead(uint32 address, uint8* value)
+void Serial::HandleIORead(u16 address, u8* value)
 {
-  uint32 offset = address - m_base_io_address;
+  u16 offset = Truncate16(address - m_base_io_address);
   // Log_DevPrintf("serial read offset %u", offset);
 
   // MSB/LSB of divisor
@@ -387,9 +387,9 @@ void Serial::HandleIORead(uint32 address, uint8* value)
   Log_DevPrintf("serial read offset %u -> 0x%02X", offset, ZeroExtend32(*value));
 }
 
-void Serial::HandleIOWrite(uint32 address, uint8 value)
+void Serial::HandleIOWrite(u16 address, u8 value)
 {
-  uint32 offset = address - m_base_io_address;
+  u16 offset = Truncate16(address - m_base_io_address);
   Log_DevPrintf("serial write offset %u 0x%02X", offset, ZeroExtend32(value));
 
   // MSB/LSB of divisor
