@@ -47,6 +47,9 @@ public:
   // Execute cycles
   virtual void ExecuteCycles(CycleCount cycles) = 0;
 
+  // Immediatley stops execution of the CPU, i.e. zeros the downcount.
+  virtual void StopExecution() = 0;
+
   // Code cache flushing - for recompiler backends
   virtual void FlushCodeCache() = 0;
 

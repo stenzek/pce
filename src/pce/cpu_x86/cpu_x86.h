@@ -364,6 +364,7 @@ public:
 
   // Executes instructions/cycles.
   void ExecuteCycles(CycleCount cycles) override;
+  void StopExecution() override;
 
   // Code cache flushing - for recompiler backends
   void FlushCodeCache() override;

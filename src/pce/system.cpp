@@ -24,6 +24,13 @@ System::~System()
   delete m_bus;
 }
 
+void System::SetState(State state)
+{
+  m_state = state;
+  if (state == State::Paused)
+    m_cpu->StopExecution();
+}
+
 void System::AddComponent(Component* component)
 {
   m_components.Add(component);

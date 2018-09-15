@@ -450,7 +450,7 @@ void CPU::ExecuteCycles(CycleCount cycles)
 {
   m_execution_downcount += cycles;
 
-  while (m_system->GetState() == System::State::Running && m_execution_downcount > 0)
+  while (m_execution_downcount > 0)
   {
     // If we're halted, don't even bother calling into the backend.
     if (m_halted)
@@ -478,6 +478,12 @@ void CPU::ExecuteCycles(CycleCount cycles)
   // If we had a long-running instruction (e.g. a long REP), set downcount to zero, as it'll likely be negative.
   // This is safe, as any time-dependent events occur during CommitPendingCycles();
   m_execution_downcount = std::max(m_execution_downcount, CycleCount(0));
+}
+
+void CPU::StopExecution()
+{
+  // Zero the downcount, causing the above loop to exit early.
+  m_execution_downcount = 0;
 }
 
 void CPU::CommitPendingCycles()

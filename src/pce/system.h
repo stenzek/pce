@@ -53,7 +53,7 @@ public:
 
   // State changes. Use with care.
   State GetState() const { return m_state; }
-  void SetState(State state) { m_state = state; }
+  void SetState(State state);
 
   // Pointer ownership is transferred
   void AddComponent(Component* component);
