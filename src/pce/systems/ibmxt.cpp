@@ -4,22 +4,24 @@
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
-#include "pce/cpu_x86/cpu_x86.h"
+#include "pce/cpu_8086/cpu.h"
 Log_SetChannel(Systems::ISAPC);
 
 namespace Systems {
 DEFINE_OBJECT_TYPE_INFO(IBMXT);
 DEFINE_OBJECT_GENERIC_FACTORY(IBMXT);
 BEGIN_OBJECT_PROPERTY_MAP(IBMXT)
+PROPERTY_TABLE_MEMBER_UINT("RAMSize", 0, offsetof(IBMXT, m_ram_size), nullptr, 0)
+PROPERTY_TABLE_MEMBER_UINT("VideoType", 0, offsetof(IBMXT, m_video_type), nullptr, 0)
+PROPERTY_TABLE_MEMBER_STRING("BIOSPath", 0, offsetof(IBMXT, m_bios_file_path), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-IBMXT::IBMXT(float cpu_frequency /* = 1000000.0f */, uint32 memory_size /* = 640 * 1024 */,
+IBMXT::IBMXT(float cpu_frequency /* = 4770000.0f */, uint32 memory_size /* = 640 * 1024 */,
              VideoType video_type /* = VideoType::Other */, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(type_info), m_bios_file_path("romimages/PCXTBIOS.BIN"), m_video_type(video_type)
+  : BaseClass(type_info), m_bios_file_path("romimages/PCXTBIOS.BIN"), m_ram_size(memory_size), m_video_type(video_type)
 {
-  m_cpu = new CPU_X86::CPU("CPU", CPU_X86::MODEL_386, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
-  AllocatePhysicalMemory(memory_size, true, true);
+  m_cpu = CreateComponent<CPU_8086::CPU>("CPU", CPU_8086::MODEL_8088, cpu_frequency);
   AddComponents();
 }
 
@@ -27,10 +29,18 @@ IBMXT::~IBMXT() = default;
 
 bool IBMXT::Initialize()
 {
+  if (m_ram_size < 64 * 1024)
+  {
+    Log_ErrorPrintf("Invalid RAM size: %u bytes", m_ram_size);
+    return false;
+  }
+
   if (!BaseClass::Initialize())
     return false;
 
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS_8K, 8192))
+  AllocatePhysicalMemory(m_ram_size, true, true);
+
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path, BIOS_ROM_ADDRESS_8K, 8192))
     return false;
 
   ConnectSystemIOPorts();
@@ -82,7 +92,6 @@ void IBMXT::AddComponents()
   m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
 
   m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_8272);
-  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::Channel::Primary);
 }
 
 void IBMXT::ConnectSystemIOPorts()

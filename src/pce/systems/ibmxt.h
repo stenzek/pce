@@ -1,6 +1,5 @@
 #pragma once
 #include "pce/hw/fdc.h"
-#include "pce/hw/hdc.h"
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
@@ -19,7 +18,7 @@ class IBMXT : public ISAPC
   DECLARE_OBJECT_PROPERTY_MAP(IBMXT);
 
 public:
-  enum class VideoType
+  enum class VideoType : u32
   {
     MDA,
     CGA40,
@@ -31,11 +30,9 @@ public:
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_8K = 0xFE000;
   static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_32K = 0xF8000;
 
-  IBMXT(float cpu_frequency = 1000000.0f, uint32 memory_size = 640 * 1024, VideoType video_type = VideoType::Other,
+  IBMXT(float cpu_frequency = 4770000.0f, uint32 memory_size = 640 * 1024, VideoType video_type = VideoType::Other,
         const ObjectTypeInfo* type_info = &s_type_info);
   ~IBMXT();
-
-  void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
 
   bool Initialize() override;
   void Reset() override;
@@ -60,7 +57,7 @@ private:
   void HandlePortRead(uint32 port, uint8* value);
   void HandlePortWrite(uint32 port, uint8 value);
 
-  std::string m_bios_file_path;
+  String m_bios_file_path;
 
   HW::i8237_DMA* m_dma_controller = nullptr;
   HW::i8253_PIT* m_timer = nullptr;
@@ -68,8 +65,8 @@ private:
   HW::XT_PPI* m_ppi = nullptr;
   HW::PCSpeaker* m_speaker = nullptr;
   HW::FDC* m_fdd_controller = nullptr;
-  HW::HDC* m_hdd_controller = nullptr;
 
+  u32 m_ram_size = 640 * 1024;
   VideoType m_video_type = VideoType::Other;
 
   // State to save below:
