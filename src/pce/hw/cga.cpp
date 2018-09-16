@@ -506,6 +506,7 @@ void CGA::RecalculateEventTiming()
   timing.horizontal_display_start_time = SimulationTime((1000000000.0 * horizontal_display_start) / dot_clock);
   timing.horizontal_display_end_time = SimulationTime((1000000000.0 * horizontal_display_end) / dot_clock);
 
+#if 0
   // Calculate left/right border sizes.
   const uint32 border_character_width =
     (m_mode_control_register.graphics_mode && m_mode_control_register.high_resolution_graphics) ?
@@ -513,6 +514,10 @@ void CGA::RecalculateEventTiming()
       CHARACTER_WIDTH;
   timing.horizontal_left_border_pixels = horizontal_display_start * border_character_width;
   timing.horizontal_right_border_pixels = (horizontal_total - horizontal_sync_end) * border_character_width;
+#else
+  timing.horizontal_left_border_pixels = horizontal_display_start;
+  timing.horizontal_right_border_pixels = (horizontal_total - horizontal_sync_end);
+#endif
 
   // Vertical timing.
   const uint32 character_height = ZeroExtend32(m_crtc_registers.maximum_scan_lines + 1);

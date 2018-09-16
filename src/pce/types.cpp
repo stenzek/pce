@@ -23,6 +23,7 @@
 #include "pce/hw/serial_mouse.h"
 #include "pce/hw/soundblaster.h"
 #include "pce/hw/vga.h"
+#include "pce/hw/xt_ide.h"
 #include "pce/hw/xt_ppi.h"
 #include "pce/system.h"
 #include "pce/systems/ali1429.h"
@@ -75,6 +76,7 @@ void RegisterAllTypes()
   REGISTER_HW_TYPE(SerialMouse);
   REGISTER_HW_TYPE(SoundBlaster);
   REGISTER_HW_TYPE(VGA);
+  REGISTER_HW_TYPE(XT_IDE);
   REGISTER_HW_TYPE(XT_PPI);
 
   REGISTER_SYSTEM_TYPE(ISAPC);

@@ -82,7 +82,7 @@ protected:
   u8 GetCurrentDeviceIndex() const { return m_drive_select_register.drive; }
   ATADevice* GetCurrentDevice() const { return m_devices[GetCurrentDeviceIndex()]; }
 
-  void ConnectIOPorts(Bus* bus);
+  virtual void ConnectIOPorts(Bus* bus);
 
   void SoftReset();
 

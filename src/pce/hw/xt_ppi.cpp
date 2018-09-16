@@ -151,7 +151,7 @@ bool XT_PPI::AppendToOutputBuffer(uint8 data)
 
 void XT_PPI::ConnectIOPorts(Bus* bus)
 {
-  for (uint32 i = 0x60; i <= 0x63; i++)
+  for (u16 i = 0x60; i <= 0x63; i++)
   {
     bus->ConnectIOPortRead(i, this, std::bind(&XT_PPI::IORead, this, std::placeholders::_1, std::placeholders::_2));
     bus->ConnectIOPortWrite(i, this, std::bind(&XT_PPI::IOWrite, this, std::placeholders::_1, std::placeholders::_2));

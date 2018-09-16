@@ -158,6 +158,9 @@
     <ClCompile Include="cpu_8086\instructions.cpp">
       <Filter>cpu_8086</Filter>
     </ClCompile>
+    <ClCompile Include="hw\xt_ide.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -342,6 +345,9 @@
     </ClInclude>
     <ClInclude Include="cpu_8086\cpu.h">
       <Filter>cpu_8086</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\xt_ide.h">
+      <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
