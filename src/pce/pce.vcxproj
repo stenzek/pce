@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project InitialTargets="UNDUPOBJ" DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugFast|Win32">
       <Configuration>DebugFast</Configuration>
@@ -30,6 +30,9 @@
     <ClCompile Include="bus.cpp" />
     <ClCompile Include="component.cpp" />
     <ClCompile Include="cpu.cpp" />
+    <ClCompile Include="cpu_8086\cpu.cpp" />
+    <ClCompile Include="cpu_8086\debugger_interface.cpp" />
+    <ClCompile Include="cpu_8086\decoder.cpp" />
     <ClCompile Include="cpu_x86\cached_interpreter_backend.cpp" />
     <ClCompile Include="cpu_x86\code_cache_backend.cpp" />
     <ClCompile Include="cpu_x86\cpu_x86.cpp" />
@@ -86,6 +89,12 @@
     <ClInclude Include="bus.h" />
     <ClInclude Include="component.h" />
     <ClInclude Include="cpu.h" />
+    <ClInclude Include="cpu_8086\cpu.h" />
+    <ClInclude Include="cpu_8086\debugger_interface.h" />
+    <ClInclude Include="cpu_8086\decoder.h" />
+    <ClInclude Include="cpu_8086\instruction.h" />
+    <ClInclude Include="cpu_8086\opcodes.h" />
+    <ClInclude Include="cpu_8086\types.h" />
     <ClInclude Include="cpu_x86\backend.h" />
     <ClInclude Include="cpu_x86\cached_interpreter_backend.h" />
     <ClInclude Include="cpu_x86\code_cache_backend.h" />
@@ -170,6 +179,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="bus.inl" />
+    <ClCompile Include="cpu_8086\instructions.cpp" />
     <None Include="cpu_x86\decoder.inl" />
     <None Include="cpu_x86\interpreter_x87.inl" />
     <None Include="hw\cga_font.inl" />
@@ -412,4 +422,64 @@
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
+  <!-- ================ UNDUPOBJ ================ -->
+  <!-- relevant topics -->
+  <!-- https://stackoverflow.com/questions/3729515/visual-studio-2010-2008-cant-handle-source-files-with-identical-names-in-diff/26935613 -->
+  <!-- https://stackoverflow.com/questions/7033855/msvc10-mp-builds-not-multicore-across-folders-in-a-project -->
+  <!-- https://stackoverflow.com/questions/18304911/how-can-one-modify-an-itemdefinitiongroup-from-an-msbuild-target -->
+  <!-- other maybe related info -->
+  <!-- https://stackoverflow.com/questions/841913/modify-msbuild-itemgroup-metadata -->
+  <UsingTask TaskName="UNDUPOBJ_TASK" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll">
+    <ParameterGroup>
+      <OutputDir ParameterType="System.String" Required="true" />
+      <ItemList ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputItemList ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Code><![CDATA[
+            //general outline: for each item (in ClCompile) assign it to a subdirectory of $(IntDir) by allocating subdirectories 0,1,2, etc., as needed to prevent duplicate filenames from clobbering each other
+            //this minimizes the number of batches that need to be run, since each subdirectory will necessarily be in a distinct batch due to /Fo specifying that output subdirectory
+
+            var assignmentMap = new Dictionary<string,int>();
+            HashSet<string> neededDirectories = new HashSet<string>();
+            foreach( var item in ItemList )
+            {
+              //solve bug e.g. Checkbox.cpp vs CheckBox.cpp
+              var filename = item.GetMetadata("Filename").ToUpperInvariant(); 
+
+              //assign reused filenames to increasing numbers
+              //assign previously unused filenames to 0
+              int assignment = 0;
+              if(assignmentMap.TryGetValue(filename, out assignment))
+                assignmentMap[filename] = ++assignment;
+              else
+                assignmentMap[filename] = 0;
+
+              var thisFileOutdir = Path.Combine(OutputDir,assignment.ToString()) + "/"; //take care it ends in / so /Fo knows it's a directory and not a filename
+              item.SetMetadata( "ObjectFileName", thisFileOutdir );
+            }
+
+            foreach(var needed in neededDirectories)
+              System.IO.Directory.CreateDirectory(needed);
+
+            OutputItemList = ItemList;
+            ItemList = new Microsoft.Build.Framework.ITaskItem[0];
+
+        ]]></Code>
+    </Task>
+  </UsingTask>
+  <Target Name="UNDUPOBJ">
+    <!-- see stackoverflow topics for discussion on why we need to do some loopy copying stuff here -->
+    <ItemGroup>
+      <ClCompileCopy Include="@(ClCompile)" />
+      <ClCompile Remove="@(ClCompile)" />
+    </ItemGroup>
+    <UNDUPOBJ_TASK OutputDir="$(IntDir)" ItemList="@(ClCompileCopy)" OutputItemList="@(ClCompile)">
+      <Output ItemName="ClCompile" TaskParameter="OutputItemList" />
+    </UNDUPOBJ_TASK>
+  </Target>
+  <!-- ================ UNDUPOBJ ================ -->
+  <PropertyGroup Label="Globals">
+    <IgnoreWarnCompileDuplicatedFilename>true</IgnoreWarnCompileDuplicatedFilename>
+  </PropertyGroup>
 </Project>

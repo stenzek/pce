@@ -80,6 +80,8 @@ const char* CPUBase::GetCurrentBackendString() const
   }
 }
 
+void CPUBase::FlushCodeCache() {}
+
 void CPUBase::UpdateCyclePeriod()
 {
   m_cycle_period = SimulationTime(double(1000000000) / double(m_frequency));

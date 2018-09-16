@@ -1,5 +1,6 @@
 #include "pce/bus.h"
 #include "pce/cpu.h"
+#include "pce/cpu_8086/cpu.h"
 #include "pce/cpu_x86/cpu_x86.h"
 #include "pce/hw/adlib.h"
 #include "pce/hw/ata_cdrom.h"
@@ -50,6 +51,7 @@ void RegisterAllTypes()
   REGISTER_TYPE(PCIBus);
   REGISTER_TYPE(PCIDevice);
 
+  REGISTER_TYPE(CPU_8086::CPU);
   REGISTER_TYPE(CPU_X86::CPU);
 
   REGISTER_HW_TYPE(ATADevice);

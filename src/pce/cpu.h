@@ -51,7 +51,7 @@ public:
   virtual void StopExecution() = 0;
 
   // Code cache flushing - for recompiler backends
-  virtual void FlushCodeCache() = 0;
+  virtual void FlushCodeCache();
 
 protected:
   void UpdateCyclePeriod();

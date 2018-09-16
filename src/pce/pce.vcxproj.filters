@@ -146,6 +146,18 @@
     <ClCompile Include="hw\ata_cdrom.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="cpu_8086\decoder.cpp">
+      <Filter>cpu_8086</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_8086\debugger_interface.cpp">
+      <Filter>cpu_8086</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_8086\cpu.cpp">
+      <Filter>cpu_8086</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_8086\instructions.cpp">
+      <Filter>cpu_8086</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -313,6 +325,24 @@
     <ClInclude Include="hw\ata_cdrom.h">
       <Filter>hw</Filter>
     </ClInclude>
+    <ClInclude Include="cpu_8086\debugger_interface.h">
+      <Filter>cpu_8086</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_8086\decoder.h">
+      <Filter>cpu_8086</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_8086\instruction.h">
+      <Filter>cpu_8086</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_8086\opcodes.h">
+      <Filter>cpu_8086</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_8086\types.h">
+      <Filter>cpu_8086</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_8086\cpu.h">
+      <Filter>cpu_8086</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="hw">
@@ -326,6 +356,9 @@
     </Filter>
     <Filter Include="thirdparty">
       <UniqueIdentifier>{c33612a7-f725-4c16-a2b0-6bbc56761a9a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cpu_8086">
+      <UniqueIdentifier>{5d3e4686-d1e2-4d1a-a8bd-f0262dd3e121}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
