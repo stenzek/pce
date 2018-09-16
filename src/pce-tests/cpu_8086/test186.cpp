@@ -1,16 +1,16 @@
+#include "../helpers.h"
+#include "../stub_host_interface.h"
 #include "YBaseLib/Log.h"
-#include "pce-tests/helpers.h"
-#include "pce-tests/testpcsystem.h"
 #include "pce/bus.h"
+#include "system.h"
 #include <gtest/gtest.h>
-Log_SetChannel(Test186);
+Log_SetChannel(CPU_X86_Test186);
 
-static bool RunTest(CPUBackendType backend, const char* code_file, const char* expected_ouput_file)
+static bool RunTest(const char* code_file, const char* expected_ouput_file)
 {
-  auto system = std::make_unique<TestPCSystem>(CPU_X86::MODEL_386, 1000000.0f, backend, 1024 * 1024);
-
-  if (!system->AddMMIOROMFromFile(code_file, 0xF0000))
-    return false;
+  CPU_8086_TestSystem* system =
+    StubHostInterface::CreateSystem<CPU_8086_TestSystem>(CPU_8086::MODEL_80186, 1000000.0f, 1024 * 1024);
+  system->AddROMFile(code_file, 0xF0000, 65536);
 
   PODArray<byte> expected_buffer;
   PODArray<byte> actual_buffer;
@@ -23,9 +23,9 @@ static bool RunTest(CPUBackendType backend, const char* code_file, const char* e
   system->ExecuteSlice(10 * static_cast<SimulationTime>(1000000000));
 
   // CPU should be halted at the end of the test.
-  EXPECT_TRUE(system->GetX86CPU()->IsHalted())
+  EXPECT_TRUE(system->Get8086CPU()->IsHalted())
     << "TIMEOUT: CPU is not halted indicating the test did not finish in time";
-  if (!system->GetX86CPU()->IsHalted())
+  if (!system->Get8086CPU()->IsHalted())
     return false;
 
   // Read back results
@@ -71,17 +71,12 @@ static bool RunTest(CPUBackendType backend, const char* code_file, const char* e
     }
   }
 
+  StubHostInterface::ReleaseSystem();
   return result;
 }
 
-// Test on both Interpreter and FastInterpreter
 #define MAKE_TEST(name, code_file, results_file)                                                                       \
-  TEST(Test186_Interpreter, name) { EXPECT_TRUE(RunTest(CPUBackendType::Interpreter, code_file, results_file)); }      \
-  TEST(Test186_CachedInterpreter, name)                                                                                \
-  {                                                                                                                    \
-    EXPECT_TRUE(RunTest(CPUBackendType::CachedInterpreter, code_file, results_file));                                  \
-  }                                                                                                                    \
-  TEST(Test186_Recompiler, name) { EXPECT_TRUE(RunTest(CPUBackendType::Recompiler, code_file, results_file)); }
+  TEST(CPU_8086_Test186, name) { EXPECT_TRUE(RunTest(code_file, results_file)); }
 
 MAKE_TEST(add, "test186/add.bin", "test186/res_add.bin")
 MAKE_TEST(bcdcnv, "test186/bcdcnv.bin", "test186/res_bcdcnv.bin")

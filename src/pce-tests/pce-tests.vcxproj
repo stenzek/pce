@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project InitialTargets="UNDUPOBJ" DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugFast|Win32">
       <Configuration>DebugFast</Configuration>
@@ -42,16 +42,21 @@
     <ClCompile Include="..\..\dep\googletest\src\gtest-test-part.cc" />
     <ClCompile Include="..\..\dep\googletest\src\gtest-typed-test.cc" />
     <ClCompile Include="..\..\dep\googletest\src\gtest.cc" />
+    <ClCompile Include="cpu_8086\system.cpp" />
+    <ClCompile Include="cpu_8086\test186.cpp" />
+    <ClCompile Include="cpu_x86\system.cpp" />
+    <ClCompile Include="cpu_x86\test186.cpp" />
+    <ClCompile Include="cpu_x86\test386.cpp" />
     <ClCompile Include="helpers.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="testpcsystem.cpp" />
-    <ClCompile Include="tests\test186.cpp" />
-    <ClCompile Include="tests\test386.cpp" />
+    <ClCompile Include="stub_host_interface.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\dep\googletest\src\gtest-internal-inl.h" />
+    <ClInclude Include="cpu_8086\system.h" />
+    <ClInclude Include="cpu_x86\system.h" />
     <ClInclude Include="helpers.h" />
-    <ClInclude Include="testpcsystem.h" />
+    <ClInclude Include="stub_host_interface.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{639797DE-5C26-40E2-9149-81CDFE65C282}</ProjectGuid>
@@ -292,4 +297,64 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <!-- ================ UNDUPOBJ ================ -->
+  <!-- relevant topics -->
+  <!-- https://stackoverflow.com/questions/3729515/visual-studio-2010-2008-cant-handle-source-files-with-identical-names-in-diff/26935613 -->
+  <!-- https://stackoverflow.com/questions/7033855/msvc10-mp-builds-not-multicore-across-folders-in-a-project -->
+  <!-- https://stackoverflow.com/questions/18304911/how-can-one-modify-an-itemdefinitiongroup-from-an-msbuild-target -->
+  <!-- other maybe related info -->
+  <!-- https://stackoverflow.com/questions/841913/modify-msbuild-itemgroup-metadata -->
+  <UsingTask TaskName="UNDUPOBJ_TASK" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll">
+    <ParameterGroup>
+      <OutputDir ParameterType="System.String" Required="true" />
+      <ItemList ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputItemList ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Code><![CDATA[
+            //general outline: for each item (in ClCompile) assign it to a subdirectory of $(IntDir) by allocating subdirectories 0,1,2, etc., as needed to prevent duplicate filenames from clobbering each other
+            //this minimizes the number of batches that need to be run, since each subdirectory will necessarily be in a distinct batch due to /Fo specifying that output subdirectory
+
+            var assignmentMap = new Dictionary<string,int>();
+            HashSet<string> neededDirectories = new HashSet<string>();
+            foreach( var item in ItemList )
+            {
+              //solve bug e.g. Checkbox.cpp vs CheckBox.cpp
+              var filename = item.GetMetadata("Filename").ToUpperInvariant(); 
+
+              //assign reused filenames to increasing numbers
+              //assign previously unused filenames to 0
+              int assignment = 0;
+              if(assignmentMap.TryGetValue(filename, out assignment))
+                assignmentMap[filename] = ++assignment;
+              else
+                assignmentMap[filename] = 0;
+
+              var thisFileOutdir = Path.Combine(OutputDir,assignment.ToString()) + "/"; //take care it ends in / so /Fo knows it's a directory and not a filename
+              item.SetMetadata( "ObjectFileName", thisFileOutdir );
+            }
+
+            foreach(var needed in neededDirectories)
+              System.IO.Directory.CreateDirectory(needed);
+
+            OutputItemList = ItemList;
+            ItemList = new Microsoft.Build.Framework.ITaskItem[0];
+
+        ]]></Code>
+    </Task>
+  </UsingTask>
+  <Target Name="UNDUPOBJ">
+    <!-- see stackoverflow topics for discussion on why we need to do some loopy copying stuff here -->
+    <ItemGroup>
+      <ClCompileCopy Include="@(ClCompile)" />
+      <ClCompile Remove="@(ClCompile)" />
+    </ItemGroup>
+    <UNDUPOBJ_TASK OutputDir="$(IntDir)" ItemList="@(ClCompileCopy)" OutputItemList="@(ClCompile)">
+      <Output ItemName="ClCompile" TaskParameter="OutputItemList" />
+    </UNDUPOBJ_TASK>
+  </Target>
+  <!-- ================ UNDUPOBJ ================ -->
+  <PropertyGroup Label="Globals">
+    <IgnoreWarnCompileDuplicatedFilename>true</IgnoreWarnCompileDuplicatedFilename>
+  </PropertyGroup>
 </Project>

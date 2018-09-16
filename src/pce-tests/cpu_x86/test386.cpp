@@ -1,27 +1,27 @@
+#include "../stub_host_interface.h"
 #include "YBaseLib/Log.h"
-#include "pce-tests/helpers.h"
-#include "pce-tests/testpcsystem.h"
 #include "pce/bus.h"
 #include "pce/hw/serial.h"
+#include "system.h"
 #include <fstream>
 #include <gtest/gtest.h>
 #include <sstream>
 #include <vector>
-Log_SetChannel(Test186);
+Log_SetChannel(CPU_X86_Test186);
 
 static void RunTest386(CPUBackendType cpu_backend)
 {
   const char* image_file = "test386/test386.bin";
   const char* output_file = "test386/test386-EE-reference.txt";
 
-  auto system = std::make_unique<TestPCSystem>(CPU_X86::MODEL_386, 4000000.0f, cpu_backend, 1024 * 1024);
+  CPU_X86_TestSystem* system =
+    StubHostInterface::CreateSystem<CPU_X86_TestSystem>(CPU_X86::MODEL_386, 4000000.0f, cpu_backend, 1024 * 1024);
 
-  EXPECT_TRUE(system->AddMMIOROMFromFile(image_file, 0xf0000u));
-  EXPECT_TRUE(system->AddMMIOROMFromFile(image_file, 0xffff0000u));
+  system->AddROMFile(image_file, 0xf0000u);
 
   // POST Code Port
   system->GetBus()->ConnectIOPortWrite(
-    0x0190, system.get(), [](uint32 port, uint8 value) { Log_InfoPrintf("POST code 0x%02X", uint32(value)); });
+    0x0190, system, [](uint32 port, uint8 value) { Log_InfoPrintf("POST code 0x%02X", uint32(value)); });
 
   // Add a serial port to the machine at the default COM1 port.
   // We speed this up so the guest spends less time waiting for the serial port..
@@ -97,15 +97,15 @@ static void RunTest386(CPUBackendType cpu_backend)
   }
 }
 
-TEST(Test386, Interpreter)
+TEST(CPU_X86_Test386, Interpreter)
 {
   RunTest386(CPUBackendType::Interpreter);
 }
-TEST(Test386, CachedInterpreter)
+TEST(CPU_X86_Test386, CachedInterpreter)
 {
   RunTest386(CPUBackendType::CachedInterpreter);
 }
-TEST(Test386, Recompiler)
+TEST(CPU_X86_Test386, Recompiler)
 {
   RunTest386(CPUBackendType::Recompiler);
 }

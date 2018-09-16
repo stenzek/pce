@@ -2,14 +2,7 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="helpers.cpp" />
-    <ClCompile Include="tests\test186.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="testpcsystem.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="tests\test386.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\dep\googletest\src\gtest-filepath.cc">
       <Filter>googletest</Filter>
     </ClCompile>
@@ -31,20 +24,45 @@
     <ClCompile Include="..\..\dep\googletest\src\gtest-death-test.cc">
       <Filter>googletest</Filter>
     </ClCompile>
+    <ClCompile Include="stub_host_interface.cpp" />
+    <ClCompile Include="cpu_8086\test186.cpp">
+      <Filter>cpu_8086</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_8086\system.cpp">
+      <Filter>cpu_8086</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\test186.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\test386.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\system.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="googletest">
       <UniqueIdentifier>{a12c0cea-9928-4de7-9f16-4134c18a5688}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests">
-      <UniqueIdentifier>{78230d50-fc95-43c3-96a7-a435b3b3c89e}</UniqueIdentifier>
+    <Filter Include="cpu_8086">
+      <UniqueIdentifier>{423d028a-74cc-4a89-8471-5940f5a9bb1c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cpu_x86">
+      <UniqueIdentifier>{92bf9d1a-3c62-455b-8b0c-0c6e10cb5c38}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helpers.h" />
-    <ClInclude Include="testpcsystem.h" />
     <ClInclude Include="..\..\dep\googletest\src\gtest-internal-inl.h">
       <Filter>googletest</Filter>
+    </ClInclude>
+    <ClInclude Include="stub_host_interface.h" />
+    <ClInclude Include="cpu_8086\system.h">
+      <Filter>cpu_8086</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\system.h">
+      <Filter>cpu_x86</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
