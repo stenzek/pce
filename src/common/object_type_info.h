@@ -106,6 +106,10 @@ private:                                                                        
   ObjectTypeInfo Type::s_type_info(#Type, Type::BaseClass::StaticTypeInfo(), Type::StaticPropertyMap(),                \
                                    Type::StaticFactory())
 
+#define DEFINE_NAMED_OBJECT_TYPE_INFO(Type, Name)                                                                      \
+  ObjectTypeInfo Type::s_type_info(Name, Type::BaseClass::StaticTypeInfo(), Type::StaticPropertyMap(),                 \
+                                   Type::StaticFactory())
+
 #define DECLARE_OBJECT_NO_FACTORY(Type)                                                                                \
   \
 public:                                                                                                                \
