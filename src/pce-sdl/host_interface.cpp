@@ -70,9 +70,11 @@ bool SDLHostInterface::CreateSystem(const char* filename, s32 save_state_index /
   if (save_state_index >= 0)
   {
     // Load the save state.
-    HostInterface::LoadSystemState(GetSaveStateFilename(static_cast<u32>(save_state_index)), &error);
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Loading save state failed", error.GetErrorCodeAndDescription(),
-                             m_display->GetSDLWindow());
+    if (!HostInterface::LoadSystemState(GetSaveStateFilename(static_cast<u32>(save_state_index)), &error))
+    {
+      SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Loading save state failed", error.GetErrorCodeAndDescription(),
+                               m_display->GetSDLWindow());
+    }
   }
 
   // Resume execution.

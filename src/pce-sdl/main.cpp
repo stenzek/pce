@@ -1,5 +1,6 @@
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/Log.h"
+#include "YBaseLib/StringConverter.h"
 #include "host_interface.h"
 #include "pce/types.h"
 #include <SDL.h>
@@ -13,7 +14,7 @@ int main(int argc, char* argv[])
 {
   if (argc < 2)
   {
-    std::fprintf(stderr, "Usage: %s <path to system ini>\n", argv[0]);
+    std::fprintf(stderr, "Usage: %s <path to system ini> [save state index]\n", argv[0]);
     return -1;
   }
 
@@ -47,6 +48,8 @@ int main(int argc, char* argv[])
   }
 
   // create system
+  if (argc > 2)
+    s_load_save_state_index = StringConverter::StringToInt32(argv[2]);
   if (!host_interface->CreateSystem(argv[1], s_load_save_state_index))
   {
     host_interface.reset();
