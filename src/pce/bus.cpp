@@ -66,7 +66,9 @@ bool Bus::Initialize(System* system)
 
 void Bus::Reset()
 {
-  // Reset RAM?
+  // Reset RAM
+  if (m_ram_ptr)
+    std::memset(m_ram_ptr, 0, m_ram_size);
 }
 
 bool Bus::LoadState(BinaryReader& reader)

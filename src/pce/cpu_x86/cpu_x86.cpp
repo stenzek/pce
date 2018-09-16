@@ -295,7 +295,7 @@ bool CPU::LoadState(BinaryReader& reader)
   reader.SafeReadUInt32(&m_prefetch_queue_size);
 #endif
 
-  reader.SafeReadUInt32(&m_effective_address);
+  m_effective_address = 0;
   std::memset(&idata, 0, sizeof(idata));
 
   return !reader.GetErrorState();
@@ -388,9 +388,6 @@ bool CPU::SaveState(BinaryWriter& writer)
   writer.WriteUInt32(m_prefetch_queue_position);
   writer.WriteUInt32(m_prefetch_queue_size);
 #endif
-
-  writer.WriteUInt32(m_effective_address);
-  std::memset(&idata, 0, sizeof(idata));
 
   return !writer.InErrorState();
 }
