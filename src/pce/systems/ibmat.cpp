@@ -103,7 +103,7 @@ void IBMAT::AddComponents()
   m_cmos = CreateComponent<HW::CMOS>("CMOS");
 
   m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_8272);
-  m_hdd_controller = CreateComponent<HW::HDC>("HDC", HW::HDC::Channel::Primary);
+  m_hdd_controller = CreateComponent<HW::HDC>("HDC", 1);
 }
 
 void IBMAT::SetCMOSVariables()

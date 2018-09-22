@@ -161,6 +161,9 @@
     <ClCompile Include="hw\xt_ide.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="hw\pci_ide.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -347,6 +350,9 @@
       <Filter>cpu_8086</Filter>
     </ClInclude>
     <ClInclude Include="hw\xt_ide.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\pci_ide.h">
       <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>

@@ -35,8 +35,7 @@ public:
   void SetBIOSFilePath(const String& path) { m_bios_file_path = path; }
 
   auto GetFDDController() const { return m_fdd_controller; }
-  auto GetHDDController() const { return m_primary_hdd_controller; }
-  auto GetSecondaryHDDController() const { return m_secondary_hdd_controller; }
+  auto GetHDDController() const { return m_hdd_controller; }
   auto GetKeyboardController() const { return m_keyboard_controller; }
   auto GetDMAController() const { return m_dma_controller; }
   auto GetTimer() const { return m_timer; }
@@ -75,8 +74,7 @@ protected:
   HW::PCSpeaker* m_speaker = nullptr;
 
   HW::FDC* m_fdd_controller = nullptr;
-  HW::HDC* m_primary_hdd_controller = nullptr;
-  HW::HDC* m_secondary_hdd_controller = nullptr;
+  HW::HDC* m_hdd_controller = nullptr;
 
   bool m_cmos_lock = false;
 };

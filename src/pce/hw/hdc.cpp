@@ -15,10 +15,10 @@ DEFINE_OBJECT_TYPE_INFO(HDC);
 BEGIN_OBJECT_PROPERTY_MAP(HDC)
 END_OBJECT_PROPERTY_MAP()
 
-HDC::HDC(const String& identifier, Channel channel /* = Channel::Primary */,
-         const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_channel(channel)
+HDC::HDC(const String& identifier, u32 num_channels /* = 1 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+  : BaseClass(identifier, type_info), m_num_channels(num_channels)
 {
+  Assert(num_channels <= MAX_CHANNELS);
 }
 
 HDC::~HDC() = default;
@@ -43,8 +43,11 @@ void HDC::Reset()
 {
   BaseClass::Reset();
 
-  std::fill_n(m_device_interrupt_lines, NUM_DEVICES, false);
-  UpdateHostInterruptLine();
+  for (u32 i = 0; i < m_num_channels; i++)
+  {
+    std::fill_n(m_channels[i].device_interrupt_lines, DEVICES_PER_CHANNEL, false);
+    UpdateHostInterruptLine(i);
+  }
 }
 
 bool HDC::LoadState(BinaryReader& reader)
@@ -52,376 +55,433 @@ bool HDC::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
-  uint32 channel = reader.ReadUInt32();
-  if (channel != static_cast<uint32>(m_channel))
+  const u32 num_channels = reader.ReadUInt32();
+  if (num_channels != m_num_channels)
     return false;
 
-  for (uint32 i = 0; i < NUM_DEVICES; i++)
+  for (u32 channel = 0; channel < m_num_channels; channel++)
   {
-    const bool present = reader.ReadBool();
-    if (present != IsDevicePresent(i))
+    for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
     {
-      Log_ErrorPrintf("Save state mismatch for drive %u", i);
-      return false;
+      const bool present = reader.ReadBool();
+      if (present != IsDevicePresent(channel, i))
+      {
+        Log_ErrorPrintf("Save state mismatch for channel %u drive %u", channel, i);
+        return false;
+      }
     }
+
+    m_channels[channel].control_register.bits = reader.ReadUInt8();
+    m_channels[channel].drive_select_register.bits = reader.ReadUInt8();
+    reader.SafeReadBytes(m_channels[channel].device_interrupt_lines,
+                         sizeof(m_channels[channel].device_interrupt_lines));
+    UpdateHostInterruptLine(channel);
   }
 
-  m_control_register.bits = reader.ReadUInt8();
-  m_drive_select_register.bits = reader.ReadUInt8();
   return !reader.GetErrorState();
 }
 
 bool HDC::SaveState(BinaryWriter& writer)
 {
   writer.WriteUInt32(SERIALIZATION_ID);
-  writer.WriteUInt32(static_cast<uint32>(m_channel));
+  writer.WriteUInt32(m_num_channels);
 
-  for (uint32 i = 0; i < NUM_DEVICES; i++)
-    writer.WriteBool(IsDevicePresent(i));
+  for (u32 i = 0; i < m_num_channels; i++)
+  {
+    for (uint32 j = 0; j < DEVICES_PER_CHANNEL; j++)
+      writer.WriteBool(IsDevicePresent(i, j));
 
-  writer.WriteUInt8(m_control_register.bits);
-  writer.WriteUInt8(m_drive_select_register.bits);
+    writer.WriteUInt8(m_channels[i].control_register.bits);
+    writer.WriteUInt8(m_channels[i].drive_select_register.bits);
+    writer.WriteBytes(m_channels[i].device_interrupt_lines, sizeof(m_channels[i].device_interrupt_lines));
+  }
+
   return !writer.InErrorState();
 }
 
-u32 HDC::GetDeviceCount() const
+bool HDC::IsDevicePresent(u32 channel, u32 number) const
+{
+  return (channel < m_num_channels && number < DEVICES_PER_CHANNEL && m_channels[channel].devices[number]);
+}
+
+u32 HDC::GetDeviceCount(u32 channel) const
 {
   u32 count = 0;
-  for (u32 i = 0; i < NUM_DEVICES; i++)
+  for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
-    if (m_devices[i])
+    if (m_channels[channel].devices[i])
       count++;
   }
   return count;
 }
 
-bool HDC::IsHDDPresent(u32 number) const
+bool HDC::IsHDDPresent(u32 channel, u32 number) const
 {
-  return (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->IsDerived<ATAHDD>() : false;
+  return (channel < m_num_channels && number < DEVICES_PER_CHANNEL && m_channels[channel].devices[number]) ?
+           m_channels[channel].devices[number]->IsDerived<ATAHDD>() :
+           false;
 }
 
-u32 HDC::GetHDDCylinders(u32 number) const
+u32 HDC::GetHDDCylinders(u32 channel, u32 number) const
 {
-  const ATAHDD* hdd = (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->SafeCast<ATAHDD>() : nullptr;
+  const ATAHDD* hdd =
+    (channel < m_num_channels && number < DEVICES_PER_CHANNEL && m_channels[channel].devices[number]) ?
+      m_channels[channel].devices[number]->SafeCast<ATAHDD>() :
+      nullptr;
   return hdd ? hdd->GetNumCylinders() : 0;
 }
 
-u32 HDC::GetHDDHeads(u32 number) const
+u32 HDC::GetHDDHeads(u32 channel, u32 number) const
 {
-  const ATAHDD* hdd = (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->SafeCast<ATAHDD>() : nullptr;
+  const ATAHDD* hdd =
+    (channel < m_num_channels && number < DEVICES_PER_CHANNEL && m_channels[channel].devices[number]) ?
+      m_channels[channel].devices[number]->SafeCast<ATAHDD>() :
+      nullptr;
   return hdd ? hdd->GetNumHeads() : 0;
 }
 
-u32 HDC::GetHDDSectors(u32 number) const
+u32 HDC::GetHDDSectors(u32 channel, u32 number) const
 {
-  const ATAHDD* hdd = (number < NUM_DEVICES && m_devices[number]) ? m_devices[number]->SafeCast<ATAHDD>() : nullptr;
+  const ATAHDD* hdd =
+    (channel < m_num_channels && number < DEVICES_PER_CHANNEL && m_channels[channel].devices[number]) ?
+      m_channels[channel].devices[number]->SafeCast<ATAHDD>() :
+      nullptr;
   return hdd ? hdd->GetNumSectors() : 0;
 }
 
-bool HDC::AttachDevice(u32 number, ATADevice* device)
+bool HDC::AttachDevice(u32 channel, u32 number, ATADevice* device)
 {
-  if (number >= NUM_DEVICES || m_devices[number])
+  if (channel >= m_num_channels || number >= DEVICES_PER_CHANNEL || m_channels[channel].devices[number])
     return false;
 
-  m_devices[number] = device;
+  m_channels[channel].devices[number] = device;
   return true;
 }
 
-void HDC::DetachDevice(u32 number)
+void HDC::DetachDevice(u32 channel, u32 number)
 {
-  if (number >= NUM_DEVICES)
+  if (channel >= m_num_channels || number >= DEVICES_PER_CHANNEL)
     return;
 
-  m_devices[NUM_DEVICES] = nullptr;
+  m_channels[channel].devices[DEVICES_PER_CHANNEL] = nullptr;
 }
 
-void HDC::SetDeviceInterruptLine(u32 number, bool active)
+void HDC::SetDeviceInterruptLine(u32 channel, u32 number, bool active)
 {
-  m_device_interrupt_lines[number] = active;
-  UpdateHostInterruptLine();
+  m_channels[channel].device_interrupt_lines[number] = active;
+  UpdateHostInterruptLine(channel);
 }
 
-void HDC::UpdateHostInterruptLine()
+void HDC::UpdateHostInterruptLine(u32 channel)
 {
+  Channel& cdata = m_channels[channel];
+
   // TODO: Is this correct?
   const bool state =
-    (!m_control_register.disable_interrupts) && (m_device_interrupt_lines[0] | m_device_interrupt_lines[1]);
-  m_interrupt_controller->SetInterruptState(m_irq_number, state);
+    (!cdata.control_register.disable_interrupts) && (cdata.device_interrupt_lines[0] | cdata.device_interrupt_lines[1]);
+  m_interrupt_controller->SetInterruptState(cdata.irq_number, state);
 }
 
 void HDC::ConnectIOPorts(Bus* bus)
 {
-  u16 BAR0, BAR1;
-  if (m_channel == Channel::Primary)
+  for (u32 channel = 0; channel < m_num_channels; channel++)
   {
-    // Primary channel
-    BAR0 = 0x01F0;
-    BAR1 = 0x03F6;
-    m_irq_number = 14;
+    u16 BAR0, BAR1;
+    if (channel == 0)
+    {
+      // Primary channel
+      BAR0 = 0x01F0;
+      BAR1 = 0x03F6;
+      m_channels[channel].irq_number = 14;
+    }
+    else
+    {
+      // Secondary channel
+      BAR0 = 0x0170;
+      BAR1 = 0x0376;
+      m_channels[channel].irq_number = 15;
+    }
+
+    // 01F0 - Data register (R/W)
+    bus->ConnectIOPortRead(BAR0 + 0, this,
+                           std::bind(&HDC::IOReadDataRegisterByte, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortReadWord(BAR0 + 0, this,
+                               std::bind(&HDC::IOReadDataRegisterWord, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortReadDWord(BAR0 + 0, this,
+                                std::bind(&HDC::IOReadDataRegisterDWord, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWrite(BAR0 + 0, this,
+                            std::bind(&HDC::IOWriteDataRegisterByte, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWriteWord(BAR0 + 0, this,
+                                std::bind(&HDC::IOWriteDataRegisterWord, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWriteDWord(BAR0 + 0, this,
+                                 std::bind(&HDC::IOWriteDataRegisterDWord, this, channel, std::placeholders::_2));
+
+    // 01F1 - Status register (R)
+    // 01F1	w	WPC/4  (Write Precompensation Cylinder divided by 4)
+    bus->ConnectIOPortRead(BAR0 + 1, this, std::bind(&HDC::IOReadErrorRegister, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWrite(BAR0 + 1, this,
+                            std::bind(&HDC::IOWriteCommandBlockFeatures, this, channel, std::placeholders::_2));
+
+    // Command block
+    // 01F2	r/w	sector count
+    // 01F3	r/w	sector number
+    // 01F4	r/w	cylinder low
+    // 01F5	r/w	cylinder high
+    bus->ConnectIOPortRead(BAR0 + 2, this,
+                           std::bind(&HDC::IOReadCommandBlockSectorCount, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWrite(BAR0 + 2, this,
+                            std::bind(&HDC::IOWriteCommandBlockSectorCount, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortRead(BAR0 + 3, this,
+                           std::bind(&HDC::IOReadCommandBlockSectorNumber, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWrite(BAR0 + 3, this,
+                            std::bind(&HDC::IOWriteCommandBlockSectorNumber, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortRead(BAR0 + 4, this,
+                           std::bind(&HDC::IOReadCommandBlockCylinderLow, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWrite(BAR0 + 4, this,
+                            std::bind(&HDC::IOWriteCommandBlockCylinderLow, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortRead(BAR0 + 5, this,
+                           std::bind(&HDC::IOReadCommandBlockCylinderHigh, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWrite(BAR0 + 5, this,
+                            std::bind(&HDC::IOWriteCommandBlockCylinderHigh, this, channel, std::placeholders::_2));
+
+    // 01F6: Drive select (R/W)
+    bus->ConnectIOPortRead(BAR0 + 6, this,
+                           std::bind(&HDC::IOReadDriveSelectRegister, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWrite(BAR0 + 6, this,
+                            std::bind(&HDC::IOWriteDriveSelectRegister, this, channel, std::placeholders::_2));
+
+    // 01F7 - Status register (R) / Command register (W)
+    bus->ConnectIOPortRead(BAR0 + 7, this, std::bind(&HDC::IOReadStatusRegister, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWrite(BAR0 + 7, this,
+                            std::bind(&HDC::IOWriteCommandRegister, this, channel, std::placeholders::_2));
+
+    // 03F7: Alternate status register (R) / Control register (W)
+    bus->ConnectIOPortRead(BAR1 + 0, this,
+                           std::bind(&HDC::IOReadAltStatusRegister, this, channel, std::placeholders::_2));
+    bus->ConnectIOPortWrite(BAR1 + 0, this,
+                            std::bind(&HDC::IOWriteControlRegister, this, channel, std::placeholders::_2));
   }
-  else
-  {
-    // Secondary channel
-    BAR0 = 0x0170;
-    BAR1 = 0x0376;
-    m_irq_number = 15;
-  }
-
-  // 01F0 - Data register (R/W)
-  bus->ConnectIOPortRead(BAR0 + 0, this, std::bind(&HDC::IOReadDataRegisterByte, this, std::placeholders::_2));
-  bus->ConnectIOPortReadWord(BAR0 + 0, this, std::bind(&HDC::IOReadDataRegisterWord, this, std::placeholders::_2));
-  bus->ConnectIOPortReadDWord(BAR0 + 0, this, std::bind(&HDC::IOReadDataRegisterDWord, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(BAR0 + 0, this, std::bind(&HDC::IOWriteDataRegisterByte, this, std::placeholders::_2));
-  bus->ConnectIOPortWriteWord(BAR0 + 0, this, std::bind(&HDC::IOWriteDataRegisterWord, this, std::placeholders::_2));
-  bus->ConnectIOPortWriteDWord(BAR0 + 0, this, std::bind(&HDC::IOWriteDataRegisterDWord, this, std::placeholders::_2));
-
-  // 01F1 - Status register (R)
-  // 01F1	w	WPC/4  (Write Precompensation Cylinder divided by 4)
-  bus->ConnectIOPortRead(BAR0 + 1, this, std::bind(&HDC::IOReadErrorRegister, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(BAR0 + 1, this, std::bind(&HDC::IOWriteCommandBlockFeatures, this, std::placeholders::_2));
-
-  // Command block
-  // 01F2	r/w	sector count
-  // 01F3	r/w	sector number
-  // 01F4	r/w	cylinder low
-  // 01F5	r/w	cylinder high
-  bus->ConnectIOPortRead(BAR0 + 2, this, std::bind(&HDC::IOReadCommandBlockSectorCount, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(BAR0 + 2, this, std::bind(&HDC::IOWriteCommandBlockSectorCount, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(BAR0 + 3, this, std::bind(&HDC::IOReadCommandBlockSectorNumber, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(BAR0 + 3, this,
-                          std::bind(&HDC::IOWriteCommandBlockSectorNumber, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(BAR0 + 4, this, std::bind(&HDC::IOReadCommandBlockCylinderLow, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(BAR0 + 4, this, std::bind(&HDC::IOWriteCommandBlockCylinderLow, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(BAR0 + 5, this, std::bind(&HDC::IOReadCommandBlockCylinderHigh, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(BAR0 + 5, this,
-                          std::bind(&HDC::IOWriteCommandBlockCylinderHigh, this, std::placeholders::_2));
-
-  // 01F6: Drive select (R/W)
-  bus->ConnectIOPortRead(BAR0 + 6, this, std::bind(&HDC::IOReadDriveSelectRegister, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(BAR0 + 6, this, std::bind(&HDC::IOWriteDriveSelectRegister, this, std::placeholders::_2));
-
-  // 01F7 - Status register (R) / Command register (W)
-  bus->ConnectIOPortRead(BAR0 + 7, this, std::bind(&HDC::IOReadStatusRegister, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(BAR0 + 7, this, std::bind(&HDC::IOWriteCommandRegister, this, std::placeholders::_2));
-
-  // 03F7: Alternate status register (R) / Control register (W)
-  bus->ConnectIOPortRead(BAR1 + 0, this, std::bind(&HDC::IOReadAltStatusRegister, this, std::placeholders::_2));
-  bus->ConnectIOPortWrite(BAR1 + 0, this, std::bind(&HDC::IOWriteControlRegister, this, std::placeholders::_2));
 }
 
-void HDC::SoftReset()
+void HDC::SoftReset(u32 channel)
 {
-  for (u32 i = 0; i < NUM_DEVICES; i++)
+  Channel& cdata = m_channels[channel];
+  for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
-    if (m_devices[i])
-      m_devices[i]->DoReset(false);
+    if (cdata.devices[i])
+      cdata.devices[i]->DoReset(false);
 
-    m_device_interrupt_lines[i] = false;
+    cdata.device_interrupt_lines[i] = false;
   }
 
-  UpdateHostInterruptLine();
+  UpdateHostInterruptLine(channel);
 }
 
-void HDC::IOReadStatusRegister(u8* value)
+void HDC::IOReadStatusRegister(u32 channel, u8* value)
 {
   // Lower interrupt
-  std::fill_n(m_device_interrupt_lines, NUM_DEVICES, false);
-  UpdateHostInterruptLine();
+  std::fill_n(m_channels[channel].device_interrupt_lines, DEVICES_PER_CHANNEL, false);
+  UpdateHostInterruptLine(channel);
 
-  if (m_control_register.software_reset)
+  if (m_channels[channel].control_register.software_reset)
   {
     *value = (1 << 7);
     return;
   }
 
-  const ATADevice* device = GetCurrentDevice();
+  const ATADevice* device = GetCurrentDevice(channel);
   *value = device ? device->ReadStatusRegister() : 0xFF;
 }
 
-void HDC::IOReadAltStatusRegister(u8* value)
+void HDC::IOReadAltStatusRegister(u32 channel, u8* value)
 {
-  if (m_control_register.software_reset)
+  if (m_channels[channel].control_register.software_reset)
   {
     *value = (1 << 7);
     return;
   }
 
-  const ATADevice* device = GetCurrentDevice();
+  const ATADevice* device = GetCurrentDevice(channel);
   *value = device ? device->ReadStatusRegister() : 0xFF;
 }
 
-void HDC::IOWriteCommandRegister(u8 value)
+void HDC::IOWriteCommandRegister(u32 channel, u8 value)
 {
   Log_TracePrintf("ATA write command register <- 0x%02X", ZeroExtend32(value));
 
-  const u8 index = GetCurrentDeviceIndex();
-  if (!m_devices[index])
+  const u8 index = GetCurrentDeviceIndex(channel);
+  if (!m_channels[channel].devices[index])
     return;
 
-  m_device_interrupt_lines[index] = false;
-  UpdateHostInterruptLine();
+  m_channels[channel].device_interrupt_lines[index] = false;
+  UpdateHostInterruptLine(channel);
 
-  m_devices[index]->WriteCommandRegister(value);
+  m_channels[channel].devices[index]->WriteCommandRegister(value);
 }
 
-void HDC::IOReadErrorRegister(u8* value)
+void HDC::IOReadErrorRegister(u32 channel, u8* value)
 {
-  const ATADevice* device = GetCurrentDevice();
+  const ATADevice* device = GetCurrentDevice(channel);
   *value = device ? device->ReadErrorRegister() : 0xFF;
 }
 
-void HDC::IOWriteControlRegister(u8 value)
+void HDC::IOWriteControlRegister(u32 channel, u8 value)
 {
   Log_TracePrintf("ATA write control register <- 0x%02X", ZeroExtend32(value));
 
-  decltype(m_control_register) old_value = m_control_register;
-  m_control_register.bits = value;
+  auto old_value = m_channels[channel].control_register;
+  m_channels[channel].control_register.bits = value;
 
-  if (!m_control_register.software_reset && old_value.software_reset)
+  if (!m_channels[channel].control_register.software_reset && old_value.software_reset)
   {
     // Software reset
     Log_DevPrintf("ATA controller software reset");
-    SoftReset();
+    SoftReset(channel);
   }
 }
 
-void HDC::IOReadDriveSelectRegister(u8* value)
+void HDC::IOReadDriveSelectRegister(u32 channel, u8* value)
 {
-  const ATADevice* device = GetCurrentDevice();
-  *value = device ? device->ReadCommandBlockDriveSelect() : m_drive_select_register.bits;
+  const ATADevice* device = GetCurrentDevice(channel);
+  *value = device ? device->ReadCommandBlockDriveSelect() : m_channels[channel].drive_select_register.bits;
 }
 
-void HDC::IOWriteDriveSelectRegister(u8 value)
+void HDC::IOWriteDriveSelectRegister(u32 channel, u8 value)
 {
-  for (u32 i = 0; i < NUM_DEVICES; i++)
+  for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
-    if (m_devices[i])
-      m_devices[i]->WriteCommandBlockDriveSelect(value);
+    if (m_channels[channel].devices[i])
+      m_channels[channel].devices[i]->WriteCommandBlockDriveSelect(value);
   }
 
-  m_drive_select_register.bits = value;
-  Log_TracePrintf("ATA write drive select 0x%02X (drive %u)", value, m_drive_select_register.drive.GetValue());
+  m_channels[channel].drive_select_register.bits = value;
+  Log_TracePrintf("ATA write drive select 0x%02X (drive %u)", value,
+                  m_channels[channel].drive_select_register.drive.GetValue());
 }
 
-void HDC::IOReadDataRegisterByte(u8* value)
+void HDC::IOReadDataRegisterByte(u32 channel, u8* value)
 {
-  ATADevice* device = GetCurrentDevice();
+  ATADevice* device = GetCurrentDevice(channel);
   if (device)
     device->ReadDataPort(value, sizeof(*value));
   else
     *value = 0xFF;
 }
 
-void HDC::IOReadDataRegisterWord(u16* value)
+void HDC::IOReadDataRegisterWord(u32 channel, u16* value)
 {
-  ATADevice* device = GetCurrentDevice();
+  ATADevice* device = GetCurrentDevice(channel);
   if (device)
     device->ReadDataPort(value, sizeof(*value));
   else
     *value = 0xFFFF;
 }
 
-void HDC::IOReadDataRegisterDWord(u32* value)
+void HDC::IOReadDataRegisterDWord(u32 channel, u32* value)
 {
-  ATADevice* device = GetCurrentDevice();
+  ATADevice* device = GetCurrentDevice(channel);
   if (device)
     device->ReadDataPort(value, sizeof(*value));
   else
     *value = UINT32_C(0xFFFFFFFF);
 }
 
-void HDC::IOWriteDataRegisterByte(u8 value)
+void HDC::IOWriteDataRegisterByte(u32 channel, u8 value)
 {
-  ATADevice* device = GetCurrentDevice();
+  ATADevice* device = GetCurrentDevice(channel);
   if (device)
     device->WriteDataPort(&value, sizeof(value));
 }
 
-void HDC::IOWriteDataRegisterWord(u16 value)
+void HDC::IOWriteDataRegisterWord(u32 channel, u16 value)
 {
-  ATADevice* device = GetCurrentDevice();
+  ATADevice* device = GetCurrentDevice(channel);
   if (device)
     device->WriteDataPort(&value, sizeof(value));
 }
 
-void HDC::IOWriteDataRegisterDWord(u32 value)
+void HDC::IOWriteDataRegisterDWord(u32 channel, u32 value)
 {
-  ATADevice* device = GetCurrentDevice();
+  ATADevice* device = GetCurrentDevice(channel);
   if (device)
     device->WriteDataPort(&value, sizeof(value));
 }
 
-void HDC::IOReadCommandBlockSectorCount(u8* value)
+void HDC::IOReadCommandBlockSectorCount(u32 channel, u8* value)
 {
-  const ATADevice* device = GetCurrentDevice();
-  *value = device ? device->ReadCommandBlockSectorCount(m_control_register.high_order_byte_readback) : 0xFF;
+  const ATADevice* device = GetCurrentDevice(channel);
+  *value =
+    device ? device->ReadCommandBlockSectorCount(m_channels[channel].control_register.high_order_byte_readback) : 0xFF;
 }
 
-void HDC::IOReadCommandBlockSectorNumber(u8* value)
+void HDC::IOReadCommandBlockSectorNumber(u32 channel, u8* value)
 {
-  const ATADevice* device = GetCurrentDevice();
-  *value = device ? device->ReadCommandBlockSectorNumber(m_control_register.high_order_byte_readback) : 0xFF;
+  const ATADevice* device = GetCurrentDevice(channel);
+  *value =
+    device ? device->ReadCommandBlockSectorNumber(m_channels[channel].control_register.high_order_byte_readback) : 0xFF;
 }
 
-void HDC::IOReadCommandBlockCylinderLow(u8* value)
+void HDC::IOReadCommandBlockCylinderLow(u32 channel, u8* value)
 {
-  const ATADevice* device = GetCurrentDevice();
-  *value = device ? device->ReadCommandBlockCylinderLow(m_control_register.high_order_byte_readback) : 0xFF;
+  const ATADevice* device = GetCurrentDevice(channel);
+  *value =
+    device ? device->ReadCommandBlockCylinderLow(m_channels[channel].control_register.high_order_byte_readback) : 0xFF;
 }
 
-void HDC::IOReadCommandBlockCylinderHigh(u8* value)
+void HDC::IOReadCommandBlockCylinderHigh(u32 channel, u8* value)
 {
-  const ATADevice* device = GetCurrentDevice();
-  *value = device ? device->ReadCommandBlockCylinderHigh(m_control_register.high_order_byte_readback) : 0xFF;
+  const ATADevice* device = GetCurrentDevice(channel);
+  *value =
+    device ? device->ReadCommandBlockCylinderHigh(m_channels[channel].control_register.high_order_byte_readback) : 0xFF;
 }
 
-void HDC::IOWriteCommandBlockFeatures(u8 value)
+void HDC::IOWriteCommandBlockFeatures(u32 channel, u8 value)
 {
   Log_TracePrintf("ATA write command block features 0x%02X", value);
-  for (u32 i = 0; i < NUM_DEVICES; i++)
+  for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
-    if (m_devices[i])
-      m_devices[i]->WriteFeatureSelect(value);
+    if (m_channels[channel].devices[i])
+      m_channels[channel].devices[i]->WriteFeatureSelect(value);
   }
 }
 
-void HDC::IOWriteCommandBlockSectorCount(u8 value)
+void HDC::IOWriteCommandBlockSectorCount(u32 channel, u8 value)
 {
   Log_TracePrintf("ATA write command block sector count 0x%02X", value);
-  for (u32 i = 0; i < NUM_DEVICES; i++)
+  for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
-    if (m_devices[i])
-      m_devices[i]->WriteCommandBlockSectorCount(value);
+    if (m_channels[channel].devices[i])
+      m_channels[channel].devices[i]->WriteCommandBlockSectorCount(value);
   }
 }
 
-void HDC::IOWriteCommandBlockSectorNumber(u8 value)
+void HDC::IOWriteCommandBlockSectorNumber(u32 channel, u8 value)
 {
   Log_TracePrintf("ATA write command block sector number 0x%02X", value);
-  for (u32 i = 0; i < NUM_DEVICES; i++)
+  for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
-    if (m_devices[i])
-      m_devices[i]->WriteCommandBlockSectorNumber(value);
+    if (m_channels[channel].devices[i])
+      m_channels[channel].devices[i]->WriteCommandBlockSectorNumber(value);
   }
 }
 
-void HDC::IOWriteCommandBlockCylinderLow(u8 value)
+void HDC::IOWriteCommandBlockCylinderLow(u32 channel, u8 value)
 {
   Log_TracePrintf("ATA write command block cylinder low 0x%02X", value);
-  for (u32 i = 0; i < NUM_DEVICES; i++)
+  for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
-    if (m_devices[i])
-      m_devices[i]->WriteCommandBlockSectorCylinderLow(value);
+    if (m_channels[channel].devices[i])
+      m_channels[channel].devices[i]->WriteCommandBlockSectorCylinderLow(value);
   }
 }
 
-void HDC::IOWriteCommandBlockCylinderHigh(u8 value)
+void HDC::IOWriteCommandBlockCylinderHigh(u32 channel, u8 value)
 {
   Log_TracePrintf("ATA write command block cylinder high 0x%02X", value);
-  for (u32 i = 0; i < NUM_DEVICES; i++)
+  for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
-    if (m_devices[i])
-      m_devices[i]->WriteCommandBlockSectorCylinderHigh(value);
+    if (m_channels[channel].devices[i])
+      m_channels[channel].devices[i]->WriteCommandBlockSectorCylinderHigh(value);
   }
 }
 

@@ -13,7 +13,7 @@ PROPERTY_TABLE_MEMBER_UINT("IOBase", 0, offsetof(XT_IDE, m_io_base), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
 XT_IDE::XT_IDE(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, HW::HDC::Channel::Primary, type_info), m_bios_file_path("romimages/ide_xt.bin")
+  : BaseClass(identifier, 1, type_info), m_bios_file_path("romimages/ide_xt.bin")
 {
 }
 
@@ -75,40 +75,43 @@ void XT_IDE::ConnectIOPorts(Bus* bus)
   //   });
   //   bus->ConnectIOPortReadToPointer(Truncate16(m_io_base + 0x1), this, &m_data_high);
   //   bus->ConnectIOPortWriteToPointer(Truncate16(m_io_base + 0x1), this, &m_data_high);
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x0), this, [this](u16, u8* value) { IOReadDataRegisterByte(value); });
-  bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x0), this, [this](u16, u8 value) { IOWriteDataRegisterByte(value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x0), this,
+                         [this](u16, u8* value) { IOReadDataRegisterByte(0, value); });
+  bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x0), this,
+                          [this](u16, u8 value) { IOWriteDataRegisterByte(0, value); });
 
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x2), this, [this](u16, u8* value) { IOReadErrorRegister(value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x2), this, [this](u16, u8* value) { IOReadErrorRegister(0, value); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x2), this,
-                          [this](u16, u8 value) { IOWriteCommandBlockFeatures(value); });
+                          [this](u16, u8 value) { IOWriteCommandBlockFeatures(0, value); });
 
   bus->ConnectIOPortRead(Truncate16(m_io_base + 0x4), this,
-                         [this](u16, u8* value) { IOReadCommandBlockSectorCount(value); });
+                         [this](u16, u8* value) { IOReadCommandBlockSectorCount(0, value); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x4), this,
-                          [this](u16, u8 value) { IOWriteCommandBlockSectorCount(value); });
+                          [this](u16, u8 value) { IOWriteCommandBlockSectorCount(0, value); });
 
   bus->ConnectIOPortRead(Truncate16(m_io_base + 0x6), this,
-                         [this](u16, u8* value) { IOReadCommandBlockSectorNumber(value); });
+                         [this](u16, u8* value) { IOReadCommandBlockSectorNumber(0, value); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x6), this,
-                          [this](u16, u8 value) { IOWriteCommandBlockSectorNumber(value); });
+                          [this](u16, u8 value) { IOWriteCommandBlockSectorNumber(0, value); });
 
   bus->ConnectIOPortRead(Truncate16(m_io_base + 0x8), this,
-                         [this](u16, u8* value) { IOReadCommandBlockCylinderLow(value); });
+                         [this](u16, u8* value) { IOReadCommandBlockCylinderLow(0, value); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x8), this,
-                          [this](u16, u8 value) { IOWriteCommandBlockCylinderLow(value); });
+                          [this](u16, u8 value) { IOWriteCommandBlockCylinderLow(0, value); });
 
   bus->ConnectIOPortRead(Truncate16(m_io_base + 0xA), this,
-                         [this](u16, u8* value) { IOReadCommandBlockCylinderHigh(value); });
+                         [this](u16, u8* value) { IOReadCommandBlockCylinderHigh(0, value); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0xA), this,
-                          [this](u16, u8 value) { IOWriteCommandBlockCylinderHigh(value); });
+                          [this](u16, u8 value) { IOWriteCommandBlockCylinderHigh(0, value); });
 
   bus->ConnectIOPortRead(Truncate16(m_io_base + 0xC), this,
-                         [this](u16, u8* value) { IOReadDriveSelectRegister(value); });
+                         [this](u16, u8* value) { IOReadDriveSelectRegister(0, value); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0xC), this,
-                          [this](u16, u8 value) { IOWriteDriveSelectRegister(value); });
+                          [this](u16, u8 value) { IOWriteDriveSelectRegister(0, value); });
 
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0xE), this, [this](u16, u8* value) { IOReadStatusRegister(value); });
-  bus->ConnectIOPortWrite(Truncate16(m_io_base + 0xE), this, [this](u16, u8 value) { IOWriteCommandRegister(value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0xE), this, [this](u16, u8* value) { IOReadStatusRegister(0, value); });
+  bus->ConnectIOPortWrite(Truncate16(m_io_base + 0xE), this,
+                          [this](u16, u8 value) { IOWriteCommandRegister(0, value); });
 
   //   bus->ConnectIOPortRead(Truncate16(m_io_base + 0xE), this, [this](u16, u8* value) {
   //   IOReadAltStatusRegister(value); }); bus->ConnectIOPortWrite(Truncate16(m_io_base + 0xE), this, [this](u16, u8

@@ -23,16 +23,10 @@ class HDC : public Component
 
 public:
   static const u32 SERIALIZATION_ID = MakeSerializationID('H', 'D', 'C');
-  static const u32 NUM_DEVICES = 2;
+  static const u32 DEVICES_PER_CHANNEL = 2;
+  static const u32 MAX_CHANNELS = 2;
 
-  // TODO: Flag class
-  enum class Channel : u32
-  {
-    Primary,
-    Secondary
-  };
-
-  HDC(const String& identifier, Channel channel = Channel::Primary, const ObjectTypeInfo* type_info = &s_type_info);
+  HDC(const String& identifier, u32 num_channels = 1, const ObjectTypeInfo* type_info = &s_type_info);
   ~HDC();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -40,78 +34,84 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
-  bool IsDevicePresent(u32 number) const { return (number < NUM_DEVICES && m_devices[number]); }
-  u32 GetDeviceCount() const;
+  bool IsDevicePresent(u32 channel, u32 number) const;
+  u32 GetDeviceCount(u32 channel) const;
 
   // For populating CMOS.
-  bool IsHDDPresent(u32 number) const;
-  u32 GetHDDCylinders(u32 number) const;
-  u32 GetHDDHeads(u32 number) const;
-  u32 GetHDDSectors(u32 number) const;
+  bool IsHDDPresent(u32 channel, u32 number) const;
+  u32 GetHDDCylinders(u32 channel, u32 number) const;
+  u32 GetHDDHeads(u32 channel, u32 number) const;
+  u32 GetHDDSectors(u32 channel, u32 number) const;
 
-  bool AttachDevice(u32 number, ATADevice* device);
-  void DetachDevice(u32 number);
+  bool AttachDevice(u32 channel, u32 number, ATADevice* device);
+  void DetachDevice(u32 channel, u32 number);
 
-  void SetDeviceInterruptLine(u32 number, bool active);
-  void UpdateHostInterruptLine();
+  void SetDeviceInterruptLine(u32 channel, u32 number, bool active);
+  void UpdateHostInterruptLine(u32 channel);
 
 protected:
   InterruptController* m_interrupt_controller = nullptr;
-  ATADevice* m_devices[NUM_DEVICES] = {};
-  Channel m_channel;
-  uint32 m_irq_number = 0;
 
-  union ATAControlRegister
+  struct Channel
   {
-    u8 bits;
-    BitField<u8, bool, 1, 1> disable_interrupts;       // nIEN
-    BitField<u8, bool, 2, 1> software_reset;           // SRST
-    BitField<u8, bool, 7, 1> high_order_byte_readback; // HOB
-  } m_control_register = {};
+    ATADevice* devices[DEVICES_PER_CHANNEL] = {};
+    u32 irq_number = 0;
 
-  union ATADriveSelectRegister
-  {
-    u8 bits;
-    BitField<u8, u8, 0, 4> head;
-    BitField<u8, u8, 4, 1> drive;
-    BitField<u8, bool, 6, 1> lba_enable;
-  } m_drive_select_register = {};
+    union ATAControlRegister
+    {
+      u8 bits;
+      BitField<u8, bool, 1, 1> disable_interrupts;       // nIEN
+      BitField<u8, bool, 2, 1> software_reset;           // SRST
+      BitField<u8, bool, 7, 1> high_order_byte_readback; // HOB
+    } control_register = {};
 
-  bool m_device_interrupt_lines[NUM_DEVICES] = {};
+    union ATADriveSelectRegister
+    {
+      u8 bits;
+      BitField<u8, u8, 0, 4> head;
+      BitField<u8, u8, 4, 1> drive;
+      BitField<u8, bool, 6, 1> lba_enable;
+    } drive_select_register = {};
 
-  u8 GetCurrentDeviceIndex() const { return m_drive_select_register.drive; }
-  ATADevice* GetCurrentDevice() const { return m_devices[GetCurrentDeviceIndex()]; }
+    bool device_interrupt_lines[DEVICES_PER_CHANNEL] = {};
+  };
+
+  Channel m_channels[MAX_CHANNELS];
+  u32 m_num_channels = 1;
+
+  u8 GetCurrentDeviceIndex(u32 channel) const { return m_channels[channel].drive_select_register.drive; }
+  ATADevice* GetCurrentDevice(u32 channel) const { return m_channels[channel].devices[GetCurrentDeviceIndex(channel)]; }
 
   virtual void ConnectIOPorts(Bus* bus);
 
-  void SoftReset();
+  void SoftReset(u32 channel);
 
-  void IOReadStatusRegister(u8* value);
-  void IOReadAltStatusRegister(u8* value);
-  void IOWriteCommandRegister(u8 value);
-  void IOReadErrorRegister(u8* value);
+  void IOReadStatusRegister(u32 channel, u8* value);
+  void IOReadAltStatusRegister(u32 channel, u8* value);
+  void IOWriteCommandRegister(u32 channel, u8 value);
+  void IOReadErrorRegister(u32 channel, u8* value);
 
-  void IOWriteControlRegister(u8 value);
-  void IOReadDriveSelectRegister(u8* value);
-  void IOWriteDriveSelectRegister(u8 value);
+  void IOWriteControlRegister(u32 channel, u8 value);
+  void IOReadDriveSelectRegister(u32 channel, u8* value);
+  void IOWriteDriveSelectRegister(u32 channel, u8 value);
 
-  void IOReadDataRegisterByte(u8* value);
-  void IOReadDataRegisterWord(u16* value);
-  void IOReadDataRegisterDWord(u32* value);
-  void IOWriteDataRegisterByte(u8 value);
-  void IOWriteDataRegisterWord(u16 value);
-  void IOWriteDataRegisterDWord(u32 value);
+  void IOReadDataRegisterByte(u32 channel, u8* value);
+  void IOReadDataRegisterWord(u32 channel, u16* value);
+  void IOReadDataRegisterDWord(u32 channel, u32* value);
+  void IOWriteDataRegisterByte(u32 channel, u8 value);
+  void IOWriteDataRegisterWord(u32 channel, u16 value);
+  void IOWriteDataRegisterDWord(u32 channel, u32 value);
 
-  void IOReadCommandBlockSectorCount(u8* value);
-  void IOReadCommandBlockSectorNumber(u8* value);
-  void IOReadCommandBlockCylinderLow(u8* value);
-  void IOReadCommandBlockCylinderHigh(u8* value);
+  void IOReadCommandBlockSectorCount(u32 channel, u8* value);
+  void IOReadCommandBlockSectorNumber(u32 channel, u8* value);
+  void IOReadCommandBlockCylinderLow(u32 channel, u8* value);
+  void IOReadCommandBlockCylinderHigh(u32 channel, u8* value);
 
-  void IOWriteCommandBlockFeatures(u8 value);
-  void IOWriteCommandBlockSectorCount(u8 value);
-  void IOWriteCommandBlockSectorNumber(u8 value);
-  void IOWriteCommandBlockCylinderLow(u8 value);
-  void IOWriteCommandBlockCylinderHigh(u8 value);
+  void IOWriteCommandBlockFeatures(u32 channel, u8 value);
+  void IOWriteCommandBlockSectorCount(u32 channel, u8 value);
+  void IOWriteCommandBlockSectorNumber(u32 channel, u8 value);
+  void IOWriteCommandBlockCylinderLow(u32 channel, u8 value);
+  void IOWriteCommandBlockCylinderHigh(u32 channel, u8 value);
 };
 
 } // namespace HW

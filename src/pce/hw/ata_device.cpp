@@ -27,19 +27,19 @@ bool ATADevice::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_ata_controller = system->GetComponentByType<HDC>(m_ata_channel_number);
+  m_ata_controller = system->GetComponentByType<HDC>(m_ata_channel_number % 2);
   if (!m_ata_controller)
   {
-    Log_ErrorPrintf("Failed to find ATA channel %u", m_ata_channel_number);
+    Log_ErrorPrintf("Failed to find IDE controller");
     return false;
   }
-  else if (m_ata_controller->IsDevicePresent(m_ata_drive_number))
+  else if (m_ata_controller->IsDevicePresent(m_ata_channel_number, m_ata_drive_number))
   {
     Log_ErrorPrintf("ATA channel %u already has a drive %u attached", m_ata_channel_number, m_ata_drive_number);
     return false;
   }
 
-  if (!m_ata_controller->AttachDevice(m_ata_drive_number, this))
+  if (!m_ata_controller->AttachDevice(m_ata_channel_number, m_ata_drive_number, this))
   {
     Log_ErrorPrintf("Failed to attach device to ATA channel %u device %u", m_ata_channel_number, m_ata_drive_number);
     return false;
@@ -177,7 +177,7 @@ void ATADevice::DoReset(bool is_hardware_reset)
   // The IDE spec agrees that the initial value is 1.
   m_registers.status.Reset();
   m_registers.error = 1;
-  m_ata_controller->SetDeviceInterruptLine(m_ata_drive_number, false);
+  m_ata_controller->SetDeviceInterruptLine(m_ata_channel_number, m_ata_drive_number, false);
   ResetBuffer();
 }
 
@@ -198,7 +198,7 @@ void ATADevice::PutIdentifyString(char* buffer, uint32 buffer_size, const char* 
 void ATADevice::RaiseInterrupt()
 {
   Log_TracePrintf("Raising ATA interrupt line %u/%u", m_ata_channel_number, m_ata_drive_number);
-  m_ata_controller->SetDeviceInterruptLine(m_ata_drive_number, true);
+  m_ata_controller->SetDeviceInterruptLine(m_ata_channel_number, m_ata_drive_number, true);
 }
 
 void ATADevice::ReadDataPort(void* buffer, u32 size)
