@@ -175,8 +175,11 @@ bool DisplayD3D::UpdateFramebufferTexture()
 
   if (!m_framebuffer_texture || m_framebuffer_texture_width != fb.width || m_framebuffer_texture_height != fb.height)
   {
+    m_framebuffer_texture_width = fb.width;
+    m_framebuffer_texture_height = fb.height;
+
     D3D11_TEXTURE2D_DESC desc =
-      CD3D11_TEXTURE2D_DESC(DXGI_FORMAT_R8G8B8A8_UNORM, m_framebuffer_width, m_framebuffer_height, 1, 1,
+      CD3D11_TEXTURE2D_DESC(DXGI_FORMAT_R8G8B8A8_UNORM, m_framebuffer_texture_width, m_framebuffer_texture_height, 1, 1,
                             D3D11_BIND_SHADER_RESOURCE, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
     HRESULT hr = m_device->CreateTexture2D(&desc, nullptr, m_framebuffer_texture.ReleaseAndGetAddressOf());
     if (FAILED(hr))
