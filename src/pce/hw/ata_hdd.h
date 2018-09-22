@@ -50,9 +50,10 @@ private:
 
   void TranslateLBAToCHS(const u64 lba, u32* cylinder, u32* head, u32* sector) const;
   u64 TranslateCHSToLBA(const u32 cylinder, const u32 head, const u32 sector) const;
+  u64 GetTransferLBA(bool is_lba, bool is_lba48) const;
+  u32 GetTransferSectorCount(bool is_lba, bool is_lba48) const;
 
-  bool SeekCHS(const u32 cylinder, const u32 head, const u32 sector);
-  bool SeekLBA(const u64 lba);
+  bool Seek(const u64 lba);
 
   void CompleteCommand(bool seek_complete = false, bool raise_interrupt = true);
   void AbortCommand(ATA_ERR error = ATA_ERR_ABRT, bool device_fault = false);

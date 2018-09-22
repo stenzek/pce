@@ -249,15 +249,59 @@ u64 ATAHDD::TranslateCHSToLBA(const u32 cylinder, const u32 head, const u32 sect
   return lba;
 }
 
-bool ATAHDD::SeekCHS(const u32 cylinder, const u32 head, const u32 sector)
+u64 ATAHDD::GetTransferLBA(bool is_lba, bool is_lba48) const
 {
-  if (sector == 0)
-    return false;
+  u64 lba;
+  if (!is_lba)
+  {
+    // CHS
+    const u32 cylinder = (m_registers.cylinder_low & 0xFF) | ((m_registers.cylinder_high & 0xFF) << 8);
+    const u32 head = m_registers.drive_select.head.GetValue();
+    const u32 sector = (m_registers.sector_number & 0xFF);
+    if (sector == 0)
+    {
+      // Sector must be at least one. Return an out-of-range value.
+      return m_lbas;
+    }
 
-  return SeekLBA(TranslateCHSToLBA(cylinder, head, sector));
+    lba = TranslateCHSToLBA(cylinder, head, sector);
+  }
+  else if (!is_lba48)
+  {
+    // Using LBA24
+    lba = (ZeroExtend64(m_registers.sector_number & 0xFF) << 0);
+    lba |= (ZeroExtend64(m_registers.cylinder_low & 0xFF) << 8);
+    lba |= (ZeroExtend64(m_registers.cylinder_high & 0xFF) << 16);
+    lba |= (ZeroExtend64(m_registers.drive_select.head.GetValue()) << 24);
+  }
+  else
+  {
+    // Using LBA48
+    lba = (ZeroExtend64(m_registers.sector_number & 0xFF));
+    lba |= (ZeroExtend64(m_registers.cylinder_low & 0xFF) << 8);
+    lba |= (ZeroExtend64(m_registers.cylinder_high & 0xFF) << 16);
+    lba |= (ZeroExtend64(m_registers.sector_number >> 8) << 24);
+    lba |= (ZeroExtend64(m_registers.cylinder_low >> 8) << 32);
+    lba |= (ZeroExtend64(m_registers.cylinder_high >> 8) << 40);
+  }
+  return lba;
 }
 
-bool ATAHDD::SeekLBA(const u64 lba)
+u32 ATAHDD::GetTransferSectorCount(bool is_lba, bool is_lba48) const
+{
+  if (!is_lba || !is_lba48)
+  {
+    u32 count = ZeroExtend32(m_registers.sector_count & 0xFF);
+    return (count > 0) ? count : 256;
+  }
+  else
+  {
+    u32 count = ZeroExtend32(m_registers.sector_count);
+    return (count > 0) ? count : 65536;
+  }
+}
+
+bool ATAHDD::Seek(const u64 lba)
 {
   if (lba >= m_lbas)
     return false;
@@ -664,50 +708,13 @@ void ATAHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
     return;
   }
 
-  // Using CHS mode?
-  u32 count;
-  if (!m_registers.drive_select.lba_enable)
+  const u64 lba = GetTransferLBA(m_registers.drive_select.lba_enable, extended);
+  const u32 count = GetTransferSectorCount(m_registers.drive_select.lba_enable, extended);
+  Log_DevPrintf("PIO %s %u sectors from LBA %u", write ? "write" : "read", count, Truncate32(lba));
+  if (!Seek(lba) || (m_current_lba + count) > m_lbas)
   {
-    // Validate that the CHS are in range and seek to it
-    const u32 cylinder = (m_registers.cylinder_low & 0xFF) | ((m_registers.cylinder_high & 0xFF) << 8);
-    const u32 head = m_registers.drive_select.head.GetValue();
-    const u32 sector = (m_registers.sector_number & 0xFF);
-    count = (m_registers.sector_count & 0xFF);
-
-    Log_DevPrintf("PIO %s %u sectors from CHS %u/%u/%u", write ? "write" : "read", count, cylinder, head, sector);
-    if (!SeekCHS(cylinder, head, sector) || (m_current_lba + count) > m_lbas)
-    {
-      AbortCommand(ATA_ERR_IDNF);
-      return;
-    }
-  }
-  else
-  {
-    // Not using LBA48?
-    u64 lba;
-    if (!extended)
-    {
-      // Using LBA24
-      lba = (ZeroExtend64(m_registers.sector_number & 0xFF) << 0);
-      lba |= (ZeroExtend64(m_registers.cylinder_low & 0xFF) << 8);
-      lba |= (ZeroExtend64(m_registers.cylinder_high & 0xFF) << 16);
-      count = ZeroExtend32(m_registers.sector_count & 0xFF);
-    }
-    else
-    {
-      // Using LBA48
-      lba = (ZeroExtend64(m_registers.sector_number) << 0);
-      lba |= (ZeroExtend64(m_registers.cylinder_low) << 16);
-      lba |= (ZeroExtend64(m_registers.cylinder_high) << 32);
-      count = ZeroExtend32(m_registers.sector_count);
-    }
-
-    Log_DevPrintf("PIO %s %u sectors from LBA %u", write ? "write" : "read", count, Truncate32(lba));
-    if (!SeekLBA(lba) || (m_current_lba + count) > m_lbas)
-    {
-      AbortCommand(ATA_ERR_IDNF);
-      return;
-    }
+    AbortCommand(ATA_ERR_ABRT);
+    return;
   }
 
   // Setup transfer and fire irq
@@ -726,70 +733,32 @@ void ATAHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
 
 void ATAHDD::HandleATAReadVerifySectors(bool extended, bool with_retry)
 {
-  // Using CHS mode?
+  const u64 lba = GetTransferLBA(m_registers.drive_select.lba_enable, extended);
+  const u32 count = GetTransferSectorCount(m_registers.drive_select.lba_enable, extended);
+
+  // Check that it's in range
+  Log_DevPrintf("Verify %u sectors from LBA %u", count, Truncate32(lba));
+  if (!Seek(lba))
+  {
+    AbortCommand(ATA_ERR_IDNF);
+    return;
+  }
+
+  const bool error = ((m_current_lba + count) > m_lbas);
+  m_current_lba = std::min(m_current_lba + count, m_lbas);
+
+  // The command block contains the last sector verified.
   if (!m_registers.drive_select.lba_enable)
   {
-    // Validate that the CHS are in range and seek to it
-    u32 cylinder = ZeroExtend32((m_registers.cylinder_low & 0xFF) | ((m_registers.cylinder_high & 0xFF) << 8));
-    u32 head = ZeroExtend32(m_registers.drive_select.head.GetValue());
-    u32 sector = ZeroExtend32(m_registers.sector_number & 0xFF);
-    u32 count = ZeroExtend32(m_registers.sector_count & 0xFF);
-
-    Log_DevPrintf("Verify %u sectors from CHS %u/%u/%u", count, cylinder, head, sector);
-    if (!SeekCHS(cylinder, head, sector))
-    {
-      AbortCommand(ATA_ERR_IDNF);
-      return;
-    }
-
-    const bool error = ((m_current_lba + count) > m_lbas);
-    m_current_lba = std::min(m_current_lba + count, m_lbas);
-
-    // The command block contains the last sector verified.
+    u32 cylinder, head, sector;
     TranslateLBAToCHS((m_current_lba > 0) ? (m_current_lba - 1) : 0, &cylinder, &head, &sector);
     m_registers.cylinder_low = Truncate8(cylinder);
     m_registers.cylinder_high = Truncate16((cylinder >> 8) & 0xFF);
     m_registers.sector_number = Truncate16(sector);
     m_registers.drive_select.head = Truncate8(head);
-    if (error)
-      AbortCommand(ATA_ERR_IDNF);
-    else
-      CompleteCommand(true);
   }
   else
   {
-    // Not using LBA48?
-    u64 lba;
-    u32 count;
-    if (!extended)
-    {
-      // Using LBA24
-      lba = (ZeroExtend64(m_registers.sector_number & 0xFF) << 0);
-      lba |= (ZeroExtend64(m_registers.cylinder_low & 0xFF) << 8);
-      lba |= (ZeroExtend64(m_registers.cylinder_high & 0xFF) << 16);
-      count = ZeroExtend32(m_registers.sector_count & 0xFF);
-    }
-    else
-    {
-      // Using LBA48
-      lba = (ZeroExtend64(m_registers.sector_number) << 0);
-      lba |= (ZeroExtend64(m_registers.cylinder_low) << 16);
-      lba |= (ZeroExtend64(m_registers.cylinder_high) << 32);
-      count = ZeroExtend32(m_registers.sector_count);
-    }
-
-    // Check that it's in range
-    Log_DevPrintf("Verify %u sectors from LBA %u", count, Truncate32(lba));
-    if (!SeekLBA(lba))
-    {
-      AbortCommand(ATA_ERR_IDNF);
-      return;
-    }
-
-    const bool error = ((m_current_lba + count) > m_lbas);
-    m_current_lba = std::min(m_current_lba + count, m_lbas);
-
-    // The command block needs to contain the last sector verified
     if (!extended)
     {
       m_registers.sector_number = ZeroExtend16(Truncate8(m_current_lba));
@@ -802,12 +771,12 @@ void ATAHDD::HandleATAReadVerifySectors(bool extended, bool with_retry)
       m_registers.cylinder_low = Truncate16(m_current_lba >> 16);
       m_registers.cylinder_high = Truncate16(m_current_lba >> 24);
     }
-
-    if (!error)
-      CompleteCommand();
-    else
-      AbortCommand(ATA_ERR_IDNF);
   }
+
+  if (error)
+    AbortCommand(ATA_ERR_IDNF);
+  else
+    CompleteCommand(true);
 }
 
 void ATAHDD::HandleATASetMultipleMode()
