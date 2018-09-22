@@ -301,6 +301,31 @@ u32 ATAHDD::GetTransferSectorCount(bool is_lba, bool is_lba48) const
   }
 }
 
+void ATAHDD::SetTransferLBA(bool is_lba, bool is_lba48, u64 lba)
+{
+  if (!is_lba)
+  {
+    u32 cylinder, head, sector;
+    TranslateLBAToCHS(lba, &cylinder, &head, &sector);
+    m_registers.cylinder_low = Truncate8(cylinder);
+    m_registers.cylinder_high = Truncate16((cylinder >> 8) & 0xFF);
+    m_registers.sector_number = Truncate16(sector);
+    m_registers.drive_select.head = Truncate8(head);
+  }
+  else if (!is_lba48)
+  {
+    m_registers.sector_number = ZeroExtend16(Truncate8(m_current_lba));
+    m_registers.cylinder_low = ZeroExtend16(Truncate8(m_current_lba >> 8));
+    m_registers.cylinder_high = ZeroExtend16(Truncate8(m_current_lba >> 16));
+  }
+  else
+  {
+    m_registers.sector_number = Truncate16(m_current_lba);
+    m_registers.cylinder_low = Truncate16(m_current_lba >> 16);
+    m_registers.cylinder_high = Truncate16(m_current_lba >> 24);
+  }
+}
+
 bool ATAHDD::Seek(const u64 lba)
 {
   if (lba >= m_lbas)
@@ -601,6 +626,14 @@ void ATAHDD::ExecutePendingCommand()
       HandleATATransferPIO(true, true, false);
       break;
 
+    case ATA_CMD_READ_NATIVE_MAX_ADDRESS:
+      HandleATAReadMaxNativeAddress(false);
+      break;
+
+    case ATA_CMD_READ_NATIVE_MAX_ADDRESS_EXT:
+      HandleATAReadMaxNativeAddress(false);
+      break;
+
     case ATA_CMD_SET_MULTIPLE_MODE:
       HandleATASetMultipleMode();
       break;
@@ -748,35 +781,24 @@ void ATAHDD::HandleATAReadVerifySectors(bool extended, bool with_retry)
   m_current_lba = std::min(m_current_lba + count, m_lbas);
 
   // The command block contains the last sector verified.
-  if (!m_registers.drive_select.lba_enable)
-  {
-    u32 cylinder, head, sector;
-    TranslateLBAToCHS((m_current_lba > 0) ? (m_current_lba - 1) : 0, &cylinder, &head, &sector);
-    m_registers.cylinder_low = Truncate8(cylinder);
-    m_registers.cylinder_high = Truncate16((cylinder >> 8) & 0xFF);
-    m_registers.sector_number = Truncate16(sector);
-    m_registers.drive_select.head = Truncate8(head);
-  }
-  else
-  {
-    if (!extended)
-    {
-      m_registers.sector_number = ZeroExtend16(Truncate8(m_current_lba));
-      m_registers.cylinder_low = ZeroExtend16(Truncate8(m_current_lba >> 8));
-      m_registers.cylinder_high = ZeroExtend16(Truncate8(m_current_lba >> 16));
-    }
-    else
-    {
-      m_registers.sector_number = Truncate16(m_current_lba);
-      m_registers.cylinder_low = Truncate16(m_current_lba >> 16);
-      m_registers.cylinder_high = Truncate16(m_current_lba >> 24);
-    }
-  }
+  SetTransferLBA(m_registers.drive_select.lba_enable, extended, (m_current_lba > 0) ? (m_current_lba - 1) : 0);
 
   if (error)
     AbortCommand(ATA_ERR_IDNF);
   else
     CompleteCommand(true);
+}
+
+void ATAHDD::HandleATAReadMaxNativeAddress(bool extended)
+{
+  if (!m_registers.drive_select.lba_enable)
+  {
+    AbortCommand();
+    return;
+  }
+
+  SetTransferLBA(m_registers.drive_select.lba_enable, extended, m_lbas);
+  CompleteCommand(true);
 }
 
 void ATAHDD::HandleATASetMultipleMode()

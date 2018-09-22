@@ -52,6 +52,7 @@ private:
   u64 TranslateCHSToLBA(const u32 cylinder, const u32 head, const u32 sector) const;
   u64 GetTransferLBA(bool is_lba, bool is_lba48) const;
   u32 GetTransferSectorCount(bool is_lba, bool is_lba48) const;
+  void SetTransferLBA(bool is_lba, bool is_lba48, u64 lba);
 
   bool Seek(const u64 lba);
 
@@ -78,6 +79,7 @@ private:
   void HandleATARecalibrate();
   void HandleATATransferPIO(bool write, bool extended, bool multiple);
   void HandleATAReadVerifySectors(bool extended, bool with_retry);
+  void HandleATAReadMaxNativeAddress(bool extended);
   void HandleATASetMultipleMode();
   void HandleATAExecuteDriveDiagnostic();
   void HandleATAInitializeDriveParameters();
