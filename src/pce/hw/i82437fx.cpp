@@ -11,8 +11,10 @@ BEGIN_OBJECT_PROPERTY_MAP(i82437FX)
 END_OBJECT_PROPERTY_MAP()
 
 i82437FX::i82437FX(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, 0x8086, 0x122D)
+  : BaseClass(identifier)
 {
+  InitPCIID(0, 0x8086, 0x122D);
+  InitPCIClass(0, 0x06, 0x00, 0x00, 0x02);
 }
 
 i82437FX::~i82437FX() = default;
@@ -74,16 +76,13 @@ bool i82437FX::SaveState(BinaryWriter& writer)
   return PCIDevice::SaveState(writer);
 }
 
-uint8 i82437FX::HandleReadConfigRegister(uint32 function, uint8 offset)
+u8 i82437FX::ReadConfigSpace(u8 function, u8 offset)
 {
-  return PCIDevice::HandleReadConfigRegister(function, offset);
+  return PCIDevice::ReadConfigSpace(function, offset);
 }
 
-void i82437FX::HandleWriteConfigRegister(uint32 function, uint8 offset, uint8 value)
+void i82437FX::WriteConfigSpace(u8 function, u8 offset, u8 value)
 {
-  if (offset >= 0x10 && offset < 0x4F)
-    return;
-
   Log_DevPrintf("i82437FX: Write to 0x%08X: 0x%02X", offset, value);
 
   switch (offset)
@@ -105,7 +104,7 @@ void i82437FX::HandleWriteConfigRegister(uint32 function, uint8 offset, uint8 va
     break;
 
     default:
-      PCIDevice::HandleWriteConfigRegister(function, offset, value);
+      PCIDevice::WriteConfigSpace(function, offset, value);
       break;
   }
 }
