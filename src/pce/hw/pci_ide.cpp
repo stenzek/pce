@@ -106,35 +106,36 @@ bool PCIIDE::IsChannelEnabled(u32 channel) const
 
 void PCIIDE::ConnectIOPorts(Bus* bus)
 {
-  bus->DisconnectIOPorts(static_cast<HDC*>(this));
+  BaseClass* base_class_ptr = this;
+  bus->DisconnectIOPorts(base_class_ptr);
 
   // TODO: Native mode
   if (IsChannelEnabled(0))
-    HDC::ConnectIOPorts(bus, 0, 0x01F0, 0x03F6, 14);
+    BaseClass::ConnectIOPorts(bus, 0, 0x01F0, 0x03F6, 14);
   if (IsChannelEnabled(1))
-    HDC::ConnectIOPorts(bus, 1, 0x0170, 0x0376, 15);
+    BaseClass::ConnectIOPorts(bus, 1, 0x0170, 0x0376, 15);
 
   if (m_config_space[0].header.command.enable_io_space)
   {
     const u16 bm_base = static_cast<u16>(GetMemoryRegionBaseAddress(0, PCIDevice::MemoryRegion_BAR4));
     for (u8 channel = 0; channel < 2; channel++)
     {
-      bus->ConnectIOPortRead(bm_base + (channel * 8) + 0, this,
+      bus->ConnectIOPortRead(bm_base + (channel * 8) + 0, base_class_ptr,
                              std::bind(&PCIIDE::IOReadBusMasterCommandRegister, this, channel, std::placeholders::_2));
       bus->ConnectIOPortWrite(
-        bm_base + (channel * 8) + 0, this,
+        bm_base + (channel * 8) + 0, base_class_ptr,
         std::bind(&PCIIDE::IOWriteBusMasterCommandRegister, this, channel, std::placeholders::_2));
-      bus->ConnectIOPortRead(bm_base + (channel * 8) + 2, this,
+      bus->ConnectIOPortRead(bm_base + (channel * 8) + 2, base_class_ptr,
                              std::bind(&PCIIDE::IOReadBusMasterStatusRegister, this, channel, std::placeholders::_2));
-      bus->ConnectIOPortWrite(bm_base + (channel * 8) + 2, this,
+      bus->ConnectIOPortWrite(bm_base + (channel * 8) + 2, base_class_ptr,
                               std::bind(&PCIIDE::IOWriteBusMasterStatusRegister, this, channel, std::placeholders::_2));
       for (u8 offset = 0; offset < 4; offset++)
       {
         bus->ConnectIOPortRead(
-          bm_base + (channel * 8) + 4 + offset, this,
+          bm_base + (channel * 8) + 4 + offset, base_class_ptr,
           std::bind(&PCIIDE::IOReadBusMasterPRDTAddress, this, channel, offset, std::placeholders::_2));
         bus->ConnectIOPortWrite(
-          bm_base + (channel * 8) + 4 + offset, this,
+          bm_base + (channel * 8) + 4 + offset, base_class_ptr,
           std::bind(&PCIIDE::IOWriteBusMasterPRDTAddress, this, channel, offset, std::placeholders::_2));
       }
     }

@@ -298,10 +298,10 @@ void Bus::ReadIOPortByte(u16 port, u8* value)
 
   do
   {
-    if (conn->read_byte_handler)
-      conn->read_byte_handler(port, value);
-
+    const IOPortConnection* current = conn;
     conn = conn->next;
+    if (current->read_byte_handler)
+      current->read_byte_handler(port, value);
   } while (conn);
 
   // Log_TracePrintf("Read from ioport 0x%04X: 0x%02X", port, *value);
@@ -323,10 +323,10 @@ void Bus::ReadIOPortWord(u16 port, u16* value)
   *value = 0xFFFF;
   do
   {
-    if (conn->read_word_handler)
-      conn->read_word_handler(port, value);
-
+    const IOPortConnection* current = conn;
     conn = conn->next;
+    if (current->read_word_handler)
+      current->read_word_handler(port, value);
   } while (conn);
 
   // Log_TracePrintf("Read from ioport 0x%04X: 0x%04X", port, ZeroExtend32(*value));
@@ -349,10 +349,10 @@ void Bus::ReadIOPortDWord(u16 port, u32* value)
   *value = UINT32_C(0xFFFFFFFF);
   do
   {
-    if (conn->read_dword_handler)
-      conn->read_dword_handler(port, value);
-
+    const IOPortConnection* current = conn;
     conn = conn->next;
+    if (current->read_dword_handler)
+      current->read_dword_handler(port, value);
   } while (conn);
 
   // Log_TracePrintf("Read from ioport 0x%04X: 0x%04X", port, ZeroExtend32(*value));
@@ -369,10 +369,10 @@ void Bus::WriteIOPortByte(u16 port, u8 value)
 
   do
   {
-    if (conn->write_byte_handler)
-      conn->write_byte_handler(port, value);
-
+    const IOPortConnection* current = conn;
     conn = conn->next;
+    if (current->write_byte_handler)
+      current->write_byte_handler(port, value);
   } while (conn);
 
   // Log_TracePrintf("Write to ioport 0x%04X: 0x%02X", port, value);
@@ -391,10 +391,10 @@ void Bus::WriteIOPortWord(u16 port, u16 value)
 
   do
   {
-    if (conn->write_word_handler)
-      conn->write_word_handler(port, value);
-
+    const IOPortConnection* current = conn;
     conn = conn->next;
+    if (current->write_word_handler)
+      current->write_word_handler(port, value);
   } while (conn);
 
   // Log_TracePrintf("Write to ioport 0x%04X: 0x%04X", port, ZeroExtend32(value));
@@ -414,10 +414,10 @@ void Bus::WriteIOPortDWord(u16 port, u32 value)
 
   do
   {
-    if (conn->write_dword_handler)
-      conn->write_dword_handler(port, value);
-
+    const IOPortConnection* current = conn;
     conn = conn->next;
+    if (current->write_dword_handler)
+      current->write_dword_handler(port, value);
   } while (conn);
 
   // Log_TracePrintf("Write to ioport 0x%04X: 0x%04X", port, ZeroExtend32(value));
