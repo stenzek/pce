@@ -79,9 +79,9 @@ void PCIDevice::Reset()
       {
         const u32 base = (j == MemoryRegion_ExpansionROM) ? (0x30 / 4) : ((0x10 / 4) + static_cast<u32>(j));
         if (!mr.is_io)
-          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFF0) | (cs.dwords[base] & 0xF));
+          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFF0) | BoolToUInt32(mr.is_prefetchable));
         else
-          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFFC) | (cs.dwords[base] & 0x3));
+          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFFC) | 0x01);
 
         OnMemoryRegionChanged(i, static_cast<MemoryRegion>(j));
       }
@@ -151,17 +151,6 @@ void PCIDevice::InitPCIMemoryRegion(u8 function, MemoryRegion region, PhysicalMe
   m_config_space[function].memory_regions[region].size = size;
   m_config_space[function].memory_regions[region].is_io = io;
   m_config_space[function].memory_regions[region].is_prefetchable = prefetchable;
-
-  const u32 base = (region == MemoryRegion_ExpansionROM) ? 0x30 : (0x10 + (static_cast<u32>(region) * 4));
-  if (!io)
-  {
-    m_config_space[function].dwords[base / 4] =
-      (default_address & UINT32_C(0xFFFFFFF0)) | (BoolToUInt32(prefetchable) << 3);
-  }
-  else
-  {
-    m_config_space[function].dwords[base / 4] = (default_address & UINT32_C(0xFFFFFFFC) | 0x01);
-  }
 }
 
 u8 PCIDevice::GetConfigSpaceByte(u8 function, u8 byte_offset) const
@@ -261,19 +250,19 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
       break;
 
     case 0x04: // Command Register
-      cs.bytes[offset] = (value & 0x02) | 0x04;
+      cs.bytes[offset] = value;
       OnCommandRegisterChanged(function);
       break;
     case 0x05:
-      cs.bytes[offset] = 0;
+      cs.bytes[offset] = value;
       OnCommandRegisterChanged(function);
       break;
 
     case 0x06: // Status Register
-      cs.bytes[offset] = 0;
+      cs.bytes[offset] = value;
       break;
     case 0x07:
-      cs.bytes[offset] = 0x02;
+      cs.bytes[offset] = value;
       break;
 
     case 0x10:
@@ -323,7 +312,7 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
         // Mask away the bits, so that the address is aligned to the size.
         PhysicalMemoryAddress base_address = cs.dwords[offset / 4] & UINT32_C(0xFFFFFFF0);
         base_address = Common::AlignDown(base_address, mr.size);
-        cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFF0)) | (cs.dwords[offset / 4] & 0x3));
+        cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFF0)) | (cs.dwords[offset / 4] & 0xF));
       }
       else
       {
@@ -331,7 +320,7 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
         cs.bytes[offset] = ((offset & 3) == 0) ? ((cs.bytes[offset] & 0x03) | (value & 0xFC)) : (value);
         PhysicalMemoryAddress base_address = cs.dwords[offset / 4] & UINT32_C(0xFFFFFFFC);
         base_address = Common::AlignDown(base_address, mr.size);
-        cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFFC)) | (cs.dwords[offset / 4] & 0xF));
+        cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFFC)) | (cs.dwords[offset / 4] & 0x3));
       }
     }
     break;

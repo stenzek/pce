@@ -233,6 +233,10 @@ public:
   // Command register.
   virtual void WriteCommandRegister(u8 value) = 0;
 
+  // DMA active?
+  virtual bool SupportsDMA() const;
+  virtual void SetDMACK(bool active);
+
   // Data port. TODO: Make specific size overloads.
   void ReadDataPort(void* buffer, u32 size);
   void WriteDataPort(const void* buffer, u32 size);
@@ -244,10 +248,12 @@ protected:
 
   void RaiseInterrupt();
 
-  void SetupBuffer(u32 size, bool is_write);
+  void SetupBuffer(u32 size, bool is_write, bool dma);
   void ResetBuffer();
   void BufferReady(bool raise_interrupt);
   virtual void OnBufferEnd() = 0;
+
+  void DoDMATransfer();
 
   HDC* m_ata_controller = nullptr;
   u32 m_ata_channel_number;
@@ -269,12 +275,16 @@ protected:
   // Current buffer being transferred.
   struct
   {
+    // TODO: Make this a pointer for CDROM.
     std::vector<byte> data;
     u32 size;
     u32 position;
     bool is_write;
+    bool is_dma;
     bool valid;
   } m_buffer = {};
+
+  bool m_dmack = false;
 };
 
 } // namespace HW

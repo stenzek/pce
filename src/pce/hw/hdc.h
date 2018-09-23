@@ -47,7 +47,12 @@ public:
   void DetachDevice(u32 channel, u32 number);
 
   void SetDeviceInterruptLine(u32 channel, u32 number, bool active);
-  void UpdateHostInterruptLine(u32 channel);
+
+  // Bus-mastering DMA support.
+  virtual bool SupportsDMA() const;
+  virtual bool IsDMARequested(u32 channel) const;
+  virtual void SetDMARequest(u32 channel, u32 drive, bool request);
+  virtual u32 DMATransfer(u32 channel, u32 drive, bool is_write, void* data, u32 size);
 
 protected:
   InterruptController* m_interrupt_controller = nullptr;
@@ -55,7 +60,7 @@ protected:
   struct Channel
   {
     ATADevice* devices[DEVICES_PER_CHANNEL] = {};
-    u32 irq_number = 0;
+    u8 irq = 0;
 
     union ATAControlRegister
     {
@@ -83,8 +88,10 @@ protected:
   ATADevice* GetCurrentDevice(u32 channel) const { return m_channels[channel].devices[GetCurrentDeviceIndex(channel)]; }
 
   virtual void ConnectIOPorts(Bus* bus);
+  virtual void UpdateHostInterruptLine(u32 channel);
+  virtual void DoReset(u32 channel, bool hardware_reset);
 
-  void SoftReset(u32 channel);
+  void ConnectIOPorts(Bus* bus, u32 channel, u16 BAR0, u16 BAR1, u8 irq);
 
   void IOReadStatusRegister(u32 channel, u8* value);
   void IOReadAltStatusRegister(u32 channel, u8* value);

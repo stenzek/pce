@@ -5,6 +5,7 @@
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
 #include "common/hdd_image.h"
+#include "hdc.h"
 #include <cinttypes>
 Log_SetChannel(HW::ATAHDD);
 
@@ -179,6 +180,7 @@ void ATAHDD::DoReset(bool is_hardware_reset)
 
   // Abort any commands.
   m_command_event->SetActive(false);
+  m_read_write_event->SetActive(false);
   m_current_command = INVALID_COMMAND;
   m_transfer_remaining_sectors = 0;
   m_transfer_block_size = 0;
@@ -191,6 +193,11 @@ void ATAHDD::SetSignature()
   m_registers.sector_number = 1;
   m_registers.cylinder_low = 0;
   m_registers.cylinder_high = 0;
+}
+
+bool ATAHDD::SupportsDMA() const
+{
+  return true;
 }
 
 void ATAHDD::ClearActivity()
@@ -366,12 +373,12 @@ void ATAHDD::AbortCommand(ATA_ERR error /* = ATA_ERR_ABRT */, bool device_fault 
   ClearActivity();
 }
 
-void ATAHDD::SetupTransfer(u32 num_sectors, u32 block_size, bool is_write)
+void ATAHDD::SetupTransfer(u32 num_sectors, u32 block_size, bool is_write, bool dma)
 {
   DebugAssert(num_sectors > 0);
-  SetupBuffer(std::min(block_size, num_sectors) * SECTOR_SIZE, is_write);
   m_transfer_remaining_sectors = num_sectors;
   m_transfer_block_size = block_size;
+  SetupBuffer(std::min(block_size, num_sectors) * SECTOR_SIZE, is_write, dma);
 }
 
 void ATAHDD::SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors)
@@ -444,14 +451,14 @@ void ATAHDD::OnReadWriteEnd()
   m_transfer_remaining_sectors -= transferred_sectors;
   if (m_transfer_remaining_sectors == 0)
   {
-    // Read commands do not raise an interrupt after the command finishes, but write commands do.
-    CompleteCommand(true, IsWriteCommand(Truncate8(m_current_command)));
+    // PIO read commands do not raise an interrupt after the command finishes, but write commands do.
+    CompleteCommand(true, m_buffer.is_dma || IsWriteCommand(Truncate8(m_current_command)));
     return;
   }
 
   // Reset buffer position for the next block.
   const u32 next_transfer_sectors = std::min(m_transfer_remaining_sectors, m_transfer_block_size);
-  SetupBuffer(next_transfer_sectors * SECTOR_SIZE, m_buffer.is_write);
+  SetupBuffer(next_transfer_sectors * SECTOR_SIZE, m_buffer.is_write, m_buffer.is_dma);
   if (m_buffer.is_write)
   {
     // Writes - request data from host.
@@ -593,16 +600,24 @@ void ATAHDD::ExecutePendingCommand()
       break;
 
     case ATA_CMD_READ_PIO:
-      HandleATATransferPIO(false, false, false);
+      HandleATATransfer(false, false, false, false);
       break;
 
     case ATA_CMD_READ_MULTIPLE_PIO:
-      HandleATATransferPIO(false, false, true);
+      HandleATATransfer(false, false, false, true);
       break;
 
     case ATA_CMD_READ_PIO_EXT:
     case ATA_CMD_READ_PIO_NO_RETRY:
-      HandleATATransferPIO(false, true, false);
+      HandleATATransfer(false, false, true, false);
+      break;
+
+    case ATA_CMD_READ_DMA:
+      HandleATATransfer(true, false, false, false);
+      break;
+
+    case ATA_CMD_READ_DMA_EXT:
+      HandleATATransfer(true, false, true, false);
       break;
 
     case ATA_CMD_READ_VERIFY:
@@ -615,15 +630,23 @@ void ATAHDD::ExecutePendingCommand()
 
     case ATA_CMD_WRITE_PIO:
     case ATA_CMD_WRITE_PIO_NO_RETRY:
-      HandleATATransferPIO(true, false, false);
+      HandleATATransfer(false, true, false, false);
       break;
 
     case ATA_CMD_WRITE_MULTIPLE_PIO:
-      HandleATATransferPIO(true, false, true);
+      HandleATATransfer(false, true, false, true);
       break;
 
     case ATA_CMD_WRITE_PIO_EXT:
-      HandleATATransferPIO(true, true, false);
+      HandleATATransfer(false, true, true, false);
+      break;
+
+    case ATA_CMD_WRITE_DMA:
+      HandleATATransfer(true, true, false, false);
+      break;
+
+    case ATA_CMD_WRITE_DMA_EXT:
+      HandleATATransfer(true, true, true, false);
       break;
 
     case ATA_CMD_READ_NATIVE_MAX_ADDRESS:
@@ -691,9 +714,10 @@ void ATAHDD::HandleATAIdentify()
   response.readwrite_multiple_supported = 0;
 
   response.dword_io_supported = 1;
-  // response.support |= (1 << 9); // LBA supported
-  // response.support |= (1 << 8);       // DMA supported
-  response.support = 0xf000u & ~uint32(1 << 8);
+  response.support = 0xf000u;
+  response.support |= (1 << 9); // LBA supported
+  if (m_ata_controller->SupportsDMA())
+    response.support |= (1 << 8); // DMA supported
   response.pio_timing_mode = 2;
   response.dma_timing_mode = 1;
   response.user_fields_valid = 3;
@@ -704,23 +728,27 @@ void ATAHDD::HandleATAIdentify()
     Truncate32(m_current_num_cylinders * m_current_num_heads * m_current_num_sectors_per_track);
   response.lba_sectors = Truncate32(std::min(m_lbas, ZeroExtend64(std::numeric_limits<uint32>::max())));
   PutIdentifyString(response.model, sizeof(response.model), "Herp derpity derp");
-  // response.singleword_dma_modes = (1 << 0) | (1 << 8);
-  // response.multiword_dma_modes = (1 << 0) | (1 << 8);
+  if (m_ata_controller->SupportsDMA())
+  {
+    response.singleword_dma_modes = 0x07 | (4 << 8);
+    response.multiword_dma_modes = 0x07 | (4 << 8);
+  }
   response.pio_modes_supported = 0x03;
   for (size_t i = 0; i < countof(response.pio_cycle_time); i++)
     response.pio_cycle_time[i] = 120;
-  response.word_80 = 0xF0;
-  response.minor_version_number = 0x16;
+  response.word_80 = 0x7E;
+  response.minor_version_number = 0x00;
   response.word_82 = (1 << 14);
   response.supports_lba48 = (1 << 10);
   response.word_84 = (1 << 14);
   response.word_85 = (1 << 14);
   response.word_86 = (1 << 10);
+  response.word_88 = 0x3F | 0x01; // UDMA mode
   response.word_93 = 1 | (1 << 14) | 0x2000;
   response.lba48_sectors = m_lbas;
 
   // 512 bytes total
-  SetupTransfer(1, 1, false);
+  SetupTransfer(1, 1, false, false);
   std::memcpy(m_buffer.data.data(), &response, sizeof(response));
   BufferReady(true);
 }
@@ -732,9 +760,14 @@ void ATAHDD::HandleATARecalibrate()
   CompleteCommand(true);
 }
 
-void ATAHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
+void ATAHDD::HandleATATransfer(bool dma, bool write, bool extended, bool multiple)
 {
-  if (multiple && m_multiple_sectors == 0)
+  if (dma && (!m_ata_controller->SupportsDMA() || m_ata_controller->IsDMARequested(m_ata_channel_number)))
+  {
+    AbortCommand();
+    return;
+  }
+  else if (multiple && m_multiple_sectors == 0)
   {
     Log_WarningPrintf("Multiple command without multiple sectors set");
     AbortCommand();
@@ -743,7 +776,7 @@ void ATAHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
 
   const u64 lba = GetTransferLBA(m_registers.drive_select.lba_enable, extended);
   const u32 count = GetTransferSectorCount(m_registers.drive_select.lba_enable, extended);
-  Log_DevPrintf("PIO %s %u sectors from LBA %u", write ? "write" : "read", count, Truncate32(lba));
+  Log_DevPrintf("%s %s %u sectors from LBA %u", dma ? "DMA" : "PIO", write ? "write" : "read", count, Truncate32(lba));
   if (!Seek(lba) || (m_current_lba + count) > m_lbas)
   {
     AbortCommand(ATA_ERR_ABRT);
@@ -751,7 +784,7 @@ void ATAHDD::HandleATATransferPIO(bool write, bool extended, bool multiple)
   }
 
   // Setup transfer and fire irq
-  SetupTransfer(count, multiple ? m_multiple_sectors : 1, write);
+  SetupTransfer(count, multiple ? m_multiple_sectors : 1, write, dma);
   if (!write)
   {
     // Reads are delayed.
@@ -892,4 +925,5 @@ void ATAHDD::HandleATASetFeatures()
       return;
   }
 }
+
 } // namespace HW

@@ -38,6 +38,7 @@ public:
 
 protected:
   void DoReset(bool is_hardware_reset) override;
+  bool SupportsDMA() const override;
 
 private:
   static const u32 SERIALIZATION_ID = MakeSerializationID('A', 'T', 'A', 'H');
@@ -59,7 +60,7 @@ private:
   void CompleteCommand(bool seek_complete = false, bool raise_interrupt = true);
   void AbortCommand(ATA_ERR error = ATA_ERR_ABRT, bool device_fault = false);
 
-  void SetupTransfer(u32 num_sectors, u32 block_size, bool is_write);
+  void SetupTransfer(u32 num_sectors, u32 block_size, bool is_write, bool dma);
   void SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors);
   void FillReadBuffer();
   void FlushWriteBuffer();
@@ -77,7 +78,7 @@ private:
   void HandleATADeviceReset();
   void HandleATAIdentify();
   void HandleATARecalibrate();
-  void HandleATATransferPIO(bool write, bool extended, bool multiple);
+  void HandleATATransfer(bool dma, bool write, bool extended, bool multiple);
   void HandleATAReadVerifySectors(bool extended, bool with_retry);
   void HandleATAReadMaxNativeAddress(bool extended);
   void HandleATASetMultipleMode();

@@ -2,12 +2,12 @@
 #include "pce/cpu_x86/cpu_x86.h"
 #include "pce/hw/cmos.h"
 #include "pce/hw/fdc.h"
-#include "pce/hw/hdc.h"
 #include "pce/hw/i8042_ps2.h"
 #include "pce/hw/i8237_dma.h"
 #include "pce/hw/i82437fx.h"
 #include "pce/hw/i8253_pit.h"
 #include "pce/hw/i8259_pic.h"
+#include "pce/hw/pci_ide.h"
 #include "pce/hw/pcspeaker.h"
 #include "pce/systems/pcipc.h"
 
@@ -74,7 +74,7 @@ protected:
   HW::PCSpeaker* m_speaker = nullptr;
 
   HW::FDC* m_fdd_controller = nullptr;
-  HW::HDC* m_hdd_controller = nullptr;
+  HW::PCIIDE* m_hdd_controller = nullptr;
 
   bool m_cmos_lock = false;
 };

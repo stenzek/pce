@@ -872,7 +872,6 @@ void CPU::SetHalted(bool halt)
 void CPU::UpdateAlignmentCheckMask()
 {
   m_alignment_check_enabled = InUserMode() && !!(m_registers.CR0 & CR0Bit_AM) && m_registers.EFLAGS.AC;
-  Assert(!m_alignment_check_enabled);
 }
 
 void CPU::SetCPL(uint8 cpl)

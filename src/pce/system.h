@@ -112,7 +112,7 @@ template<typename T, typename... Args>
 T* System::CreateComponent(const String& identifier, Args... args)
 {
   T* component = new T(identifier, args...);
-  AddComponent(component);
+  AddComponent(static_cast<typename T::BaseClass*>(component));
   return component;
 }
 

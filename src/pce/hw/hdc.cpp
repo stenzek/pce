@@ -42,12 +42,8 @@ bool HDC::Initialize(System* system, Bus* bus)
 void HDC::Reset()
 {
   BaseClass::Reset();
-
   for (u32 i = 0; i < m_num_channels; i++)
-  {
-    std::fill_n(m_channels[i].device_interrupt_lines, DEVICES_PER_CHANNEL, false);
-    UpdateHostInterruptLine(i);
-  }
+    DoReset(i, true);
 }
 
 bool HDC::LoadState(BinaryReader& reader)
@@ -179,7 +175,24 @@ void HDC::UpdateHostInterruptLine(u32 channel)
   // TODO: Is this correct?
   const bool state =
     (!cdata.control_register.disable_interrupts) && (cdata.device_interrupt_lines[0] | cdata.device_interrupt_lines[1]);
-  m_interrupt_controller->SetInterruptState(cdata.irq_number, state);
+  m_interrupt_controller->SetInterruptState(cdata.irq, state);
+}
+
+bool HDC::SupportsDMA() const
+{
+  return false;
+}
+
+bool HDC::IsDMARequested(u32 channel) const
+{
+  return false;
+}
+
+void HDC::SetDMARequest(u32 channel, u32 drive, bool request) {}
+
+u32 HDC::DMATransfer(u32 channel, u32 drive, bool is_write, void* data, u32 size)
+{
+  return 0;
 }
 
 void HDC::ConnectIOPorts(Bus* bus)
@@ -187,89 +200,96 @@ void HDC::ConnectIOPorts(Bus* bus)
   for (u32 channel = 0; channel < m_num_channels; channel++)
   {
     u16 BAR0, BAR1;
+    u8 irq;
     if (channel == 0)
     {
       // Primary channel
       BAR0 = 0x01F0;
       BAR1 = 0x03F6;
-      m_channels[channel].irq_number = 14;
+      irq = 14;
     }
     else
     {
       // Secondary channel
       BAR0 = 0x0170;
       BAR1 = 0x0376;
-      m_channels[channel].irq_number = 15;
+      irq = 15;
     }
 
-    // 01F0 - Data register (R/W)
-    bus->ConnectIOPortRead(BAR0 + 0, this,
-                           std::bind(&HDC::IOReadDataRegisterByte, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortReadWord(BAR0 + 0, this,
-                               std::bind(&HDC::IOReadDataRegisterWord, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortReadDWord(BAR0 + 0, this,
-                                std::bind(&HDC::IOReadDataRegisterDWord, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWrite(BAR0 + 0, this,
-                            std::bind(&HDC::IOWriteDataRegisterByte, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWriteWord(BAR0 + 0, this,
-                                std::bind(&HDC::IOWriteDataRegisterWord, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWriteDWord(BAR0 + 0, this,
-                                 std::bind(&HDC::IOWriteDataRegisterDWord, this, channel, std::placeholders::_2));
-
-    // 01F1 - Status register (R)
-    // 01F1	w	WPC/4  (Write Precompensation Cylinder divided by 4)
-    bus->ConnectIOPortRead(BAR0 + 1, this, std::bind(&HDC::IOReadErrorRegister, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWrite(BAR0 + 1, this,
-                            std::bind(&HDC::IOWriteCommandBlockFeatures, this, channel, std::placeholders::_2));
-
-    // Command block
-    // 01F2	r/w	sector count
-    // 01F3	r/w	sector number
-    // 01F4	r/w	cylinder low
-    // 01F5	r/w	cylinder high
-    bus->ConnectIOPortRead(BAR0 + 2, this,
-                           std::bind(&HDC::IOReadCommandBlockSectorCount, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWrite(BAR0 + 2, this,
-                            std::bind(&HDC::IOWriteCommandBlockSectorCount, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortRead(BAR0 + 3, this,
-                           std::bind(&HDC::IOReadCommandBlockSectorNumber, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWrite(BAR0 + 3, this,
-                            std::bind(&HDC::IOWriteCommandBlockSectorNumber, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortRead(BAR0 + 4, this,
-                           std::bind(&HDC::IOReadCommandBlockCylinderLow, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWrite(BAR0 + 4, this,
-                            std::bind(&HDC::IOWriteCommandBlockCylinderLow, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortRead(BAR0 + 5, this,
-                           std::bind(&HDC::IOReadCommandBlockCylinderHigh, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWrite(BAR0 + 5, this,
-                            std::bind(&HDC::IOWriteCommandBlockCylinderHigh, this, channel, std::placeholders::_2));
-
-    // 01F6: Drive select (R/W)
-    bus->ConnectIOPortRead(BAR0 + 6, this,
-                           std::bind(&HDC::IOReadDriveSelectRegister, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWrite(BAR0 + 6, this,
-                            std::bind(&HDC::IOWriteDriveSelectRegister, this, channel, std::placeholders::_2));
-
-    // 01F7 - Status register (R) / Command register (W)
-    bus->ConnectIOPortRead(BAR0 + 7, this, std::bind(&HDC::IOReadStatusRegister, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWrite(BAR0 + 7, this,
-                            std::bind(&HDC::IOWriteCommandRegister, this, channel, std::placeholders::_2));
-
-    // 03F7: Alternate status register (R) / Control register (W)
-    bus->ConnectIOPortRead(BAR1 + 0, this,
-                           std::bind(&HDC::IOReadAltStatusRegister, this, channel, std::placeholders::_2));
-    bus->ConnectIOPortWrite(BAR1 + 0, this,
-                            std::bind(&HDC::IOWriteControlRegister, this, channel, std::placeholders::_2));
+    ConnectIOPorts(bus, channel, BAR0, BAR1, irq);
   }
 }
 
-void HDC::SoftReset(u32 channel)
+void HDC::ConnectIOPorts(Bus* bus, u32 channel, u16 BAR0, u16 BAR1, u8 irq)
+{
+  // 01F0 - Data register (R/W)
+  bus->ConnectIOPortRead(BAR0 + 0, this, std::bind(&HDC::IOReadDataRegisterByte, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortReadWord(BAR0 + 0, this,
+                             std::bind(&HDC::IOReadDataRegisterWord, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortReadDWord(BAR0 + 0, this,
+                              std::bind(&HDC::IOReadDataRegisterDWord, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWrite(BAR0 + 0, this,
+                          std::bind(&HDC::IOWriteDataRegisterByte, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWriteWord(BAR0 + 0, this,
+                              std::bind(&HDC::IOWriteDataRegisterWord, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWriteDWord(BAR0 + 0, this,
+                               std::bind(&HDC::IOWriteDataRegisterDWord, this, channel, std::placeholders::_2));
+
+  // 01F1 - Status register (R)
+  // 01F1	w	WPC/4  (Write Precompensation Cylinder divided by 4)
+  bus->ConnectIOPortRead(BAR0 + 1, this, std::bind(&HDC::IOReadErrorRegister, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWrite(BAR0 + 1, this,
+                          std::bind(&HDC::IOWriteCommandBlockFeatures, this, channel, std::placeholders::_2));
+
+  // Command block
+  // 01F2	r/w	sector count
+  // 01F3	r/w	sector number
+  // 01F4	r/w	cylinder low
+  // 01F5	r/w	cylinder high
+  bus->ConnectIOPortRead(BAR0 + 2, this,
+                         std::bind(&HDC::IOReadCommandBlockSectorCount, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWrite(BAR0 + 2, this,
+                          std::bind(&HDC::IOWriteCommandBlockSectorCount, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortRead(BAR0 + 3, this,
+                         std::bind(&HDC::IOReadCommandBlockSectorNumber, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWrite(BAR0 + 3, this,
+                          std::bind(&HDC::IOWriteCommandBlockSectorNumber, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortRead(BAR0 + 4, this,
+                         std::bind(&HDC::IOReadCommandBlockCylinderLow, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWrite(BAR0 + 4, this,
+                          std::bind(&HDC::IOWriteCommandBlockCylinderLow, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortRead(BAR0 + 5, this,
+                         std::bind(&HDC::IOReadCommandBlockCylinderHigh, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWrite(BAR0 + 5, this,
+                          std::bind(&HDC::IOWriteCommandBlockCylinderHigh, this, channel, std::placeholders::_2));
+
+  // 01F6: Drive select (R/W)
+  bus->ConnectIOPortRead(BAR0 + 6, this,
+                         std::bind(&HDC::IOReadDriveSelectRegister, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWrite(BAR0 + 6, this,
+                          std::bind(&HDC::IOWriteDriveSelectRegister, this, channel, std::placeholders::_2));
+
+  // 01F7 - Status register (R) / Command register (W)
+  bus->ConnectIOPortRead(BAR0 + 7, this, std::bind(&HDC::IOReadStatusRegister, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWrite(BAR0 + 7, this,
+                          std::bind(&HDC::IOWriteCommandRegister, this, channel, std::placeholders::_2));
+
+  // 03F7: Alternate status register (R) / Control register (W)
+  bus->ConnectIOPortRead(BAR1 + 0, this,
+                         std::bind(&HDC::IOReadAltStatusRegister, this, channel, std::placeholders::_2));
+  bus->ConnectIOPortWrite(BAR1 + 0, this,
+                          std::bind(&HDC::IOWriteControlRegister, this, channel, std::placeholders::_2));
+
+  m_channels[channel].irq = irq;
+}
+
+void HDC::DoReset(u32 channel, bool hardware_reset)
 {
   Channel& cdata = m_channels[channel];
   for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
     if (cdata.devices[i])
-      cdata.devices[i]->DoReset(false);
+      cdata.devices[i]->DoReset(hardware_reset);
 
     cdata.device_interrupt_lines[i] = false;
   }
@@ -290,7 +310,7 @@ void HDC::IOReadStatusRegister(u32 channel, u8* value)
   }
 
   const ATADevice* device = GetCurrentDevice(channel);
-  *value = device ? device->ReadStatusRegister() : 0xFF;
+  *value = device ? device->ReadStatusRegister() : 0x00;
 }
 
 void HDC::IOReadAltStatusRegister(u32 channel, u8* value)
@@ -302,7 +322,7 @@ void HDC::IOReadAltStatusRegister(u32 channel, u8* value)
   }
 
   const ATADevice* device = GetCurrentDevice(channel);
-  *value = device ? device->ReadStatusRegister() : 0xFF;
+  *value = device ? device->ReadStatusRegister() : 0x00;
 }
 
 void HDC::IOWriteCommandRegister(u32 channel, u8 value)
@@ -335,8 +355,8 @@ void HDC::IOWriteControlRegister(u32 channel, u8 value)
   if (!m_channels[channel].control_register.software_reset && old_value.software_reset)
   {
     // Software reset
-    Log_DevPrintf("ATA controller software reset");
-    SoftReset(channel);
+    Log_DevPrintf("ATA channel %u software reset", channel);
+    DoReset(channel, false);
   }
 }
 

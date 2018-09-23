@@ -222,7 +222,7 @@ void ATACDROM::HandleATAPIIdentify()
   response.word_82 = (1 << 14) | (1 << 9) | (1 << 4);
 
   // 512 bytes total
-  SetupBuffer(sizeof(response), false);
+  SetupBuffer(sizeof(response), false, false);
   std::memcpy(m_buffer.data.data(), &response, sizeof(response));
   BufferReady(true);
 
@@ -246,7 +246,7 @@ void ATACDROM::HandleATAPIPacket()
   }
 
   // Setup the buffer for receiving the packet from the host.
-  SetupBuffer(m_packet_size, true);
+  SetupBuffer(m_packet_size, true, false);
   SetInterruptReason(true, false, false);
 
   // No interrupt is raised.
@@ -315,7 +315,7 @@ void ATACDROM::InterruptCallback()
   }
 
   // Set up the buffer.
-  SetupBuffer(Truncate16(m_cdrom.GetDataResponseSize()), false);
+  SetupBuffer(Truncate16(m_cdrom.GetDataResponseSize()), false, false);
   std::memcpy(m_buffer.data.data(), m_cdrom.GetDataBuffer(), m_buffer.size);
 
   // Update the command block with the response size.

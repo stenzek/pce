@@ -178,6 +178,7 @@ void ATADevice::DoReset(bool is_hardware_reset)
   m_registers.status.Reset();
   m_registers.error = 1;
   m_ata_controller->SetDeviceInterruptLine(m_ata_channel_number, m_ata_drive_number, false);
+  m_dmack = false;
   ResetBuffer();
 }
 
@@ -203,7 +204,7 @@ void ATADevice::RaiseInterrupt()
 
 void ATADevice::ReadDataPort(void* buffer, u32 size)
 {
-  if (!m_buffer.valid || m_buffer.is_write)
+  if (!m_buffer.valid || m_buffer.is_write || m_buffer.is_dma)
     return;
 
   const u32 bytes_to_copy = std::min(size, m_buffer.size - m_buffer.position);
@@ -216,7 +217,7 @@ void ATADevice::ReadDataPort(void* buffer, u32 size)
 
 void ATADevice::WriteDataPort(const void* buffer, u32 size)
 {
-  if (!m_buffer.valid || !m_buffer.is_write)
+  if (!m_buffer.valid || !m_buffer.is_write || m_buffer.is_dma)
     return;
 
   const u32 bytes_to_copy = std::min(size, m_buffer.size - m_buffer.position);
@@ -227,17 +228,24 @@ void ATADevice::WriteDataPort(const void* buffer, u32 size)
     OnBufferEnd();
 }
 
-void ATADevice::SetupBuffer(u32 size, bool is_write)
+void ATADevice::SetupBuffer(u32 size, bool is_write, bool dma)
 {
   m_buffer.size = size;
   m_buffer.position = 0;
   if (m_buffer.data.size() < m_buffer.size)
     m_buffer.data.resize(m_buffer.size);
   m_buffer.is_write = is_write;
+  m_buffer.is_dma = dma;
 }
 
 void ATADevice::ResetBuffer()
 {
+  if (m_buffer.is_dma)
+  {
+    m_ata_controller->SetDMARequest(m_ata_channel_number, m_ata_drive_number, false);
+    m_buffer.is_dma = false;
+  }
+
   m_buffer.size = 0;
   m_buffer.position = 0;
   m_buffer.is_write = false;
@@ -247,9 +255,51 @@ void ATADevice::ResetBuffer()
 void ATADevice::BufferReady(bool raise_interrupt)
 {
   m_buffer.valid = true;
-  m_registers.status.SetDRQ();
-  if (raise_interrupt)
-    RaiseInterrupt();
+  if (!m_buffer.is_dma)
+  {
+    m_registers.status.SetDRQ();
+    if (raise_interrupt)
+      RaiseInterrupt();
+  }
+  else
+  {
+    if (m_dmack)
+      DoDMATransfer();
+    else
+      m_ata_controller->SetDMARequest(m_ata_channel_number, m_ata_drive_number, true);
+  }
+}
+
+void ATADevice::DoDMATransfer()
+{
+  if (!m_buffer.valid)
+    return;
+
+  // If this is a read, we need to copy from the buffer to memory.
+  // If it's a write, we copy from memory to the buffer.
+  // This is why we invert the is_write, because the bus master's point of view is reversed.
+  const u32 remaining = m_buffer.size - m_buffer.position;
+  const u32 written = m_ata_controller->DMATransfer(m_ata_channel_number, m_ata_drive_number, !m_buffer.is_write,
+                                                    m_buffer.data.data(), remaining);
+  m_buffer.position += written;
+  if (m_buffer.position >= m_buffer.size)
+    OnBufferEnd();
+}
+
+bool ATADevice::SupportsDMA() const
+{
+  return false;
+}
+
+void ATADevice::SetDMACK(bool active)
+{
+  Log_DevPrintf("ATA device %u/%u DMACK=%s", m_ata_channel_number, m_ata_drive_number, active ? "active" : "inactive");
+  m_dmack = active;
+  if (active)
+  {
+    // Transfer any bytes which we have available.
+    DoDMATransfer();
+  }
 }
 
 } // namespace HW

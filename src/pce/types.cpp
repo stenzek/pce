@@ -18,6 +18,7 @@
 #include "pce/hw/i8259_pic.h"
 #include "pce/hw/pci_bus.h"
 #include "pce/hw/pci_device.h"
+#include "pce/hw/pci_ide.h"
 #include "pce/hw/pcspeaker.h"
 #include "pce/hw/serial.h"
 #include "pce/hw/serial_mouse.h"
@@ -71,6 +72,7 @@ void RegisterAllTypes()
   REGISTER_HW_TYPE(i8237_DMA);
   REGISTER_HW_TYPE(i8253_PIT);
   REGISTER_HW_TYPE(i8259_PIC);
+  REGISTER_HW_TYPE(PCIIDE);
   REGISTER_HW_TYPE(PCSpeaker);
   REGISTER_HW_TYPE(Serial);
   REGISTER_HW_TYPE(SerialMouse);
