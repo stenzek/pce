@@ -97,9 +97,6 @@ private:
   u32 m_heads;
   u32 m_sectors_per_track;
 
-  u32 m_ata_channel_number;
-  u32 m_ata_drive_number;
-
   // parameters in current translation mode
   u32 m_current_num_cylinders = 0;
   u32 m_current_num_heads = 0;
