@@ -1641,6 +1641,19 @@ void Interpreter::Execute_Operation_MOV(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
 
+  if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
+    cpu->AddCycles(CYCLES_MOV_REG_IMM);
+  else if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Memory)
+    cpu->AddCycles(CYCLES_MOV_REG_MEM);
+  else if constexpr (dst_mode == OperandMode_Memory && src_mode == OperandMode_Register)
+    cpu->AddCycles(CYCLES_MOV_RM_MEM_REG);
+  else if constexpr (dst_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_MOV_RM_MEM_REG, cpu->idata.ModRM_RM_IsReg());
+  else if constexpr (src_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_MOV_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+  else
+    static_assert(false, "unknown mode");
+
   if (actual_size == OperandSize_8)
   {
     uint8 value = ReadByteOperand<src_mode, src_constant>(cpu);
@@ -1656,24 +1669,6 @@ void Interpreter::Execute_Operation_MOV(CPU* cpu)
     uint32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
-    cpu->AddCycles(CYCLES_MOV_REG_IMM);
-  else if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Memory)
-    cpu->AddCycles(CYCLES_MOV_REG_MEM);
-  else if constexpr (dst_mode == OperandMode_Memory && src_mode == OperandMode_Register)
-    cpu->AddCycles(CYCLES_MOV_RM_MEM_REG);
-  else if constexpr (dst_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_MOV_RM_MEM_REG, cpu->idata.ModRM_RM_IsReg());
-  else if constexpr (src_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_MOV_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1683,6 +1678,11 @@ void Interpreter::Execute_Operation_MOVZX(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
+
+  if constexpr (dst_mode == OperandMode_ModRM_Reg && src_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_MOVZX_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+  else
+    static_assert(false, "unknown mode");
 
   if (actual_size == OperandSize_16)
   {
@@ -1694,16 +1694,6 @@ void Interpreter::Execute_Operation_MOVZX(CPU* cpu)
     uint32 value = ReadZeroExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  if constexpr (dst_mode == OperandMode_ModRM_Reg && src_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_MOVZX_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1713,6 +1703,11 @@ void Interpreter::Execute_Operation_MOVSX(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
+
+  if constexpr (dst_mode == OperandMode_ModRM_Reg && src_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_MOVSX_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+  else
+    static_assert(false, "unknown mode");
 
   if (actual_size == OperandSize_16)
   {
@@ -1724,16 +1719,6 @@ void Interpreter::Execute_Operation_MOVSX(CPU* cpu)
     uint32 value = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  if constexpr (dst_mode == OperandMode_ModRM_Reg && src_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_MOVSX_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1745,11 +1730,6 @@ void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
   CalculateEffectiveAddress<src_mode>(cpu);
 
   const uint8 segreg = cpu->idata.GetModRM_Reg();
-  if (segreg >= Segment_Count)
-  {
-    cpu->RaiseException(Interrupt_InvalidOpcode);
-    return;
-  }
 
   // TODO: Loading the SS register with a MOV instruction inhibits all interrupts until after the execution
   // of the next instruction. This operation allows a stack pointer to be loaded into the ESP register with the next
@@ -1758,9 +1738,11 @@ void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
   if constexpr (dst_mode == OperandMode_ModRM_SegmentReg)
   {
     // Loading segment register.
+    cpu->AddCyclesPMode(cpu->idata.ModRM_RM_IsReg() ? CYCLES_MOV_SREG_RM_REG : CYCLES_MOV_SREG_RM_MEM);
+
     // The MOV instruction cannot be used to load the CS register. Attempting to do so results in an invalid opcode
     // exception (#UD).
-    if (segreg == Segment_CS)
+    if (segreg >= Segment_Count || segreg == Segment_CS)
     {
       cpu->RaiseException(Interrupt_InvalidOpcode);
       return;
@@ -1768,12 +1750,18 @@ void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
 
     uint16 value = ReadWordOperand<src_mode, src_constant>(cpu);
     cpu->LoadSegmentRegister(static_cast<CPU_X86::Segment>(segreg), value);
-    cpu->AddCyclesPMode(cpu->idata.ModRM_RM_IsReg() ? CYCLES_MOV_SREG_RM_REG : CYCLES_MOV_SREG_RM_MEM);
   }
   else
   {
-    // Storing segment register - these are zero-extended when the operand size is 32-bit and the destination is a
-    // register.
+    // Storing segment register.
+    cpu->AddCyclesRM(CYCLES_MOV_RM_MEM_SREG, cpu->idata.ModRM_RM_IsReg());
+    if (segreg >= Segment_Count)
+    {
+      cpu->RaiseException(Interrupt_InvalidOpcode);
+      return;
+    }
+
+    // These are zero-extended when the operand size is 32-bit and the destination is a register.
     uint16 value = cpu->m_registers.segment_selectors[segreg];
     if constexpr (dst_mode == OperandMode_ModRM_RM)
     {
@@ -1786,8 +1774,6 @@ void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
     {
       WriteWordOperand<dst_mode, dst_constant>(cpu, value);
     }
-
-    cpu->AddCyclesRM(CYCLES_MOV_RM_MEM_SREG, cpu->idata.ModRM_RM_IsReg());
   }
 }
 
@@ -1799,6 +1785,7 @@ void Interpreter::Execute_Operation_XCHG(CPU* cpu)
   static_assert(dst_size == src_size, "source and destination operands are of same size");
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
+  cpu->AddCyclesRM(CYCLES_XCHG_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
   // In memory version, memory is op0, register is op1. Memory must be written first.
   if (actual_size == OperandSize_8)
@@ -1825,13 +1812,6 @@ void Interpreter::Execute_Operation_XCHG(CPU* cpu)
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value1);
     WriteDWordOperand<src_mode, src_constant>(cpu, value0);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  cpu->AddCyclesRM(CYCLES_XCHG_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
@@ -1842,6 +1822,7 @@ void Interpreter::Execute_Operation_SHL(CPU* cpu)
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
   CalculateEffectiveAddress<val_mode>(cpu);
   CalculateEffectiveAddress<count_mode>(cpu);
+  cpu->AddCyclesRM(CYCLES_ALU_RM_MEM_REG, cpu->idata.ModRM_RM_IsReg());
 
   // Shift amounts will always be uint8
   // The 8086 does not mask the shift count. However, all other IA-32 processors
@@ -1904,13 +1885,6 @@ void Interpreter::Execute_Operation_SHL(CPU* cpu)
     SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
     SET_FLAG(&cpu->m_registers, AF, false);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  cpu->AddCyclesRM(CYCLES_ALU_RM_MEM_REG, cpu->idata.ModRM_RM_IsReg());
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
@@ -1921,6 +1895,7 @@ void Interpreter::Execute_Operation_SHR(CPU* cpu)
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
   CalculateEffectiveAddress<val_mode>(cpu);
   CalculateEffectiveAddress<count_mode>(cpu);
+  cpu->AddCyclesRM(CYCLES_ALU_RM_MEM_REG, cpu->idata.ModRM_RM_IsReg());
 
   // Shift amounts will always be uint8
   // The 8086 does not mask the shift count. However, all other IA-32 processors
@@ -1974,13 +1949,6 @@ void Interpreter::Execute_Operation_SHR(CPU* cpu)
     SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
     SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  cpu->AddCyclesRM(CYCLES_ALU_RM_MEM_REG, cpu->idata.ModRM_RM_IsReg());
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
@@ -1991,6 +1959,9 @@ void Interpreter::Execute_Operation_SAR(CPU* cpu)
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
   CalculateEffectiveAddress<val_mode>(cpu);
   CalculateEffectiveAddress<count_mode>(cpu);
+
+  // Cycles have to come first due to the early-out below.
+  cpu->AddCyclesRM(CYCLES_ALU_RM_MEM_REG, cpu->idata.ModRM_RM_IsReg());
 
   // Shift amounts will always be uint8
   // The 8086 does not mask the shift count. However, all other IA-32 processors
@@ -2044,13 +2015,6 @@ void Interpreter::Execute_Operation_SAR(CPU* cpu)
     SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
     SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  cpu->AddCyclesRM(CYCLES_ALU_RM_MEM_REG, cpu->idata.ModRM_RM_IsReg());
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
@@ -2061,6 +2025,9 @@ void Interpreter::Execute_Operation_RCL(CPU* cpu)
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
   CalculateEffectiveAddress<val_mode>(cpu);
   CalculateEffectiveAddress<count_mode>(cpu);
+
+  // Cycles have to come first due to the early-out below.
+  cpu->AddCyclesRM(CYCLES_RCL_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
   // The processor restricts the count to a number between 0 and 31 by masking all the bits in the count operand except
   // the 5 least-significant bits.
@@ -2121,13 +2088,6 @@ void Interpreter::Execute_Operation_RCL(CPU* cpu)
     SET_FLAG(&cpu->m_registers, CF, (carry != 0));
     SET_FLAG(&cpu->m_registers, OF, (((value >> 31) ^ carry) != 0));
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  cpu->AddCyclesRM(CYCLES_RCL_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
@@ -2138,6 +2098,9 @@ void Interpreter::Execute_Operation_RCR(CPU* cpu)
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
   CalculateEffectiveAddress<val_mode>(cpu);
   CalculateEffectiveAddress<count_mode>(cpu);
+
+  // Cycles have to come first due to the early-out below.
+  cpu->AddCyclesRM(CYCLES_RCL_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
   // The processor restricts the count to a number between 0 and 31 by masking all the bits in the count operand except
   // the 5 least-significant bits.
@@ -2198,13 +2161,6 @@ void Interpreter::Execute_Operation_RCR(CPU* cpu)
     SET_FLAG(&cpu->m_registers, CF, (carry != 0));
     SET_FLAG(&cpu->m_registers, OF, (((value >> 31) ^ ((value >> 30) & 1)) != 0));
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  cpu->AddCyclesRM(CYCLES_RCL_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
@@ -2215,6 +2171,9 @@ void Interpreter::Execute_Operation_ROL(CPU* cpu)
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
   CalculateEffectiveAddress<val_mode>(cpu);
   CalculateEffectiveAddress<count_mode>(cpu);
+
+  // Cycles have to come first due to the early-out below.
+  cpu->AddCyclesRM(CYCLES_ROL_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
   // Hopefully this will compile down to a native ROL instruction
   if (actual_size == OperandSize_8)
@@ -2277,13 +2236,6 @@ void Interpreter::Execute_Operation_ROL(CPU* cpu)
     SET_FLAG(&cpu->m_registers, CF, (b0 != 0));
     SET_FLAG(&cpu->m_registers, OF, ((b0 ^ b31) != 0));
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  cpu->AddCyclesRM(CYCLES_ROL_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
@@ -2294,6 +2246,9 @@ void Interpreter::Execute_Operation_ROR(CPU* cpu)
   static_assert(count_size == OperandSize_8, "count is a byte-sized operand");
   CalculateEffectiveAddress<val_mode>(cpu);
   CalculateEffectiveAddress<count_mode>(cpu);
+
+  // Cycles have to come first due to the early-out below.
+  cpu->AddCyclesRM(CYCLES_ROL_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
   // Hopefully this will compile down to a native ROR instruction
   if (actual_size == OperandSize_8)
@@ -2356,13 +2311,6 @@ void Interpreter::Execute_Operation_ROR(CPU* cpu)
     SET_FLAG(&cpu->m_registers, CF, (b31 != 0));
     SET_FLAG(&cpu->m_registers, OF, ((b30 ^ b31) != 0));
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  cpu->AddCyclesRM(CYCLES_ROL_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -2372,6 +2320,13 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
+
+  if constexpr (src_mode == OperandMode_Immediate)
+    cpu->AddCyclesPMode(CYCLES_IN_IMM);
+  else if constexpr (src_mode == OperandMode_Register)
+    cpu->AddCyclesPMode(CYCLES_IN_EDX);
+  else
+    static_assert(false, "unknown mode");
 
   const uint16 port_number = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
   if (actual_size == OperandSize_8)
@@ -2410,18 +2365,6 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
     cpu->m_bus->ReadIOPortDWord(port_number, &value);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  if constexpr (src_mode == OperandMode_Immediate)
-    cpu->AddCyclesPMode(CYCLES_IN_IMM);
-  else if constexpr (src_mode == OperandMode_Register)
-    cpu->AddCyclesPMode(CYCLES_IN_EDX);
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -2431,6 +2374,13 @@ void Interpreter::Execute_Operation_OUT(CPU* cpu)
   const OperandSize actual_size = (src_size == OperandSize_Count) ? cpu->idata.operand_size : src_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
+
+  if constexpr (dst_mode == OperandMode_Immediate)
+    cpu->AddCyclesPMode(CYCLES_OUT_IMM);
+  else if constexpr (dst_mode == OperandMode_Register)
+    cpu->AddCyclesPMode(CYCLES_OUT_EDX);
+  else
+    static_assert(false, "unknown mode");
 
   const uint16 port_number = ReadZeroExtendedWordOperand<dst_size, dst_mode, dst_constant>(cpu);
   if (actual_size == OperandSize_8)
@@ -2466,18 +2416,6 @@ void Interpreter::Execute_Operation_OUT(CPU* cpu)
     uint32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
     cpu->m_bus->WriteIOPortDWord(port_number, value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  if constexpr (dst_mode == OperandMode_Immediate)
-    cpu->AddCyclesPMode(CYCLES_OUT_IMM);
-  else if constexpr (dst_mode == OperandMode_Register)
-    cpu->AddCyclesPMode(CYCLES_OUT_EDX);
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
@@ -2485,6 +2423,13 @@ void Interpreter::Execute_Operation_INC(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
+
+  if constexpr (val_mode == OperandMode_Register)
+    cpu->AddCycles(CYCLES_INC_RM_REG);
+  else if constexpr (val_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_INC_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+  else
+    static_assert(false, "unknown mode");
 
   // Preserve CF
   bool cf = cpu->m_registers.EFLAGS.CF;
@@ -2506,20 +2451,8 @@ void Interpreter::Execute_Operation_INC(CPU* cpu)
     uint32 new_value = ALUOp_Add32(&cpu->m_registers, value, 1);
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
 
   SET_FLAG(&cpu->m_registers, CF, cf);
-
-  if constexpr (val_mode == OperandMode_Register)
-    cpu->AddCycles(CYCLES_INC_RM_REG);
-  else if constexpr (val_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_INC_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
@@ -2527,6 +2460,13 @@ void Interpreter::Execute_Operation_DEC(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
+
+  if constexpr (val_mode == OperandMode_Register)
+    cpu->AddCycles(CYCLES_INC_RM_REG);
+  else if constexpr (val_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_INC_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+  else
+    static_assert(false, "unknown mode");
 
   // Preserve CF
   bool cf = cpu->m_registers.EFLAGS.CF;
@@ -2548,20 +2488,8 @@ void Interpreter::Execute_Operation_DEC(CPU* cpu)
     uint32 new_value = ALUOp_Sub32(&cpu->m_registers, value, 1);
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
 
   SET_FLAG(&cpu->m_registers, CF, cf);
-
-  if constexpr (val_mode == OperandMode_Register)
-    cpu->AddCycles(CYCLES_INC_RM_REG);
-  else if constexpr (val_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_INC_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
@@ -2569,6 +2497,13 @@ void Interpreter::Execute_Operation_NOT(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
+
+  if constexpr (val_mode == OperandMode_Register)
+    cpu->AddCycles(CYCLES_NEG_RM_REG);
+  else if constexpr (val_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_NEG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+  else
+    static_assert(false, "unknown mode");
 
   if (actual_size == OperandSize_8)
   {
@@ -2588,18 +2523,6 @@ void Interpreter::Execute_Operation_NOT(CPU* cpu)
     uint32 new_value = ~value;
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  if constexpr (val_mode == OperandMode_Register)
-    cpu->AddCycles(CYCLES_NEG_RM_REG);
-  else if constexpr (val_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_NEG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
@@ -2607,6 +2530,13 @@ void Interpreter::Execute_Operation_NEG(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   CalculateEffectiveAddress<val_mode>(cpu);
+
+  if constexpr (val_mode == OperandMode_Register)
+    cpu->AddCycles(CYCLES_NEG_RM_REG);
+  else if constexpr (val_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_NEG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+  else
+    static_assert(false, "unknown mode");
 
   if (actual_size == OperandSize_8)
   {
@@ -2635,18 +2565,6 @@ void Interpreter::Execute_Operation_NEG(CPU* cpu)
     ALUOp_Sub32(&cpu->m_registers, 0, value);
     SET_FLAG(&cpu->m_registers, CF, (new_value != 0));
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  if constexpr (val_mode == OperandMode_Register)
-    cpu->AddCycles(CYCLES_NEG_RM_REG);
-  else if constexpr (val_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_NEG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
@@ -2698,11 +2616,6 @@ void Interpreter::Execute_Operation_MUL(CPU* cpu)
     SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.EAX));
     cpu->AddCyclesRM(CYCLES_MUL_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
 }
 
 template<OperandSize op1_size, OperandMode op1_mode, uint32 op1_constant, OperandSize op2_size, OperandMode op2_mode,
@@ -2727,12 +2640,12 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
 
     cpu->m_registers.AX = uint16(result);
 
+    cpu->AddCyclesRM(CYCLES_IMUL_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
     cpu->m_registers.EFLAGS.OF = (int16(int8(truncated_result)) != result);
     cpu->m_registers.EFLAGS.CF = (int16(int8(truncated_result)) != result);
     cpu->m_registers.EFLAGS.SF = IsSign(truncated_result);
     cpu->m_registers.EFLAGS.ZF = IsZero(truncated_result);
     cpu->m_registers.EFLAGS.PF = IsParity(truncated_result);
-    cpu->AddCyclesRM(CYCLES_IMUL_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
   else if (actual_size == OperandSize_16)
   {
@@ -2748,8 +2661,8 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       result = lhs * rhs;
       truncated_result = uint16(uint32(result) & 0xFFFF);
 
-      WriteWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
       cpu->AddCyclesRM(CYCLES_IMUL_16_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+      WriteWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
     }
     else if constexpr (op2_mode != OperandMode_None)
     {
@@ -2759,8 +2672,8 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       result = lhs * rhs;
       truncated_result = uint16(uint32(result) & 0xFFFF);
 
-      WriteWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
       cpu->AddCyclesRM(CYCLES_IMUL_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+      WriteWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
     }
     else
     {
@@ -2770,9 +2683,9 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       result = lhs * rhs;
       truncated_result = uint16(uint32(result) & 0xFFFF);
 
+      cpu->AddCyclesRM(CYCLES_IMUL_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
       cpu->m_registers.DX = uint16((uint32(result) >> 16) & 0xFFFF);
       cpu->m_registers.AX = truncated_result;
-      cpu->AddCyclesRM(CYCLES_IMUL_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
     }
 
     cpu->m_registers.EFLAGS.OF = (int32(int16(truncated_result)) != result);
@@ -2795,8 +2708,8 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       result = lhs * rhs;
       truncated_result = Truncate32(result);
 
-      WriteDWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
       cpu->AddCyclesRM(CYCLES_IMUL_32_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+      WriteDWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
     }
     else if constexpr (op2_mode != OperandMode_None)
     {
@@ -2806,8 +2719,8 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       result = lhs * rhs;
       truncated_result = Truncate32(result);
 
-      WriteDWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
       cpu->AddCyclesRM(CYCLES_IMUL_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+      WriteDWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
     }
     else
     {
@@ -2817,6 +2730,7 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       result = lhs * rhs;
       truncated_result = Truncate32(result);
 
+      cpu->AddCyclesRM(CYCLES_IMUL_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
       cpu->m_registers.EDX = Truncate32(uint64(result) >> 32);
       cpu->m_registers.EAX = truncated_result;
     }
@@ -2826,12 +2740,6 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
     cpu->m_registers.EFLAGS.SF = IsSign(truncated_result);
     cpu->m_registers.EFLAGS.ZF = IsZero(truncated_result);
     cpu->m_registers.EFLAGS.PF = IsParity(truncated_result);
-    cpu->AddCyclesRM(CYCLES_IMUL_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-  }
-  else
-  {
-    DebugUnreachableCode();
-    return;
   }
 }
 
@@ -2843,6 +2751,8 @@ void Interpreter::Execute_Operation_DIV(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
+    cpu->AddCyclesRM(CYCLES_DIV_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+
     // Eight-bit divides use AX as a source
     uint8 divisor = ReadByteOperand<val_mode, val_constant>(cpu);
     if (divisor == 0)
@@ -2862,10 +2772,11 @@ void Interpreter::Execute_Operation_DIV(CPU* cpu)
 
     cpu->m_registers.AL = uint8(quotient);
     cpu->m_registers.AH = uint8(remainder);
-    cpu->AddCyclesRM(CYCLES_DIV_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
   else if (actual_size == OperandSize_16)
   {
+    cpu->AddCyclesRM(CYCLES_DIV_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+
     // 16-bit divides use DX:AX as a source
     uint16 divisor = ReadWordOperand<val_mode, val_constant>(cpu);
     if (divisor == 0)
@@ -2885,10 +2796,11 @@ void Interpreter::Execute_Operation_DIV(CPU* cpu)
 
     cpu->m_registers.AX = uint16(quotient);
     cpu->m_registers.DX = uint16(remainder);
-    cpu->AddCyclesRM(CYCLES_DIV_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
   else if (actual_size == OperandSize_32)
   {
+    cpu->AddCyclesRM(CYCLES_DIV_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+
     // 32-bit divides use EDX:EAX as a source
     uint32 divisor = ReadDWordOperand<val_mode, val_constant>(cpu);
     if (divisor == 0)
@@ -2908,7 +2820,6 @@ void Interpreter::Execute_Operation_DIV(CPU* cpu)
 
     cpu->m_registers.EAX = Truncate32(quotient);
     cpu->m_registers.EDX = Truncate32(remainder);
-    cpu->AddCyclesRM(CYCLES_DIV_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
   else
   {
@@ -2925,6 +2836,8 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
+    cpu->AddCyclesRM(CYCLES_IDIV_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+
     // Eight-bit divides use AX as a source
     int8 divisor = int8(ReadByteOperand<val_mode, val_constant>(cpu));
     if (divisor == 0)
@@ -2946,10 +2859,11 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
 
     cpu->m_registers.AL = truncated_quotient;
     cpu->m_registers.AH = truncated_remainder;
-    cpu->AddCyclesRM(CYCLES_IDIV_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
   else if (actual_size == OperandSize_16)
   {
+    cpu->AddCyclesRM(CYCLES_IDIV_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+
     // 16-bit divides use DX:AX as a source
     int16 divisor = int16(ReadWordOperand<val_mode, val_constant>(cpu));
     if (divisor == 0)
@@ -2971,10 +2885,11 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
 
     cpu->m_registers.AX = truncated_quotient;
     cpu->m_registers.DX = truncated_remainder;
-    cpu->AddCyclesRM(CYCLES_IDIV_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
   else if (actual_size == OperandSize_32)
   {
+    cpu->AddCyclesRM(CYCLES_IDIV_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
+
     // 16-bit divides use DX:AX as a source
     int32 divisor = int32(ReadDWordOperand<val_mode, val_constant>(cpu));
     if (divisor == 0)
@@ -2996,12 +2911,6 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
 
     cpu->m_registers.EAX = truncated_quotient;
     cpu->m_registers.EDX = truncated_remainder;
-    cpu->AddCyclesRM(CYCLES_IDIV_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-  }
-  else
-  {
-    DebugUnreachableCode();
-    return;
   }
 }
 
@@ -3009,6 +2918,16 @@ template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
 void Interpreter::Execute_Operation_PUSH(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
+
+  if constexpr (src_mode == OperandMode_Immediate)
+    cpu->AddCycles(CYCLES_PUSH_IMM);
+  else if constexpr (src_mode == OperandMode_Register)
+    cpu->AddCycles(CYCLES_PUSH_REG);
+  else if constexpr (src_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_PUSH_MEM, cpu->idata.ModRM_RM_IsReg());
+  else
+    static_assert(false, "unknown mode");
+
   if (cpu->idata.operand_size == OperandSize_16)
   {
     uint16 value = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
@@ -3019,20 +2938,6 @@ void Interpreter::Execute_Operation_PUSH(CPU* cpu)
     uint32 value = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
     cpu->PushDWord(value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-
-  if constexpr (src_mode == OperandMode_Immediate)
-    cpu->AddCycles(CYCLES_PUSH_IMM);
-  else if constexpr (src_mode == OperandMode_Register)
-    cpu->AddCycles(CYCLES_PUSH_REG);
-  else if constexpr (src_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_PUSH_MEM, cpu->idata.ModRM_RM_IsReg());
-  else
-    static_assert(false, "unknown mode");
 }
 
 template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
@@ -3041,14 +2946,14 @@ void Interpreter::Execute_Operation_PUSH_Sreg(CPU* cpu)
   static_assert(src_size == OperandSize_16 && src_mode == OperandMode_SegmentRegister && src_constant < Segment_Count,
                 "operands are of correct type and in range");
 
+  cpu->AddCycles(CYCLES_PUSH_SREG);
+
   // TODO: Is this correct for 32-bits? Bochs only writes 2 of the 4 bytes.
   uint16 selector = cpu->m_registers.segment_selectors[src_constant];
   if (cpu->idata.operand_size == OperandSize_16)
     cpu->PushWord(selector);
   else
     cpu->PushDWord(SignExtend32(selector));
-
-  cpu->AddCycles(CYCLES_PUSH_SREG);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
@@ -3057,6 +2962,8 @@ void Interpreter::Execute_Operation_POP_Sreg(CPU* cpu)
   static_assert(dst_size == OperandSize_16 && dst_mode == OperandMode_SegmentRegister && dst_constant < Segment_Count,
                 "operands are of correct type and in range");
 
+  cpu->AddCyclesPMode(CYCLES_POP_SREG);
+
   uint16 selector;
   if (cpu->idata.operand_size == OperandSize_16)
     selector = cpu->PopWord();
@@ -3064,13 +2971,19 @@ void Interpreter::Execute_Operation_POP_Sreg(CPU* cpu)
     selector = Truncate16(cpu->PopDWord());
 
   cpu->LoadSegmentRegister(static_cast<Segment>(dst_constant), selector);
-  cpu->AddCyclesPMode(CYCLES_POP_SREG);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_POP(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_Count, "operand size is current mode");
+
+  if constexpr (dst_mode == OperandMode_Register)
+    cpu->AddCycles(CYCLES_PUSH_REG);
+  else if constexpr (dst_mode == OperandMode_ModRM_RM)
+    cpu->AddCyclesRM(CYCLES_PUSH_MEM, cpu->idata.ModRM_RM_IsReg());
+  else
+    static_assert(false, "unknown mode");
 
   // POP can use ESP in the address calculations, in this case the value of ESP
   // is that after the pop operation has occurred, not before.
@@ -3086,17 +2999,11 @@ void Interpreter::Execute_Operation_POP(CPU* cpu)
     CalculateEffectiveAddress<dst_mode>(cpu);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
-
-  if constexpr (dst_mode == OperandMode_Register)
-    cpu->AddCycles(CYCLES_PUSH_REG);
-  else if constexpr (dst_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_PUSH_MEM, cpu->idata.ModRM_RM_IsReg());
-  else
-    static_assert(false, "unknown mode");
 }
 
 void Interpreter::Execute_Operation_PUSHA(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_PUSHA);
   if (cpu->idata.operand_size == OperandSize_16)
   {
     uint16 old_SP = cpu->m_registers.SP;
@@ -3121,16 +3028,12 @@ void Interpreter::Execute_Operation_PUSHA(CPU* cpu)
     cpu->PushDWord(cpu->m_registers.ESI);
     cpu->PushDWord(cpu->m_registers.EDI);
   }
-  else
-  {
-    DebugUnreachableCode();
-  }
-
-  cpu->AddCycles(CYCLES_PUSHA);
 }
 
 void Interpreter::Execute_Operation_POPA(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_POPA);
+
   // Assignment split from reading in case of exception.
   if (cpu->idata.operand_size == OperandSize_16)
   {
@@ -3168,12 +3071,6 @@ void Interpreter::Execute_Operation_POPA(CPU* cpu)
     cpu->m_registers.ECX = ECX;
     cpu->m_registers.EAX = EAX;
   }
-  else
-  {
-    DebugUnreachableCode();
-  }
-
-  cpu->AddCycles(CYCLES_POPA);
 }
 
 template<OperandSize frame_size, OperandMode frame_mode, uint32 frame_constant, OperandSize level_size,
@@ -3181,6 +3078,8 @@ template<OperandSize frame_size, OperandMode frame_mode, uint32 frame_constant, 
 void Interpreter::Execute_Operation_ENTER(CPU* cpu)
 {
   static_assert(frame_size == OperandSize_16 && level_size == OperandSize_8, "args have correct size");
+  cpu->AddCycles(CYCLES_ENTER);
+
   uint16 stack_frame_size = ReadWordOperand<frame_mode, frame_constant>(cpu);
   uint8 level = ReadByteOperand<level_mode, level_constant>(cpu);
 
@@ -3231,12 +3130,11 @@ void Interpreter::Execute_Operation_ENTER(CPU* cpu)
     cpu->m_registers.SP -= stack_frame_size;
   else
     cpu->m_registers.ESP -= stack_frame_size;
-
-  cpu->AddCycles(CYCLES_ENTER);
 }
 
 void Interpreter::Execute_Operation_LEAVE(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_LEAVE);
   if (cpu->m_stack_address_size == AddressSize_16)
     cpu->m_registers.SP = cpu->m_registers.BP;
   else
@@ -3246,10 +3144,6 @@ void Interpreter::Execute_Operation_LEAVE(CPU* cpu)
     cpu->m_registers.BP = cpu->PopWord();
   else if (cpu->idata.operand_size == OperandSize_32)
     cpu->m_registers.EBP = cpu->PopDWord();
-  else
-    DebugUnreachableCode();
-
-  cpu->AddCycles(CYCLES_LEAVE);
 }
 
 template<OperandSize sreg_size, OperandMode sreg_mode, uint32 sreg_constant, OperandSize reg_size, OperandMode reg_mode,
@@ -3260,6 +3154,7 @@ void Interpreter::Execute_Operation_LXS(CPU* cpu)
   static_assert(reg_mode == OperandMode_ModRM_Reg, "reg_mode is Register");
   static_assert(ptr_mode == OperandMode_ModRM_RM, "reg_mode is Pointer");
   CalculateEffectiveAddress<ptr_mode>(cpu);
+  cpu->AddCyclesPMode(CYCLES_LxS);
 
   uint16 segment_selector;
   VirtualMemoryAddress address;
@@ -3274,8 +3169,6 @@ void Interpreter::Execute_Operation_LXS(CPU* cpu)
     WriteDWordOperand<reg_mode, reg_constant>(cpu, address);
   else
     DebugUnreachableCode();
-
-  cpu->AddCyclesPMode(CYCLES_LxS);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -3285,22 +3178,19 @@ void Interpreter::Execute_Operation_LEA(CPU* cpu)
   static_assert(src_mode == OperandMode_ModRM_RM, "Source operand is a pointer");
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
+  cpu->AddCycles(CYCLES_LEA);
 
   // Calculate full address in instruction's address mode, truncate/extend to operand size.
   if (cpu->idata.operand_size == OperandSize_16)
     WriteWordOperand<dst_mode, dst_constant>(cpu, Truncate16(cpu->m_effective_address));
   else
     WriteDWordOperand<dst_mode, dst_constant>(cpu, cpu->m_effective_address);
-
-  cpu->AddCycles(CYCLES_LEA);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_JMP_Near(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
-  VirtualMemoryAddress jump_address = CalculateJumpTarget<dst_size, dst_mode, dst_constant>(cpu);
-  cpu->BranchTo(jump_address);
 
   if constexpr (dst_mode == OperandMode_Relative)
     cpu->AddCycles(CYCLES_JMP_NEAR);
@@ -3308,6 +3198,9 @@ void Interpreter::Execute_Operation_JMP_Near(CPU* cpu)
     cpu->AddCyclesRM(CYCLES_JMP_NEAR_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
     static_assert(false, "unknown mode");
+
+  VirtualMemoryAddress jump_address = CalculateJumpTarget<dst_size, dst_mode, dst_constant>(cpu);
+  cpu->BranchTo(jump_address);
 }
 
 template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
@@ -3321,8 +3214,8 @@ void Interpreter::Execute_Operation_Jcc(CPU* cpu)
   }
 
   VirtualMemoryAddress jump_address = CalculateJumpTarget<dst_size, dst_mode, dst_constant>(cpu);
-  cpu->BranchTo(jump_address);
   cpu->AddCycles((condition == JumpCondition_CXZero) ? CYCLES_JCXZ_TAKEN : CYCLES_Jcc_TAKEN);
+  cpu->BranchTo(jump_address);
 }
 
 template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
@@ -3350,13 +3243,6 @@ template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_CALL_Near(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
-  VirtualMemoryAddress jump_address = CalculateJumpTarget<dst_size, dst_mode, dst_constant>(cpu);
-  if (cpu->idata.operand_size == OperandSize_16)
-    cpu->PushWord(Truncate16(cpu->m_registers.EIP));
-  else
-    cpu->PushDWord(cpu->m_registers.EIP);
-
-  cpu->BranchTo(jump_address);
 
   if constexpr (dst_mode == OperandMode_Relative)
     cpu->AddCycles(CYCLES_CALL_NEAR);
@@ -3364,12 +3250,21 @@ void Interpreter::Execute_Operation_CALL_Near(CPU* cpu)
     cpu->AddCyclesRM(CYCLES_CALL_NEAR_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
     static_assert(false, "unknown mode");
+
+  VirtualMemoryAddress jump_address = CalculateJumpTarget<dst_size, dst_mode, dst_constant>(cpu);
+  if (cpu->idata.operand_size == OperandSize_16)
+    cpu->PushWord(Truncate16(cpu->m_registers.EIP));
+  else
+    cpu->PushDWord(cpu->m_registers.EIP);
+
+  cpu->BranchTo(jump_address);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_RET_Near(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
+  cpu->AddCycles(CYCLES_RET_NEAR);
 
   uint32 pop_count = 0;
   if constexpr (dst_mode != OperandMode_None)
@@ -3396,7 +3291,6 @@ void Interpreter::Execute_Operation_RET_Near(CPU* cpu)
     cpu->m_registers.ESP += pop_count;
 
   cpu->BranchTo(return_EIP);
-  cpu->AddCycles(CYCLES_RET_NEAR);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
@@ -3405,16 +3299,16 @@ void Interpreter::Execute_Operation_JMP_Far(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
 
-  uint16 segment_selector;
-  VirtualMemoryAddress address;
-  ReadFarAddressOperand<dst_mode>(cpu, actual_size, &segment_selector, &address);
-
   if constexpr (dst_mode == OperandMode_FarAddress)
     cpu->AddCycles(CYCLES_JMP_FAR);
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesPMode(CYCLES_JMP_FAR_PTR);
   else
     static_assert(false, "unknown mode");
+
+  uint16 segment_selector;
+  VirtualMemoryAddress address;
+  ReadFarAddressOperand<dst_mode>(cpu, actual_size, &segment_selector, &address);
 
   cpu->FarJump(segment_selector, address, actual_size);
 }
@@ -3425,16 +3319,16 @@ void Interpreter::Execute_Operation_CALL_Far(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
 
-  uint16 segment_selector;
-  VirtualMemoryAddress address;
-  ReadFarAddressOperand<dst_mode>(cpu, actual_size, &segment_selector, &address);
-
   if constexpr (dst_mode == OperandMode_FarAddress)
     cpu->AddCycles(CYCLES_CALL_FAR);
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesPMode(CYCLES_CALL_FAR_PTR);
   else
     static_assert(false, "unknown mode");
+
+  uint16 segment_selector;
+  VirtualMemoryAddress address;
+  ReadFarAddressOperand<dst_mode>(cpu, actual_size, &segment_selector, &address);
 
   cpu->FarCall(segment_selector, address, actual_size);
 }
@@ -3574,9 +3468,9 @@ void Interpreter::Execute_Operation_SALC(CPU* cpu)
 {
   // Undocumented instruction. Same as SBB AL, AL without modifying any flags.
   uint32 old_flags = cpu->m_registers.EFLAGS.bits;
+  cpu->AddCycles(CYCLES_ALU_REG_RM_REG);
   cpu->m_registers.AL = ALUOp_Sbb8(&cpu->m_registers, cpu->m_registers.AL, cpu->m_registers.AL);
   cpu->m_registers.EFLAGS.bits = old_flags;
-  cpu->AddCycles(CYCLES_ALU_REG_RM_REG);
 }
 
 void Interpreter::Execute_Operation_LAHF(CPU* cpu)
@@ -3592,15 +3486,15 @@ void Interpreter::Execute_Operation_LAHF(CPU* cpu)
   //     uint16 flags = GetFlags16();
   //     m_registers.AH = uint8(flags & 0xFF);
 
-  cpu->m_registers.AH = Truncate8(cpu->m_registers.EFLAGS.bits);
   cpu->AddCycles(CYCLES_LAHF);
+  cpu->m_registers.AH = Truncate8(cpu->m_registers.EFLAGS.bits);
 }
 
 void Interpreter::Execute_Operation_SAHF(CPU* cpu)
 {
   const uint32 change_mask = Flag_SF | Flag_ZF | Flag_AF | Flag_CF | Flag_PF;
-  cpu->SetFlags((cpu->m_registers.EFLAGS.bits & ~change_mask) | (ZeroExtend32(cpu->m_registers.AH) & change_mask));
   cpu->AddCycles(CYCLES_SAHF);
+  cpu->SetFlags((cpu->m_registers.EFLAGS.bits & ~change_mask) | (ZeroExtend32(cpu->m_registers.AH) & change_mask));
 }
 
 void Interpreter::Execute_Operation_PUSHF(CPU* cpu)
@@ -3748,6 +3642,8 @@ void Interpreter::Execute_Operation_XLAT(CPU* cpu)
 
 void Interpreter::Execute_Operation_AAA(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_BCD_ADDSUB);
+
   if ((cpu->m_registers.AL & 0xF) > 0x09 || cpu->m_registers.EFLAGS.AF)
   {
     cpu->m_registers.AX += 0x0106;
@@ -3765,11 +3661,12 @@ void Interpreter::Execute_Operation_AAA(CPU* cpu)
   SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
   SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
-  cpu->AddCycles(CYCLES_BCD_ADDSUB);
 }
 
 void Interpreter::Execute_Operation_AAS(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_BCD_ADDSUB);
+
   if ((cpu->m_registers.AL & 0xF) > 0x09 || cpu->m_registers.EFLAGS.AF)
   {
     cpu->m_registers.AX -= 0x0106;
@@ -3787,7 +3684,6 @@ void Interpreter::Execute_Operation_AAS(CPU* cpu)
   SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
   SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
-  cpu->AddCycles(CYCLES_BCD_ADDSUB);
 }
 
 template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
@@ -3838,6 +3734,8 @@ void Interpreter::Execute_Operation_AAD(CPU* cpu)
 
 void Interpreter::Execute_Operation_DAA(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_BCD_ADDSUB);
+
   uint8 old_AL = cpu->m_registers.AL;
   bool old_CF = cpu->m_registers.EFLAGS.CF;
 
@@ -3866,11 +3764,12 @@ void Interpreter::Execute_Operation_DAA(CPU* cpu)
   SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
   SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
-  cpu->AddCycles(CYCLES_BCD_ADDSUB);
 }
 
 void Interpreter::Execute_Operation_DAS(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_BCD_ADDSUB);
+
   uint8 old_AL = cpu->m_registers.AL;
   bool old_CF = cpu->m_registers.EFLAGS.CF;
 
@@ -3895,7 +3794,6 @@ void Interpreter::Execute_Operation_DAS(CPU* cpu)
   SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
   SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
-  cpu->AddCycles(CYCLES_BCD_ADDSUB);
 }
 
 template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
@@ -4239,7 +4137,6 @@ template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
 void Interpreter::Execute_Operation_LLDT(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_LLDT_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-
   if (cpu->InRealMode() || cpu->InVirtual8086Mode())
   {
     cpu->RaiseException(Interrupt_InvalidOpcode);
@@ -4261,7 +4158,6 @@ template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
 void Interpreter::Execute_Operation_LTR(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_LTR_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-
   if (cpu->InRealMode() || cpu->InVirtual8086Mode())
   {
     cpu->RaiseException(Interrupt_InvalidOpcode);
@@ -4282,6 +4178,9 @@ void Interpreter::Execute_Operation_LTR(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_SIDT(CPU* cpu)
 {
+  CalculateEffectiveAddress<dst_mode>(cpu);
+  cpu->AddCycles(CYCLES_SGDT);
+
   uint32 idt_address = Truncate32(cpu->m_idt_location.base_address);
   uint16 idt_limit = Truncate16(cpu->m_idt_location.limit);
 
@@ -4290,7 +4189,6 @@ void Interpreter::Execute_Operation_SIDT(CPU* cpu)
     idt_address = (idt_address & 0xFFFFFF);
 
   // Write back to memory
-  CalculateEffectiveAddress<dst_mode>(cpu);
   const VirtualMemoryAddress base_address = cpu->m_effective_address;
   cpu->WriteMemoryWord(cpu->idata.segment, base_address + 0, idt_limit);
   cpu->WriteMemoryDWord(cpu->idata.segment, base_address + 2, idt_address);
@@ -4299,6 +4197,9 @@ void Interpreter::Execute_Operation_SIDT(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_SGDT(CPU* cpu)
 {
+  CalculateEffectiveAddress<dst_mode>(cpu);
+  cpu->AddCycles(CYCLES_SGDT);
+
   uint32 gdt_address = Truncate32(cpu->m_gdt_location.base_address);
   uint16 gdt_limit = Truncate16(cpu->m_gdt_location.limit);
 
@@ -4424,11 +4325,6 @@ void Interpreter::Execute_Operation_SHLD(CPU* cpu)
     cpu->m_registers.EFLAGS.ZF = IsZero(new_value);
     cpu->m_registers.EFLAGS.PF = IsParity(new_value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -4482,11 +4378,6 @@ void Interpreter::Execute_Operation_SHRD(CPU* cpu)
     cpu->m_registers.EFLAGS.SF = IsSign(new_value);
     cpu->m_registers.EFLAGS.ZF = IsZero(new_value);
     cpu->m_registers.EFLAGS.PF = IsParity(new_value);
-  }
-  else
-  {
-    DebugUnreachableCode();
-    return;
   }
 }
 
@@ -4715,11 +4606,6 @@ void Interpreter::Execute_Operation_BSR(CPU* cpu)
       cpu->m_registers.EFLAGS.ZF = true;
     }
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -4764,39 +4650,6 @@ void Interpreter::Execute_Operation_BSF(CPU* cpu)
       cpu->m_registers.EFLAGS.ZF = true;
     }
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
-void Interpreter::Execute_Operation_BTC(CPU* cpu)
-{
-  Execute_Operation_BTx<Operation_BTC, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
-void Interpreter::Execute_Operation_BTR(CPU* cpu)
-{
-  Execute_Operation_BTx<Operation_BTR, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
-void Interpreter::Execute_Operation_BTS(CPU* cpu)
-{
-  Execute_Operation_BTx<Operation_BTS, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
-}
-
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
-void Interpreter::Execute_Operation_BT(CPU* cpu)
-{
-  Execute_Operation_BTx<Operation_BT, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
 }
 
 template<Operation operation, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size,
@@ -4933,11 +4786,34 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
     // CF flag depends on whether the bit was set in the input value
     cpu->m_registers.EFLAGS.CF = ((in_value & mask) != 0);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
+}
+
+template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         uint32 src_constant>
+void Interpreter::Execute_Operation_BTC(CPU* cpu)
+{
+  Execute_Operation_BTx<Operation_BTC, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
+}
+
+template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         uint32 src_constant>
+void Interpreter::Execute_Operation_BTR(CPU* cpu)
+{
+  Execute_Operation_BTx<Operation_BTR, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
+}
+
+template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         uint32 src_constant>
+void Interpreter::Execute_Operation_BTS(CPU* cpu)
+{
+  Execute_Operation_BTx<Operation_BTS, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
+}
+
+template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         uint32 src_constant>
+void Interpreter::Execute_Operation_BT(CPU* cpu)
+{
+  Execute_Operation_BTx<Operation_BT, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
 }
 
 template<Operation operation, bool check_equal, typename callback>
@@ -5507,18 +5383,13 @@ void Interpreter::Execute_Operation_CMOVcc(CPU* cpu)
     if (do_move)
       WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
-  else
-  {
-    DebugUnreachableCode();
-    return;
-  }
 }
 
 template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_SETcc(CPU* cpu)
 {
-  cpu->AddCyclesRM(CYCLES_SETcc_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   CalculateEffectiveAddress<dst_mode>(cpu);
+  cpu->AddCyclesRM(CYCLES_SETcc_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
   bool flag = TestJumpCondition<condition>(cpu);
   WriteByteOperand<dst_mode, dst_constant>(cpu, BoolToUInt8(flag));
@@ -5534,6 +5405,7 @@ void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
   static_assert(src_size == OperandSize_32 && dst_size == OperandSize_32, "source sizes are 32-bits");
 
   // TODO: Timing
+  cpu->AddCycle();
 
   // Requires privilege level zero
   if (cpu->GetCPL() != 0)
@@ -5613,16 +5485,18 @@ void Interpreter::Execute_Operation_MOV_DR(CPU* cpu)
   if constexpr (dst_mode == OperandMode_ModRM_DebugRegister)
   {
     // Load debug register
+    cpu->AddCycles((dr_index <= 3) ? CYCLES_MOV_DR0_3_REG : CYCLES_MOV_DR6_7_REG);
+
     uint32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
     cpu->LoadSpecialRegister(static_cast<Reg32>(Reg32_DR0 + dr_index), value);
-    cpu->AddCycles((dr_index <= 3) ? CYCLES_MOV_DR0_3_REG : CYCLES_MOV_DR6_7_REG);
   }
   else if constexpr (src_mode == OperandMode_ModRM_DebugRegister)
   {
     // Store debug register
+    cpu->AddCycles((dr_index <= 3) ? CYCLES_MOV_REG_DR0_3 : CYCLES_MOV_REG_DR6_7);
+
     uint32 value = cpu->m_registers.reg32[Reg32_DR0 + dr_index];
     cpu->m_registers.reg32[cpu->idata.GetModRM_RM()] = value;
-    cpu->AddCycles((dr_index <= 3) ? CYCLES_MOV_REG_DR0_3 : CYCLES_MOV_REG_DR6_7);
   }
 }
 
@@ -5638,6 +5512,7 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
   // Requires privilege level zero
   if (cpu->GetCPL() != 0)
   {
+    cpu->AddCycle();
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
     return;
   }
@@ -5719,6 +5594,7 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
 
 void Interpreter::Execute_Operation_INVD(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_INVD);
   if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
@@ -5730,12 +5606,11 @@ void Interpreter::Execute_Operation_INVD(CPU* cpu)
     cpu->RaiseException(Interrupt_InvalidOpcode, 0);
     return;
   }
-
-  cpu->AddCycles(CYCLES_INVD);
 }
 
 void Interpreter::Execute_Operation_WBINVD(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_INVD);
   if (cpu->GetCPL() != 0)
   {
     cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
@@ -5749,11 +5624,12 @@ void Interpreter::Execute_Operation_WBINVD(CPU* cpu)
   }
 
   // Log_WarningPrintf("WBINVD instruction");
-  cpu->AddCycles(CYCLES_INVD);
 }
 
 void Interpreter::Execute_Operation_CPUID(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_CPUID);
+
   // TODO: Support on Intel DX4+.
   if (cpu->m_model < MODEL_PENTIUM)
   {
@@ -5761,12 +5637,13 @@ void Interpreter::Execute_Operation_CPUID(CPU* cpu)
     return;
   }
 
-  cpu->AddCycles(CYCLES_CPUID);
   cpu->ExecuteCPUIDInstruction();
 }
 
 void Interpreter::Execute_Operation_RDTSC(CPU* cpu)
 {
+  cpu->AddCycles(CYCLES_RDTSC);
+
   // TODO: Support on Intel DX4+.
   if (cpu->m_model < MODEL_PENTIUM)
   {
@@ -5784,7 +5661,6 @@ void Interpreter::Execute_Operation_RDTSC(CPU* cpu)
   const u64 tsc = cpu->ReadTSC();
   cpu->m_registers.EAX = Truncate32(tsc);
   cpu->m_registers.EDX = Truncate32(tsc >> 32);
-  cpu->AddCycles(CYCLES_RDTSC);
 }
 } // namespace CPU_X86
 
