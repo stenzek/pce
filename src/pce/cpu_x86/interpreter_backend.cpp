@@ -280,6 +280,7 @@ namespace CPU_X86 {
     continue;
 #define MakeNop(opcode)                                                                                                \
   case opcode:                                                                                                         \
+    cpu->AddCycles(CYCLES_NOP);                                                                                        \
     return;
 
 #define MakeNoOperands(opcode, inst)                                                                                   \
