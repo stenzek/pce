@@ -193,7 +193,7 @@ void Bus::RemoveIOPortConnection(u16 port, const void* owner)
     if (prev)
       prev->next = conn->next;
     else
-      m_ioport_handlers[port] = conn;
+      m_ioport_handlers[port] = conn->next;
 
     IOPortConnection* temp = conn;
     conn = conn->next;
