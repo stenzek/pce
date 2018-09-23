@@ -19,8 +19,8 @@ const uint32 g_cycle_group_timings[NUM_CYCLE_GROUPS][3] = {
   {2, 3, 1},       // CYCLES_MOV_RM_REG_SREG
   {6, 3, 3},       // CYCLES_MOVSX_REG_RM_MEM
   {3, 3, 3},       // CYCLES_MOVSX_REG_RM_REG
-  {6, 3, 3},       // CYCLES_MOVZX_REG_RM_REG
-  {3, 3, 3},       // CYCLES_MOVZX_REG_RM_MEM
+  {6, 3, 3},       // CYCLES_MOVZX_REG_RM_MEM
+  {3, 3, 3},       // CYCLES_MOVZX_REG_RM_REG
   {5, 5, 3},       // CYCLES_XCHG_REG_RM_MEM
   {3, 3, 3},       // CYCLES_XCHG_REG_RM_REG
   {12, 14, 7},     // CYCLES_IN_IMM
