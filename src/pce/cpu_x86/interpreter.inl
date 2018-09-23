@@ -2328,6 +2328,9 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
   else
     static_assert(false, "unknown mode");
 
+  // IN/OUT are often timing-sensitive.
+  cpu->CommitPendingCycles();
+
   const uint16 port_number = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
   if (actual_size == OperandSize_8)
   {
@@ -2381,6 +2384,9 @@ void Interpreter::Execute_Operation_OUT(CPU* cpu)
     cpu->AddCyclesPMode(CYCLES_OUT_EDX);
   else
     static_assert(false, "unknown mode");
+
+  // IN/OUT are often timing-sensitive.
+  cpu->CommitPendingCycles();
 
   const uint16 port_number = ReadZeroExtendedWordOperand<dst_size, dst_mode, dst_constant>(cpu);
   if (actual_size == OperandSize_8)
@@ -4834,6 +4840,10 @@ void Interpreter::Execute_REP(CPU* cpu, callback cb)
     cpu->AddCycles((has_rep) ? CYCLES_REP_SCAS_BASE : CYCLES_SCAS);
   else if constexpr (operation == Operation_STOS)
     cpu->AddCycles((has_rep) ? CYCLES_REP_STOS_BASE : CYCLES_STOS);
+
+  // IN/OUT are often timing-sensitive.
+  if constexpr (operation == Operation_INS || operation == Operation_OUTS)
+    cpu->CommitPendingCycles();
 
   // We can execute this instruction as a non-rep.
   if (!has_rep)
