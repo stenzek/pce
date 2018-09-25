@@ -437,7 +437,7 @@ void i8237_DMA::IOWriteStartAddress(uint32 channel_index, uint8 value)
   channel->start_address = channel->address;
   m_flipflops[controller_index] ^= true;
 
-  Log_DevPrintf("DMA channel %u start address = 0x%04X", channel_index, channel->start_address);
+  Log_DebugPrintf("DMA channel %u start address = 0x%04X", channel_index, channel->start_address);
 }
 
 void i8237_DMA::IOReadCount(uint32 channel_index, uint8* value)
@@ -468,7 +468,7 @@ void i8237_DMA::IOWriteCount(uint32 channel_index, uint8 value)
   channel->count = channel->bytes_remaining;
   m_flipflops[controller_index] ^= true;
 
-  Log_DevPrintf("DMA channel %u count = %u", channel_index, channel->count);
+  Log_DebugPrintf("DMA channel %u count = %u", channel_index, channel->count);
   RescheduleTickEvent();
 }
 
@@ -479,7 +479,7 @@ void i8237_DMA::IOReadPageAddress(uint32 channel_index, uint8* value)
 
 void i8237_DMA::IOWritePageAddress(uint32 channel_index, uint8 value)
 {
-  Log_DevPrintf("DMA channel %u page address = %02X", channel_index, value);
+  Log_DebugPrintf("DMA channel %u page address = %02X", channel_index, value);
   m_tick_event->InvokeEarly();
 
   m_channels[channel_index].page_address = uint8(value & 0xFF);
@@ -508,7 +508,7 @@ void i8237_DMA::IOWriteMode(uint32 base_channel, uint8 value)
   bool auto_reset = !!((value >> 4) & 0b1);
   bool decrement = !!((value >> 5) & 0b1);
   DMAMode mode = DMAMode((value >> 6) & 0b11);
-  Log_DevPrintf("DMA channel %u mode = 0x%02X", channel_index, value);
+  Log_DebugPrintf("DMA channel %u mode = 0x%02X", channel_index, value);
 
   Channel* channel = &m_channels[channel_index];
   channel->transfer_type = transfer_type;

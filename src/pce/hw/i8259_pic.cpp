@@ -337,14 +337,14 @@ void i8259_PIC::DataPortWriteHandler(uint32 pic_index, uint8 value)
     switch (pic->icw_index)
     {
       case 1:
-        Log_DevPrintf("PIC %u vector offset 0x%02X", pic_index, ZeroExtend32(value));
+        Log_DebugPrintf("PIC %u vector offset 0x%02X", pic_index, ZeroExtend32(value));
         break;
       case 2:
-        Log_DevPrintf("PIC %u cascade state 0x%02X", pic_index, ZeroExtend32(value));
+        Log_DebugPrintf("PIC %u cascade state 0x%02X", pic_index, ZeroExtend32(value));
         break;
       case 3:
         // ICW4 & 0x02 == auto-eoi
-        Log_DevPrintf("PIC %u operational mode 0x%02X", pic_index, ZeroExtend32(value));
+        Log_DebugPrintf("PIC %u operational mode 0x%02X", pic_index, ZeroExtend32(value));
         break;
       default:
         break;
@@ -362,7 +362,7 @@ void i8259_PIC::DataPortWriteHandler(uint32 pic_index, uint8 value)
     // Initialization complete?
     if ((!(pic->icw_values[0] & 0x01) && pic->icw_index == (NUM_ICW_VALUES - 1)) || pic->icw_index == NUM_ICW_VALUES)
     {
-      Log_DevPrintf("PIC %u init complete", pic_index);
+      Log_DebugPrintf("PIC %u init complete", pic_index);
 
       // Update the state of everything
       pic->icw_index = NUM_ICW_VALUES;

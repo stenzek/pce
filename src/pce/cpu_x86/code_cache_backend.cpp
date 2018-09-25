@@ -136,14 +136,14 @@ bool CodeCacheBackend::CanExecuteBlock(BlockBase* block)
     Bus::CodeHashType new_hash = GetBlockCodeHash(block);
     if (block->code_hash == new_hash)
     {
-      Log_DevPrintf("Block %08X is invalidated - hash matches, revalidating", block->key.eip_physical_address);
+      Log_DebugPrintf("Block %08X is invalidated - hash matches, revalidating", block->key.eip_physical_address);
       block->invalidated = false;
       AddBlockPhysicalMappings(block);
     }
     else
     {
       // Block is invalid due to code change.
-      Log_DevPrintf("Block %08X is invalidated - hash mismatch, recompiling", block->key.eip_physical_address);
+      Log_DebugPrintf("Block %08X is invalidated - hash mismatch, recompiling", block->key.eip_physical_address);
       ResetBlock(block);
       if (CompileBlock(block))
       {
@@ -152,7 +152,7 @@ bool CodeCacheBackend::CanExecuteBlock(BlockBase* block)
         return true;
       }
 
-      Log_DevPrintf("Block %08X failed recompile, flushing", block->key.eip_physical_address);
+      Log_DebugPrintf("Block %08X failed recompile, flushing", block->key.eip_physical_address);
       FlushBlock(block);
       return false;
     }
@@ -208,7 +208,7 @@ CodeCacheBackend::BlockBase* CodeCacheBackend::GetNextBlock()
   }
 
   // Block doesn't exist, so compile it.
-  Log_DevPrintf("Attempting to compile block %08X", key.eip_physical_address);
+  Log_DebugPrintf("Attempting to compile block %08X", key.eip_physical_address);
   block = AllocateBlock(key);
   if (!CompileBlock(block))
   {
@@ -236,7 +236,7 @@ void CodeCacheBackend::ResetBlock(BlockBase* block)
 
 void CodeCacheBackend::FlushBlock(BlockBase* block)
 {
-  Log_DevPrintf("Flushing block %08X", block->key.eip_physical_address);
+  Log_DebugPrintf("Flushing block %08X", block->key.eip_physical_address);
 
   auto iter = m_blocks.find(block->key);
   if (iter == m_blocks.end())
@@ -257,7 +257,7 @@ void CodeCacheBackend::FlushBlock(BlockBase* block)
 
 void CodeCacheBackend::InvalidateBlock(BlockBase* block)
 {
-  Log_DevPrintf("Invalidating block %08X", block->key.eip_physical_address);
+  Log_DebugPrintf("Invalidating block %08X", block->key.eip_physical_address);
   block->invalidated = true;
   RemoveBlockPhysicalMappings(block);
 }
@@ -571,11 +571,11 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 
 #if !defined(Y_BUILD_CONFIG_RELEASE)
 
-  Log_DevPrintf("-- COMPILED BLOCK AT %04X:%08X --", ZeroExtend32(m_cpu->m_registers.CS), m_cpu->m_registers.EIP);
+  Log_DebugPrintf("-- COMPILED BLOCK AT %04X:%08X --", ZeroExtend32(m_cpu->m_registers.CS), m_cpu->m_registers.EIP);
 
   if (block->instructions.empty())
   {
-    Log_DevPrintf("!!! EMPTY BLOCK !!!");
+    Log_DebugPrintf("!!! EMPTY BLOCK !!!");
     return false;
   }
 
@@ -583,10 +583,10 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
   {
     SmallString disasm;
     Decoder::DisassembleToString(&instruction, &disasm);
-    Log_DevPrintf("  %08x: %s", instruction.address, disasm.GetCharArray());
+    Log_DebugPrintf("  %08x: %s", instruction.address, disasm.GetCharArray());
   }
 
-  Log_DevPrintf("-- END BLOCK --");
+  Log_DebugPrintf("-- END BLOCK --");
 
 #else
 
@@ -626,7 +626,7 @@ void CodeCacheBackend::InsertBlock(BlockBase* block)
 
 void CodeCacheBackend::LinkBlockBase(BlockBase* from, BlockBase* to)
 {
-  Log_DevPrintf("Linking block %p(%08x) to %p(%08x)", from, from->key.eip_physical_address, to,
+  Log_DebugPrintf("Linking block %p(%08x) to %p(%08x)", from, from->key.eip_physical_address, to,
                 to->key.eip_physical_address);
   from->link_successors.push_back(to);
   to->link_predecessors.push_back(from);

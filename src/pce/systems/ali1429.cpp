@@ -140,14 +140,14 @@ void ALi1429::UpdateShadowRAM()
       const uint32 flag = m_ali1429_registers[0x14] & 0x03;
       const bool readable_memory = !!(flag & 1);
       const bool writable_memory = !!(flag & 2);
-      Log_DevPrintf("Shadowing ENABLED for 0x%08X-0x%08X (type %u, readable=%s, writable=%s)", base,
+      Log_DebugPrintf("Shadowing ENABLED for 0x%08X-0x%08X (type %u, readable=%s, writable=%s)", base,
                     base + SHADOW_REGION_SIZE - 1, flag, readable_memory ? "yes" : "no",
                     writable_memory ? "yes" : "no");
       m_bus->SetPagesRAMState(base, SHADOW_REGION_SIZE, readable_memory, writable_memory);
     }
     else
     {
-      Log_DevPrintf("Shadowing DISABLED for 0x%08X-0x%08X", base, base + SHADOW_REGION_SIZE - 1);
+      Log_DebugPrintf("Shadowing DISABLED for 0x%08X-0x%08X", base, base + SHADOW_REGION_SIZE - 1);
       m_bus->SetPagesRAMState(base, SHADOW_REGION_SIZE, false, false);
     }
   }
@@ -160,7 +160,7 @@ void ALi1429::IOReadSystemControlPortA(uint8* value)
 
 void ALi1429::IOWriteSystemControlPortA(uint8 value)
 {
-  Log_DevPrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
+  Log_DebugPrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
 
   // b7-6 - Activity Lights
   // b5 - Reserved
@@ -209,7 +209,7 @@ void ALi1429::IOReadSystemControlPortB(uint8* value)
 
 void ALi1429::IOWriteSystemControlPortB(uint8 value)
 {
-  Log_DevPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
+  Log_DebugPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
 
   m_timer->SetChannelGateInput(2, !!(value & (1 << 0))); // Timer 2 gate input
   m_speaker->SetOutputEnabled(!!(value & (1 << 1)));     // Speaker data enable

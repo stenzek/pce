@@ -292,7 +292,7 @@ void Bus::ReadIOPortByte(u16 port, u8* value)
   const IOPortConnection* conn = m_ioport_handlers[port];
   if (!conn)
   {
-    Log_DevPrintf("Unknown IO port 0x%04X (read)", port);
+    Log_DebugPrintf("Unknown IO port 0x%04X (read)", port);
     return;
   }
 
@@ -363,7 +363,7 @@ void Bus::WriteIOPortByte(u16 port, u8 value)
   const IOPortConnection* conn = m_ioport_handlers[port];
   if (!conn)
   {
-    Log_DevPrintf("Unknown IO port 0x%04X (write), value = %04X", port, value);
+    Log_DebugPrintf("Unknown IO port 0x%04X (write), value = %04X", port, value);
     return;
   }
 

@@ -140,7 +140,7 @@ bool XT_PPI::AppendToOutputBuffer(const void* data, uint32 length)
   SmallString buffer_str;
   for (uint32 i = 0; i < m_output_buffer_pos; i++)
     buffer_str.AppendFormattedString("%02X ", uint32(m_output_buffer[i]));
-  Log_DevPrintf("Output buffer contents: %s", buffer_str.GetCharArray());
+  Log_DebugPrintf("Output buffer contents: %s", buffer_str.GetCharArray());
   return true;
 }
 
@@ -173,7 +173,7 @@ void XT_PPI::IORead(uint32 port, uint8* value)
       }
 
       // Keyboard data
-      Log_DevPrintf("Read data port, size = %u, value = 0x%02X", m_output_buffer_pos, uint32(m_output_buffer[0]));
+      Log_DebugPrintf("Read data port, size = %u, value = 0x%02X", m_output_buffer_pos, uint32(m_output_buffer[0]));
 
       if (m_output_buffer_pos == 0)
       {
@@ -263,7 +263,7 @@ void XT_PPI::IOWrite(uint32 port, uint8 value)
 
       decltype(m_port_b) changed_bits;
       changed_bits.bits = m_port_b.bits ^ value;
-      Log_DevPrintf("PPI Port B <- 0x%02X", ZeroExtend32(value));
+      Log_DebugPrintf("PPI Port B <- 0x%02X", ZeroExtend32(value));
       m_port_b.bits = value;
 
       // Thing we need to act on:
@@ -292,7 +292,7 @@ void XT_PPI::IOWrite(uint32 port, uint8 value)
 
       // Control Register
     case 0x63:
-      Log_DevPrintf("PPI Control Register <- 0x%02X", ZeroExtend32(value));
+      Log_DebugPrintf("PPI Control Register <- 0x%02X", ZeroExtend32(value));
       m_control_register.bits = value;
       break;
   }

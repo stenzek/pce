@@ -242,7 +242,7 @@ void PCIIDE::IOWriteBusMasterPRDTAddress(u8 channel, u8 offset, u8 value)
 u8 PCIIDE::ReadConfigSpace(u8 function, u8 offset)
 {
   u8 val = PCIDevice::ReadConfigSpace(function, offset);
-  Log_DevPrintf("PCIIDE config read reg %02x: %02x", offset, val);
+  Log_DebugPrintf("PCIIDE config read reg %02x: %02x", offset, val);
   return val;
 }
 
@@ -265,7 +265,7 @@ void PCIIDE::WriteConfigSpace(u8 function, u8 offset, u8 value)
     }
     break;
   }
-  Log_DevPrintf("PCIIDE config reg %02x <- %02x", offset, value);
+  Log_DebugPrintf("PCIIDE config reg %02x <- %02x", offset, value);
   PCIDevice::WriteConfigSpace(function, offset, value);
 }
 
@@ -291,7 +291,7 @@ bool PCIIDE::IsDMARequested(u32 channel) const
 
 void PCIIDE::SetDMARequest(u32 channel, u32 drive, bool request)
 {
-  Log_DevPrintf("DMARQ=%s for channel %u drive %u", request ? "active" : "inactive", channel, drive);
+  Log_DebugPrintf("DMARQ=%s for channel %u drive %u", request ? "active" : "inactive", channel, drive);
 
   DMAState& ds = m_dma_state[channel];
   if (request)
@@ -370,7 +370,7 @@ void PCIIDE::ReadNextPRDT(u32 channel)
   DebugAssert((table_address & 0x03) == 0);
   PRDT_ENTRY entry;
   entry.bits64 = BaseClass::m_bus->ReadMemoryQWord(table_address & UINT32_C(0xFFFFFFFC));
-  Log_DevPrintf("Channel %u PRDT %u: %" PRIX64 " (base address 0x%08X, size %u, eot %s)", channel,
+  Log_DebugPrintf("Channel %u PRDT %u: %" PRIX64 " (base address 0x%08X, size %u, eot %s)", channel,
                 ds.next_prdt_entry_index, entry.bits64, entry.physical_base_address, entry.byte_count.GetValue(),
                 entry.eot ? "true" : "false");
   ds.next_prdt_entry_index++;
@@ -405,7 +405,7 @@ u32 PCIIDE::DMATransfer(u32 channel, u32 drive, bool is_write, void* data, u32 s
       break;
     }
 
-    Log_DevPrintf("DMA %s %u bytes at 0x%08X for %u/%u", is_write ? "write" : "read", transfer_size,
+    Log_DebugPrintf("DMA %s %u bytes at 0x%08X for %u/%u", is_write ? "write" : "read", transfer_size,
                   ds.current_physical_address, channel, drive);
 
     if (is_write)

@@ -538,7 +538,7 @@ void CDROM::AbortCommand(SENSE_KEY key, uint8 asc)
 
 void CDROM::RaiseInterrupt()
 {
-  Log_DevPrintf("Raising CDROM interrupt");
+  Log_DebugPrintf("Raising CDROM interrupt");
   if (m_interrupt_callback)
     m_interrupt_callback();
 }

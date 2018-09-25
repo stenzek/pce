@@ -384,7 +384,7 @@ void ATAHDD::SetupTransfer(u32 num_sectors, u32 block_size, bool is_write, bool 
 void ATAHDD::SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors)
 {
   const CycleCount rw_time = CalculateReadWriteTime(num_sectors);
-  Log_DevPrintf("Sector r/w time for %u sectors at lba %" PRIu64 ": %u us", num_sectors, m_current_lba,
+  Log_DebugPrintf("Sector r/w time for %u sectors at lba %" PRIu64 ": %u us", num_sectors, m_current_lba,
                 static_cast<unsigned>(rw_time));
 
   DebugAssert(!m_read_write_event->IsActive());
@@ -491,7 +491,7 @@ void ATAHDD::WriteCommandRegister(u8 value)
 
   // Determine how long the command will take to execute.
   const CycleCount cycles = CalculateCommandTime(value);
-  Log_DevPrintf("Queueing ATA command 0x%02X in %u us", value, unsigned(cycles));
+  Log_DebugPrintf("Queueing ATA command 0x%02X in %u us", value, unsigned(cycles));
   m_current_command = ZeroExtend16(value);
   if (cycles > 0)
     m_command_event->Queue(cycles);

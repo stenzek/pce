@@ -358,7 +358,7 @@ void i8253_PIT::WriteCommandRegister(uint8 value)
 void i8253_PIT::SetChannelMode(size_t channel_index, ChannelOperatingMode mode)
 {
   Channel* channel = &m_channels[channel_index];
-  Log_DevPrintf("Set PIC channel %u to mode %u%s", Truncate32(channel_index), ZeroExtend32(mode),
+  Log_DebugPrintf("Set PIC channel %u to mode %u%s", Truncate32(channel_index), ZeroExtend32(mode),
                 channel->bcd_mode ? " (BCD)" : "");
 
   // ChannelOperatingMode old_mode = channel->operating_mode;
@@ -440,7 +440,7 @@ void i8253_PIT::SetChannelMode(size_t channel_index, ChannelOperatingMode mode)
 void i8253_PIT::SetChannelReloadRegister(size_t channel_index, uint16 reload_value)
 {
   Channel* channel = &m_channels[channel_index];
-  Log_DevPrintf("Set PIC channel %u reload register: %u", Truncate32(channel_index), ZeroExtend32(reload_value));
+  Log_DebugPrintf("Set PIC channel %u reload register: %u", Truncate32(channel_index), ZeroExtend32(reload_value));
 
   // Ensure we're up-to-date.
   m_tick_event->InvokeEarly();
@@ -515,7 +515,7 @@ void i8253_PIT::SetChannelGateInput(size_t channel_index, bool value)
   if (channel->gate_input == value)
     return;
 
-  Log_DevPrintf("Set PIC channel %u gate input %s->%s", Truncate32(channel_index), channel->gate_input ? "high" : "low",
+  Log_DebugPrintf("Set PIC channel %u gate input %s->%s", Truncate32(channel_index), channel->gate_input ? "high" : "low",
                 value ? "high" : "low");
 
   // Ensure we're up-to-date.

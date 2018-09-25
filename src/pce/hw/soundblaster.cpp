@@ -259,13 +259,13 @@ void SoundBlaster::IOPortWrite(u16 port, u8 value)
 
       // adlib address port
     case 0x08:
-      Log_DevPrintf("Adlib address port: 0x%02X", ZeroExtend32(value));
+      Log_DebugPrintf("Adlib address port: 0x%02X", ZeroExtend32(value));
       m_ymf262.WriteAddressPort(0, value);
       break;
 
       // adlib data port
     case 0x09:
-      Log_DevPrintf("Adlib data port: 0x%02X", ZeroExtend32(value));
+      Log_DebugPrintf("Adlib data port: 0x%02X", ZeroExtend32(value));
       m_ymf262.WriteDataPort(0, value);
       break;
 
@@ -309,7 +309,7 @@ uint8 SoundBlaster::ReadDSPDataPort()
   {
     value = m_dsp_output_buffer.front();
     m_dsp_output_buffer.pop_front();
-    Log_DevPrintf("Read DSP output byte: 0x%02X", ZeroExtend32(value));
+    Log_DebugPrintf("Read DSP output byte: 0x%02X", ZeroExtend32(value));
   }
   else
   {
@@ -348,7 +348,7 @@ void SoundBlaster::WriteDSPResetPort(uint8 value)
 
 void SoundBlaster::WriteDSPCommandDataPort(uint8 value)
 {
-  Log_DevPrintf("DSP command/data: 0x%02X", ZeroExtend32(value));
+  Log_DebugPrintf("DSP command/data: 0x%02X", ZeroExtend32(value));
   m_dsp_input_buffer.push_back(value);
   HandleDSPCommand();
 }
@@ -1201,7 +1201,7 @@ void SoundBlaster::StopDMA(bool dma16)
   if (!state.active)
     return;
 
-  Log_DevPrintf("Stop DMA");
+  Log_DebugPrintf("Stop DMA");
   state.active = false;
   state.request = false;
   state.length = 0;

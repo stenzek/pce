@@ -165,12 +165,12 @@ void CPU::SetIRQState(bool state)
 
 void CPU::SignalNMI()
 {
-  Log_DevPrintf("NMI line signaled");
+  Log_DebugPrintf("NMI line signaled");
   m_nmi_state = true;
 
   if (m_halted)
   {
-    Log_DevPrintf("Bringing CPU up from halt due to NMI");
+    Log_DebugPrintf("Bringing CPU up from halt due to NMI");
     m_halted = false;
   }
 }
@@ -562,7 +562,7 @@ void CPU::DispatchExternalInterrupt()
 
 void CPU::RaiseException(u32 interrupt)
 {
-  Log_DevPrintf("Raise exception %u IP %04x:%04x", interrupt, m_registers.CS, m_current_IP);
+  Log_DebugPrintf("Raise exception %u IP %04x:%04x", interrupt, m_registers.CS, m_current_IP);
 
   // Set up the call to the corresponding interrupt vector.
   SetupInterruptCall(interrupt, m_current_IP);

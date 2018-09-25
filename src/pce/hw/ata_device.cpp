@@ -293,7 +293,7 @@ bool ATADevice::SupportsDMA() const
 
 void ATADevice::SetDMACK(bool active)
 {
-  Log_DevPrintf("ATA device %u/%u DMACK=%s", m_ata_channel_number, m_ata_drive_number, active ? "active" : "inactive");
+  Log_DebugPrintf("ATA device %u/%u DMACK=%s", m_ata_channel_number, m_ata_drive_number, active ? "active" : "inactive");
   m_dmack = active;
   if (active)
   {

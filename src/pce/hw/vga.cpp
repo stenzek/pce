@@ -473,14 +473,14 @@ void VGA::IOSequencerDataRegisterWrite(uint8 value)
 
 void VGA::IODACReadAddressWrite(uint8 value)
 {
-  Log_DevPrintf("DAC read address write: %u", value);
+  Log_DebugPrintf("DAC read address write: %u", value);
   m_dac_read_address = value;
   m_dac_state_register &= 0b00;
 }
 
 void VGA::IODACWriteAddressWrite(uint8 value)
 {
-  Log_DevPrintf("DAC write address write: %u", value);
+  Log_DebugPrintf("DAC write address write: %u", value);
   m_dac_write_address = value;
   m_dac_state_register |= 0b11;
 }
@@ -878,7 +878,7 @@ void VGA::RecalculateEventTiming()
     vertical_total_lines *= 2;
 
   double vertical_frequency = horizontal_frequency / double(vertical_total_lines);
-  Log_DevPrintf("VGA: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz", horizontal_frequency / 1000.0,
+  Log_DebugPrintf("VGA: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz", horizontal_frequency / 1000.0,
                 vertical_frequency);
 
   m_timing.horizontal_frequency = std::max(float(horizontal_frequency), 1.0f);
@@ -910,7 +910,7 @@ void VGA::RecalculateEventTiming()
   // Vertical frequency must be between 35-75hz?
   if (vertical_frequency < 35.0 || vertical_frequency > 75.0)
   {
-    Log_DevPrintf("VGA: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz out of range.",
+    Log_DebugPrintf("VGA: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz out of range.",
                   horizontal_frequency / 1000.0, vertical_frequency);
 
     // Clear the screen

@@ -82,7 +82,7 @@ void IBMAT::IOWriteSystemControlPortA(uint8 value)
 {
   m_system_control_port_a.raw = value;
   SetA20State(m_system_control_port_a.a20_gate);
-  Log_DevPrintf("A20 gate is %s", m_system_control_port_a.a20_gate ? "on" : "off");
+  Log_DebugPrintf("A20 gate is %s", m_system_control_port_a.a20_gate ? "on" : "off");
 
 #if 0
 if (!m_system_control_port_a.system_reset)

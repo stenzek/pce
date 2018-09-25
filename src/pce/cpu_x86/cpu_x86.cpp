@@ -408,12 +408,12 @@ void CPU::SetIRQState(bool state)
 
 void CPU::SignalNMI()
 {
-  Log_DevPrintf("NMI line signaled");
+  Log_DebugPrintf("NMI line signaled");
   m_nmi_state = true;
 
   if (m_halted)
   {
-    Log_DevPrintf("Bringing CPU up from halt due to NMI");
+    Log_DebugPrintf("Bringing CPU up from halt due to NMI");
     m_halted = false;
   }
 }
@@ -894,13 +894,13 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
         CHANGE_MASK |= CR0Bit_AM | CR0Bit_WP;
 
       if (m_registers.CR0 != ((m_registers.CR0 & ~CHANGE_MASK) | (value & CHANGE_MASK)))
-        Log_DevPrintf("CR0 <- 0x%08X", value);
+        Log_DebugPrintf("CR0 <- 0x%08X", value);
 
       value &= CHANGE_MASK;
 
       if ((value & (CR0Bit_PE | CR0Bit_PG)) != (m_registers.CR0 & (CR0Bit_PE | CR0Bit_PG)))
       {
-        Log_DevPrintf("Switching to %s mode%s", ((value & CR0Bit_PE) != 0) ? "protected" : "real",
+        Log_DebugPrintf("Switching to %s mode%s", ((value & CR0Bit_PE) != 0) ? "protected" : "real",
                       ((value & CR0Bit_PG) != 0) ? " (paging)" : "");
       }
 
@@ -928,7 +928,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
     {
       // Page fault linear address
       if (m_registers.CR2 != value)
-        Log_DevPrintf("CR2 <- 0x%08X", value);
+        Log_DebugPrintf("CR2 <- 0x%08X", value);
 
       uint32 old_value = m_registers.CR2;
       m_registers.CR2 = value;
@@ -939,7 +939,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
     case Reg32_CR3:
     {
       if (m_registers.CR3 != value)
-        Log_DevPrintf("CR3 <- 0x%08X", value);
+        Log_DebugPrintf("CR3 <- 0x%08X", value);
 
       uint32 old_value = m_registers.CR3;
       m_registers.CR3 = value;
@@ -952,7 +952,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
     case Reg32_CR4:
     {
       if (m_registers.CR4.bits != value)
-        Log_DevPrintf("CR4 <- 0x%08X", value);
+        Log_DebugPrintf("CR4 <- 0x%08X", value);
 
       uint32 old_value = m_registers.CR4.bits;
       m_registers.CR4.bits = value;
@@ -970,7 +970,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
     case Reg32_DR7:
     {
       if (m_registers.reg32[reg] != value)
-        Log_DevPrintf("DR%u <- 0x%08X", uint32(reg - Reg32_DR0), value);
+        Log_DebugPrintf("DR%u <- 0x%08X", uint32(reg - Reg32_DR0), value);
 
       m_registers.reg32[reg] = value;
     }
@@ -983,7 +983,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
     case Reg32_TR7:
     {
       if (m_registers.reg32[reg] != value)
-        Log_DevPrintf("TR%u <- 0x%08X", uint32(reg - Reg32_TR3), value);
+        Log_DebugPrintf("TR%u <- 0x%08X", uint32(reg - Reg32_TR3), value);
 
       m_registers.reg32[reg] = value;
     }
@@ -1151,7 +1151,7 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
 
 void CPU::RaisePageFault(LinearMemoryAddress linear_address, bool is_write, bool page_present)
 {
-  Log_DevPrintf("Page fault at linear address 0x%08X: %s,%s,%s", linear_address,
+  Log_DebugPrintf("Page fault at linear address 0x%08X: %s,%s,%s", linear_address,
                 page_present ? "Present" : "Not Present", is_write ? "Write" : "Read",
                 InUserMode() ? "User Mode" : "Supervisor Mode");
 
@@ -1682,7 +1682,7 @@ void CPU::LoadGlobalDescriptorTable(LinearMemoryAddress table_base_address, uint
   m_gdt_location.base_address = table_base_address;
   m_gdt_location.limit = table_limit;
 
-  Log_DevPrintf("Load GDT: Base 0x%08X limit 0x%04X", table_base_address, table_limit);
+  Log_DebugPrintf("Load GDT: Base 0x%08X limit 0x%04X", table_base_address, table_limit);
 }
 
 void CPU::LoadInterruptDescriptorTable(LinearMemoryAddress table_base_address, uint32 table_limit)
@@ -1690,7 +1690,7 @@ void CPU::LoadInterruptDescriptorTable(LinearMemoryAddress table_base_address, u
   m_idt_location.base_address = table_base_address;
   m_idt_location.limit = table_limit;
 
-  Log_DevPrintf("Load IDT: Base 0x%08X limit 0x%04X", table_base_address, table_limit);
+  Log_DebugPrintf("Load IDT: Base 0x%08X limit 0x%04X", table_base_address, table_limit);
 }
 
 void CPU::LoadSegmentRegister(Segment segment, uint16 value)
@@ -1859,7 +1859,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     OperandSize new_operand_size = (is_32bit_segment) ? OperandSize_32 : OperandSize_16;
     if (new_address_size != m_current_address_size)
     {
-      Log_DevPrintf("Switching to %s %s execution%s", (new_address_size == AddressSize_32) ? "32-bit" : "16-bit",
+      Log_DebugPrintf("Switching to %s %s execution%s", (new_address_size == AddressSize_32) ? "32-bit" : "16-bit",
                     InProtectedMode() ? "protected mode" : "real mode", IsPagingEnabled() ? " (paging enabled)" : "");
 
       m_current_address_size = new_address_size;
@@ -1869,7 +1869,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
 
     // CPL is the selector's RPL
     if (GetCPL() != reg_value.rpl)
-      Log_DevPrintf("Privilege change: %u -> %u", ZeroExtend32(GetCPL()), ZeroExtend32(reg_value.rpl.GetValue()));
+      Log_DebugPrintf("Privilege change: %u -> %u", ZeroExtend32(GetCPL()), ZeroExtend32(reg_value.rpl.GetValue()));
     SetCPL(reg_value.rpl);
     FlushPrefetchQueue();
   }
@@ -1879,7 +1879,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     AddressSize new_address_size = (is_32bit_segment) ? AddressSize_32 : AddressSize_16;
     if (new_address_size != m_stack_address_size)
     {
-      Log_DevPrintf("Switching to %s stack", (new_address_size == AddressSize_32) ? "32-bit" : "16-bit");
+      Log_DebugPrintf("Switching to %s stack", (new_address_size == AddressSize_32) ? "32-bit" : "16-bit");
       m_stack_address_size = new_address_size;
     }
   }
@@ -1929,7 +1929,7 @@ void CPU::LoadLocalDescriptorTable(uint16 value)
   m_ldt_location.limit = descriptor.ldt.GetLimit();
   m_registers.LDTR = selector.bits;
 
-  Log_DevPrintf("Load local descriptor table: %04X index %u base 0x%08X limit 0x%08X", ZeroExtend32(selector.bits),
+  Log_DebugPrintf("Load local descriptor table: %04X index %u base 0x%08X limit 0x%08X", ZeroExtend32(selector.bits),
                 ZeroExtend32(selector.index.GetValue()), m_tss_location.base_address, m_tss_location.limit);
 }
 
@@ -1982,7 +1982,7 @@ void CPU::LoadTaskSegment(uint16 value)
   // Update the register copy of it
   m_registers.TR = selector.bits;
 
-  Log_DevPrintf("Load task register %04X: index %u base 0x%08X limit 0x%08X", ZeroExtend32(selector.bits),
+  Log_DebugPrintf("Load task register %04X: index %u base 0x%08X limit 0x%08X", ZeroExtend32(selector.bits),
                 ZeroExtend32(selector.index.GetValue()), m_tss_location.base_address, m_tss_location.limit);
 }
 
@@ -2027,12 +2027,12 @@ void CPU::RaiseException(uint32 interrupt, uint32 error_code)
 {
   if (interrupt == Interrupt_PageFault)
   {
-    Log_DevPrintf("Raise exception %u error code 0x%08X EIP 0x%08X address 0x%08X", interrupt, error_code,
+    Log_DebugPrintf("Raise exception %u error code 0x%08X EIP 0x%08X address 0x%08X", interrupt, error_code,
                   m_current_EIP, m_registers.CR2);
   }
   else
   {
-    Log_DevPrintf("Raise exception %u error code 0x%08X EIP 0x%08X", interrupt, error_code, m_current_EIP);
+    Log_DebugPrintf("Raise exception %u error code 0x%08X EIP 0x%08X", interrupt, error_code, m_current_EIP);
   }
 
   // If we're throwing an exception on a double-fault, this is a triple fault, and the CPU should reset.
@@ -2225,7 +2225,7 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
   {
     // Switch to new task with nesting
     DebugAssert(!m_registers.EFLAGS.VM);
-    Log_DevPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
+    Log_DebugPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
     SwitchToTask(descriptor.task_gate.selector, false, false, false, 0);
   }
   else
@@ -2352,7 +2352,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
     {
       // Call gate to lower privilege
       target_selector.rpl = target_descriptor.dpl;
-      Log_DevPrintf("Privilege raised via call gate, %u -> %u", ZeroExtend32(GetCPL()),
+      Log_DebugPrintf("Privilege raised via call gate, %u -> %u", ZeroExtend32(GetCPL()),
                     ZeroExtend32(target_selector.rpl.GetValue()));
 
       // We need to look at the current TSS to determine the stack pointer to change to
@@ -2496,7 +2496,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
   {
     // Switch to new task with nesting
     DebugAssert(!m_registers.EFLAGS.VM);
-    Log_DevPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
+    Log_DebugPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
     SwitchToTask(descriptor.task_gate.selector, true, false, false, 0);
   }
   else
@@ -2573,7 +2573,7 @@ void CPU::FarReturn(OperandSize operand_size, uint32 pop_byte_count)
     if (target_selector.rpl > GetCPL())
     {
       // Returning to outer privilege level
-      Log_DevPrintf("Privilege lowered via RETF: %u -> %u", ZeroExtend32(GetCPL()),
+      Log_DebugPrintf("Privilege lowered via RETF: %u -> %u", ZeroExtend32(GetCPL()),
                     ZeroExtend32(target_selector.rpl.GetValue()));
 
       uint32 return_ESP;
@@ -2714,7 +2714,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
     if (GetCPL() == 0 && (return_EFLAGS & Flag_VM) != 0)
     {
       // Entering V8086 mode
-      Log_DevPrintf("Entering V8086 mode, EFLAGS = %08X, CS:IP = %04X:%04X", return_EFLAGS, ZeroExtend32(return_CS),
+      Log_DebugPrintf("Entering V8086 mode, EFLAGS = %08X, CS:IP = %04X:%04X", return_EFLAGS, ZeroExtend32(return_CS),
                     return_EIP);
 
       // TODO: Check EIP lies within CS limits.
@@ -2767,7 +2767,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
     if (target_selector.rpl > GetCPL())
     {
       // Returning to a outer/lower privilege level
-      Log_DevPrintf("Privilege lowered via IRET, %u -> %u", ZeroExtend32(GetCPL()),
+      Log_DebugPrintf("Privilege lowered via IRET, %u -> %u", ZeroExtend32(GetCPL()),
                     ZeroExtend32(target_selector.rpl.GetValue()));
 
       // Grab ESP/SS from stack
@@ -2948,11 +2948,11 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
         }
 
         // Leaving V8086 mode via trap
-        Log_DevPrintf("Leaving V8086 mode via gate %u", interrupt);
+        Log_DebugPrintf("Leaving V8086 mode via gate %u", interrupt);
       }
       else
       {
-        Log_DevPrintf("Privilege raised via interrupt gate, %u -> %u", ZeroExtend32(GetCPL()),
+        Log_DebugPrintf("Privilege raised via interrupt gate, %u -> %u", ZeroExtend32(GetCPL()),
                       ZeroExtend32(target_descriptor.dpl.GetValue()));
         target_selector.rpl = target_descriptor.dpl;
       }
@@ -3154,7 +3154,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
 
     // Switch to new task with nesting
     DebugAssert(!m_registers.EFLAGS.VM);
-    Log_DevPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
+    Log_DebugPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
     SwitchToTask(descriptor.task_gate.selector, true, false, push_error_code, error_code);
   }
   else
@@ -3870,7 +3870,7 @@ void CPU::ExecuteCPUIDInstruction()
     CPUID_FLAG_SSE2 = (1 << 26)
   };
 
-  Log_DevPrintf("Executing CPUID with EAX=%08X", m_registers.EAX);
+  Log_DebugPrintf("Executing CPUID with EAX=%08X", m_registers.EAX);
 
   switch (m_registers.EAX)
   {

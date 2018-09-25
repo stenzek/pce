@@ -205,10 +205,10 @@ void AMI386::SetCMOSVariables()
 
   PhysicalMemoryAddress base_memory_in_k = GetBaseMemorySize() / 1024;
   m_cmos->SetWordVariable(0x15, Truncate16(base_memory_in_k));
-  Log_DevPrintf("Base memory in KB: %u", Truncate32(base_memory_in_k));
+  Log_DebugPrintf("Base memory in KB: %u", Truncate32(base_memory_in_k));
 
   PhysicalMemoryAddress extended_memory_in_k = GetExtendedMemorySize() / 1024;
-  Log_DevPrintf("Extended memory in KB: %u", Truncate32(extended_memory_in_k));
+  Log_DebugPrintf("Extended memory in KB: %u", Truncate32(extended_memory_in_k));
 
   m_cmos->SetFloppyCount(m_fdd_controller->GetDriveCount());
   for (uint32 i = 0; i < HW::FDC::MAX_DRIVES; i++)

@@ -80,7 +80,7 @@ void ATACDROM::WriteCommandRegister(u8 value)
   m_current_command = ZeroExtend16(value);
   if (cycles > 0)
   {
-    Log_DevPrintf("Queueing ATAPI command 0x%02X in %u us", value, unsigned(cycles));
+    Log_DebugPrintf("Queueing ATAPI command 0x%02X in %u us", value, unsigned(cycles));
     m_command_event->Queue(cycles);
   }
   else

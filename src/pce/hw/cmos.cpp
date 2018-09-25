@@ -276,12 +276,12 @@ void CMOS::IOReadDataPort(uint8* value)
   if (!HandleKnownCMOSRead(m_index_register, value))
     *value = m_data[m_index_register];
 
-  Log_DevPrintf("Read register 0x%02X, value=0x%02X", ZeroExtend32(m_index_register), ZeroExtend32(*value));
+  Log_DebugPrintf("Read register 0x%02X, value=0x%02X", ZeroExtend32(m_index_register), ZeroExtend32(*value));
 }
 
 void CMOS::IOWriteDataPort(uint8 value)
 {
-  Log_DevPrintf("Write register 0x%02X value=0x%02X", ZeroExtend32(m_index_register), ZeroExtend32(value));
+  Log_DebugPrintf("Write register 0x%02X value=0x%02X", ZeroExtend32(m_index_register), ZeroExtend32(value));
 
   // Handle RTC and special stuff.
   if (!HandleKnownCMOSWrite(m_index_register, value))

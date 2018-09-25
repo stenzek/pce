@@ -119,7 +119,7 @@ void ISAPC::SetA20State(bool state)
   if (GetA20State() == state)
     return;
 
-  Log_DevPrintf("A20 line is %s", state ? "ON" : "OFF");
+  Log_DebugPrintf("A20 line is %s", state ? "ON" : "OFF");
 
   PhysicalMemoryAddress mask = m_bus->GetMemoryAddressMask();
   if (state)

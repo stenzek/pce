@@ -384,13 +384,13 @@ void Serial::HandleIORead(u16 address, u8* value)
       break;
   }
 
-  Log_DevPrintf("serial read offset %u -> 0x%02X", offset, ZeroExtend32(*value));
+  Log_DebugPrintf("serial read offset %u -> 0x%02X", offset, ZeroExtend32(*value));
 }
 
 void Serial::HandleIOWrite(u16 address, u8 value)
 {
   u16 offset = Truncate16(address - m_base_io_address);
-  Log_DevPrintf("serial write offset %u 0x%02X", offset, ZeroExtend32(value));
+  Log_DebugPrintf("serial write offset %u 0x%02X", offset, ZeroExtend32(value));
 
   // MSB/LSB of divisor
   if (offset <= 1 && m_line_control_register.divisor_access_latch)
@@ -400,7 +400,7 @@ void Serial::HandleIOWrite(u16 address, u8 value)
     else
       m_clock_divider = (m_clock_divider & 0x00FF) | (ZeroExtend16(value) << 8);
 
-    Log_DevPrintf("Clock divider <-- 0x%02X", ZeroExtend32(m_clock_divider));
+    Log_DebugPrintf("Clock divider <-- 0x%02X", ZeroExtend32(m_clock_divider));
     UpdateTransmitEvent();
     return;
   }
@@ -443,7 +443,7 @@ void Serial::HandleIOWrite(u16 address, u8 value)
 
       // Interrupt enable register
     case 1:
-      Log_DevPrintf("Interrupt enable register <-- 0x%02X", ZeroExtend32(value));
+      Log_DebugPrintf("Interrupt enable register <-- 0x%02X", ZeroExtend32(value));
       m_interrupt_enable_register.bits = value & INTERRUPT_ENABLE_REGISTER_MASK;
       if (m_line_status_register.empty_transmit_register)
         m_interrupt_state |= InterruptState_TransmitDataEmpty;
@@ -453,7 +453,7 @@ void Serial::HandleIOWrite(u16 address, u8 value)
       // FIFO control register
     case 2:
     {
-      Log_DevPrintf("FIFO control register <-- 0x%02X", ZeroExtend32(value));
+      Log_DebugPrintf("FIFO control register <-- 0x%02X", ZeroExtend32(value));
 
       // Ignore writes to this register on an 8250.
       if (m_model < Model_16550)
@@ -525,14 +525,14 @@ void Serial::HandleIOWrite(u16 address, u8 value)
 
       // Line control register
     case 3:
-      Log_DevPrintf("Line control register <-- 0x%02X", ZeroExtend32(value));
+      Log_DebugPrintf("Line control register <-- 0x%02X", ZeroExtend32(value));
       m_line_control_register.bits = value;
       break;
 
       // Modem control register
     case 4:
     {
-      Log_DevPrintf("Modem control register <-- 0x%02X", ZeroExtend32(value));
+      Log_DebugPrintf("Modem control register <-- 0x%02X", ZeroExtend32(value));
 
       decltype(m_modem_control_register) changed_bits;
       changed_bits.bits = m_modem_control_register.bits ^ value;
@@ -559,7 +559,7 @@ void Serial::HandleIOWrite(u16 address, u8 value)
       // Scratch register
     case 7:
     {
-      Log_DevPrintf("Scratch register <-- 0x%02X", ZeroExtend32(value));
+      Log_DebugPrintf("Scratch register <-- 0x%02X", ZeroExtend32(value));
       if (m_model >= Model_16550)
         m_scratch_register = value;
     }
@@ -599,7 +599,7 @@ void Serial::HandleTransferEvent(CycleCount cycles)
 {
   bool fire_callback = false;
   uint32 num_bytes = std::max(uint32(cycles / CalculateCyclesPerByte()), UINT32_C(1));
-  Log_DevPrintf("Serial execute cycles %u bytes %u", uint32(cycles), num_bytes);
+  Log_DebugPrintf("Serial execute cycles %u bytes %u", uint32(cycles), num_bytes);
 
   while ((num_bytes--) > 0)
   {
@@ -636,7 +636,7 @@ void Serial::HandleTransferEvent(CycleCount cycles)
 
         // Write to the output buffer.
         m_output_buffer[m_output_buffer_size++] = data;
-        Log_DevPrintf("Serial sent byte: 0x%02X", ZeroExtend32(data));
+        Log_DebugPrintf("Serial sent byte: 0x%02X", ZeroExtend32(data));
       }
       else
       {
@@ -662,7 +662,7 @@ void Serial::HandleTransferEvent(CycleCount cycles)
       if (m_input_buffer_size > 0)
         std::memmove(m_input_buffer.data(), m_input_buffer.data() + 1, m_input_buffer_size);
 
-      Log_DevPrintf("Serial received byte: 0x%02X", ZeroExtend32(data));
+      Log_DebugPrintf("Serial received byte: 0x%02X", ZeroExtend32(data));
 
       // Add to input fifo.
       size_t waiting_size;

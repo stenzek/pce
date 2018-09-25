@@ -83,7 +83,7 @@ u8 i82437FX::ReadConfigSpace(u8 function, u8 offset)
 
 void i82437FX::WriteConfigSpace(u8 function, u8 offset, u8 value)
 {
-  Log_DevPrintf("i82437FX: Write to 0x%08X: 0x%02X", offset, value);
+  Log_DebugPrintf("i82437FX: Write to 0x%08X: 0x%02X", offset, value);
 
   switch (offset)
   {
@@ -115,7 +115,7 @@ void i82437FX::SetPAMMapping(uint32 base, uint32 size, uint8 flag)
   const bool writable_memory = !!(flag & 2);
   const bool cachable_memory = !!(flag & 4);
 
-  Log_DevPrintf("Shadowing for 0x%08X-0x%08X - type %u, readable=%s, writable=%s, cachable=%s", base, base + size - 1,
+  Log_DebugPrintf("Shadowing for 0x%08X-0x%08X - type %u, readable=%s, writable=%s, cachable=%s", base, base + size - 1,
                 flag, readable_memory ? "yes" : "no", writable_memory ? "yes" : "no", cachable_memory ? "yes" : "no");
 
   m_bus->SetPagesRAMState(base, size, readable_memory, writable_memory);

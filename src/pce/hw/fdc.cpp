@@ -391,14 +391,14 @@ bool FDC::SeekToNextSector(uint32 drive)
 void FDC::ReadCurrentSector(uint32 drive, void* data)
 {
   DriveState* state = &m_drives[drive];
-  Log_DevPrintf("FDC read lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
+  Log_DebugPrintf("FDC read lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
   state->floppy->Read(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
 void FDC::WriteCurrentSector(uint32 drive, const void* data)
 {
   DriveState* state = &m_drives[drive];
-  Log_DevPrintf("FDC write lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
+  Log_DebugPrintf("FDC write lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
   state->floppy->Write(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
@@ -979,7 +979,7 @@ void FDC::IOWriteDigitalOutputRegister(uint8 value)
     if (!m_DOR.nreset)
     {
       // Queue a reset command. Make sure we can interrupt this.
-      Log_DevPrintf("FDC enter reset");
+      Log_DebugPrintf("FDC enter reset");
       m_reset_begin_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
       m_command_event->SetActive(false);
     }
@@ -987,7 +987,7 @@ void FDC::IOWriteDigitalOutputRegister(uint8 value)
     {
       // Reset after 250us.
       // TODO: We should ignore commands until this point.
-      Log_DevPrintf("FDC leave reset");
+      Log_DebugPrintf("FDC leave reset");
 
       SimulationTime time_since_reset = m_system->GetTimingManager()->GetEmulatedTimeDifference(m_reset_begin_time);
       if (time_since_reset > 1000)
@@ -1094,7 +1094,7 @@ void FDC::EndTransfer(uint32 drive, uint8 st0_bits, uint8 st1_bits, uint8 st2_bi
   m_st1 = GetST1(drive, st1_bits);
   m_st2 = GetST2(drive, st2_bits);
 
-  Log_DevPrintf("End transfer, Drive=%u ST0=0x%02X ST1=0x%02X ST2=0x%02X", drive, ZeroExtend32(m_st0),
+  Log_DebugPrintf("End transfer, Drive=%u ST0=0x%02X ST1=0x%02X ST2=0x%02X", drive, ZeroExtend32(m_st0),
                 ZeroExtend32(m_st1), ZeroExtend32(m_st2));
 
   ClearFIFO();
@@ -1251,7 +1251,7 @@ CycleCount FDC::CalculateHeadSeekTime(u32 drive, u32 destination_track) const
   uint32 move_count =
     (current_track >= destination_track) ? (current_track - destination_track) : (destination_track - current_track);
   CycleCount cycles = CalculateHeadSeekTime(drive) * CycleCount(move_count);
-  Log_DevPrintf("seek time for %u steps = %u usec, %u msec", move_count, cycles, cycles / 1000);
+  Log_DebugPrintf("seek time for %u steps = %u usec, %u msec", move_count, cycles, cycles / 1000);
   return cycles;
 }
 
