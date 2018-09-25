@@ -27,7 +27,7 @@ bool ATADevice::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_ata_controller = system->GetComponentByType<HDC>(m_ata_channel_number % 2);
+  m_ata_controller = system->GetComponentByType<HDC>(m_ata_channel_number / 2);
   if (!m_ata_controller)
   {
     Log_ErrorPrintf("Failed to find IDE controller");
