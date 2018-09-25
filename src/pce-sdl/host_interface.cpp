@@ -383,7 +383,7 @@ void SDLHostInterface::RenderImGui()
       ImGui::SetNextWindowPos(ImVec2(1.0f, 32.0f));
       if (ImGui::Begin("Activity", nullptr,
                        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                         ImGuiWindowFlags_NoInputs))
+                         ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
       {
         for (const auto& elem : m_component_ui_elements)
         {
