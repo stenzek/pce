@@ -503,6 +503,7 @@ void CPU::FlushCodeCache()
 
 void CPU::CreateBackend()
 {
+  m_backend.reset();
   switch (m_backend_type)
   {
     case CPUBackendType::Interpreter:
@@ -576,12 +577,12 @@ uint8 CPU::FetchInstructionByte()
   if ((m_prefetch_queue_size - m_prefetch_queue_position) >= sizeof(uint8) || FillPrefetchQueue())
     value = m_prefetch_queue[m_prefetch_queue_position++];
   else
-    value = FetchDirectInstructionByte(m_registers.EIP, true);
+    value = FetchDirectInstructionByte(m_registers.EIP);
 
   m_registers.EIP = (m_registers.EIP + sizeof(uint8)) & m_EIP_mask;
   return value;
 #else
-  uint8 value = FetchDirectInstructionByte(m_registers.EIP, true);
+  uint8 value = FetchDirectInstructionByte(m_registers.EIP);
   m_registers.EIP = (m_registers.EIP + sizeof(uint8)) & m_EIP_mask;
   return value;
 #endif
@@ -599,13 +600,13 @@ uint16 CPU::FetchInstructionWord()
   }
   else
   {
-    value = FetchDirectInstructionWord(m_registers.EIP, true);
+    value = FetchDirectInstructionWord(m_registers.EIP);
   }
 
   m_registers.EIP = (m_registers.EIP + sizeof(uint16)) & m_EIP_mask;
   return value;
 #else
-  uint16 value = FetchDirectInstructionWord(m_registers.EIP, true);
+  uint16 value = FetchDirectInstructionWord(m_registers.EIP);
   m_registers.EIP = (m_registers.EIP + sizeof(uint16)) & m_EIP_mask;
   return value;
 #endif
@@ -623,69 +624,67 @@ uint32 CPU::FetchInstructionDWord()
   }
   else
   {
-    value = FetchDirectInstructionDWord(m_registers.EIP, true);
+    value = FetchDirectInstructionDWord(m_registers.EIP);
   }
 
   m_registers.EIP = (m_registers.EIP + sizeof(uint32)) & m_EIP_mask;
   return value;
 #else
-  uint32 value = FetchDirectInstructionDWord(m_registers.EIP, true);
+  uint32 value = FetchDirectInstructionDWord(m_registers.EIP);
   m_registers.EIP = (m_registers.EIP + sizeof(uint32)) & m_EIP_mask;
   return value;
 #endif
 }
 
-uint8 CPU::FetchDirectInstructionByte(uint32 address, bool raise_exceptions)
+uint8 CPU::FetchDirectInstructionByte(u32 address)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, address);
-  if (raise_exceptions)
-    CheckSegmentAccess<sizeof(uint8), AccessType::Execute>(Segment_CS, address, raise_exceptions);
+  CheckSegmentAccess<sizeof(uint8), AccessType::Execute>(Segment_CS, address, true);
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, linear_address, raise_exceptions, AccessType::Execute, raise_exceptions);
+  TranslateLinearAddress(&physical_address, linear_address,
+                         AddAccessTypeToFlags(AccessType::Execute, AccessFlags::Normal));
 
   return m_bus->ReadMemoryByte(physical_address);
 }
 
-uint16 CPU::FetchDirectInstructionWord(uint32 address, bool raise_exceptions)
+uint16 CPU::FetchDirectInstructionWord(uint32 address)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, address);
+  CheckSegmentAccess<sizeof(uint16), AccessType::Execute>(Segment_CS, address, true);
 
   // If it crosses a page, we have to fetch bytes instead.
   if ((linear_address & CPU::PAGE_MASK) != ((linear_address + sizeof(uint16) - 1) & CPU::PAGE_MASK))
   {
     uint32 mask = (m_current_address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF;
-    uint8 lsb = FetchDirectInstructionByte(address, raise_exceptions);
-    uint8 msb = FetchDirectInstructionByte((address + 1) & mask, raise_exceptions);
+    uint8 lsb = FetchDirectInstructionByte(address);
+    uint8 msb = FetchDirectInstructionByte((address + 1) & mask);
     return ZeroExtend16(lsb) | (ZeroExtend16(msb) << 8);
   }
 
-  if (raise_exceptions)
-    CheckSegmentAccess<sizeof(uint16), AccessType::Execute>(Segment_CS, address, raise_exceptions);
-
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, linear_address, raise_exceptions, AccessType::Execute, raise_exceptions);
+  TranslateLinearAddress(&physical_address, linear_address,
+                         AddAccessTypeToFlags(AccessType::Execute, AccessFlags::Normal));
   return m_bus->ReadMemoryWord(physical_address);
 }
 
-uint32 CPU::FetchDirectInstructionDWord(uint32 address, bool raise_exceptions)
+uint32 CPU::FetchDirectInstructionDWord(uint32 address)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, address);
+  CheckSegmentAccess<sizeof(uint32), AccessType::Execute>(Segment_CS, address, true);
 
   // If it crosses a page, we have to fetch words instead.
   if ((linear_address & CPU::PAGE_MASK) != ((linear_address + sizeof(uint32) - 1) & CPU::PAGE_MASK))
   {
     uint32 mask = (m_current_address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF;
-    uint16 lsb = FetchDirectInstructionWord(address, raise_exceptions);
-    uint16 msb = FetchDirectInstructionWord((address + 2) & mask, raise_exceptions);
+    uint16 lsb = FetchDirectInstructionWord(address);
+    uint16 msb = FetchDirectInstructionWord((address + 2) & mask);
     return ZeroExtend32(lsb) | (ZeroExtend32(msb) << 16);
   }
 
-  if (raise_exceptions)
-    CheckSegmentAccess<sizeof(uint32), AccessType::Execute>(Segment_CS, address, raise_exceptions);
-
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, linear_address, raise_exceptions, AccessType::Execute, raise_exceptions);
+  TranslateLinearAddress(&physical_address, linear_address,
+                         AddAccessTypeToFlags(AccessType::Execute, AccessFlags::Normal));
   return m_bus->ReadMemoryDWord(physical_address);
 }
 
@@ -1003,7 +1002,7 @@ PhysicalMemoryAddress CPU::CalculateLinearAddress(Segment segment, VirtualMemory
 }
 
 bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,
-                                 bool access_check, AccessType access_type, bool raise_page_fault)
+                                 AccessFlags flags)
 {
   // Skip if paging is not enabled.
   if ((m_registers.CR0 & CR0Bit_PG) == 0)
@@ -1014,8 +1013,10 @@ bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, Li
 
 #ifdef ENABLE_TLB_EMULATION
   // Check TLB.
-  size_t tlb_index = GetTLBEntryIndex(linear_address);
-  TLBEntry& tlb_entry = m_tlb_entries[m_tlb_user_bit][static_cast<uint8>(access_type)][tlb_index];
+  const size_t tlb_index = GetTLBEntryIndex(linear_address);
+  const u8 tlb_user_bit = BoolToUInt8(HasAccessFlagBit(flags, AccessFlags::UseSupervisorPrivileges));
+  const u8 tlb_type = static_cast<u8>(GetAccessTypeFromFlags(flags));
+  TLBEntry& tlb_entry = m_tlb_entries[tlb_user_bit][tlb_type][tlb_index];
   if (tlb_entry.linear_address == (linear_address & PAGE_MASK))
   {
     // TLB hit!
@@ -1024,17 +1025,14 @@ bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, Li
   }
 #endif
 
-  return LookupPageTable(out_physical_address, linear_address, access_check, access_type, raise_page_fault);
+  // TODO: Convert some of these parameters to flags.
+  return LookupPageTable(out_physical_address, linear_address, flags);
 }
 
 bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,
-                          bool access_check, AccessType access_type, bool raise_page_fault)
+                          AccessFlags flags)
 {
   // TODO: Large (4MB) pages
-
-  // Permission checks only apply in usermode, except if WP bit of CR0 is set
-  bool do_access_check = (access_check && ((m_registers.CR0 & CR0Bit_WP) || InUserMode()));
-  uint8 access_mask = (1 << (uint8)access_type) << (InUserMode() ? 0 : 3);
 
   // Obtain the address of the page directory. Bits 22-31 index the page directory.
   LinearMemoryAddress dir_base_address = (m_registers.CR3 & 0xFFFFF000);
@@ -1051,20 +1049,10 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
   if (!directory_entry.present)
   {
     // Page not present.
-    if (raise_page_fault)
-      RaisePageFault(linear_address, access_type, false);
+    if (!HasAccessFlagBit(flags, AccessFlags::NoPageFaults))
+      RaisePageFault(linear_address, GetAccessTypeFromFlags(flags) == AccessType::Write, false);
     return false;
   }
-
-  // Permissions for directory
-  // U bit set implies userspace can access it
-  // R bit implies userspace can write to it
-  uint8 directory_permissions = (0x05 << 3);                            // supervisor=read,execute
-  directory_permissions |= (directory_entry.bits << 3) & 0x10;          // supervisor=write from R/W bit
-  directory_permissions |= (directory_entry.bits >> 2) & 0x01;          // user=read from U/S bit
-  directory_permissions |= (directory_entry.bits) & 0x04;               // user=execute from U/S bit
-  directory_permissions |= (directory_entry.bits) & 0x02;               // user=write from R/W bit
-  directory_permissions &= 0x3D | ((directory_entry.bits >> 1) & 0x02); // user=write from U/S bit
 
   // Obtain the address of the page table. Address in the directory is 4KB aligned. Bits 12-21 index the page table.
   LinearMemoryAddress table_base_address = (directory_entry.page_table_address << 12);
@@ -1080,31 +1068,53 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
   if (!table_entry.present)
   {
     // Page not present.
-    if (raise_page_fault)
-      RaisePageFault(linear_address, access_type, false);
+    if (!HasAccessFlagBit(flags, AccessFlags::NoPageFaults))
+      RaisePageFault(linear_address, GetAccessTypeFromFlags(flags) == AccessType::Write, false);
     return false;
   }
-
-  // Check for table permissions
-  // U bit set implies userspace can access it
-  // R bit implies userspace can write to it
-  uint8 table_permissions = (0x05 << 3);                        // supervisor=read,execute
-  table_permissions |= (table_entry.bits << 3) & 0x10;          // supervisor=write from R/W bit
-  table_permissions |= (table_entry.bits >> 2) & 0x01;          // user=read from U/S bit
-  table_permissions |= (table_entry.bits) & 0x04;               // user=execute from U/S bit
-  table_permissions |= (table_entry.bits) & 0x02;               // user=write from R/W bit
-  table_permissions &= 0x3D | ((table_entry.bits >> 1) & 0x02); // user=write from U/S bit
 
   // Check access, requires both directory and page access
-  if (do_access_check && (access_mask & directory_permissions & table_permissions) == 0)
+  // Permission checks only apply in usermode, except if WP bit of CR0 is set
+  const bool do_access_check =
+    (!HasAccessFlagBit(flags, AccessFlags::NoPageProtectionCheck) && ((m_registers.CR0 & CR0Bit_WP) || InUserMode()));
+  if (do_access_check)
   {
-    if (raise_page_fault)
-      RaisePageFault(linear_address, access_type, true);
-    return false;
+    // Permissions for directory
+    // U bit set implies userspace can access it
+    // R bit implies userspace can write to it
+    u8 directory_permissions = (0x05 << 3);                               // supervisor=read,execute
+    directory_permissions |= (directory_entry.bits << 3) & 0x10;          // supervisor=write from R/W bit
+    directory_permissions |= (directory_entry.bits >> 2) & 0x01;          // user=read from U/S bit
+    directory_permissions |= (directory_entry.bits) & 0x04;               // user=execute from U/S bit
+    directory_permissions |= (directory_entry.bits) & 0x02;               // user=write from R/W bit
+    directory_permissions &= 0x3D | ((directory_entry.bits >> 1) & 0x02); // user=write from U/S bit
+
+    // Check for table permissions
+    // U bit set implies userspace can access it
+    // R bit implies userspace can write to it
+    u8 table_permissions = (0x05 << 3);                           // supervisor=read,execute
+    table_permissions |= (table_entry.bits << 3) & 0x10;          // supervisor=write from R/W bit
+    table_permissions |= (table_entry.bits >> 2) & 0x01;          // user=read from U/S bit
+    table_permissions |= (table_entry.bits) & 0x04;               // user=execute from U/S bit
+    table_permissions |= (table_entry.bits) & 0x02;               // user=write from R/W bit
+    table_permissions &= 0x3D | ((table_entry.bits >> 1) & 0x02); // user=write from U/S bit
+
+    u8 access_mask = (1 << static_cast<u8>(GetAccessTypeFromFlags(flags))) << (InUserMode() ? 0 : 3);
+
+    if ((access_mask & directory_permissions & table_permissions) == 0)
+    {
+      if (!HasAccessFlagBit(flags, AccessFlags::NoPageFaults))
+        RaisePageFault(linear_address, GetAccessTypeFromFlags(flags) == AccessType::Write, true);
+      return false;
+    }
   }
 
+  // Calculate the physical address from the page table entry. Pages are 4KB aligned.
+  PhysicalMemoryAddress page_base_address = (table_entry.physical_address << PAGE_SHIFT);
+  PhysicalMemoryAddress translated_address = page_base_address + (linear_address & 0xFFF);
+
   // Updating of accessed/dirty bits is only done with access checks are enabled (=> normal usage)
-  if (access_check)
+  if (!HasAccessFlagBit(flags, AccessFlags::NoTLBUpdate))
   {
     // Update accessed bits on directory and table entries
     if (!directory_entry.accessed)
@@ -1119,40 +1129,36 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
     }
 
     // Update dirty bit on table entry
-    if (access_type == AccessType::Write && !table_entry.dirty)
+    if (GetAccessTypeFromFlags(flags) == AccessType::Write && !table_entry.dirty)
     {
       table_entry.dirty = true;
       m_bus->WriteMemoryDWord(table_entry_address, table_entry.bits);
     }
-  }
-
-  // Calculate the physical address from the page table entry. Pages are 4KB aligned.
-  PhysicalMemoryAddress page_base_address = (table_entry.physical_address << 12);
-  PhysicalMemoryAddress translated_address = page_base_address + (linear_address & 0xFFF);
 
 #ifdef ENABLE_TLB_EMULATION
-  // Require both directory and page permissions to access in the TLB.
-  // TODO: Is this the same on the 386 and 486?
-  size_t tlb_index = GetTLBEntryIndex(linear_address);
-  TLBEntry& tlb_entry = m_tlb_entries[m_tlb_user_bit][static_cast<uint8>(access_type)][tlb_index];
-  tlb_entry.linear_address = linear_address & PAGE_MASK;
-  tlb_entry.physical_address = page_base_address;
+    const size_t tlb_index = GetTLBEntryIndex(linear_address);
+    const u8 tlb_user_bit = BoolToUInt8(HasAccessFlagBit(flags, AccessFlags::UseSupervisorPrivileges));
+    const u8 tlb_type = static_cast<u8>(GetAccessTypeFromFlags(flags));
+    TLBEntry& tlb_entry = m_tlb_entries[tlb_user_bit][tlb_type][tlb_index];
+    tlb_entry.linear_address = linear_address & PAGE_MASK;
+    tlb_entry.physical_address = page_base_address;
 #endif
+  }
 
   *out_physical_address = translated_address;
   return true;
 }
 
-void CPU::RaisePageFault(LinearMemoryAddress linear_address, AccessType access_type, bool page_present)
+void CPU::RaisePageFault(LinearMemoryAddress linear_address, bool is_write, bool page_present)
 {
   Log_DevPrintf("Page fault at linear address 0x%08X: %s,%s,%s", linear_address,
-                page_present ? "Present" : "Not Present", access_type == AccessType::Write ? "Write" : "Read",
+                page_present ? "Present" : "Not Present", is_write ? "Write" : "Read",
                 InUserMode() ? "User Mode" : "Supervisor Mode");
 
   // Determine bits of error code
-  uint32 error_code = (((page_present) ? (1u << 0) : 0) |                     // P
-                       ((access_type == AccessType::Write) ? (1u << 1) : 0) | // W/R
-                       ((InUserMode()) ? (1u << 2) : 0));                     // U/S
+  uint32 error_code = (((page_present) ? (1u << 0) : 0) | // P
+                       ((is_write) ? (1u << 1) : 0) |     // W/R
+                       ((InUserMode()) ? (1u << 2) : 0)); // U/S
 
   // Update CR2 with the linear address that triggered the fault
   m_registers.CR2 = linear_address;
@@ -1164,7 +1170,7 @@ uint8 CPU::ReadMemoryByte(LinearMemoryAddress address)
   AddMemoryCycle();
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, true, AccessType::Read, true);
+  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
 
   // TODO: Optimize Bus
   return m_bus->ReadMemoryByte(physical_address);
@@ -1195,7 +1201,7 @@ uint16 CPU::ReadMemoryWord(LinearMemoryAddress address)
   }
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, true, AccessType::Read, true);
+  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
   return m_bus->ReadMemoryWord(physical_address);
 }
 
@@ -1224,7 +1230,7 @@ uint32 CPU::ReadMemoryDWord(LinearMemoryAddress address)
   }
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, true, AccessType::Read, true);
+  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
   return m_bus->ReadMemoryDWord(physical_address);
 }
 
@@ -1232,7 +1238,7 @@ void CPU::WriteMemoryByte(LinearMemoryAddress address, uint8 value)
 {
   AddMemoryCycle();
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, true, AccessType::Write, true);
+  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
   m_bus->WriteMemoryByte(physical_address, value);
 }
 
@@ -1261,7 +1267,7 @@ void CPU::WriteMemoryWord(LinearMemoryAddress address, uint16 value)
   }
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, true, AccessType::Write, true);
+  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
   m_bus->WriteMemoryWord(physical_address, value);
 }
 
@@ -1290,7 +1296,7 @@ void CPU::WriteMemoryDWord(LinearMemoryAddress address, uint32 value)
   }
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, true, AccessType::Write, true);
+  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
   m_bus->WriteMemoryDWord(physical_address, value);
 }
 
@@ -1336,10 +1342,10 @@ void CPU::WriteMemoryDWord(Segment segment, VirtualMemoryAddress address, uint32
   WriteMemoryDWord(linear_address, value);
 }
 
-bool CPU::SafeReadMemoryByte(LinearMemoryAddress address, uint8* value, bool access_check, bool raise_page_fault)
+bool CPU::SafeReadMemoryByte(LinearMemoryAddress address, uint8* value, AccessFlags access_flags)
 {
   PhysicalMemoryAddress physical_address;
-  if (!TranslateLinearAddress(&physical_address, address, access_check, AccessType::Read, raise_page_fault))
+  if (!TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, access_flags)))
   {
     *value = UINT8_C(0xFF);
     return false;
@@ -1348,14 +1354,14 @@ bool CPU::SafeReadMemoryByte(LinearMemoryAddress address, uint8* value, bool acc
   return m_bus->CheckedReadMemoryByte(physical_address, value);
 }
 
-bool CPU::SafeReadMemoryWord(LinearMemoryAddress address, uint16* value, bool access_check, bool raise_page_fault)
+bool CPU::SafeReadMemoryWord(LinearMemoryAddress address, uint16* value, AccessFlags access_flags)
 {
   PhysicalMemoryAddress physical_address;
 
   // If the address falls within the same page we can still skip doing byte reads.
   if ((address & PAGE_MASK) == ((address + sizeof(uint16) - 1) & PAGE_MASK))
   {
-    if (!TranslateLinearAddress(&physical_address, address, access_check, AccessType::Read, raise_page_fault))
+    if (!TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, access_flags)))
     {
       *value = UINT16_C(0xFFFF);
       return false;
@@ -1366,21 +1372,20 @@ bool CPU::SafeReadMemoryWord(LinearMemoryAddress address, uint16* value, bool ac
 
   // Fall back to byte reads.
   uint8 b0, b1;
-  bool result = SafeReadMemoryByte(address + 0, &b0, access_check, raise_page_fault) &
-                SafeReadMemoryByte(address + 1, &b1, access_check, raise_page_fault);
+  bool result = SafeReadMemoryByte(address + 0, &b0, access_flags) & SafeReadMemoryByte(address + 1, &b1, access_flags);
 
   *value = ZeroExtend16(b0) | (ZeroExtend16(b1) << 8);
   return result;
 }
 
-bool CPU::SafeReadMemoryDWord(LinearMemoryAddress address, uint32* value, bool access_check, bool raise_page_fault)
+bool CPU::SafeReadMemoryDWord(LinearMemoryAddress address, uint32* value, AccessFlags access_flags)
 {
   PhysicalMemoryAddress physical_address;
 
   // If the address falls within the same page we can still skip doing byte reads.
   if ((address & PAGE_MASK) == ((address + sizeof(uint32) - 1) & PAGE_MASK))
   {
-    if (!TranslateLinearAddress(&physical_address, address, access_check, AccessType::Read, raise_page_fault))
+    if (!TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, access_flags)))
       return false;
 
     return m_bus->CheckedReadMemoryDWord(physical_address, value);
@@ -1388,56 +1393,55 @@ bool CPU::SafeReadMemoryDWord(LinearMemoryAddress address, uint32* value, bool a
 
   // Fallback to word reads when it's split across pages.
   uint16 w0 = 0, w1 = 0;
-  bool result = SafeReadMemoryWord(address + 0, &w0, access_check, raise_page_fault) &
-                SafeReadMemoryWord(address + 2, &w1, access_check, raise_page_fault);
+  bool result = SafeReadMemoryWord(address + 0, &w0, access_flags) & SafeReadMemoryWord(address + 2, &w1, access_flags);
 
   *value = ZeroExtend32(w0) | (ZeroExtend32(w1) << 16);
   return result;
 }
 
-bool CPU::SafeWriteMemoryByte(VirtualMemoryAddress address, uint8 value, bool access_check, bool raise_page_fault)
+bool CPU::SafeWriteMemoryByte(VirtualMemoryAddress address, uint8 value, AccessFlags access_flags)
 {
   PhysicalMemoryAddress physical_address;
-  if (!TranslateLinearAddress(&physical_address, address, access_check, AccessType::Write, raise_page_fault))
+  if (!TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, access_flags)))
     return false;
 
   return m_bus->CheckedWriteMemoryByte(physical_address, value);
 }
 
-bool CPU::SafeWriteMemoryWord(VirtualMemoryAddress address, uint16 value, bool access_check, bool raise_page_fault)
+bool CPU::SafeWriteMemoryWord(VirtualMemoryAddress address, uint16 value, AccessFlags access_flags)
 {
   PhysicalMemoryAddress physical_address;
 
   // If the address falls within the same page we can still skip doing byte reads.
   if ((address & PAGE_MASK) == ((address + sizeof(uint16) - 1) & PAGE_MASK))
   {
-    if (!TranslateLinearAddress(&physical_address, address, access_check, AccessType::Write, raise_page_fault))
+    if (!TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, access_flags)))
       return false;
 
     return m_bus->CheckedWriteMemoryWord(physical_address, value);
   }
 
   // Slowest path here.
-  return SafeWriteMemoryByte((address + 0), Truncate8(value), access_check, raise_page_fault) &
-         SafeWriteMemoryByte((address + 1), Truncate8(value >> 8), access_check, raise_page_fault);
+  return SafeWriteMemoryByte((address + 0), Truncate8(value), access_flags) &
+         SafeWriteMemoryByte((address + 1), Truncate8(value >> 8), access_flags);
 }
 
-bool CPU::SafeWriteMemoryDWord(VirtualMemoryAddress address, uint32 value, bool access_check, bool raise_page_fault)
+bool CPU::SafeWriteMemoryDWord(VirtualMemoryAddress address, uint32 value, AccessFlags access_flags)
 {
   PhysicalMemoryAddress physical_address;
 
   // If the address falls within the same page we can still skip doing byte reads.
   if ((address & PAGE_MASK) == ((address + sizeof(uint32) - 1) & PAGE_MASK))
   {
-    if (!TranslateLinearAddress(&physical_address, address, access_check, AccessType::Write, raise_page_fault))
+    if (!TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, access_flags)))
       return false;
 
     return m_bus->CheckedWriteMemoryDWord(physical_address, value);
   }
 
   // Fallback to word writes when it's split across pages.
-  return SafeWriteMemoryWord((address + 0), Truncate16(value), access_check, raise_page_fault) &
-         SafeWriteMemoryWord((address + 2), Truncate16(value >> 16), access_check, raise_page_fault);
+  return SafeWriteMemoryWord((address + 0), Truncate16(value), access_flags) &
+         SafeWriteMemoryWord((address + 2), Truncate16(value >> 16), access_flags);
 }
 
 void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullptr */)
@@ -1452,30 +1456,32 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
 
 #ifndef COMMON_LOGGING_FORMAT
 #if 1
-  std::fprintf(stdout, "EAX=%08X EBX=%08X ECX=%08X EDX=%08X ESI=%08X EDI=%08X\n", m_registers.EAX, m_registers.EBX,
-               m_registers.ECX, m_registers.EDX, m_registers.ESI, m_registers.EDI);
-  std::fprintf(stdout, "ESP=%08X EBP=%08X EIP=%04X:%08X EFLAGS=%08X ES=%04X SS=%04X DS=%04X FS=%04X GS=%04X\n",
-               m_registers.ESP, m_registers.EBP, ZeroExtend32(m_registers.CS), m_current_EIP, m_registers.EFLAGS.bits,
-               ZeroExtend32(m_registers.ES), ZeroExtend32(m_registers.SS), ZeroExtend32(m_registers.DS),
-               ZeroExtend32(m_registers.FS), ZeroExtend32(m_registers.GS));
+  std::fprintf(stdout, "EAX=%08X EBX=%08X ECX=%08X EDX=%08X ESI=%08X EDI=%08X ESP=%08X EBP=%08X\n", m_registers.EAX,
+               m_registers.EBX, m_registers.ECX, m_registers.EDX, m_registers.ESI, m_registers.EDI, m_registers.ESP,
+               m_registers.EBP);
+  std::fprintf(stdout,
+               "EFLAGS=%08X ES=%04X SS=%04X DS=%04X FS=%04X GS=%04X CR0=%08X CR2=%08X CR3=%08X TSC=%" PRIX64 "\n",
+               m_registers.EFLAGS.bits, ZeroExtend32(m_registers.ES), ZeroExtend32(m_registers.SS),
+               ZeroExtend32(m_registers.DS), ZeroExtend32(m_registers.FS), ZeroExtend32(m_registers.GS),
+               m_registers.CR0, m_registers.CR2, m_registers.CR3, ReadTSC());
 #endif
 #endif
 
   uint32 fetch_EIP = m_current_EIP;
   auto fetchb = [this, &fetch_EIP](uint8* val) {
-    if (!SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+    if (!SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
       return false;
     fetch_EIP = (fetch_EIP + sizeof(uint8)) & m_EIP_mask;
     return true;
   };
   auto fetchw = [this, &fetch_EIP](uint16* val) {
-    if (!SafeReadMemoryWord(CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+    if (!SafeReadMemoryWord(CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
       return false;
     fetch_EIP = (fetch_EIP + sizeof(uint16)) & m_EIP_mask;
     return true;
   };
   auto fetchd = [this, &fetch_EIP](uint32* val) {
-    if (!SafeReadMemoryDWord(CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+    if (!SafeReadMemoryDWord(CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
       return false;
     fetch_EIP = (fetch_EIP + sizeof(uint32)) & m_EIP_mask;
     return true;
@@ -1492,7 +1498,7 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
   for (uint32 i = 0; i < instruction_length; i++)
   {
     uint8 value = 0;
-    if (!SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, m_current_EIP + i), &value, false, false))
+    if (!SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, m_current_EIP + i), &value, AccessFlags::Debugger))
     {
       hex_string.AppendFormattedString(" <memory read failed at 0x%08X>",
                                        CalculateLinearAddress(Segment_CS, m_current_EIP + i));
@@ -1574,8 +1580,8 @@ bool CPU::ReadDescriptorEntry(DESCRIPTOR_ENTRY* entry, const DescriptorTablePoin
     return false;
 
   // TODO: Should this use supervisor privileges since it's reading the GDT?
-  SafeReadMemoryDWord(table.base_address + offset + 0, &entry->bits0, false, true);
-  SafeReadMemoryDWord(table.base_address + offset + 4, &entry->bits1, false, true);
+  SafeReadMemoryDWord(table.base_address + offset + 0, &entry->bits0, AccessFlags::UseSupervisorPrivileges);
+  SafeReadMemoryDWord(table.base_address + offset + 4, &entry->bits1, AccessFlags::UseSupervisorPrivileges);
   return true;
 }
 
@@ -1592,8 +1598,8 @@ bool CPU::WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const DescriptorTa
 
   // TODO: Should this use supervisor privileges since it's reading the GDT?
   LinearMemoryAddress descriptor_address = table.base_address + offset + 0;
-  SafeWriteMemoryDWord(descriptor_address + 0, entry.bits0, false, true);
-  SafeWriteMemoryDWord(descriptor_address + 4, entry.bits1, false, true);
+  SafeWriteMemoryDWord(descriptor_address + 0, entry.bits0, AccessFlags::UseSupervisorPrivileges);
+  SafeWriteMemoryDWord(descriptor_address + 4, entry.bits1, AccessFlags::UseSupervisorPrivileges);
   return true;
 }
 
@@ -2364,8 +2370,9 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
 
         // Shouldn't fail, since we're bypassing access checks
         uint16 temp = 0;
-        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset, &temp, false, true);
-        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset + 2, &new_SS, false, true);
+        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset, &temp, AccessFlags::UseSupervisorPrivileges);
+        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset + 2, &new_SS,
+                           AccessFlags::UseSupervisorPrivileges);
         new_ESP = ZeroExtend32(temp);
       }
       else
@@ -2379,8 +2386,10 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
         }
 
         // Shouldn't fail, since we're bypassing access checks
-        SafeReadMemoryDWord(m_tss_location.base_address + tss_stack_offset, &new_ESP, false, true);
-        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset + 4, &new_SS, false, true);
+        SafeReadMemoryDWord(m_tss_location.base_address + tss_stack_offset, &new_ESP,
+                            AccessFlags::UseSupervisorPrivileges);
+        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset + 4, &new_SS,
+                           AccessFlags::UseSupervisorPrivileges);
       }
 
       // Read stack segment descriptor.
@@ -2676,7 +2685,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
       RaiseException(Interrupt_InvalidTaskStateSegment, m_registers.TR);
       return;
     }
-    SafeReadMemoryWord(m_tss_location.base_address, &link_field, false, true);
+    SafeReadMemoryWord(m_tss_location.base_address, &link_field, AccessFlags::UseSupervisorPrivileges);
 
     // Switch tasks without nesting
     SwitchToTask(link_field, false, true, false, 0);
@@ -2831,7 +2840,7 @@ void CPU::SetupRealModeInterruptCall(uint32 interrupt, uint32 return_EIP)
   address += PhysicalMemoryAddress(interrupt) * 4;
 
   uint32 ivt_entry = 0;
-  SafeReadMemoryDWord(address, &ivt_entry, false, true);
+  SafeReadMemoryDWord(address, &ivt_entry, AccessFlags::UseSupervisorPrivileges);
 
   // Extract segment/instruction pointer from IDT entry
   uint16 isr_segment_selector = uint16(ivt_entry >> 16);
@@ -2970,8 +2979,9 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
 
         // Shouldn't fail, since we're bypassing access checks
         uint16 temp = 0;
-        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset, &temp, false, true);
-        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset + 2, &new_SS, false, true);
+        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset, &temp, AccessFlags::UseSupervisorPrivileges);
+        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset + 2, &new_SS,
+                           AccessFlags::UseSupervisorPrivileges);
         new_ESP = ZeroExtend32(temp);
       }
       else
@@ -2985,8 +2995,10 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
         }
 
         // Shouldn't fail, since we're bypassing access checks
-        SafeReadMemoryDWord(m_tss_location.base_address + tss_stack_offset, &new_ESP, false, true);
-        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset + 4, &new_SS, false, true);
+        SafeReadMemoryDWord(m_tss_location.base_address + tss_stack_offset, &new_ESP,
+                            AccessFlags::UseSupervisorPrivileges);
+        SafeReadMemoryWord(m_tss_location.base_address + tss_stack_offset + 4, &new_SS,
+                           AccessFlags::UseSupervisorPrivileges);
       }
 
       // Save the old (outer) ESP/SS before we pop the parameters off?
@@ -3265,24 +3277,36 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
   if (current_task_is_32bit)
   {
     for (uint32 i = 0; i < countof(current_task_state.dwords); i++)
-      SafeReadMemoryDWord(current_tss_address + i * sizeof(uint32), &current_task_state.dwords[i], false, true);
+    {
+      SafeReadMemoryDWord(current_tss_address + i * sizeof(uint32), &current_task_state.dwords[i],
+                          AccessFlags::UseSupervisorPrivileges);
+    }
   }
   else
   {
     for (uint32 i = 0; i < countof(current_task_state.words); i++)
-      SafeReadMemoryWord(current_tss_address + i * sizeof(uint16), &current_task_state.words[i], false, true);
+    {
+      SafeReadMemoryWord(current_tss_address + i * sizeof(uint16), &current_task_state.words[i],
+                         AccessFlags::UseSupervisorPrivileges);
+    }
   }
 
   // Read the new TSS in, this could cause a page fault
   if (new_task_is_32bit)
   {
     for (uint32 i = 0; i < countof(new_task_state.dwords); i++)
-      SafeReadMemoryDWord(new_tss_address + i * sizeof(uint32), &new_task_state.dwords[i], false, true);
+    {
+      SafeReadMemoryDWord(new_tss_address + i * sizeof(uint32), &new_task_state.dwords[i],
+                          AccessFlags::UseSupervisorPrivileges);
+    }
   }
   else
   {
     for (uint32 i = 0; i < countof(new_task_state.words); i++)
-      SafeReadMemoryWord(new_tss_address + i * sizeof(uint16), &new_task_state.words[i], false, true);
+    {
+      SafeReadMemoryWord(new_tss_address + i * sizeof(uint16), &new_task_state.words[i],
+                         AccessFlags::UseSupervisorPrivileges);
+    }
   }
 
   // The outgoing task should have the NT bit cleared when switching from IRET
@@ -3311,7 +3335,10 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     current_task_state.ts32.GS = m_registers.GS;
     current_task_state.ts32.LDTR = m_registers.LDTR;
     for (uint32 i = 0; i < countof(current_task_state.dwords); i++)
-      SafeWriteMemoryDWord(current_tss_address + i * sizeof(uint32), current_task_state.dwords[i], false, true);
+    {
+      SafeWriteMemoryDWord(current_tss_address + i * sizeof(uint32), current_task_state.dwords[i],
+                           AccessFlags::UseSupervisorPrivileges);
+    }
   }
   else
   {
@@ -3331,14 +3358,17 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     current_task_state.ts16.DS = m_registers.DS;
     current_task_state.ts16.LDTR = m_registers.LDTR;
     for (uint32 i = 0; i < countof(current_task_state.words); i++)
-      SafeWriteMemoryWord(current_tss_address + i * sizeof(uint16), current_task_state.words[i], false, true);
+    {
+      SafeWriteMemoryWord(current_tss_address + i * sizeof(uint16), current_task_state.words[i],
+                          AccessFlags::UseSupervisorPrivileges);
+    }
   }
 
   // If we're a nested task, set the backlink field in the new TSS
   if (nested_task)
   {
     new_task_state.link = current_task_selector.bits;
-    SafeWriteMemoryWord(new_tss_address, new_task_state.words[0], false, true);
+    SafeWriteMemoryWord(new_tss_address, new_task_state.words[0], AccessFlags::UseSupervisorPrivileges);
   }
 
   // New task is now busy
@@ -3596,7 +3626,7 @@ bool CPU::HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exc
   // Get IOPB offset
   uint16 iopb_offset;
   LinearMemoryAddress iopb_offset_address = m_tss_location.base_address + offsetof(TASK_STATE_SEGMENT_32, IOPB_offset);
-  SafeReadMemoryWord(iopb_offset_address, &iopb_offset, false, true);
+  SafeReadMemoryWord(iopb_offset_address, &iopb_offset, AccessFlags::UseSupervisorPrivileges);
 
   // Find the offset in the IO bitmap
   uint32 bitmap_byte_offset = port_number / 8;
@@ -3619,7 +3649,7 @@ bool CPU::HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exc
     // Need to test against a word
     uint16 permissions;
     SafeReadMemoryWord(m_tss_location.base_address + ZeroExtend32(iopb_offset) + bitmap_byte_offset, &permissions,
-                       false, true);
+                       AccessFlags::UseSupervisorPrivileges);
     if (((permissions >> bitmap_bit_offset) & ZeroExtend16(mask)) != 0)
       return false;
   }
@@ -3628,7 +3658,7 @@ bool CPU::HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exc
     // Test against the single byte
     uint8 permissions;
     SafeReadMemoryByte(m_tss_location.base_address + ZeroExtend32(iopb_offset) + bitmap_byte_offset, &permissions,
-                       false, true);
+                       AccessFlags::UseSupervisorPrivileges);
     if (((permissions >> bitmap_bit_offset) & mask) != 0)
       return false;
   }
@@ -3975,7 +4005,7 @@ void CPU::DumpMemory(LinearMemoryAddress start_address, uint32 size)
     for (uint32 i = 0; i < COLUMNS; i++)
     {
       uint8 value;
-      if (!SafeReadMemoryByte(current_address++, &value, false, false))
+      if (!SafeReadMemoryByte(current_address++, &value, AccessFlags::Debugger))
       {
         std::fprintf(stderr, "0x%08X | %s| %s |", row_address, hex.GetCharArray(), printable.GetCharArray());
         std::fprintf(stderr, "Failed memory read at 0x%08X\n", current_address);
@@ -4015,14 +4045,14 @@ void CPU::DumpStack()
     if (m_stack_address_size == AddressSize_16)
     {
       uint16 value;
-      if (!SafeReadMemoryWord(stack_address, &value, false, false))
+      if (!SafeReadMemoryWord(stack_address, &value, AccessFlags::Debugger))
         break;
       std::fprintf(stderr, "  0x%04X: 0x%04X\n", stack_address, ZeroExtend32(value));
     }
     else
     {
       uint32 value;
-      if (!SafeReadMemoryDWord(stack_address, &value, false, false))
+      if (!SafeReadMemoryDWord(stack_address, &value, AccessFlags::Debugger))
         break;
       std::fprintf(stderr, "  0x%08X: 0x%08X\n", stack_address, value);
     }
@@ -4097,7 +4127,7 @@ bool CPU::FillPrefetchQueue()
 
   // Translate away.
   PhysicalMemoryAddress physical_address;
-  if (!TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, false))
+  if (!TranslateLinearAddress(&physical_address, linear_address, AccessFlags::Normal | AccessFlags::NoPageFaults))
   {
     // Use direct fetch and page fault when it fails.
     return false;

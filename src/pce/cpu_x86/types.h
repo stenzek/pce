@@ -170,7 +170,6 @@ enum class AccessType : uint8
   Write = 1,
   Execute = 2
 };
-IMPLEMENT_ENUM_CLASS_BITWISE_OPERATORS(AccessType);
 enum class AccessTypeMask : uint8
 {
   Read = (1 << 0),
@@ -181,6 +180,32 @@ enum class AccessTypeMask : uint8
   None = 0,
 };
 IMPLEMENT_ENUM_CLASS_BITWISE_OPERATORS(AccessTypeMask);
+enum class AccessFlags : uint8
+{
+  AccessMask = 3,
+
+  NoSegmentAccessCheck = (1 << 2),
+  NoPageProtectionCheck = (1 << 3),
+  UseSupervisorPrivileges = (1 << 4),
+  NoTLBUpdate = (1 << 5),
+  NoPageFaults = (1 << 6),
+
+  Normal = 0,
+  Debugger = NoSegmentAccessCheck | NoPageProtectionCheck | UseSupervisorPrivileges | NoTLBUpdate | NoPageFaults,
+};
+IMPLEMENT_ENUM_CLASS_BITWISE_OPERATORS(AccessFlags);
+inline constexpr AccessType GetAccessTypeFromFlags(AccessFlags flags)
+{
+  return static_cast<AccessType>(flags & AccessFlags::AccessMask);
+}
+inline constexpr AccessFlags AddAccessTypeToFlags(AccessType type, AccessFlags flags)
+{
+  return static_cast<AccessFlags>(type) | flags;
+}
+inline constexpr bool HasAccessFlagBit(AccessFlags flag, AccessFlags check_for)
+{
+  return (flag & check_for) != static_cast<AccessFlags>(0);
+}
 
 // this should match the struct in softfloat
 struct float80

@@ -21,10 +21,12 @@ public:
   void AbortCurrentInstruction() override;
   void BranchTo(uint32 new_EIP) override;
   void BranchFromException(uint32 new_EIP) override;
+  void FlushCodeCache() override;
 
 private:
   struct Block : public BlockBase
   {
+    Block(const BlockKey key);
     ~Block();
 
     static const size_t CODE_SIZE = 4096;
@@ -36,12 +38,11 @@ private:
   };
 
   // Block flush handling.
-  void FlushAllBlocks() override;
-  void FlushBlock(const BlockKey& key, bool was_invalidated = false) override;
-
-  // Compile block using current state.
-  const Block* LookupBlock();
-  Block* CompileBlock();
+  BlockBase* AllocateBlock(const BlockKey key) override;
+  bool CompileBlock(BlockBase* block) override;
+  void ResetBlock(BlockBase* block) override;
+  void FlushBlock(BlockBase* block) override;
+  void DestroyBlock(BlockBase* block) override;
 
   // Block execution dispatcher.
   void Dispatch();
@@ -58,7 +59,7 @@ private:
   CycleCount m_cycles_remaining = 0;
 
   std::unordered_map<BlockKey, Block*, BlockKeyHash> m_blocks;
-  const Block* m_current_block = nullptr;
+  Block* m_current_block = nullptr;
   bool m_current_block_flushed = false;
   bool m_code_buffer_overflow = false;
 

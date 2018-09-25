@@ -70,62 +70,62 @@ void DebuggerInterface::SetRegisterValue(uint32 index, RegisterValue value) cons
 
 bool DebuggerInterface::ReadMemoryByte(LinearMemoryAddress address, uint8* value)
 {
-  return m_cpu->SafeReadMemoryByte(address, value, false, false);
+  return m_cpu->SafeReadMemoryByte(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::ReadMemoryWord(LinearMemoryAddress address, uint16* value)
 {
-  return m_cpu->SafeReadMemoryWord(address, value, false, false);
+  return m_cpu->SafeReadMemoryWord(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::ReadMemoryDWord(LinearMemoryAddress address, uint32* value)
 {
-  return m_cpu->SafeReadMemoryDWord(address, value, false, false);
+  return m_cpu->SafeReadMemoryDWord(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::WriteMemoryByte(LinearMemoryAddress address, uint8 value)
 {
-  return m_cpu->SafeWriteMemoryByte(address, value, false, false);
+  return m_cpu->SafeWriteMemoryByte(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::WriteMemoryWord(LinearMemoryAddress address, uint16 value)
 {
-  return m_cpu->SafeWriteMemoryWord(address, value, false, false);
+  return m_cpu->SafeWriteMemoryWord(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::WriteMemoryDWord(LinearMemoryAddress address, uint32 value)
 {
-  return m_cpu->SafeWriteMemoryDWord(address, value, false, false);
+  return m_cpu->SafeWriteMemoryDWord(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::ReadPhysicalMemoryByte(PhysicalMemoryAddress address, uint8* value)
 {
-  return m_cpu->SafeReadMemoryByte(address, value, false, false);
+  return m_cpu->SafeReadMemoryByte(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::ReadPhysicalMemoryWord(PhysicalMemoryAddress address, uint16* value)
 {
-  return m_cpu->SafeReadMemoryWord(address, value, false, false);
+  return m_cpu->SafeReadMemoryWord(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::ReadPhysicalMemoryDWord(PhysicalMemoryAddress address, uint32* value)
 {
-  return m_cpu->SafeReadMemoryDWord(address, value, false, false);
+  return m_cpu->SafeReadMemoryDWord(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::WritePhysicalMemoryByte(PhysicalMemoryAddress address, uint8 value)
 {
-  return m_cpu->SafeWriteMemoryByte(address, value, false, false);
+  return m_cpu->SafeWriteMemoryByte(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::WritePhysicalMemoryWord(PhysicalMemoryAddress address, uint16 value)
 {
-  return m_cpu->SafeWriteMemoryWord(address, value, false, false);
+  return m_cpu->SafeWriteMemoryWord(address, value, AccessFlags::Debugger);
 }
 
 bool DebuggerInterface::WritePhysicalMemoryDWord(PhysicalMemoryAddress address, uint32 value)
 {
-  return m_cpu->SafeWriteMemoryDWord(address, value, false, false);
+  return m_cpu->SafeWriteMemoryDWord(address, value, AccessFlags::Debugger);
 }
 
 LinearMemoryAddress DebuggerInterface::GetInstructionPointer() const
@@ -166,19 +166,19 @@ bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out
 {
   uint32 fetch_EIP = m_cpu->m_registers.EIP;
   auto fetchb = [this, &fetch_EIP](uint8* val) {
-    if (!m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+    if (!m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
       return false;
     fetch_EIP = (fetch_EIP + sizeof(uint8)) & m_cpu->m_EIP_mask;
     return true;
   };
   auto fetchw = [this, &fetch_EIP](uint16* val) {
-    if (!m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+    if (!m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
       return false;
     fetch_EIP = (fetch_EIP + sizeof(uint16)) & m_cpu->m_EIP_mask;
     return true;
   };
   auto fetchd = [this, &fetch_EIP](uint32* val) {
-    if (!m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, false, false))
+    if (!m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
       return false;
     fetch_EIP = (fetch_EIP + sizeof(uint32)) & m_cpu->m_EIP_mask;
     return true;

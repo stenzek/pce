@@ -18,7 +18,7 @@ public:
   virtual void BranchTo(uint32 new_EIP) override;
   virtual void BranchFromException(uint32 new_EIP) override;
 
-  void FlushCodeCache() override;
+  virtual void FlushCodeCache() override;
 
 protected:
   struct BlockKey
@@ -27,13 +27,12 @@ protected:
     {
       struct
       {
-        // Since a block can span a page, we store two page numbers.
-        uint32 eip_physical_address;
-        uint32 cs_size : 1;
-        uint32 cs_granularity : 1;
-        uint32 ss_size : 1;
-        uint32 v8086_mode : 1;
-        uint32 pad : 28;
+        u32 eip_physical_address;
+        u32 cs_size : 1;
+        u32 cs_granularity : 1;
+        u32 ss_size : 1;
+        u32 v8086_mode : 1;
+        u32 pad : 28;
       };
 
       uint64 qword;
@@ -51,44 +50,82 @@ protected:
 
   struct BlockBase
   {
+    BlockBase(const BlockKey key_) : key(key_) {}
+
     std::vector<Instruction> instructions;
     std::vector<BlockBase*> link_predecessors;
     std::vector<BlockBase*> link_successors;
     CycleCount total_cycles = 0;
     Bus::CodeHashType code_hash;
     BlockKey key = {};
-    uint32 code_length = 0;
-    uint32 next_page_physical_address = 0;
-    bool crosses_page_boundary = false;
+    u32 code_length = 0;
+    u32 next_page_physical_address = 0;
     bool invalidated = false;
     bool linkable = false;
+    bool crosses_page = false;
 
     bool IsLinkable() const { return (linkable); }
+
+    PhysicalMemoryAddress GetPhysicalPageAddress() const { return (key.eip_physical_address & CPU::PAGE_MASK); }
+    PhysicalMemoryAddress GetNextPhysicalPageAddress() const { return next_page_physical_address; }
+
+    // Returns true if a block crosses a virtual memory page.
+    bool CrossesPage() const { return crosses_page; }
   };
 
   static bool IsExitBlockInstruction(const Instruction* instruction);
   static bool IsLinkableExitInstruction(const Instruction* instruction);
 
-  virtual void FlushBlock(const BlockKey& key, bool was_invalidated = false) = 0;
-  virtual void FlushAllBlocks() = 0;
+  /// Allocates storage for a block.
+  virtual BlockBase* AllocateBlock(const BlockKey key) = 0;
 
-  void InvalidateCodePageCallback(PhysicalMemoryAddress physical_page_address);
-  void InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page_address);
-  void ClearPhysicalPageBlockMapping();
+  /// Uses the current state of the CPU to compile a block.
+  virtual bool CompileBlock(BlockBase* block) = 0;
 
-  bool GetBlockKeyForCurrentState(BlockKey* key);
-  bool RevalidateCachedBlockForCurrentState(BlockBase* block);
+  /// Resets a block before recompiling it, which may be more efficient than completely destroying it.
+  virtual void ResetBlock(BlockBase* block);
 
-  // Uses the current state of the CPU to compile a block.
+  /// Flushes a block. The destroying of the block may be deferred until later.
+  virtual void FlushBlock(BlockBase* block);
+
+  /// Destroys a block, freeing all memory and code associated with it.
+  virtual void DestroyBlock(BlockBase* block) = 0;
+
+  /// Returns a code block ready for execution based on the current state, otherwise fall back to the interpreter.
+  BlockBase* GetNextBlock();
+
+  /// Compiles the base portion of a block (retrieves/decodes the instruction stream).
   bool CompileBlockBase(BlockBase* block);
 
-  // Link block from to to.
+  /// Inserts the block into the block map.
+  void InsertBlock(BlockBase* block);
+
+  /// Invalidates a single block of code, ensuring the code is re-hashed next execution.
+  void InvalidateBlock(BlockBase* block);
+
+  /// Invalidates any code blocks with a matching physical page.
+  void InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page_address);
+
+  /// Removes the physical page -> block mapping for block.
+  void AddBlockPhysicalMappings(BlockBase* block);
+  void RemoveBlockPhysicalMappings(BlockBase* block);
+
+  /// Returns the hash of memory occupied by the block.
+  Bus::CodeHashType GetBlockCodeHash(BlockBase* block);
+
+  /// Returns the block key for the current execution state.
+  /// Can raise general protection or page faults if the state is invalid.
+  bool GetBlockKeyForCurrentState(BlockKey* key);
+
+  /// Can the current block execute? This will re-validate the block if necessary.
+  /// The block can also be flushed if recompilation failed, so ignore the pointer if false is returned.
+  bool CanExecuteBlock(BlockBase* block);
+
+  /// Link block from to to.
   void LinkBlockBase(BlockBase* from, BlockBase* to);
 
-  // Unlink all blocks which point to this block, and any that this block links to.
+  /// Unlink all blocks which point to this block, and any that this block links to.
   void UnlinkBlockBase(BlockBase* block);
-
-  void PrintCPUStateAndInstruction(const Instruction* instruction);
 
   void InterpretCachedBlock(const BlockBase* block);
   void InterpretUncachedBlock();
@@ -97,6 +134,7 @@ protected:
   System* m_system;
   Bus* m_bus;
 
+  std::unordered_map<BlockKey, BlockBase*, BlockKeyHash> m_blocks;
   std::unordered_map<PhysicalMemoryAddress, std::vector<BlockBase*>> m_physical_page_blocks;
   bool m_branched = false;
 };

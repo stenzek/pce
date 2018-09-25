@@ -40,6 +40,7 @@ public:
   static const uint32 PAGE_SIZE = 4096;
   static const uint32 PAGE_OFFSET_MASK = (PAGE_SIZE - 1);
   static const uint32 PAGE_MASK = ~PAGE_OFFSET_MASK;
+  static const uint32 PAGE_SHIFT = 12;
   static const size_t TLB_ENTRY_COUNT = 8192;
 
 #pragma pack(push, 1)
@@ -315,7 +316,7 @@ public:
 
   // Translates linear address -> physical address if paging is enabled.
   bool TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,
-                              bool access_check, AccessType access_type, bool raise_page_fault);
+                              AccessFlags flags);
 
   // Checks if a given offset is valid into the specified segment.
   template<uint32 size, AccessType access>
@@ -341,12 +342,12 @@ public:
 
   // Unchecked memory reads/writes (don't perform access checks, or raise exceptions).
   // Safe to use outside instruction handlers.
-  bool SafeReadMemoryByte(LinearMemoryAddress address, uint8* value, bool access_check, bool raise_page_fault);
-  bool SafeReadMemoryWord(LinearMemoryAddress address, uint16* value, bool access_check, bool raise_page_fault);
-  bool SafeReadMemoryDWord(LinearMemoryAddress address, uint32* value, bool access_check, bool raise_page_fault);
-  bool SafeWriteMemoryByte(VirtualMemoryAddress address, uint8 value, bool access_check, bool raise_page_fault);
-  bool SafeWriteMemoryWord(VirtualMemoryAddress address, uint16 value, bool access_check, bool raise_page_fault);
-  bool SafeWriteMemoryDWord(VirtualMemoryAddress address, uint32 value, bool access_check, bool raise_page_fault);
+  bool SafeReadMemoryByte(LinearMemoryAddress address, uint8* value, AccessFlags access_flags);
+  bool SafeReadMemoryWord(LinearMemoryAddress address, uint16* value, AccessFlags access_flags);
+  bool SafeReadMemoryDWord(LinearMemoryAddress address, uint32* value, AccessFlags access_flags);
+  bool SafeWriteMemoryByte(VirtualMemoryAddress address, uint8 value, AccessFlags access_flags);
+  bool SafeWriteMemoryWord(VirtualMemoryAddress address, uint16 value, AccessFlags access_flags);
+  bool SafeWriteMemoryDWord(VirtualMemoryAddress address, uint32 value, AccessFlags access_flags);
 
   // Prints the current state and instruction the CPU is sitting at.
   void PrintCurrentStateAndInstruction(const char* prefix_message = nullptr);
@@ -396,7 +397,7 @@ protected:
 
   // Full page translation - page table lookup.
   bool LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,
-                       bool access_check, AccessType access_type, bool raise_page_fault);
+                       AccessFlags flags);
 
   // Instruction fetching
   uint8 FetchInstructionByte();
@@ -404,9 +405,9 @@ protected:
   uint32 FetchInstructionDWord();
 
   // Direct instruction fetching (bypass the prefetch queue)
-  uint8 FetchDirectInstructionByte(uint32 address, bool raise_exceptions);
-  uint16 FetchDirectInstructionWord(uint32 address, bool raise_exceptions);
-  uint32 FetchDirectInstructionDWord(uint32 address, bool raise_exceptions);
+  uint8 FetchDirectInstructionByte(u32 address);
+  uint16 FetchDirectInstructionWord(u32 address);
+  uint32 FetchDirectInstructionDWord(u32 address);
 
   // Push/pop from stack
   // This can cause both a page fault, as well as a stack fault, in which case
@@ -452,7 +453,7 @@ protected:
   void RaiseException(uint32 interrupt, uint32 error_code = 0);
 
   // Raises page fault exception.
-  void RaisePageFault(LinearMemoryAddress linear_address, AccessType access_type, bool page_present);
+  void RaisePageFault(LinearMemoryAddress linear_address, bool is_write, bool page_present);
 
   // Checking for external interrupts.
   bool HasExternalInterrupt() const;

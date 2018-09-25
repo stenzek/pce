@@ -24,9 +24,7 @@ JitX64Backend::~JitX64Backend() {}
 
 void JitX64Backend::Reset()
 {
-  // When we reset, we assume we're not in a block.
-  m_current_block = nullptr;
-  FlushAllBlocks();
+  CodeCacheBackend::Reset();
 }
 
 void JitX64Backend::Execute()
@@ -67,89 +65,31 @@ void JitX64Backend::BranchTo(uint32 new_EIP) {}
 
 void JitX64Backend::BranchFromException(uint32 new_EIP) {}
 
-void JitX64Backend::FlushAllBlocks()
+void JitX64Backend::FlushCodeCache()
 {
-  for (auto& it : m_blocks)
+  // Prevent the current block from being flushed.
+  if (m_current_block)
   {
-    if (it.second == m_current_block)
-    {
-      m_current_block_flushed = true;
-      continue;
-    }
-
-    delete it.second;
+    auto iter = m_blocks.find(m_current_block->key);
+    Assert(iter != m_blocks.end());
+    m_blocks.erase(iter);
+    UnlinkBlockBase(m_current_block);
+    m_current_block_flushed = true;
   }
 
-  m_blocks.clear();
-  m_physical_page_blocks.clear();
-  m_current_block = nullptr;
+  CodeCacheBackend::FlushCodeCache();
   m_code_space->Reset();
 }
 
-void JitX64Backend::FlushBlock(const BlockKey& key, bool was_invalidated /* = false */)
+CodeCacheBackend::BlockBase* JitX64Backend::AllocateBlock(const BlockKey key)
 {
-  auto block_iter = m_blocks.find(key);
-  if (block_iter == m_blocks.end())
-    return;
-
-  if (was_invalidated)
-  {
-    block_iter->second->invalidated = true;
-    return;
-  }
-
-  if (m_current_block == block_iter->second)
-    m_current_block_flushed = true;
-  else
-    delete block_iter->second;
-
-  m_blocks.erase(block_iter);
+  return new Block(key);
 }
 
-const JitX64Backend::Block* JitX64Backend::LookupBlock()
+bool JitX64Backend::CompileBlock(BlockBase* block)
 {
-  BlockKey key;
-  if (!GetBlockKeyForCurrentState(&key))
-  {
-    // CPU is in a really bad shape, and should fault.
-    Log_PerfPrintf("Falling back to interpreter due to paging error.");
-    return nullptr;
-  }
-
-  auto lookup_iter = m_blocks.find(key);
-  if (lookup_iter != m_blocks.end())
-  {
-    Block* block = lookup_iter->second;
-    if (!block->invalidated || RevalidateCachedBlockForCurrentState(block))
-    {
-      // Block is valid again.
-      return block;
-    }
-
-    // Block is no longer valid, so recompile it.
-    m_blocks.erase(lookup_iter);
-    delete block;
-  }
-
-  Block* block = CompileBlock();
-  if (!block)
-  {
-    Log_PerfPrintf("Falling back to interpreter for block %08X due to compile error.", key.eip_physical_address);
-    return nullptr;
-  }
-
-  m_blocks.emplace(std::make_pair(key, block));
-  return block;
-}
-
-JitX64Backend::Block* JitX64Backend::CompileBlock()
-{
-  Block* block = new Block;
   if (!CompileBlockBase(block))
-  {
-    delete block;
-    return nullptr;
-  }
+    return false;
 
   size_t code_size = 128 * block->instructions.size() + 64;
   // if ((code_size % 4096) != 0)
@@ -159,8 +99,7 @@ JitX64Backend::Block* JitX64Backend::CompileBlock()
   if (code_size > m_code_space->GetFreeCodeSpace())
   {
     m_code_buffer_overflow = true;
-    delete block;
-    return nullptr;
+    return false;
   }
 
   // JitX64CodeGenerator codegen(this, reinterpret_cast<void*>(block->code_pointer), block->code_size);
@@ -170,18 +109,36 @@ JitX64Backend::Block* JitX64Backend::CompileBlock()
   {
     bool last_instr = (i == block->instructions.size() - 1);
     if (!codegen.CompileInstruction(&block->instructions[i], last_instr))
-    {
-      delete block;
-      return nullptr;
-    }
+      return false;
   }
 
   auto code = codegen.FinishBlock();
   m_code_space->CommitCode(code.second);
 
-  block->code_pointer = reinterpret_cast<const Block::CodePointer>(code.first);
-  block->code_size = code.second;
-  return block;
+  static_cast<Block*>(block)->code_pointer = reinterpret_cast<const Block::CodePointer>(code.first);
+  static_cast<Block*>(block)->code_size = code.second;
+  return true;
+}
+
+void JitX64Backend::ResetBlock(BlockBase* block)
+{
+  static_cast<Block*>(block)->code_pointer = nullptr;
+  static_cast<Block*>(block)->code_size = 0;
+  CodeCacheBackend::ResetBlock(block);
+}
+
+void JitX64Backend::FlushBlock(BlockBase* block)
+{
+  // Defer flush to after execution.
+  if (m_current_block == block)
+    m_current_block_flushed = true;
+  else
+    CodeCacheBackend::FlushBlock(block);
+}
+
+void JitX64Backend::DestroyBlock(BlockBase* block)
+{
+  delete static_cast<Block*>(block);
 }
 
 void JitX64Backend::Dispatch()
@@ -192,11 +149,10 @@ void JitX64Backend::Dispatch()
     Log_ErrorPrint("Out of code space, flushing all blocks.");
     m_code_buffer_overflow = false;
     m_current_block = nullptr;
-    FlushAllBlocks();
+    FlushCodeCache();
   }
 
-  m_current_block = LookupBlock();
-  m_current_block_flushed = false;
+  m_current_block = static_cast<Block*>(GetNextBlock());
 
   if (m_current_block != nullptr)
     // InterpretCachedBlock(m_current_block);
@@ -204,12 +160,15 @@ void JitX64Backend::Dispatch()
   else
     InterpretUncachedBlock();
 
+  Block* previous_block = m_current_block;
+  m_current_block = nullptr;
+
   // Fix up delayed block destroying.
   if (m_current_block_flushed)
   {
     Log_WarningPrintf("Current block invalidated while executing");
-    delete m_current_block;
-    m_current_block = nullptr;
+    FlushBlock(previous_block);
   }
 }
+
 } // namespace CPU_X86

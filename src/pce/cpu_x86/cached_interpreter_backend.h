@@ -18,22 +18,17 @@ public:
   void AbortCurrentInstruction() override;
   void BranchTo(uint32 new_EIP) override;
   void BranchFromException(uint32 new_EIP) override;
+  void FlushCodeCache() override;
 
 protected:
   // We don't need to store any additional information, only the instruction stream.
-  struct Block : BlockBase
-  {
-  };
+  using Block = BlockBase;
 
-  // Block flush handling.
-  void FlushAllBlocks() override;
-  void FlushBlock(const BlockKey& key, bool was_invalidated = false) override;
-
-  // Compile block using current state.
-  Block* LookupBlock();
-  Block* LookupBlock(const BlockKey& key);
-  Block* CompileBlock(const BlockKey& key);
-  void DestroyBlock(Block* block);
+  BlockBase* AllocateBlock(const BlockKey key) override;
+  bool CompileBlock(BlockBase* block) override;
+  void ResetBlock(BlockBase* block) override;
+  void FlushBlock(BlockBase* block) override;
+  void DestroyBlock(BlockBase* block) override;
 
 #ifdef Y_COMPILER_MSVC
 #pragma warning(push)
@@ -44,7 +39,6 @@ protected:
 #pragma warning(pop)
 #endif
 
-  std::unordered_map<BlockKey, Block*, BlockKeyHash> m_blocks;
   Block* m_current_block = nullptr;
   bool m_current_block_flushed = false;
 };

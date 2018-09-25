@@ -12,6 +12,8 @@ Log_SetChannel(CPUX86::Interpreter);
 
 namespace CPU_X86 {
 
+static_assert(CPU::PAGE_SIZE == Bus::MEMORY_PAGE_SIZE, "CPU page size matches bus memory size");
+
 extern bool TRACE_EXECUTION;
 extern uint32 TRACE_EXECUTION_LAST_EIP;
 
@@ -24,12 +26,13 @@ CodeCacheBackend::CodeCacheBackend(CPU* cpu) : m_cpu(cpu), m_system(cpu->GetSyst
 CodeCacheBackend::~CodeCacheBackend()
 {
   m_bus->ClearCodeInvalidationCallback();
+  m_bus->ClearPageCodeFlags();
 }
 
 void CodeCacheBackend::Reset()
 {
   // When we reset, we assume we're not in a block.
-  ClearPhysicalPageBlockMapping();
+  FlushCodeCache();
 }
 
 void CodeCacheBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) {}
@@ -42,11 +45,6 @@ void CodeCacheBackend::BranchTo(uint32 new_EIP)
 void CodeCacheBackend::BranchFromException(uint32 new_EIP)
 {
   m_branched = true;
-}
-
-void CodeCacheBackend::FlushCodeCache()
-{
-  FlushAllBlocks();
 }
 
 bool CodeCacheBackend::BlockKey::operator==(const BlockKey& key) const
@@ -73,32 +71,53 @@ void CodeCacheBackend::InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress ph
   if (map_iter == m_physical_page_blocks.end())
     return;
 
-  for (BlockBase* block : map_iter->second)
-  {
-    Log_TracePrintf("Invalidating block 0x%08X", block->key.eip_physical_address);
-    block->invalidated = true;
-  }
-
-  m_physical_page_blocks.erase(map_iter);
+  // We unmark all pages as code, and invalidate the blocks.
+  // When the blocks are next executed, they will be re-marked as code.
   m_bus->UnmarkPageAsCode(physical_page_address);
+
+  // Move the list out, so we don't disturb it while iterating.
+  auto blocks = std::move(map_iter->second);
+  m_physical_page_blocks.erase(map_iter);
+
+  for (BlockBase* block : blocks)
+    InvalidateBlock(block);
 }
 
-void CodeCacheBackend::ClearPhysicalPageBlockMapping()
+Bus::CodeHashType CodeCacheBackend::GetBlockCodeHash(BlockBase* block)
 {
-  m_physical_page_blocks.clear();
-  m_bus->ClearPageCodeFlags();
+  if (block->CrossesPage())
+  {
+    // Combine the hashes of both pages together.
+    const u32 size_in_first_page = CPU::PAGE_SIZE - (block->key.eip_physical_address & CPU::PAGE_OFFSET_MASK);
+    const u32 size_in_second_page = block->code_length - size_in_first_page;
+    return (m_bus->GetCodeHash(block->key.eip_physical_address, size_in_first_page) +
+            m_bus->GetCodeHash(block->next_page_physical_address, size_in_second_page));
+  }
+  else
+  {
+    // Doesn't cross a page boundary.
+    return m_bus->GetCodeHash(block->key.eip_physical_address, block->code_length);
+  }
 }
 
 bool CodeCacheBackend::GetBlockKeyForCurrentState(BlockKey* key)
 {
-  // TODO: Disable when trap flag is enabled.
-  // TODO: Real vs protected mode, instructions which can raise exceptions.
-  // return false;
-
-  // Fast path when paging isn't enabled.
-  LinearMemoryAddress eip_linear_address = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP);
-  if (!m_cpu->TranslateLinearAddress(&key->eip_physical_address, eip_linear_address, true, AccessType::Execute, false))
+  // Disable when trap flag is enabled.
+  // TODO: Also debug registers, breakpoints active, etc.
+  if (m_cpu->m_registers.EFLAGS.TF)
     return false;
+
+  LinearMemoryAddress eip_linear_address = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP);
+  if (!m_cpu->CheckSegmentAccess<sizeof(u8), AccessType::Execute>(Segment_CS, m_cpu->m_registers.EIP, false) ||
+      !m_cpu->TranslateLinearAddress(
+        &key->eip_physical_address, eip_linear_address,
+        AddAccessTypeToFlags(AccessType::Execute, AccessFlags::Normal | AccessFlags::NoPageFaults)))
+  {
+    // Fall back to the interpreter, and let it handle the page fault.
+    // Little slower, but more reliable.
+    // TODO: Optimize this.
+    return false;
+  }
 
   key->eip_physical_address &= m_bus->GetMemoryAddressMask();
   key->cs_size = BoolToUInt32(m_cpu->m_current_operand_size == OperandSize_32);
@@ -109,32 +128,199 @@ bool CodeCacheBackend::GetBlockKeyForCurrentState(BlockKey* key)
   return true;
 }
 
-bool CodeCacheBackend::RevalidateCachedBlockForCurrentState(BlockBase* block)
+bool CodeCacheBackend::CanExecuteBlock(BlockBase* block)
 {
-  // TOOD: This could break with A20...
-  Bus::CodeHashType hash = m_bus->GetCodeHash(block->key.eip_physical_address, block->code_length);
-  if (hash != block->code_hash)
+  // If the block is invalidated, we should check if the code changed.
+  if (block->invalidated)
   {
-    // Block is invalid due to code change.
-    Log_DevPrintf("Block %08X is invalidated - hash mismatch, recompiling", block->key.eip_physical_address);
-    return false;
+    Bus::CodeHashType new_hash = GetBlockCodeHash(block);
+    if (block->code_hash == new_hash)
+    {
+      Log_DevPrintf("Block %08X is invalidated - hash matches, revalidating", block->key.eip_physical_address);
+      block->invalidated = false;
+      AddBlockPhysicalMappings(block);
+    }
+    else
+    {
+      // Block is invalid due to code change.
+      Log_DevPrintf("Block %08X is invalidated - hash mismatch, recompiling", block->key.eip_physical_address);
+      ResetBlock(block);
+      if (CompileBlock(block))
+      {
+        block->invalidated = false;
+        AddBlockPhysicalMappings(block);
+        return true;
+      }
+
+      Log_DevPrintf("Block %08X failed recompile, flushing", block->key.eip_physical_address);
+      FlushBlock(block);
+      return false;
+    }
   }
 
-  PhysicalMemoryAddress page_address = block->key.eip_physical_address & Bus::MEMORY_PAGE_MASK;
-  m_physical_page_blocks[page_address].push_back(block);
-  m_bus->MarkPageAsCode(page_address);
-
-  if (block->crosses_page_boundary)
+  // Need to check the second page for spanning blocks.
+  if (block->CrossesPage())
   {
-    page_address = block->next_page_physical_address & Bus::MEMORY_PAGE_MASK;
-    m_physical_page_blocks[page_address].push_back(block);
-    m_bus->MarkPageAsCode(page_address);
+    const u32 eip_linear_address = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP);
+    PhysicalMemoryAddress next_page_physical_address;
+    if (!m_cpu->TranslateLinearAddress(&next_page_physical_address,
+                                       ((eip_linear_address + CPU::PAGE_SIZE) & CPU::PAGE_MASK),
+                                       AccessFlags::Normal | AccessFlags::NoPageFaults) ||
+        next_page_physical_address != block->next_page_physical_address)
+    {
+      // Can't execute this block, fallback to interpreter.
+      Log_PerfPrintf("Cached block %08X incompatible with execution state", block->key.eip_physical_address);
+      return false;
+    }
   }
 
-  // Re-validate the block.
-  Log_TracePrintf("Block %08X is invalidated - hash matches, revalidating", block->key.eip_physical_address);
-  block->invalidated = false;
   return true;
+}
+
+CodeCacheBackend::BlockBase* CodeCacheBackend::GetNextBlock()
+{
+  BlockKey key;
+  if (!GetBlockKeyForCurrentState(&key))
+  {
+    // Not possible to compile this block.
+    return nullptr;
+  }
+
+  // Block lookup.
+  BlockBase* block;
+  auto iter = m_blocks.find(key);
+  if (iter != m_blocks.end())
+  {
+    block = iter->second;
+    if (!block)
+    {
+      // This block failed compilation previously, leave it.
+      return nullptr;
+    }
+
+    // If CanExecuteBlock returns false, it means the block is incompatible with the current execution state.
+    // In this case, fall back to the interpreter.
+    if (!CanExecuteBlock(block))
+      return nullptr;
+
+    // Good to go.
+    return block;
+  }
+
+  // Block doesn't exist, so compile it.
+  Log_DevPrintf("Attempting to compile block %08X", key.eip_physical_address);
+  block = AllocateBlock(key);
+  if (!CompileBlock(block))
+  {
+    Log_WarningPrintf("Failed to compile block %08X", key.eip_physical_address);
+    DestroyBlock(block);
+    m_blocks.emplace(key, nullptr);
+    return nullptr;
+  }
+
+  // Insert into tree.
+  InsertBlock(block);
+  return block;
+}
+
+void CodeCacheBackend::ResetBlock(BlockBase* block)
+{
+  UnlinkBlockBase(block);
+  block->instructions.clear();
+  block->total_cycles = 0;
+  block->code_hash = 0;
+  block->code_length = 0;
+  block->next_page_physical_address = 0;
+  block->linkable = false;
+}
+
+void CodeCacheBackend::FlushBlock(BlockBase* block)
+{
+  Log_DevPrintf("Flushing block %08X", block->key.eip_physical_address);
+
+  auto iter = m_blocks.find(block->key);
+  if (iter == m_blocks.end())
+  {
+    Panic("Flushing untracked block");
+    return;
+  }
+
+  m_blocks.erase(iter);
+  UnlinkBlockBase(block);
+
+  // This lookup may fail, if the block has been invalidated.
+  if (!block->invalidated)
+    RemoveBlockPhysicalMappings(block);
+
+  DestroyBlock(block);
+}
+
+void CodeCacheBackend::InvalidateBlock(BlockBase* block)
+{
+  Log_DevPrintf("Invalidating block %08X", block->key.eip_physical_address);
+  block->invalidated = true;
+  RemoveBlockPhysicalMappings(block);
+}
+
+void CodeCacheBackend::FlushCodeCache()
+{
+  Log_PerfPrintf("Flushing all blocks");
+  m_physical_page_blocks.clear();
+  for (auto& iter : m_blocks)
+    DestroyBlock(iter.second);
+  m_blocks.clear();
+  m_bus->ClearPageCodeFlags();
+}
+
+void CodeCacheBackend::AddBlockPhysicalMappings(BlockBase* block)
+{
+#define ADD_PAGE(page_address)                                                                                         \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    auto iter = m_physical_page_blocks.find(page_address);                                                             \
+    if (iter == m_physical_page_blocks.end())                                                                          \
+    {                                                                                                                  \
+      m_physical_page_blocks[page_address].push_back(block);                                                           \
+      m_bus->MarkPageAsCode(page_address);                                                                             \
+    }                                                                                                                  \
+    else                                                                                                               \
+    {                                                                                                                  \
+      iter->second.push_back(block);                                                                                   \
+    }                                                                                                                  \
+  } while (0)
+
+  ADD_PAGE(block->GetPhysicalPageAddress());
+  if (block->CrossesPage())
+    ADD_PAGE(block->GetNextPhysicalPageAddress());
+
+#undef ADD_PAGE
+}
+
+void CodeCacheBackend::RemoveBlockPhysicalMappings(BlockBase* block)
+{
+#define REMOVE_PAGE(page_address)                                                                                      \
+  do                                                                                                                   \
+  {                                                                                                                    \
+    auto iter = m_physical_page_blocks.find(page_address);                                                             \
+    if (iter != m_physical_page_blocks.end())                                                                          \
+    {                                                                                                                  \
+      auto& page_blocks = iter->second;                                                                                \
+      auto iter2 = std::find(page_blocks.begin(), page_blocks.end(), block);                                           \
+      if (iter2 != page_blocks.end())                                                                                  \
+        page_blocks.erase(iter2);                                                                                      \
+      if (page_blocks.empty())                                                                                         \
+      {                                                                                                                \
+        m_bus->UnmarkPageAsCode(page_address);                                                                         \
+        m_physical_page_blocks.erase(iter);                                                                            \
+      }                                                                                                                \
+    }                                                                                                                  \
+  } while (0)
+
+  REMOVE_PAGE(block->GetPhysicalPageAddress());
+  if (block->CrossesPage())
+    REMOVE_PAGE(block->GetNextPhysicalPageAddress());
+
+#undef REMOVE_PAGE
 }
 
 bool CodeCacheBackend::IsExitBlockInstruction(const Instruction* instruction)
@@ -157,13 +343,19 @@ bool CodeCacheBackend::IsExitBlockInstruction(const Instruction* instruction)
     case Operation_INVLPG:
       return true;
 
-    case Operation_MOV:
+      // STI strictly shouldn't be an issue, but if a block has STI..CLI in the same block,
+      // the interrupt flag will never be checked, resulting in hangs.
+    case Operation_STI:
+      return true;
+
+    case Operation_MOV_CR:
     {
-      // CR3 is an issue because it changes page mappings, CR0 as well, since this can toggle pading.
-      if (instruction->operands[0].mode == OperandMode_ModRM_ControlRegister &&
-          (instruction->operands[0].reg32 == Reg32_CR0 || instruction->operands[0].reg32 == Reg32_CR3))
+      // Changing CR0 changes processor behavior, and changing CR3 modifies page mappings.
+      if (instruction->operands[0].mode == OperandMode_ModRM_ControlRegister)
       {
-        return true;
+        const u8 cr_index = instruction->data.GetModRM_Reg();
+        if (cr_index == 0 || cr_index == 3 || cr_index == 4)
+          return true;
       }
     }
     break;
@@ -172,10 +364,18 @@ bool CodeCacheBackend::IsExitBlockInstruction(const Instruction* instruction)
     {
       // Since we use SS as a block key, mov ss, <val> should exit the block.
       if (instruction->operands[0].mode == OperandMode_ModRM_SegmentReg &&
-          instruction->operands[0].segreg == Segment_SS)
+          instruction->data.GetModRM_Reg() == Segment_SS)
       {
         return true;
       }
+    }
+    break;
+
+    case Operation_MOV_DR:
+    {
+      // Enabling debug registers should disable the code cache backend.
+      if (instruction->operands[0].mode == OperandMode_ModRM_DebugRegister && instruction->data.GetModRM_Reg() >= 3)
+        return true;
     }
     break;
   }
@@ -203,32 +403,10 @@ bool CodeCacheBackend::IsLinkableExitInstruction(const Instruction* instruction)
   return false;
 }
 
-void CodeCacheBackend::PrintCPUStateAndInstruction(const Instruction* instruction)
-{
-#if 0
-    std::fprintf(stdout, "EAX=%08X EBX=%08X ECX=%08X EDX=%08X ESI=%08X EDI=%08X\n",
-                 m_cpu->m_registers.EAX, m_cpu->m_registers.EBX,
-                 m_cpu->m_registers.ECX, m_cpu->m_registers.EDX,
-                 m_cpu->m_registers.ESI, m_cpu->m_registers.EDI);
-    std::fprintf(stdout, "ESP=%08X EBP=%08X EIP=%04X:%08X EFLAGS=%08X ES=%04X SS=%04X DS=%04X FS=%04X GS=%04X\n",
-                 m_cpu->m_registers.ESP, m_cpu->m_registers.EBP,
-                 ZeroExtend32(m_cpu->m_registers.CS), m_cpu->m_current_EIP,
-                 m_cpu->m_registers.EFLAGS.bits,
-                 ZeroExtend32(m_cpu->m_registers.ES), ZeroExtend32(m_cpu->m_registers.SS), ZeroExtend32(m_cpu->m_registers.DS),
-                 ZeroExtend32(m_cpu->m_registers.FS), ZeroExtend32(m_cpu->m_registers.GS));
-#endif
-
-  SmallString instr_string;
-  Decoder::DisassembleToString(instruction, &instr_string);
-
-  LinearMemoryAddress linear_address = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_current_EIP);
-  std::fprintf(stdout, "%04X:%08Xh (0x%08X) | %s\n", ZeroExtend32(m_cpu->m_registers.CS), m_cpu->m_current_EIP,
-               linear_address, instr_string.GetCharArray());
-}
-
 bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 {
   static constexpr uint32 BUFFER_SIZE = 64;
+  DebugAssert(block != nullptr);
 
   struct FetchCallback
   {
@@ -257,10 +435,14 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
         PhysicalMemoryAddress physical_address;
         LinearMemoryAddress linear_address = segcache.base_address + EIP;
         uint32 fetch_size_in_page = std::min(CPU::PAGE_SIZE - (linear_address & CPU::PAGE_OFFSET_MASK), fetch_size);
-        if (!cpu->TranslateLinearAddress(&physical_address, linear_address, true, AccessType::Execute, false))
+        if (!cpu->TranslateLinearAddress(
+              &physical_address, linear_address,
+              AddAccessTypeToFlags(AccessType::Execute, AccessFlags::Normal | AccessFlags::NoPageFaults)))
+        {
           return;
+        }
 
-        uint32 physical_page = (physical_address & cpu->m_bus->GetMemoryAddressMask()) & Bus::MEMORY_PAGE_MASK;
+        uint32 physical_page = (physical_address & cpu->m_bus->GetMemoryAddressMask()) & CPU::PAGE_MASK;
         if (first_physical_page == 0xFFFFFFFF)
           first_physical_page = physical_page;
 
@@ -413,24 +595,33 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 
 #endif
 
-  // Mark as code so we know when it is overwritten.
-  PhysicalMemoryAddress page_address = block->key.eip_physical_address & Bus::MEMORY_PAGE_MASK;
-  m_physical_page_blocks[page_address].push_back(block);
-  m_bus->MarkPageAsCode(page_address);
-
   // Does this block cross a page boundary?
-  block->crosses_page_boundary = (start_EIP & Bus::MEMORY_PAGE_MASK) != (next_EIP & Bus::MEMORY_PAGE_MASK);
-  if (block->crosses_page_boundary)
+  const VirtualMemoryAddress eip_linear_address = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP);
+  block->crosses_page =
+    ((eip_linear_address & CPU::PAGE_MASK) != ((eip_linear_address + (block->code_length - 1)) & CPU::PAGE_MASK));
+  if (block->CrossesPage())
   {
-    block->next_page_physical_address = next_EIP & Bus::MEMORY_PAGE_MASK;
-    m_physical_page_blocks[block->next_page_physical_address].push_back(block);
-    m_bus->MarkPageAsCode(block->next_page_physical_address);
+    if (!m_cpu->TranslateLinearAddress(&block->next_page_physical_address,
+                                       ((eip_linear_address + CPU::PAGE_SIZE) & CPU::PAGE_MASK),
+                                       AccessFlags::Normal | AccessFlags::NoPageFaults))
+    {
+      Panic("Failed to translate next page address of spanning block");
+    }
   }
 
-  block->code_hash = m_bus->GetCodeHash(block->key.eip_physical_address, block->code_length);
+  // Hash the code block to check invalidation.
+  block->code_hash = GetBlockCodeHash(block);
+
   // Log_ErrorPrintf("Block %08X - %u inst, %u length", block->key.eip_physical_address,
   // unsigned(block->instructions.size()), block->code_length);
+
   return true;
+}
+
+void CodeCacheBackend::InsertBlock(BlockBase* block)
+{
+  m_blocks.emplace(block->key, block);
+  AddBlockPhysicalMappings(block);
 }
 
 void CodeCacheBackend::LinkBlockBase(BlockBase* from, BlockBase* to)
@@ -458,42 +649,30 @@ void CodeCacheBackend::UnlinkBlockBase(BlockBase* block)
     successor->link_predecessors.erase(iter);
   }
   block->link_successors.clear();
-
-  auto iter = m_physical_page_blocks.find(block->key.eip_physical_address & Bus::MEMORY_PAGE_MASK);
-  if (iter != m_physical_page_blocks.end())
-  {
-    auto viter = std::find(iter->second.begin(), iter->second.end(), block);
-    if (viter != iter->second.end())
-      iter->second.erase(viter);
-  }
-  if (block->crosses_page_boundary)
-  {
-    iter = m_physical_page_blocks.find(block->next_page_physical_address);
-    if (iter != m_physical_page_blocks.end())
-    {
-      auto viter = std::find(iter->second.begin(), iter->second.end(), block);
-      if (viter != iter->second.end())
-        iter->second.erase(viter);
-    }
-  }
 }
 
 void CodeCacheBackend::InterpretCachedBlock(const BlockBase* block)
 {
   for (const Instruction& instruction : block->instructions)
   {
-    m_cpu->AddCycle();
-
     m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
     m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
+
+#if 0
+    if (m_cpu->m_registers.EIP == 0xAB && m_cpu->ReadTSC() == 0x3589AFA9)
+    {
+      TRACE_EXECUTION = true;
+      __debugbreak();
+    }
 
     if (TRACE_EXECUTION && m_cpu->m_current_EIP != TRACE_EXECUTION_LAST_EIP)
     {
       m_cpu->PrintCurrentStateAndInstruction(nullptr);
-      // PrintCPUStateAndInstruction(&instruction);
       TRACE_EXECUTION_LAST_EIP = m_cpu->m_current_EIP;
     }
+#endif
 
+    m_cpu->AddCycle();
     m_cpu->m_registers.EIP = (m_cpu->m_registers.EIP + instruction.length) & m_cpu->m_EIP_mask;
     std::memcpy(&m_cpu->idata, &instruction.data, sizeof(m_cpu->idata));
     instruction.interpreter_handler(m_cpu);
@@ -505,10 +684,78 @@ void CodeCacheBackend::InterpretUncachedBlock()
   // The prefetch queue is an unknown state, and likely not in sync with our execution.
   m_cpu->FlushPrefetchQueue();
 
+#if 1
   // Execute until we hit a branch.
   // This isn't our "formal" block exit, but it's a point where we know we'll be in a good state.
   m_branched = false;
-  while (!m_branched)
+  while (!m_branched && !m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
+  {
+    if (m_cpu->HasExternalInterrupt())
+    {
+      m_cpu->DispatchExternalInterrupt();
+      break;
+    }
+
     InterpreterBackend::ExecuteInstruction(m_cpu);
+    m_cpu->CommitPendingCycles();
+  }
+#else
+  // This is slower, but the trace output will match the cached variant.
+  for (;;)
+  {
+    m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
+    m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
+
+#if 0
+    if (m_cpu->m_registers.EIP == 0xAB && m_cpu->ReadTSC() == 0x3589AFA9)
+    {
+      TRACE_EXECUTION = true;
+      __debugbreak();
+    }
+#endif
+
+    if (TRACE_EXECUTION && m_cpu->m_current_EIP != TRACE_EXECUTION_LAST_EIP)
+    {
+      m_cpu->PrintCurrentStateAndInstruction(nullptr);
+      TRACE_EXECUTION_LAST_EIP = m_cpu->m_current_EIP;
+    }
+
+    uint32 fetch_EIP = m_cpu->m_current_EIP;
+    auto fetchb = [this, &fetch_EIP](uint8* val) {
+      m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
+      fetch_EIP = (fetch_EIP + sizeof(uint8)) & m_cpu->m_EIP_mask;
+      return true;
+    };
+    auto fetchw = [this, &fetch_EIP](uint16* val) {
+      m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
+      fetch_EIP = (fetch_EIP + sizeof(uint16)) & m_cpu->m_EIP_mask;
+      return true;
+    };
+    auto fetchd = [this, &fetch_EIP](uint32* val) {
+      m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
+      fetch_EIP = (fetch_EIP + sizeof(uint32)) & m_cpu->m_EIP_mask;
+      return true;
+    };
+
+    // Try to decode the instruction first.
+    Instruction instruction;
+    bool instruction_valid = Decoder::DecodeInstruction(
+      &instruction, m_cpu->m_current_address_size, m_cpu->m_current_operand_size, fetch_EIP, fetchb, fetchw, fetchd);
+    if (!instruction_valid)
+    {
+      InterpreterBackend::ExecuteInstruction(m_cpu);
+      return;
+    }
+
+    m_cpu->AddCycle();
+    m_cpu->m_registers.EIP = (m_cpu->m_registers.EIP + instruction.length) & m_cpu->m_EIP_mask;
+    std::memcpy(&m_cpu->idata, &instruction.data, sizeof(m_cpu->idata));
+    instruction.interpreter_handler(m_cpu);
+
+    if (IsExitBlockInstruction(&instruction))
+      break;
+  }
+#endif
 }
+
 } // namespace CPU_X86

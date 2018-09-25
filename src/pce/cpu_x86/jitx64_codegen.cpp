@@ -26,6 +26,8 @@ namespace CPU_X86 {
 //         Panic("Failed to protect code pointer");
 // }
 
+JitX64Backend::Block::Block(const BlockKey key) : BlockBase(key) {}
+
 JitX64Backend::Block::~Block()
 {
   //     if (code_pointer)
