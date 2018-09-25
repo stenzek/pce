@@ -41,7 +41,6 @@ bool System::Initialize()
   Assert(m_state == State::Initializing);
 
   m_bus->Initialize(this);
-  m_cpu->Initialize(this, m_bus);
   for (Component* component : m_components)
   {
     if (!component->Initialize(this, m_bus))
