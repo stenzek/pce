@@ -772,7 +772,7 @@ void Bus::RegisterMMIO(MMIO* mmio)
 
     if (page->type & (PhysicalMemoryPage::kReadableRAM | PhysicalMemoryPage::kWritableRAM))
     {
-      Log_WarningPrintf("Unmapping RAM page at address 0x%08X for MMIO page", unsigned(page_number * MEMORY_PAGE_SIZE));
+      Log_DebugPrintf("Unmapping RAM page at address 0x%08X for MMIO page", unsigned(page_number * MEMORY_PAGE_SIZE));
       page->type &= ~(PhysicalMemoryPage::kReadableRAM | PhysicalMemoryPage::kWritableRAM);
     }
 
