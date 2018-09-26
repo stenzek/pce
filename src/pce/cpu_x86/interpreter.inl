@@ -1641,6 +1641,14 @@ void Interpreter::Execute_Operation_MOV(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
 
+  // Invalid with the LOCK prefix.
+  // TODO: a more general solution.
+  if (cpu->idata.has_lock)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
   if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
     cpu->AddCycles(CYCLES_MOV_REG_IMM);
   else if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Memory)
