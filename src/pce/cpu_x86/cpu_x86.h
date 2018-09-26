@@ -612,7 +612,7 @@ protected:
   InstructionData idata = {};
 };
 
-template<uint32 size, AccessType access>
+template<u32 size, AccessType access>
 bool CPU_X86::CPU::CheckSegmentAccess(Segment segment, VirtualMemoryAddress offset, bool raise_gp_fault)
 {
   const SegmentCache* segcache = &m_segment_cache[segment];
@@ -626,9 +626,11 @@ bool CPU_X86::CPU::CheckSegmentAccess(Segment segment, VirtualMemoryAddress offs
 
   // First we check if we have read/write/execute access.
   // Then check against the segment limit (can be expand up or down, but calculated at load time).
+  // This computation can overflow (e.g. address FFFFFFFF + size 4), so use 64-bit for the upper bounds.
   if (((segcache->access_mask & static_cast<AccessTypeMask>(1 << static_cast<uint8>(access))) ==
        AccessTypeMask::None) ||
-      (offset < segcache->limit_low) || ((offset + (size - 1)) > segcache->limit_high))
+      (offset < segcache->limit_low) ||
+      ((static_cast<u64>(offset) + static_cast<u64>(size - 1)) > static_cast<u64>(segcache->limit_high)))
   {
     // For the SS selector we issue SF not GPF.
     if (raise_gp_fault)
