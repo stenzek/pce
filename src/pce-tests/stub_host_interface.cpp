@@ -20,9 +20,10 @@ void StubHostInterface::SetSystem(std::unique_ptr<System> system)
   if (s_host_interface->m_system)
     ReleaseSystem();
 
-  s_host_interface->m_system = std::move(system);
   if (system)
     system->SetHostInterface(s_host_interface.get());
+
+  s_host_interface->m_system = std::move(system);
 }
 
 void StubHostInterface::ReleaseSystem()

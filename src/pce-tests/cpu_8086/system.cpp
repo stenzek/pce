@@ -10,9 +10,9 @@ CPU_8086_TestSystem::CPU_8086_TestSystem(CPU_8086::Model cpu_model /* = CPU_8086
                                          float cpu_frequency /* = 1000000.0f */, uint32 ram_size /* = 1024 * 1024 */)
   : System()
 {
-  m_cpu = new CPU_8086::CPU("CPU", cpu_model, cpu_frequency);
   m_bus = new Bus(20);
   m_bus->AllocateRAM(ram_size);
+  m_cpu = CreateComponent<CPU_8086::CPU>("CPU", cpu_model, cpu_frequency);
   AddComponents();
 }
 

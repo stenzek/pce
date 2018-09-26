@@ -1,7 +1,6 @@
 #include "../stub_host_interface.h"
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
-#include "pce/hw/serial.h"
 #include "system.h"
 #include <fstream>
 #include <gtest/gtest.h>
@@ -14,8 +13,10 @@ static void RunTest386(CPUBackendType cpu_backend)
   const char* image_file = "test386/test386.bin";
   const char* output_file = "test386/test386-EE-reference.txt";
 
+  // The clock speed has to be sufficiently high to execute the entire test program. 100MHz should do.
+  const float cpu_frequency = 100000000.0f;
   CPU_X86_TestSystem* system =
-    StubHostInterface::CreateSystem<CPU_X86_TestSystem>(CPU_X86::MODEL_386, 4000000.0f, cpu_backend, 1024 * 1024);
+    StubHostInterface::CreateSystem<CPU_X86_TestSystem>(CPU_X86::MODEL_386, cpu_frequency, cpu_backend, 1024 * 1024);
 
   system->AddROMFile(image_file, 0xf0000u);
 
@@ -23,39 +24,19 @@ static void RunTest386(CPUBackendType cpu_backend)
   system->GetBus()->ConnectIOPortWrite(
     0x0190, system, [](uint32 port, uint8 value) { Log_InfoPrintf("POST code 0x%02X", uint32(value)); });
 
-  // Add a serial port to the machine at the default COM1 port.
-  // We speed this up so the guest spends less time waiting for the serial port..
-  HW::Serial* serial_port = system->CreateComponent<HW::Serial>("COM1", HW::Serial::Model_8250, 0x03F8, 3, 1000000000);
-
   // This is our data buffer that we get back from the guest.
   std::vector<uint8> data_buffer;
-  // size_t last_debug_read_offset = 0;
 
-  // Set up callback from serial port to read the data back from the guest.
-  serial_port->SetDataReadyCallback([&](size_t count) {
-    for (size_t i = 0; i < count; i++)
-    {
-      uint8 value = 0;
-      serial_port->ReadData(&value, 1);
-      data_buffer.push_back(value);
+  // Printing Port
+  system->GetBus()->ConnectIOPortWrite(0x0080, system,
+                                       [&data_buffer](uint32 port, uint8 value) { data_buffer.push_back(value); });
 
-      //             // Dump each line to the screen as it comes in.
-      //             if (value == '\n')
-      //             {
-      //                 size_t count = data_buffer.size() - last_debug_read_offset;
-      //                 std::string temp(reinterpret_cast<const char*>(&data_buffer[last_debug_read_offset]), count);
-      //                 Log_InfoPrint(temp.c_str());
-      //                 last_debug_read_offset = data_buffer.size();
-      //             }
-    }
-  });
-
+  // Initialize the system.
   EXPECT_TRUE(system->Ready()) << "system did not initialize successfully";
 
   // Put a cap on the number of cycles, a runtime of 2 minutes should do.
   system->ExecuteSlice(120 * static_cast<SimulationTime>(1000000000));
   EXPECT_TRUE(system->GetX86CPU()->IsHalted());
-  EXPECT_TRUE(system->GetX86CPU()->GetRegisters()->CS == 0xF000 && system->GetX86CPU()->GetRegisters()->EIP == 0xE04B);
 
   // Compare output with known correct output.
   // TODO: Refactor this into a general diff method.

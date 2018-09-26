@@ -12,9 +12,9 @@ CPU_X86_TestSystem::CPU_X86_TestSystem(CPU_X86::Model cpu_model /* = CPU_X86::MO
                                        uint32 ram_size /* = 1024 * 1024 */)
   : System()
 {
-  m_cpu = new CPU_X86::CPU("CPU", cpu_model, cpu_frequency, cpu_backend);
-  m_bus = new Bus((cpu_model >= CPU_X86::MODEL_386) ? 32 : 20);
+  m_bus = new Bus(32);
   m_bus->AllocateRAM(ram_size);
+  m_cpu = CreateComponent<CPU_X86::CPU>("CPU", cpu_model, cpu_frequency, cpu_backend);
   AddComponents();
 }
 
