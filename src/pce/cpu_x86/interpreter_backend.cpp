@@ -268,6 +268,7 @@ namespace CPU_X86 {
     continue;
 #define MakeLockPrefix(opcode)                                                                                         \
   case opcode:                                                                                                         \
+    cpu->idata.has_lock = true;                                                                                        \
     continue;
 #define MakeRepPrefix(opcode)                                                                                          \
   case opcode:                                                                                                         \
