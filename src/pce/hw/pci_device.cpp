@@ -327,7 +327,7 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
 
     default:
       Log_DebugPrintf("Unknown PCI config space write for '%s': %02X <- %02X", m_identifier.GetCharArray(), offset,
-                    value);
+                      value);
       cs.bytes[offset] = value;
       break;
   }

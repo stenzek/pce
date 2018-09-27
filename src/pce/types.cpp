@@ -46,7 +46,7 @@ void RegisterAllTypes()
   REGISTER_TYPE(Component);
   REGISTER_TYPE(Bus);
   REGISTER_TYPE(System);
-  REGISTER_TYPE(CPUBase);
+  REGISTER_TYPE(CPU);
   REGISTER_TYPE(InterruptController);
   REGISTER_TYPE(DMAController);
 

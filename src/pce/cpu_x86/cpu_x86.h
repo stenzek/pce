@@ -20,9 +20,9 @@ namespace CPU_X86 {
 class Backend;
 class DebuggerInterface;
 
-class CPU : public CPUBase
+class CPU : public ::CPU
 {
-  DECLARE_OBJECT_TYPE_INFO(CPU, CPUBase);
+  DECLARE_OBJECT_TYPE_INFO(CPU, ::CPU);
   DECLARE_OBJECT_NO_FACTORY(CPU);
   DECLARE_OBJECT_PROPERTY_MAP(CPU);
 
@@ -272,7 +272,7 @@ public:
   // Interrupt hook callback
   using InterruptHookCallback = std::function<bool(uint32 interrupt, Registers* registers)>;
 
-  CPU(const String& identifier, Model model, float frequency, CPUBackendType backend_type = CPUBackendType::Interpreter,
+  CPU(const String& identifier, Model model, float frequency, BackendType backend_type = BackendType::Interpreter,
       const ObjectTypeInfo* type_info = &s_type_info);
   ~CPU();
 
@@ -360,8 +360,8 @@ public:
   void SetIRQState(bool state) override;
   void SignalNMI() override;
   ::DebuggerInterface* GetDebuggerInterface() override;
-  bool SupportsBackend(CPUBackendType mode) override;
-  void SetBackend(CPUBackendType mode) override;
+  bool SupportsBackend(BackendType mode) override;
+  void SetBackend(BackendType mode) override;
 
   // Executes instructions/cycles.
   void ExecuteCycles(CycleCount cycles) override;

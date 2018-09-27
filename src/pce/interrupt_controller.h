@@ -2,7 +2,7 @@
 #include "pce/component.h"
 #include <functional>
 
-class CPUBase;
+class CPU;
 
 class InterruptController : public Component
 {

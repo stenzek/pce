@@ -96,11 +96,11 @@ void SDLHostInterface::OnSimulationSpeedUpdate(float speed_percent)
     m_last_message.Clear();
 
   LargeString window_title;
-  window_title.Format("PCE | System: %s | CPU: %s (%.2f MHz, %s) | Speed: %.1f%% | VPS: %.1f%s%s",
-                      m_system->GetTypeInfo()->GetTypeName(), m_system->GetCPU()->GetModelString(),
-                      m_system->GetCPU()->GetFrequency() / 1000000.0f, m_system->GetCPU()->GetCurrentBackendString(),
-                      speed_percent, m_display->GetFramesPerSecond(), m_last_message.IsEmpty() ? "" : " | ",
-                      m_last_message.GetCharArray());
+  window_title.Format(
+    "PCE | System: %s | CPU: %s (%.2f MHz, %s) | Speed: %.1f%% | VPS: %.1f%s%s", m_system->GetTypeInfo()->GetTypeName(),
+    m_system->GetCPU()->GetModelString(), m_system->GetCPU()->GetFrequency() / 1000000.0f,
+    CPU::BackendTypeToString(m_system->GetCPU()->GetBackend()), speed_percent, m_display->GetFramesPerSecond(),
+    m_last_message.IsEmpty() ? "" : " | ", m_last_message.GetCharArray());
 
   SDL_SetWindowTitle(m_display->GetSDLWindow(), window_title);
 }
@@ -250,13 +250,13 @@ void SDLHostInterface::RenderImGui()
 
       if (ImGui::BeginMenu("CPU Backend"))
       {
-        CPUBackendType current_backend = GetCPUBackend();
-        if (ImGui::MenuItem("Interpreter", nullptr, current_backend == CPUBackendType::Interpreter))
-          SetCPUBackend(CPUBackendType::Interpreter);
-        if (ImGui::MenuItem("Cached Interpreter", nullptr, current_backend == CPUBackendType::CachedInterpreter))
-          SetCPUBackend(CPUBackendType::CachedInterpreter);
-        if (ImGui::MenuItem("Recompiler", nullptr, current_backend == CPUBackendType::Recompiler))
-          SetCPUBackend(CPUBackendType::Recompiler);
+        CPU::BackendType current_backend = GetCPUBackend();
+        if (ImGui::MenuItem("Interpreter", nullptr, current_backend == CPU::BackendType::Interpreter))
+          SetCPUBackend(CPU::BackendType::Interpreter);
+        if (ImGui::MenuItem("Cached Interpreter", nullptr, current_backend == CPU::BackendType::CachedInterpreter))
+          SetCPUBackend(CPU::BackendType::CachedInterpreter);
+        if (ImGui::MenuItem("Recompiler", nullptr, current_backend == CPU::BackendType::Recompiler))
+          SetCPUBackend(CPU::BackendType::Recompiler);
 
         ImGui::EndMenu();
       }

@@ -879,7 +879,7 @@ void VGA::RecalculateEventTiming()
 
   double vertical_frequency = horizontal_frequency / double(vertical_total_lines);
   Log_DebugPrintf("VGA: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz", horizontal_frequency / 1000.0,
-                vertical_frequency);
+                  vertical_frequency);
 
   m_timing.horizontal_frequency = std::max(float(horizontal_frequency), 1.0f);
   m_timing.vertical_frequency = std::max(float(vertical_frequency), 1.0f);
@@ -911,7 +911,7 @@ void VGA::RecalculateEventTiming()
   if (vertical_frequency < 35.0 || vertical_frequency > 75.0)
   {
     Log_DebugPrintf("VGA: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz out of range.",
-                  horizontal_frequency / 1000.0, vertical_frequency);
+                    horizontal_frequency / 1000.0, vertical_frequency);
 
     // Clear the screen
     m_display->ClearFramebuffer();

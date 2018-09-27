@@ -14,7 +14,7 @@ class ByteStream;
 class BinaryReader;
 class BinaryWriter;
 class Component;
-class CPUBase;
+class CPU;
 class Error;
 class HostInterface;
 
@@ -48,7 +48,7 @@ public:
   const TimingManager* GetTimingManager() const { return &m_timing_manager; }
   TimingManager* GetTimingManager() { return &m_timing_manager; }
 
-  CPUBase* GetCPU() const { return m_cpu; }
+  CPU* GetCPU() const { return m_cpu; }
   Bus* GetBus() const { return m_bus; }
 
   // State changes. Use with care.
@@ -97,7 +97,7 @@ private:
 
 protected:
   HostInterface* m_host_interface = nullptr;
-  CPUBase* m_cpu = nullptr;
+  CPU* m_cpu = nullptr;
   Bus* m_bus = nullptr;
   TimingManager m_timing_manager;
 

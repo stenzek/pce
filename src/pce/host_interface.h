@@ -71,9 +71,9 @@ public:
 
   // Safely changes CPU backend.
   // This change is done asynchronously.
-  CPUBackendType GetCPUBackend() const;
+  CPU::BackendType GetCPUBackend() const;
   float GetCPUFrequency() const;
-  bool SetCPUBackend(CPUBackendType backend);
+  bool SetCPUBackend(CPU::BackendType backend);
   void SetCPUFrequency(float frequency);
   void FlushCPUCodeCache();
 

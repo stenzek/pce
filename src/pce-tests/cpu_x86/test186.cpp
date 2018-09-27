@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 Log_SetChannel(CPU_X86_Test186);
 
-static bool RunTest(CPUBackendType backend, const char* code_file, const char* expected_ouput_file)
+static bool RunTest(CPU::BackendType backend, const char* code_file, const char* expected_ouput_file)
 {
   CPU_X86_TestSystem* system =
     StubHostInterface::CreateSystem<CPU_X86_TestSystem>(CPU_X86::MODEL_386, 1000000.0f, backend, 1024 * 1024);
@@ -79,13 +79,16 @@ static bool RunTest(CPUBackendType backend, const char* code_file, const char* e
 #define MAKE_TEST(name, code_file, results_file)                                                                       \
   TEST(CPU_X86_Test186_Interpreter, name)                                                                              \
   {                                                                                                                    \
-    EXPECT_TRUE(RunTest(CPUBackendType::Interpreter, code_file, results_file));                                        \
+    EXPECT_TRUE(RunTest(CPU::BackendType::Interpreter, code_file, results_file));                                      \
   }                                                                                                                    \
   TEST(CPU_X86_Test186_CachedInterpreter, name)                                                                        \
   {                                                                                                                    \
-    EXPECT_TRUE(RunTest(CPUBackendType::CachedInterpreter, code_file, results_file));                                  \
+    EXPECT_TRUE(RunTest(CPU::BackendType::CachedInterpreter, code_file, results_file));                                \
   }                                                                                                                    \
-  TEST(CPU_X86_Test186_Recompiler, name) { EXPECT_TRUE(RunTest(CPUBackendType::Recompiler, code_file, results_file)); }
+  TEST(CPU_X86_Test186_Recompiler, name)                                                                               \
+  {                                                                                                                    \
+    EXPECT_TRUE(RunTest(CPU::BackendType::Recompiler, code_file, results_file));                                       \
+  }
 
 MAKE_TEST(add, "test186/add.bin", "test186/res_add.bin")
 MAKE_TEST(bcdcnv, "test186/bcdcnv.bin", "test186/res_bcdcnv.bin")

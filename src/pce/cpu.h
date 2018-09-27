@@ -3,17 +3,24 @@
 
 class DebuggerInterface;
 
-class CPUBase : public Component
+class CPU : public Component
 {
-  DECLARE_OBJECT_TYPE_INFO(CPUBase, Component);
-  DECLARE_OBJECT_NO_FACTORY(CPUBase);
-  DECLARE_OBJECT_PROPERTY_MAP(CPUBase);
+  DECLARE_OBJECT_TYPE_INFO(CPU, Component);
+  DECLARE_OBJECT_NO_FACTORY(CPU);
+  DECLARE_OBJECT_PROPERTY_MAP(CPU);
 
 public:
-  CPUBase(const String& identifier, float frequency, CPUBackendType backend_type,
-          const ObjectTypeInfo* type_info = &s_type_info);
+  enum class BackendType
+  {
+    Interpreter,
+    CachedInterpreter,
+    Recompiler
+  };
 
-  virtual ~CPUBase() = default;
+  CPU(const String& identifier, float frequency, BackendType backend_type,
+      const ObjectTypeInfo* type_info = &s_type_info);
+
+  virtual ~CPU() = default;
 
   virtual bool Initialize(System* system, Bus* bus) override;
   virtual void Reset() override;
@@ -38,11 +45,9 @@ public:
   virtual DebuggerInterface* GetDebuggerInterface();
 
   // Execution mode
-  CPUBackendType GetCurrentBackend() const { return m_backend_type; }
-  const char* GetCurrentBackendString() const;
-
-  virtual bool SupportsBackend(CPUBackendType mode) = 0;
-  virtual void SetBackend(CPUBackendType mode) = 0;
+  BackendType GetBackend() const { return m_backend_type; }
+  virtual bool SupportsBackend(BackendType mode) = 0;
+  virtual void SetBackend(BackendType mode) = 0;
 
   // Execute cycles
   virtual void ExecuteCycles(CycleCount cycles) = 0;
@@ -53,10 +58,13 @@ public:
   // Code cache flushing - for recompiler backends
   virtual void FlushCodeCache();
 
+  // Backend to string.
+  static const char* BackendTypeToString(BackendType type);
+
 protected:
   void UpdateCyclePeriod();
 
   SimulationTime m_cycle_period;
   float m_frequency;
-  CPUBackendType m_backend_type;
+  BackendType m_backend_type;
 };

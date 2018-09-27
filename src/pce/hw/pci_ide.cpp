@@ -371,8 +371,8 @@ void PCIIDE::ReadNextPRDT(u32 channel)
   PRDT_ENTRY entry;
   entry.bits64 = BaseClass::m_bus->ReadMemoryQWord(table_address & UINT32_C(0xFFFFFFFC));
   Log_DebugPrintf("Channel %u PRDT %u: %" PRIX64 " (base address 0x%08X, size %u, eot %s)", channel,
-                ds.next_prdt_entry_index, entry.bits64, entry.physical_base_address, entry.byte_count.GetValue(),
-                entry.eot ? "true" : "false");
+                  ds.next_prdt_entry_index, entry.bits64, entry.physical_base_address, entry.byte_count.GetValue(),
+                  entry.eot ? "true" : "false");
   ds.next_prdt_entry_index++;
 
   ds.current_physical_address = entry.physical_base_address & UINT32_C(0xFFFFFFFE);
@@ -406,7 +406,7 @@ u32 PCIIDE::DMATransfer(u32 channel, u32 drive, bool is_write, void* data, u32 s
     }
 
     Log_DebugPrintf("DMA %s %u bytes at 0x%08X for %u/%u", is_write ? "write" : "read", transfer_size,
-                  ds.current_physical_address, channel, drive);
+                    ds.current_physical_address, channel, drive);
 
     if (is_write)
       BaseClass::m_bus->WriteMemoryBlock(ds.current_physical_address, transfer_size, data_ptr);

@@ -8,7 +8,7 @@
 #include <vector>
 Log_SetChannel(CPU_X86_Test186);
 
-static void RunTest386(CPUBackendType cpu_backend)
+static void RunTest386(CPU::BackendType cpu_backend)
 {
   const char* image_file = "test386/test386.bin";
   const char* output_file = "test386/test386-EE-reference.txt";
@@ -80,13 +80,13 @@ static void RunTest386(CPUBackendType cpu_backend)
 
 TEST(CPU_X86_Test386, Interpreter)
 {
-  RunTest386(CPUBackendType::Interpreter);
+  RunTest386(CPU::BackendType::Interpreter);
 }
 TEST(CPU_X86_Test386, CachedInterpreter)
 {
-  RunTest386(CPUBackendType::CachedInterpreter);
+  RunTest386(CPU::BackendType::CachedInterpreter);
 }
 TEST(CPU_X86_Test386, Recompiler)
 {
-  RunTest386(CPUBackendType::Recompiler);
+  RunTest386(CPU::BackendType::Recompiler);
 }

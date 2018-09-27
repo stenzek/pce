@@ -135,9 +135,9 @@ void HostInterface::QueueExternalEvent(ExternalEventCallback callback, bool wait
     WaitForSimulationThread();
 }
 
-CPUBackendType HostInterface::GetCPUBackend() const
+CPU::BackendType HostInterface::GetCPUBackend() const
 {
-  return m_system ? m_system->GetCPU()->GetCurrentBackend() : CPUBackendType::Interpreter;
+  return m_system ? m_system->GetCPU()->GetBackend() : CPU::BackendType::Interpreter;
 }
 
 float HostInterface::GetCPUFrequency() const
@@ -145,13 +145,22 @@ float HostInterface::GetCPUFrequency() const
   return m_system ? m_system->GetCPU()->GetFrequency() : 0.0f;
 }
 
-bool HostInterface::SetCPUBackend(CPUBackendType backend)
+bool HostInterface::SetCPUBackend(CPU::BackendType backend)
 {
   Assert(m_system);
   if (!m_system->GetCPU()->SupportsBackend(backend))
     return false;
 
-  QueueExternalEvent([this, backend]() { m_system->GetCPU()->SetBackend(backend); }, true);
+  QueueExternalEvent(
+    [this, backend]() {
+      if (!m_system->GetCPU()->SupportsBackend(backend))
+      {
+        ReportError("Backend is not supported by CPU Core");
+        return;
+      }
+      m_system->GetCPU()->SetBackend(backend);
+    },
+    true);
   return true;
 }
 

@@ -141,8 +141,8 @@ void ALi1429::UpdateShadowRAM()
       const bool readable_memory = !!(flag & 1);
       const bool writable_memory = !!(flag & 2);
       Log_DebugPrintf("Shadowing ENABLED for 0x%08X-0x%08X (type %u, readable=%s, writable=%s)", base,
-                    base + SHADOW_REGION_SIZE - 1, flag, readable_memory ? "yes" : "no",
-                    writable_memory ? "yes" : "no");
+                      base + SHADOW_REGION_SIZE - 1, flag, readable_memory ? "yes" : "no",
+                      writable_memory ? "yes" : "no");
       m_bus->SetPagesRAMState(base, SHADOW_REGION_SIZE, readable_memory, writable_memory);
     }
     else

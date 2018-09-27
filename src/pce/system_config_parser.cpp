@@ -92,8 +92,8 @@ static bool ApplyProperties(Object* object, const std::string& object_name, INIR
     }
 
     const std::string& value = ini.Get(object_name, name, "");
-    Log_DebugPrintf("Setting property '%s' to '%s' on object '%s' (%s)", name.c_str(), value.c_str(), object_name.c_str(),
-                  type_info->GetTypeName());
+    Log_DebugPrintf("Setting property '%s' to '%s' on object '%s' (%s)", name.c_str(), value.c_str(),
+                    object_name.c_str(), type_info->GetTypeName());
 
     if (!SetPropertyValueFromString(object, prop, value.c_str()))
     {

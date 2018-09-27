@@ -51,9 +51,9 @@ static uint32 GetCPUIDModel(Model model)
 }
 
 CPU::CPU(const String& identifier, Model model, float frequency,
-         CPUBackendType backend_type /* = CPUBackendType::Interpreter */,
+         BackendType backend_type /* = BackendType::Interpreter */,
          const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : CPUBase(identifier, frequency, backend_type, type_info), m_model(model)
+  : BaseClass(identifier, frequency, backend_type, type_info), m_model(model)
 {
 #ifdef ENABLE_TLB_EMULATION
   InvalidateAllTLBEntries();
@@ -428,19 +428,26 @@ void CPU::SignalNMI()
   return m_debugger_interface.get();
 }
 
-bool CPU::SupportsBackend(CPUBackendType mode)
+bool CPU::SupportsBackend(CPU::BackendType mode)
 {
-  return (mode == CPUBackendType::Interpreter || mode == CPUBackendType::CachedInterpreter ||
-          mode == CPUBackendType::Recompiler);
+  return (mode == CPU::BackendType::Interpreter || mode == CPU::BackendType::CachedInterpreter ||
+          mode == CPU::BackendType::Recompiler);
 }
 
-void CPU::SetBackend(CPUBackendType mode)
+void CPU::SetBackend(CPU::BackendType mode)
 {
+  Assert(SupportsBackend(mode));
+  if (m_backend_type == mode)
+    return;
+
   m_backend_type = mode;
 
   // If we're initialized, switch backends now, otherwise wait until we have a system.
   if (m_system)
+  {
+    m_backend.reset();
     CreateBackend();
+  }
 }
 
 void CPU::ExecuteCycles(CycleCount cycles)
@@ -503,28 +510,24 @@ void CPU::FlushCodeCache()
 
 void CPU::CreateBackend()
 {
-  m_backend.reset();
   switch (m_backend_type)
   {
-    case CPUBackendType::Interpreter:
-      Log_InfoPrintf("Switching to interpreter backend.");
+    case BackendType::Interpreter:
       m_backend = std::make_unique<InterpreterBackend>(this);
       break;
 
-    case CPUBackendType::CachedInterpreter:
-      Log_InfoPrintf("Switching to cached interpreter backend.");
+    case BackendType::CachedInterpreter:
       m_backend = std::make_unique<CachedInterpreterBackend>(this);
       break;
 
-    case CPUBackendType::Recompiler:
-      Log_InfoPrintf("Switching to recompiler backend.");
+    case BackendType::Recompiler:
       m_backend = std::make_unique<JitX64Backend>(this);
       break;
 
     default:
-      Log_ErrorPrintf("Unsupported backend type, falling back to interpreter.");
-      m_backend_type = CPUBackendType::Interpreter;
-      CreateBackend();
+      Log_ErrorPrintf("Unsupported backend type %s, falling back to interpreter.", BackendTypeToString(m_backend_type));
+      m_backend_type = BackendType::Interpreter;
+      m_backend = std::make_unique<InterpreterBackend>(this);
       break;
   }
 }
@@ -901,7 +904,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
       if ((value & (CR0Bit_PE | CR0Bit_PG)) != (m_registers.CR0 & (CR0Bit_PE | CR0Bit_PG)))
       {
         Log_DebugPrintf("Switching to %s mode%s", ((value & CR0Bit_PE) != 0) ? "protected" : "real",
-                      ((value & CR0Bit_PG) != 0) ? " (paging)" : "");
+                        ((value & CR0Bit_PG) != 0) ? " (paging)" : "");
       }
 
       if ((value & CR0Bit_CD) != (m_registers.CR0 & CR0Bit_CD))
@@ -1152,8 +1155,8 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
 void CPU::RaisePageFault(LinearMemoryAddress linear_address, bool is_write, bool page_present)
 {
   Log_DebugPrintf("Page fault at linear address 0x%08X: %s,%s,%s", linear_address,
-                page_present ? "Present" : "Not Present", is_write ? "Write" : "Read",
-                InUserMode() ? "User Mode" : "Supervisor Mode");
+                  page_present ? "Present" : "Not Present", is_write ? "Write" : "Read",
+                  InUserMode() ? "User Mode" : "Supervisor Mode");
 
   // Determine bits of error code
   uint32 error_code = (((page_present) ? (1u << 0) : 0) | // P
@@ -1860,7 +1863,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     if (new_address_size != m_current_address_size)
     {
       Log_DebugPrintf("Switching to %s %s execution%s", (new_address_size == AddressSize_32) ? "32-bit" : "16-bit",
-                    InProtectedMode() ? "protected mode" : "real mode", IsPagingEnabled() ? " (paging enabled)" : "");
+                      InProtectedMode() ? "protected mode" : "real mode", IsPagingEnabled() ? " (paging enabled)" : "");
 
       m_current_address_size = new_address_size;
       m_current_operand_size = new_operand_size;
@@ -1930,7 +1933,7 @@ void CPU::LoadLocalDescriptorTable(uint16 value)
   m_registers.LDTR = selector.bits;
 
   Log_DebugPrintf("Load local descriptor table: %04X index %u base 0x%08X limit 0x%08X", ZeroExtend32(selector.bits),
-                ZeroExtend32(selector.index.GetValue()), m_tss_location.base_address, m_tss_location.limit);
+                  ZeroExtend32(selector.index.GetValue()), m_tss_location.base_address, m_tss_location.limit);
 }
 
 void CPU::LoadTaskSegment(uint16 value)
@@ -1983,7 +1986,7 @@ void CPU::LoadTaskSegment(uint16 value)
   m_registers.TR = selector.bits;
 
   Log_DebugPrintf("Load task register %04X: index %u base 0x%08X limit 0x%08X", ZeroExtend32(selector.bits),
-                ZeroExtend32(selector.index.GetValue()), m_tss_location.base_address, m_tss_location.limit);
+                  ZeroExtend32(selector.index.GetValue()), m_tss_location.base_address, m_tss_location.limit);
 }
 
 void CPU::ClearInaccessibleSegmentSelectors()
@@ -2028,7 +2031,7 @@ void CPU::RaiseException(uint32 interrupt, uint32 error_code)
   if (interrupt == Interrupt_PageFault)
   {
     Log_DebugPrintf("Raise exception %u error code 0x%08X EIP 0x%08X address 0x%08X", interrupt, error_code,
-                  m_current_EIP, m_registers.CR2);
+                    m_current_EIP, m_registers.CR2);
   }
   else
   {
@@ -2353,7 +2356,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
       // Call gate to lower privilege
       target_selector.rpl = target_descriptor.dpl;
       Log_DebugPrintf("Privilege raised via call gate, %u -> %u", ZeroExtend32(GetCPL()),
-                    ZeroExtend32(target_selector.rpl.GetValue()));
+                      ZeroExtend32(target_selector.rpl.GetValue()));
 
       // We need to look at the current TSS to determine the stack pointer to change to
       uint32 new_ESP;
@@ -2574,7 +2577,7 @@ void CPU::FarReturn(OperandSize operand_size, uint32 pop_byte_count)
     {
       // Returning to outer privilege level
       Log_DebugPrintf("Privilege lowered via RETF: %u -> %u", ZeroExtend32(GetCPL()),
-                    ZeroExtend32(target_selector.rpl.GetValue()));
+                      ZeroExtend32(target_selector.rpl.GetValue()));
 
       uint32 return_ESP;
       uint16 return_SS;
@@ -2715,7 +2718,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
     {
       // Entering V8086 mode
       Log_DebugPrintf("Entering V8086 mode, EFLAGS = %08X, CS:IP = %04X:%04X", return_EFLAGS, ZeroExtend32(return_CS),
-                    return_EIP);
+                      return_EIP);
 
       // TODO: Check EIP lies within CS limits.
       uint32 v86_ESP = PopDWord();
@@ -2768,7 +2771,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
     {
       // Returning to a outer/lower privilege level
       Log_DebugPrintf("Privilege lowered via IRET, %u -> %u", ZeroExtend32(GetCPL()),
-                    ZeroExtend32(target_selector.rpl.GetValue()));
+                      ZeroExtend32(target_selector.rpl.GetValue()));
 
       // Grab ESP/SS from stack
       uint32 outer_ESP;
@@ -2953,7 +2956,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
       else
       {
         Log_DebugPrintf("Privilege raised via interrupt gate, %u -> %u", ZeroExtend32(GetCPL()),
-                      ZeroExtend32(target_descriptor.dpl.GetValue()));
+                        ZeroExtend32(target_descriptor.dpl.GetValue()));
         target_selector.rpl = target_descriptor.dpl;
       }
 

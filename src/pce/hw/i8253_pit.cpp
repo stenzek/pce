@@ -359,7 +359,7 @@ void i8253_PIT::SetChannelMode(size_t channel_index, ChannelOperatingMode mode)
 {
   Channel* channel = &m_channels[channel_index];
   Log_DebugPrintf("Set PIC channel %u to mode %u%s", Truncate32(channel_index), ZeroExtend32(mode),
-                channel->bcd_mode ? " (BCD)" : "");
+                  channel->bcd_mode ? " (BCD)" : "");
 
   // ChannelOperatingMode old_mode = channel->operating_mode;
   channel->operating_mode = mode;
@@ -515,8 +515,8 @@ void i8253_PIT::SetChannelGateInput(size_t channel_index, bool value)
   if (channel->gate_input == value)
     return;
 
-  Log_DebugPrintf("Set PIC channel %u gate input %s->%s", Truncate32(channel_index), channel->gate_input ? "high" : "low",
-                value ? "high" : "low");
+  Log_DebugPrintf("Set PIC channel %u gate input %s->%s", Truncate32(channel_index),
+                  channel->gate_input ? "high" : "low", value ? "high" : "low");
 
   // Ensure we're up-to-date.
   m_tick_event->InvokeEarly();

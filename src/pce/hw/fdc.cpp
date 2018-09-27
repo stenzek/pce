@@ -1095,7 +1095,7 @@ void FDC::EndTransfer(uint32 drive, uint8 st0_bits, uint8 st1_bits, uint8 st2_bi
   m_st2 = GetST2(drive, st2_bits);
 
   Log_DebugPrintf("End transfer, Drive=%u ST0=0x%02X ST1=0x%02X ST2=0x%02X", drive, ZeroExtend32(m_st0),
-                ZeroExtend32(m_st1), ZeroExtend32(m_st2));
+                  ZeroExtend32(m_st1), ZeroExtend32(m_st2));
 
   ClearFIFO();
   WriteToFIFO(m_st0);

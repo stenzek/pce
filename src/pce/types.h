@@ -12,12 +12,5 @@ enum IOPortDataSize : uint32
   IOPortDataSize_16
 };
 
-enum class CPUBackendType
-{
-  Interpreter,
-  CachedInterpreter,
-  Recompiler
-};
-
 // TODO: Put this in a namespace somewhere...
 void RegisterAllTypes();

@@ -627,7 +627,7 @@ void CodeCacheBackend::InsertBlock(BlockBase* block)
 void CodeCacheBackend::LinkBlockBase(BlockBase* from, BlockBase* to)
 {
   Log_DebugPrintf("Linking block %p(%08x) to %p(%08x)", from, from->key.eip_physical_address, to,
-                to->key.eip_physical_address);
+                  to->key.eip_physical_address);
   from->link_successors.push_back(to);
   to->link_predecessors.push_back(from);
 }

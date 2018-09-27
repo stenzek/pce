@@ -385,7 +385,7 @@ void ATAHDD::SetupReadWriteEvent(CycleCount seek_time, u32 num_sectors)
 {
   const CycleCount rw_time = CalculateReadWriteTime(num_sectors);
   Log_DebugPrintf("Sector r/w time for %u sectors at lba %" PRIu64 ": %u us", num_sectors, m_current_lba,
-                static_cast<unsigned>(rw_time));
+                  static_cast<unsigned>(rw_time));
 
   DebugAssert(!m_read_write_event->IsActive());
   m_read_write_event->Queue(seek_time + rw_time);

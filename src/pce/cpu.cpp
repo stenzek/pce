@@ -2,30 +2,30 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 
-DEFINE_OBJECT_TYPE_INFO(CPUBase);
-BEGIN_OBJECT_PROPERTY_MAP(CPUBase)
-PROPERTY_TABLE_MEMBER_FLOAT("Frequency", 0, offsetof(CPUBase, m_frequency), nullptr, 0)
+DEFINE_OBJECT_TYPE_INFO(CPU);
+BEGIN_OBJECT_PROPERTY_MAP(CPU)
+PROPERTY_TABLE_MEMBER_FLOAT("Frequency", 0, offsetof(CPU, m_frequency), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-CPUBase::CPUBase(const String& identifier, float frequency, CPUBackendType backend_type,
-                 const ObjectTypeInfo* type_info /* = &s_type_info */)
+CPU::CPU(const String& identifier, float frequency, BackendType backend_type,
+         const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(identifier, type_info), m_cycle_period(SimulationTime(double(1000000000) / double(frequency))),
     m_frequency(frequency), m_backend_type(backend_type)
 {
 }
 
-bool CPUBase::Initialize(System* system, Bus* bus)
+bool CPU::Initialize(System* system, Bus* bus)
 {
   UpdateCyclePeriod();
   return BaseClass::Initialize(system, bus);
 }
 
-void CPUBase::Reset()
+void CPU::Reset()
 {
   BaseClass::Reset();
 }
 
-bool CPUBase::LoadState(BinaryReader& reader)
+bool CPU::LoadState(BinaryReader& reader)
 {
   if (!reader.SafeReadFloat(&m_frequency) || m_frequency <= 0.0f)
     return false;
@@ -34,7 +34,7 @@ bool CPUBase::LoadState(BinaryReader& reader)
   return true;
 }
 
-bool CPUBase::SaveState(BinaryWriter& writer)
+bool CPU::SaveState(BinaryWriter& writer)
 {
   if (!writer.SafeWriteFloat(m_frequency))
     return false;
@@ -42,37 +42,37 @@ bool CPUBase::SaveState(BinaryWriter& writer)
   return true;
 }
 
-void CPUBase::SetFrequency(float frequency)
+void CPU::SetFrequency(float frequency)
 {
   m_frequency = frequency;
   UpdateCyclePeriod();
 }
 
-SimulationTime CPUBase::GetCyclePeriod() const
+SimulationTime CPU::GetCyclePeriod() const
 {
   return m_cycle_period;
 }
 
-void CPUBase::SetIRQState(bool state) {}
+void CPU::SetIRQState(bool state) {}
 
-void CPUBase::SignalNMI() {}
+void CPU::SignalNMI() {}
 
-DebuggerInterface* CPUBase::GetDebuggerInterface()
+DebuggerInterface* CPU::GetDebuggerInterface()
 {
   return nullptr;
 }
 
-const char* CPUBase::GetCurrentBackendString() const
+const char* CPU::BackendTypeToString(BackendType type)
 {
-  switch (m_backend_type)
+  switch (type)
   {
-    case CPUBackendType::Interpreter:
+    case BackendType::Interpreter:
       return "Interpreter";
 
-    case CPUBackendType::CachedInterpreter:
+    case BackendType::CachedInterpreter:
       return "Cached Interpreter";
 
-    case CPUBackendType::Recompiler:
+    case BackendType::Recompiler:
       return "Recompiler";
 
     default:
@@ -80,9 +80,9 @@ const char* CPUBase::GetCurrentBackendString() const
   }
 }
 
-void CPUBase::FlushCodeCache() {}
+void CPU::FlushCodeCache() {}
 
-void CPUBase::UpdateCyclePeriod()
+void CPU::UpdateCyclePeriod()
 {
   m_cycle_period = SimulationTime(double(1000000000) / double(m_frequency));
 }

@@ -19,9 +19,9 @@ class Backend;
 class DebuggerInterface;
 class Instructions;
 
-class CPU : public CPUBase
+class CPU : public ::CPU
 {
-  DECLARE_OBJECT_TYPE_INFO(CPU, CPUBase);
+  DECLARE_OBJECT_TYPE_INFO(CPU, ::CPU);
   DECLARE_OBJECT_NO_FACTORY(CPU);
   DECLARE_OBJECT_PROPERTY_MAP(CPU);
 
@@ -167,8 +167,8 @@ public:
   void SetIRQState(bool state) override;
   void SignalNMI() override;
   ::DebuggerInterface* GetDebuggerInterface() override;
-  bool SupportsBackend(CPUBackendType mode) override;
-  void SetBackend(CPUBackendType mode) override;
+  bool SupportsBackend(BackendType mode) override;
+  void SetBackend(BackendType mode) override;
 
   // Executes instructions/cycles.
   void ExecuteCycles(CycleCount cycles) override;

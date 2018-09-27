@@ -21,12 +21,13 @@ int main(int argc, char* argv[])
   RegisterAllTypes();
 
   // set log flags
-  // g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_PROFILE);
-  g_pLog->SetConsoleOutputParams(true, "Bus HW::Serial", LOGLEVEL_PROFILE);
+  g_pLog->SetConsoleOutputParams(true, nullptr, LOGLEVEL_PROFILE);
+  // g_pLog->SetConsoleOutputParams(true, "Bus HW::Serial", LOGLEVEL_PROFILE);
   // g_pLog->SetConsoleOutputParams(true, "CPU_X86::CPU Bus HW::Serial", LOGLEVEL_PROFILE);
 
 #ifdef Y_BUILD_CONFIG_RELEASE
   g_pLog->SetFilterLevel(LOGLEVEL_INFO);
+  // g_pLog->SetFilterLevel(LOGLEVEL_PROFILE);
 #else
   g_pLog->SetFilterLevel(LOGLEVEL_PROFILE);
 #endif

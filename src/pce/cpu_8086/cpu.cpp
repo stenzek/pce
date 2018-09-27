@@ -19,7 +19,7 @@ BEGIN_OBJECT_PROPERTY_MAP(CPU)
 END_OBJECT_PROPERTY_MAP()
 
 CPU::CPU(const String& identifier, Model model, float frequency, const ObjectTypeInfo* type_info)
-  : CPUBase(identifier, frequency, CPUBackendType::Interpreter, type_info), m_model(model)
+  : BaseClass(identifier, frequency, BackendType::Interpreter, type_info), m_model(model)
 {
 }
 
@@ -185,14 +185,14 @@ void CPU::SignalNMI()
   return m_debugger_interface.get();
 }
 
-bool CPU::SupportsBackend(CPUBackendType mode)
+bool CPU::SupportsBackend(BackendType mode)
 {
-  return (mode == CPUBackendType::Interpreter);
+  return (mode == BackendType::Interpreter);
 }
 
-void CPU::SetBackend(CPUBackendType mode)
+void CPU::SetBackend(BackendType mode)
 {
-  m_backend_type = mode;
+  Assert(mode == BackendType::Interpreter);
 }
 
 void CPU::ExecuteCycles(CycleCount cycles)
