@@ -2591,9 +2591,9 @@ void Interpreter::Execute_Operation_MUL(CPU* cpu)
   // otherwise, they are set to 1. The SF, ZF, AF, and PF flags are undefined.
   if (actual_size == OperandSize_8)
   {
-    uint16 lhs = uint16(cpu->m_registers.AL);
-    uint16 rhs = uint16(ReadByteOperand<val_mode, val_constant>(cpu));
-    uint16 result = lhs * rhs;
+    u16 lhs = ZeroExtend16(cpu->m_registers.AL);
+    u16 rhs = ZeroExtend16(ReadByteOperand<val_mode, val_constant>(cpu));
+    u16 result = lhs * rhs;
     cpu->m_registers.AX = result;
     SET_FLAG(&cpu->m_registers, OF, (cpu->m_registers.AH != 0));
     SET_FLAG(&cpu->m_registers, CF, (cpu->m_registers.AH != 0));
@@ -2604,9 +2604,9 @@ void Interpreter::Execute_Operation_MUL(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint32 lhs = uint32(cpu->m_registers.AX);
-    uint32 rhs = uint32(ReadWordOperand<val_mode, val_constant>(cpu));
-    uint32 result = lhs * rhs;
+    u32 lhs = ZeroExtend32(cpu->m_registers.AX);
+    u32 rhs = ZeroExtend32(ReadWordOperand<val_mode, val_constant>(cpu));
+    u32 result = lhs * rhs;
     cpu->m_registers.AX = uint16(result & 0xFFFF);
     cpu->m_registers.DX = uint16(result >> 16);
     SET_FLAG(&cpu->m_registers, OF, (cpu->m_registers.DX != 0));
@@ -2618,9 +2618,9 @@ void Interpreter::Execute_Operation_MUL(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint64 lhs = ZeroExtend64(cpu->m_registers.EAX);
-    uint64 rhs = ZeroExtend64(ReadDWordOperand<val_mode, val_constant>(cpu));
-    uint64 result = lhs * rhs;
+    u64 lhs = ZeroExtend64(cpu->m_registers.EAX);
+    u64 rhs = ZeroExtend64(ReadDWordOperand<val_mode, val_constant>(cpu));
+    u64 result = lhs * rhs;
     cpu->m_registers.EAX = Truncate32(result);
     cpu->m_registers.EDX = Truncate32(result >> 32);
     SET_FLAG(&cpu->m_registers, OF, (cpu->m_registers.EDX != 0));
@@ -2647,33 +2647,32 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
     static_assert(op1_size != OperandSize_8 || (op2_mode == OperandMode_None && op3_mode == OperandMode_None),
                   "8-bit source only has one operand form");
 
-    int16 lhs = int8(cpu->m_registers.AL);
-    int16 rhs = int8(ReadByteOperand<op1_mode, op1_constant>(cpu));
-    int16 result = lhs * rhs;
-    uint8 truncated_result = uint8(uint16(result) & 0xFFFF);
+    u16 lhs = SignExtend16(cpu->m_registers.AL);
+    u16 rhs = SignExtend16(ReadByteOperand<op1_mode, op1_constant>(cpu));
+    u16 result = u16(s16(lhs) * s16(rhs));
+    u8 truncated_result = Truncate8(result);
 
-    cpu->m_registers.AX = uint16(result);
+    cpu->m_registers.AX = result;
 
     cpu->AddCyclesRM(CYCLES_IMUL_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-    cpu->m_registers.EFLAGS.OF = (int16(int8(truncated_result)) != result);
-    cpu->m_registers.EFLAGS.CF = (int16(int8(truncated_result)) != result);
+    cpu->m_registers.EFLAGS.OF = cpu->m_registers.EFLAGS.CF = (SignExtend16(truncated_result) != result);
     cpu->m_registers.EFLAGS.SF = IsSign(truncated_result);
     cpu->m_registers.EFLAGS.ZF = IsZero(truncated_result);
     cpu->m_registers.EFLAGS.PF = IsParity(truncated_result);
   }
   else if (actual_size == OperandSize_16)
   {
-    int32 lhs, rhs;
-    int32 result;
-    uint16 truncated_result;
+    u32 lhs, rhs;
+    u32 result;
+    u16 truncated_result;
 
     if constexpr (op3_mode != OperandMode_None)
     {
       // Three-operand form
-      lhs = int16(ReadSignExtendedWordOperand<op2_size, op2_mode, op2_constant>(cpu));
-      rhs = int16(ReadSignExtendedWordOperand<op3_size, op3_mode, op3_constant>(cpu));
-      result = lhs * rhs;
-      truncated_result = uint16(uint32(result) & 0xFFFF);
+      lhs = SignExtend32(ReadSignExtendedWordOperand<op2_size, op2_mode, op2_constant>(cpu));
+      rhs = SignExtend32(ReadSignExtendedWordOperand<op3_size, op3_mode, op3_constant>(cpu));
+      result = u32(s32(lhs) * s32(rhs));
+      truncated_result = Truncate16(result);
 
       cpu->AddCyclesRM(CYCLES_IMUL_16_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
       WriteWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
@@ -2681,10 +2680,10 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
     else if constexpr (op2_mode != OperandMode_None)
     {
       // Two-operand form
-      lhs = int16(ReadSignExtendedWordOperand<op1_size, op1_mode, op1_constant>(cpu));
-      rhs = int16(ReadSignExtendedWordOperand<op2_size, op2_mode, op2_constant>(cpu));
-      result = lhs * rhs;
-      truncated_result = uint16(uint32(result) & 0xFFFF);
+      lhs = SignExtend32(ReadSignExtendedWordOperand<op1_size, op1_mode, op1_constant>(cpu));
+      rhs = SignExtend32(ReadSignExtendedWordOperand<op2_size, op2_mode, op2_constant>(cpu));
+      result = u32(s32(lhs) * s32(rhs));
+      truncated_result = Truncate16(result);
 
       cpu->AddCyclesRM(CYCLES_IMUL_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
       WriteWordOperand<op1_mode, op1_constant>(cpu, truncated_result);
@@ -2692,34 +2691,33 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
     else
     {
       // One-operand form
-      lhs = int16(cpu->m_registers.AX);
-      rhs = int16(ReadSignExtendedWordOperand<op1_size, op1_mode, op1_constant>(cpu));
-      result = lhs * rhs;
-      truncated_result = uint16(uint32(result) & 0xFFFF);
+      lhs = SignExtend32(cpu->m_registers.AX);
+      rhs = SignExtend32(ReadSignExtendedWordOperand<op1_size, op1_mode, op1_constant>(cpu));
+      result = u32(s32(lhs) * s32(rhs));
+      truncated_result = Truncate16(result);
 
       cpu->AddCyclesRM(CYCLES_IMUL_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-      cpu->m_registers.DX = uint16((uint32(result) >> 16) & 0xFFFF);
+      cpu->m_registers.DX = Truncate16(result >> 16);
       cpu->m_registers.AX = truncated_result;
     }
 
-    cpu->m_registers.EFLAGS.OF = (int32(int16(truncated_result)) != result);
-    cpu->m_registers.EFLAGS.CF = (int32(int16(truncated_result)) != result);
+    cpu->m_registers.EFLAGS.OF = cpu->m_registers.EFLAGS.CF = (SignExtend32(truncated_result) != result);
     cpu->m_registers.EFLAGS.SF = IsSign(truncated_result);
     cpu->m_registers.EFLAGS.ZF = IsZero(truncated_result);
     cpu->m_registers.EFLAGS.PF = IsParity(truncated_result);
   }
   else if (actual_size == OperandSize_32)
   {
-    int64 lhs, rhs;
-    int64 result;
-    uint32 truncated_result;
+    u64 lhs, rhs;
+    u64 result;
+    u32 truncated_result;
 
     if constexpr (op3_mode != OperandMode_None)
     {
       // Three-operand form
-      lhs = int32(ReadSignExtendedDWordOperand<op2_size, op2_mode, op2_constant>(cpu));
-      rhs = int32(ReadSignExtendedDWordOperand<op3_size, op3_mode, op3_constant>(cpu));
-      result = lhs * rhs;
+      lhs = SignExtend64(ReadSignExtendedDWordOperand<op2_size, op2_mode, op2_constant>(cpu));
+      rhs = SignExtend64(ReadSignExtendedDWordOperand<op3_size, op3_mode, op3_constant>(cpu));
+      result = u64(s64(lhs) * s64(rhs));
       truncated_result = Truncate32(result);
 
       cpu->AddCyclesRM(CYCLES_IMUL_32_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
@@ -2728,9 +2726,9 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
     else if constexpr (op2_mode != OperandMode_None)
     {
       // Two-operand form
-      lhs = int32(ReadSignExtendedDWordOperand<op1_size, op1_mode, op1_constant>(cpu));
-      rhs = int32(ReadSignExtendedDWordOperand<op2_size, op2_mode, op2_constant>(cpu));
-      result = lhs * rhs;
+      lhs = SignExtend64(ReadSignExtendedDWordOperand<op1_size, op1_mode, op1_constant>(cpu));
+      rhs = SignExtend64(ReadSignExtendedDWordOperand<op2_size, op2_mode, op2_constant>(cpu));
+      result = u64(s64(lhs) * s64(rhs));
       truncated_result = Truncate32(result);
 
       cpu->AddCyclesRM(CYCLES_IMUL_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
@@ -2739,9 +2737,9 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
     else
     {
       // One-operand form
-      lhs = int32(cpu->m_registers.EAX);
-      rhs = int32(ReadSignExtendedDWordOperand<op1_size, op1_mode, op1_constant>(cpu));
-      result = lhs * rhs;
+      lhs = SignExtend64(cpu->m_registers.EAX);
+      rhs = SignExtend64(ReadSignExtendedDWordOperand<op1_size, op1_mode, op1_constant>(cpu));
+      result = u64(s64(lhs) * s64(rhs));
       truncated_result = Truncate32(result);
 
       cpu->AddCyclesRM(CYCLES_IMUL_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
@@ -2749,8 +2747,7 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       cpu->m_registers.EAX = truncated_result;
     }
 
-    cpu->m_registers.EFLAGS.OF = (int64(SignExtend64(truncated_result)) != result);
-    cpu->m_registers.EFLAGS.CF = (int64(SignExtend64(truncated_result)) != result);
+    cpu->m_registers.EFLAGS.OF = cpu->m_registers.EFLAGS.CF = (SignExtend64(truncated_result) != result);
     cpu->m_registers.EFLAGS.SF = IsSign(truncated_result);
     cpu->m_registers.EFLAGS.ZF = IsZero(truncated_result);
     cpu->m_registers.EFLAGS.PF = IsParity(truncated_result);
@@ -2863,8 +2860,8 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
     int16 source = int16(cpu->m_registers.AX);
     int16 quotient = source / divisor;
     int16 remainder = source % divisor;
-    uint8 truncated_quotient = uint8(uint16(quotient) & 0xFFFF);
-    uint8 truncated_remainder = uint8(uint16(remainder) & 0xFFFF);
+    uint8 truncated_quotient = Truncate8(uint16(quotient));
+    uint8 truncated_remainder = Truncate8(uint16(remainder));
     if (int8(truncated_quotient) != quotient)
     {
       cpu->RaiseException(Interrupt_DivideError);
@@ -2889,8 +2886,8 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
     int32 source = int32((uint32(cpu->m_registers.DX) << 16) | uint32(cpu->m_registers.AX));
     int32 quotient = source / divisor;
     int32 remainder = source % divisor;
-    uint16 truncated_quotient = uint16(uint32(quotient) & 0xFFFF);
-    uint16 truncated_remainder = uint16(uint32(remainder) & 0xFFFF);
+    uint16 truncated_quotient = Truncate16(uint32(quotient));
+    uint16 truncated_remainder = Truncate16(uint32(remainder));
     if (int16(truncated_quotient) != quotient)
     {
       cpu->RaiseException(Interrupt_DivideError);
