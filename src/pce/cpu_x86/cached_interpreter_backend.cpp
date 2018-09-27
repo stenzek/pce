@@ -29,7 +29,6 @@ void CachedInterpreterBackend::Execute()
   // We'll jump back here when an instruction is aborted.
   fastjmp_set(&m_jmp_buf);
   m_current_block = nullptr;
-  m_current_block_flushed = false;
 
   while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
   {
@@ -45,12 +44,7 @@ void CachedInterpreterBackend::Execute()
     {
       // No next block, try to get one.
       m_current_block = GetNextBlock();
-      if (m_current_block)
-      {
-        // Block good to go.
-        m_current_block_flushed = false;
-      }
-      else
+      if (!m_current_block)
       {
         // No luck. Fall back to interpreter.
         InterpretUncachedBlock();
@@ -66,9 +60,8 @@ void CachedInterpreterBackend::Execute()
     // Fix up delayed block destroying.
     Block* previous_block = m_current_block;
     m_current_block = nullptr;
-    if (m_current_block_flushed)
+    if (previous_block->destroy_pending)
     {
-      m_current_block_flushed = false;
       FlushBlock(previous_block);
       continue;
     }
@@ -115,21 +108,15 @@ void CachedInterpreterBackend::Execute()
       }
     }
   }
-
-  // Clear our current block info. This could change while we're not executing.
-  DebugAssert(!m_current_block_flushed);
-  m_current_block = nullptr;
 }
 
 void CachedInterpreterBackend::AbortCurrentInstruction()
 {
   // Since we won't return to the dispatcher, clean up the block here.
-  if (m_current_block_flushed)
+  if (m_current_block->destroy_pending)
   {
-    Block* block = m_current_block;
+    DestroyBlock(m_current_block);
     m_current_block = nullptr;
-    m_current_block_flushed = false;
-    FlushBlock(block);
   }
 
   // Log_WarningPrintf("Executing longjmp()");
@@ -151,13 +138,7 @@ void CachedInterpreterBackend::FlushCodeCache()
 {
   // Prevent the current block from being flushed.
   if (m_current_block)
-  {
-    auto iter = m_blocks.find(m_current_block->key);
-    Assert(iter != m_blocks.end());
-    m_blocks.erase(iter);
-    UnlinkBlockBase(m_current_block);
-    m_current_block_flushed = true;
-  }
+    FlushBlock(m_current_block, true);
 
   CodeCacheBackend::FlushCodeCache();
 }
@@ -177,19 +158,13 @@ void CachedInterpreterBackend::ResetBlock(BlockBase* block)
   CodeCacheBackend::ResetBlock(block);
 }
 
-void CachedInterpreterBackend::FlushBlock(BlockBase* block)
+void CachedInterpreterBackend::FlushBlock(BlockBase* block, bool defer_destroy /* = false */)
 {
   // Defer flush to after execution.
   if (m_current_block == block)
-  {
-    // We still unlink the block, just in case.
-    m_current_block_flushed = true;
-    UnlinkBlockBase(block);
-  }
-  else
-  {
-    CodeCacheBackend::FlushBlock(block);
-  }
+    defer_destroy = true;
+
+  CodeCacheBackend::FlushBlock(block, defer_destroy);
 }
 
 void CachedInterpreterBackend::DestroyBlock(BlockBase* block)

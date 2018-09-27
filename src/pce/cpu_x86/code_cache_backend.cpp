@@ -232,9 +232,10 @@ void CodeCacheBackend::ResetBlock(BlockBase* block)
   block->code_length = 0;
   block->next_page_physical_address = 0;
   block->linkable = false;
+  block->destroy_pending = false;
 }
 
-void CodeCacheBackend::FlushBlock(BlockBase* block)
+void CodeCacheBackend::FlushBlock(BlockBase* block, bool defer_destroy /* = false */)
 {
   Log_DebugPrintf("Flushing block %08X", block->key.eip_physical_address);
 
@@ -252,7 +253,10 @@ void CodeCacheBackend::FlushBlock(BlockBase* block)
   if (!block->invalidated)
     RemoveBlockPhysicalMappings(block);
 
-  DestroyBlock(block);
+  if (defer_destroy)
+    block->destroy_pending = true;
+  else
+    DestroyBlock(block);
 }
 
 void CodeCacheBackend::InvalidateBlock(BlockBase* block)
@@ -264,7 +268,6 @@ void CodeCacheBackend::InvalidateBlock(BlockBase* block)
 
 void CodeCacheBackend::FlushCodeCache()
 {
-  Log_PerfPrintf("Flushing all blocks");
   m_physical_page_blocks.clear();
   for (auto& iter : m_blocks)
     DestroyBlock(iter.second);

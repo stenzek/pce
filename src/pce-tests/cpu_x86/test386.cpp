@@ -22,7 +22,7 @@ static void RunTest386(CPU::BackendType cpu_backend)
 
   // POST Code Port
   system->GetBus()->ConnectIOPortWrite(
-    0x0190, system, [](uint32 port, uint8 value) { Log_InfoPrintf("POST code 0x%02X", uint32(value)); });
+    0x0190, system, [](uint32 port, uint8 value) { Log_DevPrintf("POST code 0x%02X", uint32(value)); });
 
   // This is our data buffer that we get back from the guest.
   std::vector<uint8> data_buffer;

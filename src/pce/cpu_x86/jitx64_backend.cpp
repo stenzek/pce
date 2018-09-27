@@ -49,10 +49,9 @@ void JitX64Backend::Execute()
 void JitX64Backend::AbortCurrentInstruction()
 {
   // Since we won't return to the dispatcher, clean up the block here.
-  if (m_current_block_flushed)
+  if (m_current_block->destroy_pending)
   {
-    Log_WarningPrintf("Current block invalidated while executing");
-    delete m_current_block;
+    DestroyBlock(m_current_block);
     m_current_block = nullptr;
   }
 
@@ -69,13 +68,7 @@ void JitX64Backend::FlushCodeCache()
 {
   // Prevent the current block from being flushed.
   if (m_current_block)
-  {
-    auto iter = m_blocks.find(m_current_block->key);
-    Assert(iter != m_blocks.end());
-    m_blocks.erase(iter);
-    UnlinkBlockBase(m_current_block);
-    m_current_block_flushed = true;
-  }
+    FlushBlock(m_current_block, true);
 
   CodeCacheBackend::FlushCodeCache();
   m_code_space->Reset();
@@ -127,13 +120,13 @@ void JitX64Backend::ResetBlock(BlockBase* block)
   CodeCacheBackend::ResetBlock(block);
 }
 
-void JitX64Backend::FlushBlock(BlockBase* block)
+void JitX64Backend::FlushBlock(BlockBase* block, bool defer_destroy /* = false */)
 {
   // Defer flush to after execution.
   if (m_current_block == block)
-    m_current_block_flushed = true;
-  else
-    CodeCacheBackend::FlushBlock(block);
+    defer_destroy = true;
+
+  CodeCacheBackend::FlushBlock(block, defer_destroy);
 }
 
 void JitX64Backend::DestroyBlock(BlockBase* block)

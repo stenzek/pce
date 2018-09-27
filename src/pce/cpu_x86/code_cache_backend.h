@@ -63,6 +63,7 @@ protected:
     bool invalidated = false;
     bool linkable = false;
     bool crosses_page = false;
+    bool destroy_pending = false;
 
     bool IsLinkable() const { return (linkable); }
 
@@ -86,7 +87,7 @@ protected:
   virtual void ResetBlock(BlockBase* block);
 
   /// Flushes a block. The destroying of the block may be deferred until later.
-  virtual void FlushBlock(BlockBase* block);
+  virtual void FlushBlock(BlockBase* block, bool defer_destroy = false);
 
   /// Destroys a block, freeing all memory and code associated with it.
   virtual void DestroyBlock(BlockBase* block) = 0;
