@@ -1767,19 +1767,34 @@ public:
 
     if constexpr (op1_size == OperandSize_8)
     {
-      int16 lhs = int8(cpu->m_registers.AL);
-      int16 rhs = int8(ReadByteOperand<op1_mode, op1_constant>(cpu));
-      int16 result = lhs * rhs;
-      u8 truncated_result = u8(u16(result) & 0xFFFF);
+      u16 lhs = SignExtend16(cpu->m_registers.AL);
+      u16 rhs = SignExtend16(ReadByteOperand<op1_mode, op1_constant>(cpu));
+      u16 result = u16(s16(lhs) * s16(rhs));
+      u8 truncated_result = Truncate8(result);
 
-      cpu->m_registers.AX = u16(result);
+      cpu->m_registers.AX = result;
 
-      cpu->m_registers.FLAGS.OF = (int16(int8(truncated_result)) != result);
-      cpu->m_registers.FLAGS.CF = (int16(int8(truncated_result)) != result);
+      cpu->m_registers.FLAGS.OF = cpu->m_registers.FLAGS.CF = (SignExtend16(truncated_result) != result);
       cpu->m_registers.FLAGS.SF = IsSign(truncated_result);
       cpu->m_registers.FLAGS.ZF = IsZero(truncated_result);
       cpu->m_registers.FLAGS.PF = IsParity(truncated_result);
       cpu->AddCycles(RMCycles(cpu, 80, 86, 90));
+    }
+    else if constexpr (op1_size == OperandSize_16)
+    {
+      u32 lhs = SignExtend32(cpu->m_registers.AX);
+      u32 rhs = SignExtend32(ReadSignExtendedWordOperand<op1_size, op1_mode, op1_constant>(cpu));
+      u32 result = u32(s32(lhs) * s32(rhs));
+      u16 truncated_result = Truncate16(result);
+
+      cpu->m_registers.DX = Truncate16(result >> 16);
+      cpu->m_registers.AX = truncated_result;
+
+      cpu->m_registers.FLAGS.OF = cpu->m_registers.FLAGS.CF = (SignExtend32(truncated_result) != result);
+      cpu->m_registers.FLAGS.SF = IsSign(truncated_result);
+      cpu->m_registers.FLAGS.ZF = IsZero(truncated_result);
+      cpu->m_registers.FLAGS.PF = IsParity(truncated_result);
+      cpu->AddCycles(RMCycles(cpu, 128, 150, 154));
     }
   }
 
