@@ -2,7 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClInclude Include="bitfield.h" />
-    <ClInclude Include="display.h" />
     <ClInclude Include="types.h" />
     <ClInclude Include="clock.h" />
     <ClInclude Include="fastjmp.h" />
@@ -13,9 +12,12 @@
     <ClInclude Include="object_type_info.h" />
     <ClInclude Include="property.h" />
     <ClInclude Include="type_registry.h" />
+    <ClInclude Include="display.h" />
+    <ClInclude Include="display_renderer_d3d.h" />
+    <ClInclude Include="display_renderer.h" />
+    <ClInclude Include="display_renderer_gl.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="display.cpp" />
     <ClCompile Include="hdd_image.cpp" />
     <ClCompile Include="timing.cpp" />
     <ClCompile Include="audio.cpp" />
@@ -23,6 +25,10 @@
     <ClCompile Include="object_type_info.cpp" />
     <ClCompile Include="property.cpp" />
     <ClCompile Include="object.cpp" />
+    <ClCompile Include="display.cpp" />
+    <ClCompile Include="display_renderer_d3d.cpp" />
+    <ClCompile Include="display_renderer.cpp" />
+    <ClCompile Include="display_renderer_gl.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="bitfield.natvis" />

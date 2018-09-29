@@ -27,6 +27,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\dep\glad\glad.vcxproj">
+      <Project>{43540154-9e1e-409c-834f-b84be5621388}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\dep\YBaseLib\Source\YBaseLib.vcxproj">
       <Project>{b56ce698-7300-4fa5-9609-942f1d05c5a2}</Project>
     </ProjectReference>
@@ -175,7 +178,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x86\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\glad\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x86\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -183,8 +186,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5OpenGLd.lib;Qt5Widgetsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib32-debug;$(SolutionDir)dep\msvc\qt5-x86\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -196,7 +199,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\glad\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -204,8 +207,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5OpenGLd.lib;Qt5Widgetsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib64-debug;$(SolutionDir)dep\msvc\qt5-x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">
@@ -217,7 +220,7 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUGFAST;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x86\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\glad\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x86\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -227,8 +230,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5OpenGLd.lib;Qt5Widgetsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib32-debug;$(SolutionDir)dep\msvc\qt5-x86\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">
@@ -240,7 +243,7 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUGFAST;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\glad\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -250,8 +253,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5OpenGLd.lib;Qt5Widgetsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib64-debug;$(SolutionDir)dep\msvc\qt5-x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -262,7 +265,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x86\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\glad\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x86\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -272,8 +275,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>opengl32.lib;Qt5Core.lib;Qt5Gui.lib;Qt5OpenGL.lib;Qt5Widgets.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib32;$(SolutionDir)dep\msvc\qt5-x86\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -284,7 +287,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\glad\Include;$(SolutionDir)src;$(SolutionDir)dep\msvc\qt5-x64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -294,8 +297,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>opengl32.lib;Qt5Core.lib;Qt5Gui.lib;Qt5OpenGL.lib;Qt5Widgets.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib64;$(SolutionDir)dep\msvc\qt5-x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

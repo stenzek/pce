@@ -19,10 +19,10 @@ public:
   static void SetSystem(std::unique_ptr<System> system);
   static void ReleaseSystem();
 
-  Display* GetDisplay() const override;
+  DisplayRenderer* GetDisplayRenderer() const override;
   Audio::Mixer* GetAudioMixer() const override;
 
 protected:
-  std::unique_ptr<Display> m_display;
+  std::unique_ptr<DisplayRenderer> m_display_renderer;
   std::unique_ptr<Audio::Mixer> m_audio_mixer;
 };

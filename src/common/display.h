@@ -1,70 +1,123 @@
 #pragma once
 #include "YBaseLib/Common.h"
+#include "YBaseLib/String.h"
 #include "YBaseLib/Timer.h"
+#include "types.h"
 #include <memory>
+#include <mutex>
+
+class DisplayRenderer;
 
 class Display
 {
 public:
-  Display();
+  enum : u8
+  {
+    // Priority for primary display. The display with the highest priority will be shown.
+    DEFAULT_PRIORITY = 1
+  };
+  enum class Type : u8
+  {
+    Primary,
+    Secondary
+  };
+  enum class FramebufferFormat : u8
+  {
+    RGB8,
+    RGBX8,
+    RGB565,
+    BGR565,
+    BGR555,
+  };
+
+  Display(DisplayRenderer* renderer, const String& name, Type type, u8 priority);
   virtual ~Display();
 
-  uint32 GetFramesRendered() const { return m_frames_rendered; }
+  const String& GetName() const { return m_name; }
+  Type GetType() const { return m_type; }
+  u8 GetPriority() const { return m_priority; }
+
+  bool IsEnabled() const { return m_enabled; }
+  void SetEnable(bool enabled);
+
+  u32 GetFramesRendered() const { return m_frames_rendered; }
   float GetFramesPerSecond() const { return m_fps; }
   void ResetFramesRendered() { m_frames_rendered = 0; }
 
-  uint32 GetDisplayWidth() const { return m_display_width; }
-  uint32 GetDisplayHeight() const { return m_display_height; }
-  void SetDisplayScale(uint32 scale) { m_display_scale = scale; }
-  void SetDisplayAspectRatio(uint32 numerator, uint32 denominator);
-  virtual void ResizeDisplay(uint32 width = 0, uint32 height = 0);
+  u32 GetDisplayWidth() const { return m_display_width; }
+  u32 GetDisplayHeight() const { return m_display_height; }
+  void SetDisplayScale(u32 scale) { m_display_scale = scale; }
+  void SetDisplayAspectRatio(u32 numerator, u32 denominator);
+  void ResizeDisplay(u32 width = 0, u32 height = 0);
 
-  uint32 GetFramebufferWidth() const { return m_framebuffer_width; }
-  uint32 GetFramebufferHeight() const { return m_framebuffer_height; }
+  u32 GetFramebufferWidth() const { return m_framebuffer_width; }
+  u32 GetFramebufferHeight() const { return m_framebuffer_height; }
+
   void ClearFramebuffer();
-  virtual void ResizeFramebuffer(uint32 width, uint32 height) = 0;
-  virtual void DisplayFramebuffer() = 0;
+  void ResizeFramebuffer(u32 width, u32 height);
+  void ChangeFramebufferFormat(FramebufferFormat new_format);
+  void SwapFramebuffer();
 
-  static constexpr uint32 PackRGB(uint8 r, uint8 g, uint8 b)
+  static constexpr u32 PackRGBX(u8 r, u8 g, u8 b)
   {
-    return (static_cast<uint32>(r) << 0) | (static_cast<uint32>(g) << 8) | (static_cast<uint32>(b) << 16) |
-           (static_cast<uint32>(0xFF) << 24);
+    return (static_cast<u32>(r) << 0) | (static_cast<u32>(g) << 8) | (static_cast<u32>(b) << 16) |
+           (static_cast<u32>(0xFF) << 24);
   }
 
-  void SetPixel(uint32 x, uint32 y, uint8 r, uint8 g, uint8 b);
-  void SetPixel(uint32 x, uint32 y, uint32 rgb);
-  void CopyFrame(const void* pixels, uint32 stride);
+  // Changes pixels in the backbuffer.
+  byte* GetFramebufferPointer() const { return m_back_buffers[0].data; }
+  u32 GetFramebufferStride() const { return m_back_buffers[0].stride; }
+  void SetPixel(u32 x, u32 y, u8 r, u8 g, u8 b);
+  void SetPixel(u32 x, u32 y, u32 rgb);
+  void CopyFrame(const void* pixels, u32 stride);
 
 protected:
-  static const uint32 MAIN_MENU_BAR_HEIGHT = 20;
+  static const u32 NUM_BACK_BUFFERS = 2;
+
+  struct Framebuffer
+  {
+    byte* data = nullptr;
+    u32 width = 0;
+    u32 height = 0;
+    u32 stride = 0;
+    FramebufferFormat format = FramebufferFormat::RGBX8;
+    bool dirty = false;
+  };
 
   void AddFrameRendered();
+  void AllocateFramebuffer(Framebuffer* fbuf);
+  void DestroyFramebuffer(Framebuffer* fbuf);
 
-  uint32 m_framebuffer_width = 640;
-  uint32 m_framebuffer_height = 480;
-  uint8* m_framebuffer_pointer = nullptr;
-  uint32 m_framebuffer_pitch = 0;
+  // Updates the front buffer. Returns false if the no swap has occurred.
+  bool UpdateFrontbuffer();
 
-  uint32 m_display_width = 640;
-  uint32 m_display_height = 480;
-  uint32 m_display_scale = 1;
-  uint32 m_display_aspect_numerator = 1;
-  uint32 m_display_aspect_denominator = 1;
+  // Helper for converting/copying a framebuffer.
+  static void CopyFramebufferToRGBA8Buffer(const Framebuffer* fbuf, void* dst, u32 dst_stride);
 
-  static const uint32 FRAME_COUNTER_FRAME_COUNT = 100;
+  DisplayRenderer* m_renderer;
+  String m_name;
+
+  Type m_type;
+  u8 m_priority;
+
+  u32 m_framebuffer_width = 0;
+  u32 m_framebuffer_height = 0;
+  FramebufferFormat m_framebuffer_format = FramebufferFormat::RGBX8;
+
+  Framebuffer m_front_buffer;
+  Framebuffer m_back_buffers[NUM_BACK_BUFFERS];
+  std::mutex m_buffer_lock;
+
+  u32 m_display_width = 640;
+  u32 m_display_height = 480;
+  u32 m_display_scale = 1;
+  u32 m_display_aspect_numerator = 1;
+  u32 m_display_aspect_denominator = 1;
+
+  static const u32 FRAME_COUNTER_FRAME_COUNT = 100;
   Timer m_frame_counter_timer;
-  uint32 m_frames_rendered = 0;
+  u32 m_frames_rendered = 0;
   float m_fps = 0.0f;
-};
 
-class NullDisplay : public Display
-{
-public:
-  NullDisplay();
-  ~NullDisplay();
-
-  static std::unique_ptr<Display> Create();
-
-  void ResizeFramebuffer(uint32 width, uint32 height) override;
-  void DisplayFramebuffer() override;
+  bool m_enabled = true;
 };

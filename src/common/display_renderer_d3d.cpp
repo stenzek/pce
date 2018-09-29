@@ -1,11 +1,8 @@
 #ifdef WIN32
-#include "pce-sdl/display_d3d.h"
+#include "display_renderer_d3d.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/Memory.h"
 #include "YBaseLib/String.h"
-#include "imgui.h"
-#include "imgui_impl_dx11.h"
-#include <SDL_syswm.h>
 #include <algorithm>
 #include <array>
 
@@ -52,32 +49,150 @@ static const uint32 PS_BYTECODE[] = {
   0x00000000, 0x00000000, 0x00000000, 0x00000001, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
   0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000};
 
-DisplayD3D::DisplayD3D() = default;
-
-DisplayD3D::~DisplayD3D()
+namespace {
+class DisplayGL : public Display
 {
-  if (m_device && m_context)
-    ImGui_ImplDX11_Shutdown();
+public:
+  DisplayGL(DisplayRenderer* display_manager, const String& name, Type type, u8 priority);
+  ~DisplayGL();
+
+  void Render();
+
+private:
+  void UpdateFramebufferTexture();
+  void UpdateSamplerState();
+
+  Microsoft::WRL::ComPtr<ID3D11SamplerState> m_sampler_state = nullptr;
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> m_framebuffer_texture = nullptr;
+  Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_framebuffer_texture_srv = nullptr;
+
+  u32 m_framebuffer_texture_width = 0;
+  u32 m_framebuffer_texture_height = 0;
+};
+
+DisplayGL::DisplayGL(DisplayRenderer* display_manager, const String& name, Type type, u8 priority)
+  : Display(display_manager, name, type, priority)
+{
+  // TODO: Customizable sampler states
+  UpdateSamplerState();
 }
 
-std::unique_ptr<DisplayD3D> DisplayD3D::Create()
-{
-  std::unique_ptr<DisplayD3D> display = std::make_unique<DisplayD3D>();
-  if (!display->Initialize())
-    display.reset();
+DisplayGL::~DisplayGL() = default;
 
+void DisplayGL::Render()
+{
+  if (UpdateFrontbuffer())
+    UpdateFramebufferTexture();
+
+  if (!m_framebuffer_texture || !m_sampler_state)
+    return;
+
+  DisplayRendererD3D* dm = static_cast<DisplayRendererD3D*>(m_renderer);
+  ID3D11DeviceContext* d3d_context = dm->GetD3DContext();
+
+  d3d_context->RSSetState(dm->GetD3DRasterizerState());
+  d3d_context->OMSetDepthStencilState(dm->GetD3DDepthState(), 0);
+  d3d_context->OMSetBlendState(dm->GetD3DBlendState(), nullptr, 0xFFFFFFFF);
+
+  d3d_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  d3d_context->VSSetShader(dm->GetD3DVertexShader(), nullptr, 0);
+  d3d_context->PSSetShader(dm->GetD3DPixelShader(), nullptr, 0);
+  d3d_context->PSSetShaderResources(0, 1, m_framebuffer_texture_srv.GetAddressOf());
+  d3d_context->PSSetSamplers(0, 1, m_sampler_state.GetAddressOf());
+
+  d3d_context->Draw(3, 0);
+}
+
+void DisplayGL::UpdateFramebufferTexture()
+{
+  ID3D11Device* d3d_device = static_cast<DisplayRendererD3D*>(m_renderer)->GetD3DDevice();
+  ID3D11DeviceContext* d3d_context = static_cast<DisplayRendererD3D*>(m_renderer)->GetD3DContext();
+
+  if (m_framebuffer_texture_width != m_front_buffer.width || m_framebuffer_texture_height != m_front_buffer.height)
+  {
+    m_framebuffer_texture_width = m_front_buffer.width;
+    m_framebuffer_texture_height = m_front_buffer.height;
+    m_framebuffer_texture.Reset();
+    m_framebuffer_texture_srv.Reset();
+
+    if (m_framebuffer_texture_width > 0 && m_framebuffer_texture_height > 0)
+    {
+      D3D11_TEXTURE2D_DESC desc =
+        CD3D11_TEXTURE2D_DESC(DXGI_FORMAT_R8G8B8A8_UNORM, m_framebuffer_texture_width, m_framebuffer_texture_height, 1,
+                              1, D3D11_BIND_SHADER_RESOURCE, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+      HRESULT hr = d3d_device->CreateTexture2D(&desc, nullptr, m_framebuffer_texture.ReleaseAndGetAddressOf());
+      if (FAILED(hr))
+      {
+        Panic("Failed to create framebuffer texture.");
+        return;
+      }
+
+      D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc =
+        CD3D11_SHADER_RESOURCE_VIEW_DESC(m_framebuffer_texture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D);
+      hr = d3d_device->CreateShaderResourceView(m_framebuffer_texture.Get(), &srv_desc,
+                                                m_framebuffer_texture_srv.ReleaseAndGetAddressOf());
+      if (FAILED(hr))
+      {
+        Panic("Failed to create framebuffer texture SRV.");
+        m_framebuffer_texture.Reset();
+        return;
+      }
+    }
+  }
+
+  if (!m_framebuffer_texture)
+    return;
+
+  D3D11_MAPPED_SUBRESOURCE sr;
+  HRESULT hr = d3d_context->Map(m_framebuffer_texture.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &sr);
+  if (FAILED(hr))
+  {
+    Panic("Failed to map framebuffer texture.");
+    return;
+  }
+
+  CopyFramebufferToRGBA8Buffer(&m_front_buffer, sr.pData, sr.RowPitch);
+
+  d3d_context->Unmap(m_framebuffer_texture.Get(), 0);
+}
+
+void DisplayGL::UpdateSamplerState()
+{
+  ID3D11Device* d3d_device = static_cast<DisplayRendererD3D*>(m_renderer)->GetD3DDevice();
+
+  m_sampler_state.Reset();
+
+  D3D11_SAMPLER_DESC ss_desc = CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
+  ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+  // ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+  HRESULT hr = d3d_device->CreateSamplerState(&ss_desc, m_sampler_state.GetAddressOf());
+  if (FAILED(hr))
+  {
+    Panic("Failed to create sampler state");
+    return;
+  }
+}
+} // namespace
+
+DisplayRendererD3D::DisplayRendererD3D(WindowHandleType window_handle, u32 window_width, u32 window_height)
+  : DisplayRenderer(window_handle, window_width, window_height)
+{
+}
+
+DisplayRendererD3D::~DisplayRendererD3D() = default;
+
+std::unique_ptr<Display> DisplayRendererD3D::CreateDisplay(const char* name, Display::Type type,
+                                                           u8 priority /*= Display::DEFAULT_PRIORITY*/)
+{
+  std::unique_ptr<DisplayGL> display = std::make_unique<DisplayGL>(this, name, type, priority);
+  AddDisplay(display.get());
   return display;
 }
 
-bool DisplayD3D::Initialize()
+bool DisplayRendererD3D::Initialize()
 {
-  if (!DisplaySDL::Initialize())
+  if (!DisplayRenderer::Initialize())
     return false;
-
-  SDL_SysWMinfo info = {};
-  SDL_VERSION(&info.version);
-  if (!SDL_GetWindowWMInfo(m_window, &info))
-    return nullptr;
 
   DXGI_SWAP_CHAIN_DESC desc = {};
   desc.BufferDesc.Format = SWAP_CHAIN_BUFFER_FORMAT;
@@ -87,7 +202,7 @@ bool DisplayD3D::Initialize()
   desc.SampleDesc.Count = 1;
   desc.SampleDesc.Quality = 0;
   desc.Windowed = TRUE;
-  desc.OutputWindow = info.info.win.window;
+  desc.OutputWindow = static_cast<HWND>(m_window_handle);
 
   D3D_FEATURE_LEVEL feature_level;
   HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, nullptr, 0, D3D11_SDK_VERSION,
@@ -135,21 +250,70 @@ bool DisplayD3D::Initialize()
   if (FAILED(hr))
     return false;
 
-  D3D11_SAMPLER_DESC ss_desc = CD3D11_SAMPLER_DESC(CD3D11_DEFAULT());
-  ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-  // ss_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-  hr = m_device->CreateSamplerState(&ss_desc, m_sampler_state.GetAddressOf());
-  if (FAILED(hr))
-    return false;
-
-  if (!ImGui_ImplDX11_Init(info.info.win.window, m_device.Get(), m_context.Get()))
-    return false;
-
-  ImGui_ImplDX11_NewFrame();
   return true;
 }
 
-bool DisplayD3D::CreateRenderTargetView()
+bool DisplayRendererD3D::BeginFrame()
+{
+  std::array<float, 4> clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
+  m_context->ClearRenderTargetView(m_swap_chain_rtv.Get(), clear_color.data());
+  m_context->OMSetRenderTargets(1, m_swap_chain_rtv.GetAddressOf(), nullptr);
+  return true;
+}
+
+void DisplayRendererD3D::RenderDisplays()
+{
+  std::lock_guard<std::mutex> guard(m_display_lock);
+
+  // How many pixels do we need to render?
+  u32 total_width = 0;
+  for (const Display* display : m_active_displays)
+  {
+    auto dim = GetDisplayRenderSize(display);
+    total_width += dim.first;
+  }
+
+  // Compute the viewport bounds.
+  const int window_width = int(m_window_width);
+  const int window_height = std::max(1, int(m_window_height) - int(m_top_padding));
+
+  int viewport_x = (m_window_width - total_width) / 2;
+  for (Display* display : m_active_displays)
+  {
+    auto dim = GetDisplayRenderSize(display);
+    const int viewport_width = int(dim.first);
+    const int viewport_height = int(dim.second);
+    const int viewport_y = ((window_height - viewport_height) / 2) + m_top_padding;
+
+    D3D11_VIEWPORT vp =
+      CD3D11_VIEWPORT(float(viewport_x), float(viewport_y), float(viewport_width), float(viewport_height));
+    m_context->RSSetViewports(1, &vp);
+
+    static_cast<DisplayGL*>(display)->Render();
+
+    viewport_x += dim.first;
+  }
+}
+
+void DisplayRendererD3D::EndFrame()
+{
+  m_swap_chain->Present(1, 0);
+}
+
+void DisplayRendererD3D::WindowResized(u32 window_width, u32 window_height)
+{
+  DisplayRenderer::WindowResized(window_width, window_height);
+
+  m_context->OMSetRenderTargets(0, nullptr, nullptr);
+  m_swap_chain_rtv.Reset();
+
+  HRESULT hr =
+    m_swap_chain->ResizeBuffers(SWAP_CHAIN_BUFFER_COUNT, m_window_width, m_window_height, SWAP_CHAIN_BUFFER_FORMAT, 0);
+  if (FAILED(hr) || !CreateRenderTargetView())
+    Panic("Failed to resize swap chain buffers.");
+}
+
+bool DisplayRendererD3D::CreateRenderTargetView()
 {
   D3D11_RENDER_TARGET_VIEW_DESC desc = {};
   desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
@@ -166,126 +330,9 @@ bool DisplayD3D::CreateRenderTargetView()
   return SUCCEEDED(hr);
 }
 
-bool DisplayD3D::UpdateFramebufferTexture()
+DisplayRenderer::BackendType DisplayRendererD3D::GetBackendType()
 {
-  std::lock_guard<std::mutex> guard(m_framebuffer_mutex);
-  const FrameBuffer& fb = m_framebuffers[m_read_framebuffer_index];
-  if (fb.data.empty())
-    return false;
-
-  if (!m_framebuffer_texture || m_framebuffer_texture_width != fb.width || m_framebuffer_texture_height != fb.height)
-  {
-    m_framebuffer_texture_width = fb.width;
-    m_framebuffer_texture_height = fb.height;
-
-    D3D11_TEXTURE2D_DESC desc =
-      CD3D11_TEXTURE2D_DESC(DXGI_FORMAT_R8G8B8A8_UNORM, m_framebuffer_texture_width, m_framebuffer_texture_height, 1, 1,
-                            D3D11_BIND_SHADER_RESOURCE, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-    HRESULT hr = m_device->CreateTexture2D(&desc, nullptr, m_framebuffer_texture.ReleaseAndGetAddressOf());
-    if (FAILED(hr))
-    {
-      Panic("Failed to create framebuffer texture.");
-      return false;
-    }
-
-    D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc =
-      CD3D11_SHADER_RESOURCE_VIEW_DESC(m_framebuffer_texture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D);
-    hr = m_device->CreateShaderResourceView(m_framebuffer_texture.Get(), &srv_desc,
-                                            m_framebuffer_texture_srv.ReleaseAndGetAddressOf());
-    if (FAILED(hr))
-    {
-      Panic("Failed to create framebuffer texture SRV.");
-      return false;
-    }
-  }
-
-  D3D11_MAPPED_SUBRESOURCE sr;
-  HRESULT hr = m_context->Map(m_framebuffer_texture.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &sr);
-  if (FAILED(hr))
-  {
-    Panic("Failed to map framebuffer texture.");
-    return false;
-  }
-
-  const byte* src_ptr = reinterpret_cast<const byte*>(fb.data.data());
-  byte* dst_ptr = reinterpret_cast<byte*>(sr.pData);
-  uint32 copy_size = std::min(sr.RowPitch, fb.stride);
-  for (uint32 i = 0; i < fb.height; i++)
-  {
-    std::memcpy(dst_ptr, src_ptr, copy_size);
-    src_ptr += fb.stride;
-    dst_ptr += sr.RowPitch;
-  }
-
-  m_context->Unmap(m_framebuffer_texture.Get(), 0);
-  return true;
-}
-
-void DisplayD3D::RenderImpl()
-{
-  int window_width = int(m_window_width);
-  int window_height = std::max(1, int(m_window_height) - int(MAIN_MENU_BAR_HEIGHT));
-  float display_ratio = float(m_display_width) / float(m_display_height);
-  float window_ratio = float(window_width) / float(window_height);
-  int viewport_width = 1;
-  int viewport_height = 1;
-  if (window_ratio >= display_ratio)
-  {
-    viewport_width = int(float(window_height) * display_ratio);
-    viewport_height = int(window_height);
-  }
-  else
-  {
-    viewport_width = int(window_width);
-    viewport_height = int(float(window_width) / display_ratio);
-  }
-
-  int viewport_x = (window_width - viewport_width) / 2;
-  int viewport_y = ((window_height - viewport_height) / 2) + MAIN_MENU_BAR_HEIGHT;
-
-  std::array<float, 4> clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
-  m_context->ClearRenderTargetView(m_swap_chain_rtv.Get(), clear_color.data());
-
-  m_context->OMSetRenderTargets(1, m_swap_chain_rtv.GetAddressOf(), nullptr);
-
-  if (UpdateFramebufferTexture())
-  {
-    m_context->RSSetState(m_rasterizer_state.Get());
-    m_context->OMSetDepthStencilState(m_depth_state.Get(), 0);
-    m_context->OMSetBlendState(m_blend_state.Get(), nullptr, 0xFFFFFFFF);
-
-    D3D11_VIEWPORT vp =
-      CD3D11_VIEWPORT(float(viewport_x), float(viewport_y), float(viewport_width), float(viewport_height));
-    m_context->RSSetViewports(1, &vp);
-
-    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_context->VSSetShader(m_vertex_shader.Get(), nullptr, 0);
-    m_context->PSSetShader(m_pixel_shader.Get(), nullptr, 0);
-    m_context->PSSetShaderResources(0, 1, m_framebuffer_texture_srv.GetAddressOf());
-    m_context->PSSetSamplers(0, 1, m_sampler_state.GetAddressOf());
-
-    m_context->Draw(3, 0);
-  }
-
-  ImGui::Render();
-  ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-  m_swap_chain->Present(1, 0);
-
-  ImGui_ImplDX11_NewFrame();
-}
-
-void DisplayD3D::OnWindowResized()
-{
-  DisplaySDL::OnWindowResized();
-
-  m_context->OMSetRenderTargets(0, nullptr, nullptr);
-  m_swap_chain_rtv.Reset();
-
-  HRESULT hr =
-    m_swap_chain->ResizeBuffers(SWAP_CHAIN_BUFFER_COUNT, m_window_width, m_window_height, SWAP_CHAIN_BUFFER_FORMAT, 0);
-  if (FAILED(hr) || !CreateRenderTargetView())
-    Panic("Failed to resize swap chain buffers.");
+  return DisplayRenderer::BackendType::Direct3D;
 }
 
 #endif

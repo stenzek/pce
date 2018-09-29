@@ -20,8 +20,8 @@
 QT_BEGIN_MOC_NAMESPACE
 struct qt_meta_stringdata_MainWindow_t
 {
-  QByteArrayData data[22];
-  char stringdata0[379];
+  QByteArrayData data[23];
+  char stringdata0[383];
 };
 #define QT_MOC_LITERAL(idx, ofs, len)                                                                                  \
   Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(                                                             \
@@ -46,10 +46,11 @@ static const qt_meta_stringdata_MainWindow_t qt_meta_stringdata_MainWindow = {
     QT_MOC_LITERAL(15, 271, 19), // "onSimulationResumed"
     QT_MOC_LITERAL(16, 291, 23), // "onSimulationSpeedUpdate"
     QT_MOC_LITERAL(17, 315, 13), // "speed_percent"
-    QT_MOC_LITERAL(18, 329, 15), // "onStatusMessage"
-    QT_MOC_LITERAL(19, 345, 7),  // "message"
-    QT_MOC_LITERAL(20, 353, 17), // "onDebuggerEnabled"
-    QT_MOC_LITERAL(21, 371, 7)   // "enabled"
+    QT_MOC_LITERAL(18, 329, 3),  // "vps"
+    QT_MOC_LITERAL(19, 333, 15), // "onStatusMessage"
+    QT_MOC_LITERAL(20, 349, 7),  // "message"
+    QT_MOC_LITERAL(21, 357, 17), // "onDebuggerEnabled"
+    QT_MOC_LITERAL(22, 375, 7)   // "enabled"
 
   },
   "MainWindow\0onEnableDebuggerActionToggled\0"
@@ -61,8 +62,8 @@ static const qt_meta_stringdata_MainWindow_t qt_meta_stringdata_MainWindow = {
   "onSystemInitialized\0onSystemDestroy\0"
   "onSimulationPaused\0onSimulationResumed\0"
   "onSimulationSpeedUpdate\0speed_percent\0"
-  "onStatusMessage\0message\0onDebuggerEnabled\0"
-  "enabled"};
+  "vps\0onStatusMessage\0message\0"
+  "onDebuggerEnabled\0enabled"};
 #undef QT_MOC_LITERAL
 
 static const uint qt_meta_data_MainWindow[] = {
@@ -82,14 +83,14 @@ static const uint qt_meta_data_MainWindow[] = {
   1, 1, 84, 2, 0x0a /* Public */, 4, 0, 87, 2, 0x0a /* Public */, 5, 0, 88, 2, 0x0a /* Public */, 6, 0, 89, 2,
   0x0a /* Public */, 7, 0, 90, 2, 0x0a /* Public */, 8, 1, 91, 2, 0x0a /* Public */, 11, 1, 94, 2, 0x0a /* Public */,
   12, 0, 97, 2, 0x08 /* Private */, 13, 0, 98, 2, 0x08 /* Private */, 14, 0, 99, 2, 0x08 /* Private */, 15, 0, 100, 2,
-  0x08 /* Private */, 16, 1, 101, 2, 0x08 /* Private */, 18, 1, 104, 2, 0x08 /* Private */, 20, 1, 107, 2,
+  0x08 /* Private */, 16, 2, 101, 2, 0x08 /* Private */, 19, 1, 106, 2, 0x08 /* Private */, 21, 1, 109, 2,
   0x08 /* Private */,
 
   // slots: parameters
   QMetaType::Void, QMetaType::Bool, 3, QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Void,
   QMetaType::Void, 0x80000000 | 9, 10, QMetaType::Void, 0x80000000 | 9, 10, QMetaType::Void, QMetaType::Void,
-  QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Float, 17, QMetaType::Void, QMetaType::QString, 19,
-  QMetaType::Void, QMetaType::Bool, 21,
+  QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Float, QMetaType::Float, 17, 18, QMetaType::Void,
+  QMetaType::QString, 20, QMetaType::Void, QMetaType::Bool, 22,
 
   0 // eod
 };
@@ -137,7 +138,7 @@ void MainWindow::qt_static_metacall(QObject* _o, QMetaObject::Call _c, int _id, 
         _t->onSimulationResumed();
         break;
       case 11:
-        _t->onSimulationSpeedUpdate((*reinterpret_cast<float(*)>(_a[1])));
+        _t->onSimulationSpeedUpdate((*reinterpret_cast<float(*)>(_a[1])), (*reinterpret_cast<float(*)>(_a[2])));
         break;
       case 12:
         _t->onStatusMessage((*reinterpret_cast<QString(*)>(_a[1])));

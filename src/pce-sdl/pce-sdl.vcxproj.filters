@@ -2,19 +2,13 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="display_sdl.cpp" />
-    <ClCompile Include="display_gl.cpp" />
     <ClCompile Include="scancodes_sdl.cpp" />
     <ClCompile Include="audio_sdl.cpp" />
-    <ClCompile Include="display_d3d.cpp" />
     <ClCompile Include="host_interface.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="display_sdl.h" />
-    <ClInclude Include="display_gl.h" />
     <ClInclude Include="scancodes_sdl.h" />
     <ClInclude Include="audio_sdl.h" />
-    <ClInclude Include="display_d3d.h" />
     <ClInclude Include="host_interface.h" />
   </ItemGroup>
 </Project>

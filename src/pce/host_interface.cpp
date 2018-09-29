@@ -6,6 +6,7 @@
 #include "YBaseLib/FileSystem.h"
 #include "YBaseLib/Log.h"
 #include "YBaseLib/Thread.h"
+#include "common/display_renderer.h"
 #include "system.h"
 #include <cmath>
 #include <cstdint>
@@ -220,6 +221,12 @@ void HostInterface::StopSimulation()
   QueueExternalEvent([this]() { m_system->SetState(System::State::Stopped); }, false);
   WaitForSimulationThread();
   Log_InfoPrintf("Simulation stopped.");
+}
+
+std::unique_ptr<Display> HostInterface::CreateDisplay(const char* name, Display::Type type,
+                                                      u8 priority /*= Display::DEFAULT_PRIORITY*/)
+{
+  return GetDisplayRenderer()->CreateDisplay(name, type, priority);
 }
 
 void HostInterface::RemoveAllCallbacks(const void* owner)

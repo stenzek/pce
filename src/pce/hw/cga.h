@@ -55,7 +55,7 @@ private:
   void RenderLineBorder();
   void FlushFrame();
 
-  Display* m_display;
+  std::unique_ptr<Display> m_display;
   uint8 m_vram[VRAM_SIZE];
 
   // 03D8h: Mode control register

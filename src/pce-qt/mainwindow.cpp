@@ -28,12 +28,11 @@ MainWindow::MainWindow(QWidget* parent /*= nullptr*/) : QMainWindow(parent)
   m_status_fps = new QLabel(this);
   m_ui->statusbar->addWidget(m_status_fps, 0);
 
-  m_display_widget->SetDisplayAspectRatio(4, 3);
   m_host_interface = QtHostInterface::Create(this, m_display_widget);
   m_host_interface->start();
 
   // Transfer the OpenGL widget to the worker thread before starting the system, so it can render.
-  m_display_widget->moveGLContextToThread(m_host_interface.get());
+  // m_display_widget->moveGLContextToThread(m_host_interface.get());
 
   connectSignals();
   adjustSize();
@@ -84,7 +83,8 @@ void MainWindow::connectSignals()
   connect(m_host_interface.get(), SIGNAL(onSystemDestroy()), this, SLOT(onSystemDestroy()));
   connect(m_host_interface.get(), SIGNAL(onSimulationPaused()), this, SLOT(onSimulationPaused()));
   connect(m_host_interface.get(), SIGNAL(onSimulationResumed()), this, SLOT(onSimulationResumed()));
-  connect(m_host_interface.get(), SIGNAL(onSimulationSpeedUpdate(float)), this, SLOT(onSimulationSpeedUpdate(float)));
+  connect(m_host_interface.get(), SIGNAL(onSimulationSpeedUpdate(float, float)), this,
+          SLOT(onSimulationSpeedUpdate(float, float)));
   connect(m_host_interface.get(), SIGNAL(onStatusMessage(QString)), this, SLOT(onStatusMessage(QString)));
   connect(m_host_interface.get(), SIGNAL(onDebuggerEnabled(bool)), this, SLOT(onDebuggerEnabled(bool)));
 
@@ -170,10 +170,10 @@ void MainWindow::onSimulationResumed()
   setUIState(true, true);
 }
 
-void MainWindow::onSimulationSpeedUpdate(float speed_percent)
+void MainWindow::onSimulationSpeedUpdate(float speed_percent, float vps)
 {
   m_status_speed->setText(QString::asprintf("Emulation Speed: %.2f%%", speed_percent));
-  m_status_fps->setText(QString::asprintf("VPS: %.1f", m_display_widget->GetFramesPerSecond()));
+  m_status_fps->setText(QString::asprintf("VPS: %.1f", vps));
 }
 
 void MainWindow::onStatusMessage(QString message)

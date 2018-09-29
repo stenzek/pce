@@ -31,6 +31,9 @@
     <ClInclude Include="bitfield.h" />
     <ClInclude Include="clock.h" />
     <ClInclude Include="display.h" />
+    <ClInclude Include="display_renderer_d3d.h" />
+    <ClInclude Include="display_renderer.h" />
+    <ClInclude Include="display_renderer_gl.h" />
     <ClInclude Include="fastjmp.h" />
     <ClInclude Include="hdd_image.h" />
     <ClInclude Include="object.h" />
@@ -44,6 +47,9 @@
     <ClCompile Include="audio.cpp" />
     <ClCompile Include="clock.cpp" />
     <ClCompile Include="display.cpp" />
+    <ClCompile Include="display_renderer_d3d.cpp" />
+    <ClCompile Include="display_renderer.cpp" />
+    <ClCompile Include="display_renderer_gl.cpp" />
     <ClCompile Include="hdd_image.cpp" />
     <ClCompile Include="object.cpp" />
     <ClCompile Include="object_type_info.cpp" />
@@ -57,6 +63,9 @@
     <MASM Include="fastjmp.asm" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\dep\glad\glad.vcxproj">
+      <Project>{43540154-9e1e-409c-834f-b84be5621388}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\dep\libsamplerate\libsamplerate.vcxproj">
       <Project>{2f2a2b7b-60b3-478c-921e-3633b3c45c3f}</Project>
     </ProjectReference>
@@ -171,7 +180,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -179,6 +188,7 @@
       <AdditionalDependencies>SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib32-debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <Lib />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">
     <ClCompile>
@@ -189,7 +199,7 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;WIN32;_DEBUGFAST;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
@@ -199,6 +209,7 @@
       <AdditionalDependencies>SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib32-debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <Lib />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -209,7 +220,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -217,6 +228,7 @@
       <AdditionalDependencies>SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib32-debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <Lib />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">
     <ClCompile>
@@ -227,7 +239,7 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;WIN32;_DEBUGFAST;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
@@ -237,6 +249,7 @@
       <AdditionalDependencies>SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib32-debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <Lib />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -248,7 +261,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -258,6 +271,7 @@
       <AdditionalDependencies>SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <Lib />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -269,7 +283,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -279,6 +293,7 @@
       <AdditionalDependencies>SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)dep\msvc\lib32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <Lib />
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

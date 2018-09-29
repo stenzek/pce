@@ -25,7 +25,7 @@ public:
 
   bool HandleQKeyEvent(const QKeyEvent* event);
 
-  Display* GetDisplay() const override;
+  DisplayRenderer* GetDisplayRenderer() const override;
   Audio::Mixer* GetAudioMixer() const override;
 
   void ReportMessage(const char* message) override;
@@ -43,7 +43,7 @@ Q_SIGNALS:
   void onSystemDestroy();
   void onSimulationPaused();
   void onSimulationResumed();
-  void onSimulationSpeedUpdate(float speed_percent);
+  void onSimulationSpeedUpdate(float speed_percent, float vps);
   void onStatusMessage(QString message);
   void onDebuggerEnabled(bool enabled);
 
@@ -57,9 +57,13 @@ protected:
   void run() override;
 
   MainWindow* m_main_window = nullptr;
+
   DisplayWidget* m_display_widget = nullptr;
+
+  std::unique_ptr<Audio::Mixer> m_audio_mixer;
+
   DebuggerInterface* m_debugger_interface = nullptr;
   DebuggerWindow* m_debugger_window = nullptr;
-  std::unique_ptr<Audio::Mixer> m_audio_mixer;
+
   QThread* m_ui_thread;
 };

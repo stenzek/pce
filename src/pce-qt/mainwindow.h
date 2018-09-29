@@ -42,7 +42,7 @@ private Q_SLOTS:
   void onSystemDestroy();
   void onSimulationPaused();
   void onSimulationResumed();
-  void onSimulationSpeedUpdate(float speed_percent);
+  void onSimulationSpeedUpdate(float speed_percent, float vps);
   void onStatusMessage(QString message);
   void onDebuggerEnabled(bool enabled);
 

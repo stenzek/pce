@@ -2,6 +2,7 @@
 #include "YBaseLib/Error.h"
 #include "YBaseLib/Log.h"
 #include "common/audio.h"
+#include "common/display_renderer.h"
 #include "pce-qt/debuggerwindow.h"
 #include "pce-qt/displaywidget.h"
 #include "pce-qt/mainwindow.h"
@@ -17,6 +18,13 @@ std::unique_ptr<QtHostInterface> QtHostInterface::Create(MainWindow* main_window
   auto audio_mixer = Audio::NullMixer::Create();
   if (!audio_mixer)
     Panic("Failed to create audio mixer");
+
+  const auto display_widget_size = display_widget->size();
+  std::unique_ptr<DisplayRenderer> display_renderer = DisplayRenderer::Create(
+    DisplayRenderer::BackendType::Null, reinterpret_cast<DisplayRenderer::WindowHandleType>(main_window->winId()),
+    display_widget_size.width(), display_widget_size.height());
+  if (!display_renderer)
+    Panic("Failed to create display renderer");
 
   auto hi = std::make_unique<QtHostInterface>();
   hi->m_main_window = main_window;
@@ -36,9 +44,9 @@ bool QtHostInterface::HandleQKeyEvent(const QKeyEvent* event)
   return true;
 }
 
-Display* QtHostInterface::GetDisplay() const
+DisplayRenderer* QtHostInterface::GetDisplayRenderer() const
 {
-  return static_cast<Display*>(m_display_widget);
+  return m_display_widget->getDisplayRenderer();
 }
 
 Audio::Mixer* QtHostInterface::GetAudioMixer() const
@@ -178,7 +186,7 @@ void QtHostInterface::OnSimulationPaused()
 void QtHostInterface::OnSimulationSpeedUpdate(float speed_percent)
 {
   HostInterface::OnSimulationSpeedUpdate(speed_percent);
-  emit onSimulationSpeedUpdate(speed_percent);
+  emit onSimulationSpeedUpdate(speed_percent, GetDisplayRenderer()->GetPrimaryDisplayFramesPerSecond());
 }
 
 void QtHostInterface::YieldToUI()
@@ -192,5 +200,5 @@ void QtHostInterface::run()
   SimulationThreadRoutine();
 
   // Move the OpenGL thread back to the UI thread before exiting.
-  m_display_widget->moveGLContextToThread(m_ui_thread);
+  // m_display_widget->moveGLContextToThread(m_ui_thread);
 }

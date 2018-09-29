@@ -20,8 +20,8 @@
 QT_BEGIN_MOC_NAMESPACE
 struct qt_meta_stringdata_QtHostInterface_t
 {
-  QByteArrayData data[21];
-  char stringdata0[302];
+  QByteArrayData data[22];
+  char stringdata0[306];
 };
 #define QT_MOC_LITERAL(idx, ofs, len)                                                                                  \
   Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(                                                             \
@@ -36,29 +36,31 @@ static const qt_meta_stringdata_QtHostInterface_t qt_meta_stringdata_QtHostInter
     QT_MOC_LITERAL(5, 72, 19),   // "onSimulationResumed"
     QT_MOC_LITERAL(6, 92, 23),   // "onSimulationSpeedUpdate"
     QT_MOC_LITERAL(7, 116, 13),  // "speed_percent"
-    QT_MOC_LITERAL(8, 130, 15),  // "onStatusMessage"
-    QT_MOC_LITERAL(9, 146, 7),   // "message"
-    QT_MOC_LITERAL(10, 154, 17), // "onDebuggerEnabled"
-    QT_MOC_LITERAL(11, 172, 7),  // "enabled"
-    QT_MOC_LITERAL(12, 180, 15), // "startSimulation"
-    QT_MOC_LITERAL(13, 196, 8),  // "filename"
-    QT_MOC_LITERAL(14, 205, 12), // "start_paused"
-    QT_MOC_LITERAL(15, 218, 15), // "pauseSimulation"
-    QT_MOC_LITERAL(16, 234, 6),  // "paused"
-    QT_MOC_LITERAL(17, 241, 15), // "resetSimulation"
-    QT_MOC_LITERAL(18, 257, 14), // "stopSimulation"
-    QT_MOC_LITERAL(19, 272, 14), // "sendCtrlAltDel"
-    QT_MOC_LITERAL(20, 287, 14)  // "enableDebugger"
+    QT_MOC_LITERAL(8, 130, 3),   // "vps"
+    QT_MOC_LITERAL(9, 134, 15),  // "onStatusMessage"
+    QT_MOC_LITERAL(10, 150, 7),  // "message"
+    QT_MOC_LITERAL(11, 158, 17), // "onDebuggerEnabled"
+    QT_MOC_LITERAL(12, 176, 7),  // "enabled"
+    QT_MOC_LITERAL(13, 184, 15), // "startSimulation"
+    QT_MOC_LITERAL(14, 200, 8),  // "filename"
+    QT_MOC_LITERAL(15, 209, 12), // "start_paused"
+    QT_MOC_LITERAL(16, 222, 15), // "pauseSimulation"
+    QT_MOC_LITERAL(17, 238, 6),  // "paused"
+    QT_MOC_LITERAL(18, 245, 15), // "resetSimulation"
+    QT_MOC_LITERAL(19, 261, 14), // "stopSimulation"
+    QT_MOC_LITERAL(20, 276, 14), // "sendCtrlAltDel"
+    QT_MOC_LITERAL(21, 291, 14)  // "enableDebugger"
 
   },
   "QtHostInterface\0onSystemInitialized\0"
   "\0onSystemDestroy\0onSimulationPaused\0"
   "onSimulationResumed\0onSimulationSpeedUpdate\0"
-  "speed_percent\0onStatusMessage\0message\0"
-  "onDebuggerEnabled\0enabled\0startSimulation\0"
-  "filename\0start_paused\0pauseSimulation\0"
-  "paused\0resetSimulation\0stopSimulation\0"
-  "sendCtrlAltDel\0enableDebugger"};
+  "speed_percent\0vps\0onStatusMessage\0"
+  "message\0onDebuggerEnabled\0enabled\0"
+  "startSimulation\0filename\0start_paused\0"
+  "pauseSimulation\0paused\0resetSimulation\0"
+  "stopSimulation\0sendCtrlAltDel\0"
+  "enableDebugger"};
 #undef QT_MOC_LITERAL
 
 static const uint qt_meta_data_QtHostInterface[] = {
@@ -76,19 +78,19 @@ static const uint qt_meta_data_QtHostInterface[] = {
 
   // signals: name, argc, parameters, tag, flags
   1, 0, 79, 2, 0x06 /* Public */, 3, 0, 80, 2, 0x06 /* Public */, 4, 0, 81, 2, 0x06 /* Public */, 5, 0, 82, 2,
-  0x06 /* Public */, 6, 1, 83, 2, 0x06 /* Public */, 8, 1, 86, 2, 0x06 /* Public */, 10, 1, 89, 2, 0x06 /* Public */,
+  0x06 /* Public */, 6, 2, 83, 2, 0x06 /* Public */, 9, 1, 88, 2, 0x06 /* Public */, 11, 1, 91, 2, 0x06 /* Public */,
 
   // slots: name, argc, parameters, tag, flags
-  12, 2, 92, 2, 0x0a /* Public */, 15, 1, 97, 2, 0x0a /* Public */, 17, 0, 100, 2, 0x0a /* Public */, 18, 0, 101, 2,
-  0x0a /* Public */, 19, 0, 102, 2, 0x0a /* Public */, 20, 1, 103, 2, 0x0a /* Public */,
+  13, 2, 94, 2, 0x0a /* Public */, 16, 1, 99, 2, 0x0a /* Public */, 18, 0, 102, 2, 0x0a /* Public */, 19, 0, 103, 2,
+  0x0a /* Public */, 20, 0, 104, 2, 0x0a /* Public */, 21, 1, 105, 2, 0x0a /* Public */,
 
   // signals: parameters
-  QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Float, 7,
-  QMetaType::Void, QMetaType::QString, 9, QMetaType::Void, QMetaType::Bool, 11,
+  QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Float,
+  QMetaType::Float, 7, 8, QMetaType::Void, QMetaType::QString, 10, QMetaType::Void, QMetaType::Bool, 12,
 
   // slots: parameters
-  QMetaType::Void, QMetaType::QString, QMetaType::Bool, 13, 14, QMetaType::Void, QMetaType::Bool, 16, QMetaType::Void,
-  QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Bool, 11,
+  QMetaType::Void, QMetaType::QString, QMetaType::Bool, 14, 15, QMetaType::Void, QMetaType::Bool, 17, QMetaType::Void,
+  QMetaType::Void, QMetaType::Void, QMetaType::Void, QMetaType::Bool, 12,
 
   0 // eod
 };
@@ -115,7 +117,7 @@ void QtHostInterface::qt_static_metacall(QObject* _o, QMetaObject::Call _c, int 
         _t->onSimulationResumed();
         break;
       case 4:
-        _t->onSimulationSpeedUpdate((*reinterpret_cast<float(*)>(_a[1])));
+        _t->onSimulationSpeedUpdate((*reinterpret_cast<float(*)>(_a[1])), (*reinterpret_cast<float(*)>(_a[2])));
         break;
       case 5:
         _t->onStatusMessage((*reinterpret_cast<QString(*)>(_a[1])));
@@ -181,7 +183,7 @@ void QtHostInterface::qt_static_metacall(QObject* _o, QMetaObject::Call _c, int 
       }
     }
     {
-      typedef void (QtHostInterface::*_t)(float);
+      typedef void (QtHostInterface::*_t)(float, float);
       if (*reinterpret_cast<_t*>(func) == static_cast<_t>(&QtHostInterface::onSimulationSpeedUpdate))
       {
         *result = 4;
@@ -272,9 +274,10 @@ void QtHostInterface::onSimulationResumed()
 }
 
 // SIGNAL 4
-void QtHostInterface::onSimulationSpeedUpdate(float _t1)
+void QtHostInterface::onSimulationSpeedUpdate(float _t1, float _t2)
 {
-  void* _a[] = {Q_NULLPTR, const_cast<void*>(reinterpret_cast<const void*>(&_t1))};
+  void* _a[] = {Q_NULLPTR, const_cast<void*>(reinterpret_cast<const void*>(&_t1)),
+                const_cast<void*>(reinterpret_cast<const void*>(&_t2))};
   QMetaObject::activate(this, &staticMetaObject, 4, _a);
 }
 

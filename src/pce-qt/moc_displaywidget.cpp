@@ -103,7 +103,7 @@ void DisplayWidget::qt_static_metacall(QObject* _o, QMetaObject::Call _c, int _i
   }
 }
 
-const QMetaObject DisplayWidget::staticMetaObject = {{&QGLWidget::staticMetaObject,
+const QMetaObject DisplayWidget::staticMetaObject = {{&QOpenGLWidget::staticMetaObject,
                                                       qt_meta_stringdata_DisplayWidget.data, qt_meta_data_DisplayWidget,
                                                       qt_static_metacall, Q_NULLPTR, Q_NULLPTR}};
 
@@ -118,14 +118,12 @@ void* DisplayWidget::qt_metacast(const char* _clname)
     return Q_NULLPTR;
   if (!strcmp(_clname, qt_meta_stringdata_DisplayWidget.stringdata0))
     return static_cast<void*>(const_cast<DisplayWidget*>(this));
-  if (!strcmp(_clname, "Display"))
-    return static_cast<Display*>(const_cast<DisplayWidget*>(this));
-  return QGLWidget::qt_metacast(_clname);
+  return QOpenGLWidget::qt_metacast(_clname);
 }
 
 int DisplayWidget::qt_metacall(QMetaObject::Call _c, int _id, void** _a)
 {
-  _id = QGLWidget::qt_metacall(_c, _id, _a);
+  _id = QOpenGLWidget::qt_metacall(_c, _id, _a);
   if (_id < 0)
     return _id;
   if (_c == QMetaObject::InvokeMetaMethod)

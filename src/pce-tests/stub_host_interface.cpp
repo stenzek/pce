@@ -1,12 +1,12 @@
 #include "stub_host_interface.h"
 #include "common/audio.h"
-#include "common/display.h"
+#include "common/display_renderer.h"
 
 static std::unique_ptr<StubHostInterface> s_host_interface;
 
 StubHostInterface::StubHostInterface()
 {
-  m_display = NullDisplay::Create();
+  m_display_renderer = DisplayRenderer::Create(DisplayRenderer::BackendType::Null, nullptr, 0, 0);
   m_audio_mixer = Audio::NullMixer::Create();
 }
 
@@ -34,9 +34,9 @@ void StubHostInterface::ReleaseSystem()
   s_host_interface->m_system.reset();
 }
 
-Display* StubHostInterface::GetDisplay() const
+DisplayRenderer* StubHostInterface::GetDisplayRenderer() const
 {
-  return m_display.get();
+  return m_display_renderer.get();
 }
 
 Audio::Mixer* StubHostInterface::GetAudioMixer() const

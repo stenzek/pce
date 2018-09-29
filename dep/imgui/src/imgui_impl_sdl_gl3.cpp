@@ -45,40 +45,12 @@
 // SDL,GL3W
 #include <SDL.h>
 #include <SDL_syswm.h>
-#include <SDL_opengl.h>
+#include <glad.h>
 
 // SDL data
 static Uint64       g_Time = 0;
 static bool         g_MousePressed[3] = { false, false, false };
 static SDL_Cursor*  g_MouseCursors[ImGuiMouseCursor_COUNT] = { 0 };
-
-// OpenGL 3+ functions
-static PFNGLUSEPROGRAMPROC glUseProgram;
-static PFNGLUNIFORM1IPROC glUniform1i;
-static PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
-static PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
-static PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
-static PFNGLBINDBUFFERPROC glBindBuffer;
-static PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
-static PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
-static PFNGLBUFFERDATAPROC glBufferData;
-static PFNGLBINDSAMPLERPROC glBindSampler;
-static PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
-static PFNGLBLENDEQUATIONSEPARATEPROC glBlendEquationSeparate;
-static PFNGLBLENDFUNCSEPARATEPROC glBlendFuncSeparate;
-static PFNGLCREATEPROGRAMPROC glCreateProgram;
-static PFNGLCREATESHADERPROC glCreateShader;
-static PFNGLSHADERSOURCEPROC glShaderSource;
-static PFNGLCOMPILESHADERPROC glCompileShader;
-static PFNGLATTACHSHADERPROC glAttachShader;
-static PFNGLLINKPROGRAMPROC glLinkProgram;
-static PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
-static PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
-static PFNGLGENBUFFERSPROC glGenBuffers;
-static PFNGLDELETEBUFFERSPROC glDeleteBuffers;
-static PFNGLDETACHSHADERPROC glDetachShader;
-static PFNGLDELETESHADERPROC glDeleteShader;
-static PFNGLDELETEPROGRAMPROC glDeleteProgram;
 
 // OpenGL data
 static char         g_GlslVersion[32] = "#version 150";

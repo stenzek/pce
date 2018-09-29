@@ -5,6 +5,7 @@
 #include "YBaseLib/String.h"
 #include "YBaseLib/TaskQueue.h"
 #include "YBaseLib/Timer.h"
+#include "common/display.h"
 #include "cpu.h"
 #include "scancodes.h"
 #include "system.h"
@@ -24,7 +25,6 @@ namespace Audio {
 class Mixer;
 }
 class Component;
-class Display;
 class System;
 
 class HostInterface
@@ -87,7 +87,8 @@ public:
   void StopSimulation();
 
   // Display
-  virtual Display* GetDisplay() const = 0;
+  virtual DisplayRenderer* GetDisplayRenderer() const = 0;
+  std::unique_ptr<Display> CreateDisplay(const char* name, Display::Type type, u8 priority = Display::DEFAULT_PRIORITY);
 
   // Audio
   virtual Audio::Mixer* GetAudioMixer() const = 0;

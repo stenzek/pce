@@ -34,7 +34,13 @@ bool VGA::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_display = system->GetHostInterface()->GetDisplay();
+  m_display = system->GetHostInterface()->CreateDisplay(
+    SmallString::FromFormat("%s (VGA)", m_identifier.GetCharArray()), Display::Type::Primary);
+  if (!m_display)
+    return false;
+
+  m_display->SetDisplayAspectRatio(4, 3);
+
   m_clock.SetManager(system->GetTimingManager());
 
   if (!LoadBIOSROM())
@@ -915,7 +921,6 @@ void VGA::RecalculateEventTiming()
 
     // Clear the screen
     m_display->ClearFramebuffer();
-    m_display->DisplayFramebuffer();
 
     // And prevent it from refreshing
     if (m_retrace_event->IsActive())
@@ -1183,7 +1188,7 @@ void VGA::RenderTextMode()
     }
   }
 
-  m_display->DisplayFramebuffer();
+  m_display->SwapFramebuffer();
 }
 
 void VGA::DrawTextGlyph8(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32 rows, uint32 fg_color, uint32 bg_color,
@@ -1572,6 +1577,6 @@ void VGA::RenderGraphicsMode()
     }
   }
 
-  m_display->DisplayFramebuffer();
+  m_display->SwapFramebuffer();
 }
 } // namespace HW

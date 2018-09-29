@@ -32,7 +32,13 @@ bool CGA::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_display = system->GetHostInterface()->GetDisplay();
+  m_display = system->GetHostInterface()->CreateDisplay(
+    SmallString::FromFormat("%s (CGA)", m_identifier.GetCharArray()), Display::Type::Primary);
+  if (!m_display)
+    return false;
+
+  m_display->SetDisplayAspectRatio(4, 3);
+
   m_clock.SetManager(system->GetTimingManager());
   ConnectIOPorts(bus);
 
@@ -58,7 +64,6 @@ void CGA::Reset()
 
   // Start with a clear framebuffer.
   m_display->ClearFramebuffer();
-  m_display->DisplayFramebuffer();
 }
 
 bool CGA::LoadState(BinaryReader& reader)
@@ -398,7 +403,7 @@ void CGA::FlushFrame()
     }
 
     m_display->CopyFrame(m_current_frame.data(), m_current_frame_width * sizeof(uint32));
-    m_display->DisplayFramebuffer();
+    m_display->SwapFramebuffer();
   }
 
   // clear our buffered frame state, pull new width from the crtc
