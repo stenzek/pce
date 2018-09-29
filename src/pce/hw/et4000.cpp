@@ -823,7 +823,7 @@ bool ET4000::IsBIOSAddressMapped(uint32 offset, uint32 size)
 
 bool ET4000::LoadBIOSROM()
 {
-  auto data = System::ReadFileToBuffer(m_bios_file_path.c_str(), MAX_BIOS_SIZE);
+  auto data = System::ReadFileToBuffer(m_bios_file_path.c_str(), 0, MAX_BIOS_SIZE);
   if (!data.first)
     return false;
 
@@ -871,7 +871,7 @@ void ET4000::RegisterVRAMMMIO()
 
   // Map the entire range (0xA0000 - 0xCFFFF), then throw the writes out in the handler.
   m_vram_mmio = MMIO::CreateComplex(0xA0000, 0x20000, std::move(handlers));
-  m_bus->RegisterMMIO(m_vram_mmio);
+  m_bus->ConnectMMIO(m_vram_mmio);
 
   // BIOS region
   handlers = {};
@@ -892,7 +892,7 @@ void ET4000::RegisterVRAMMMIO()
   };
   handlers.IgnoreWrites();
   m_bios_mmio = MMIO::CreateComplex(0xC0000, 0x8000, std::move(handlers), true);
-  m_bus->RegisterMMIO(m_bios_mmio);
+  m_bus->ConnectMMIO(m_bios_mmio);
 }
 
 inline uint32 Convert6BitColorTo8Bit(uint32 color)

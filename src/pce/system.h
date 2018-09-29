@@ -72,7 +72,8 @@ public:
 
   // Helper for reading a file to a buffer.
   // TODO: Find a better place for this.. result is pair<ptr, size>.
-  static std::pair<std::unique_ptr<byte[]>, uint32> ReadFileToBuffer(const char* filename, uint32 expected_size);
+  static std::pair<std::unique_ptr<byte[]>, uint32> ReadFileToBuffer(const char* filename, u32 offset,
+                                                                     u32 expected_size);
 
   // Execute the system. Returns the time actually executed.
   SimulationTime ExecuteSlice(SimulationTime time);

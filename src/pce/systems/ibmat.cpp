@@ -20,7 +20,7 @@ IBMAT::IBMAT(float cpu_frequency /* = 2000000.0f */, uint32 memory_size /* = 102
 {
   m_cpu = new CPU_X86::CPU("CPU", CPU_X86::MODEL_386, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
-  AllocatePhysicalMemory(memory_size, true, true);
+  AllocatePhysicalMemory(memory_size, true, true, true);
   AddComponents();
 }
 

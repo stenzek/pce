@@ -241,7 +241,7 @@ SimulationTime System::ExecuteSlice(SimulationTime time)
   return m_timing_manager.GetEmulatedTimeDifference(start_timestamp);
 }
 
-std::pair<std::unique_ptr<byte[]>, uint32> System::ReadFileToBuffer(const char* filename, uint32 expected_size)
+std::pair<std::unique_ptr<byte[]>, uint32> System::ReadFileToBuffer(const char* filename, u32 offset, u32 expected_size)
 {
   ByteStream* stream;
   if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
@@ -251,21 +251,21 @@ std::pair<std::unique_ptr<byte[]>, uint32> System::ReadFileToBuffer(const char* 
   }
 
   const uint32 size = Truncate32(stream->GetSize());
-  if (expected_size != 0 && size != expected_size)
+  if (expected_size != 0 && (offset >= size || (size - offset) != expected_size))
   {
     Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);
     stream->Release();
     return std::make_pair(std::unique_ptr<byte[]>(), 0);
   }
 
-  std::unique_ptr<byte[]> data = std::make_unique<byte[]>(size);
-  if (!stream->Read2(data.get(), size))
+  std::unique_ptr<byte[]> data = std::make_unique<byte[]>(size - offset);
+  if ((offset > 0 && !stream->SeekAbsolute(offset)) || !stream->Read2(data.get(), size - offset))
   {
-    Log_ErrorPrintf("Failed to read %u bytes from ROM file %s", size, filename);
+    Log_ErrorPrintf("Failed to read %u bytes from ROM file %s", size - offset, filename);
     stream->Release();
     return std::make_pair(std::unique_ptr<byte[]>(), 0);
   }
 
   stream->Release();
-  return std::make_pair(std::move(data), size);
+  return std::make_pair(std::move(data), size - offset);
 }

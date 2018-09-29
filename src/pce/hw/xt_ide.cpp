@@ -24,7 +24,7 @@ bool XT_IDE::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path, m_bios_address))
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path, 0, m_bios_address))
     return false;
 
   return true;

@@ -110,7 +110,7 @@ bool Bus::SaveState(BinaryWriter& writer)
 void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write, uint32 value)
 {
 #if 0
-  static const uint32 check_addresses[] = {0x00000f34, 2, 0xF96, 2};
+  static const uint32 check_addresses[] = {0xC0000, 16};
 
   uint32 v_start = address;
   uint32 v_end = address + size;
@@ -653,9 +653,10 @@ uint32 Bus::CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress e
   return allocated_ram;
 }
 
-bool Bus::CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size /*= 0*/)
+bool Bus::CreateROMRegionFromFile(const char* filename, u32 file_offset, PhysicalMemoryAddress address,
+                                  uint32 expected_size /* = 0 */)
 {
-  auto data = System::ReadFileToBuffer(filename, expected_size);
+  auto data = System::ReadFileToBuffer(filename, file_offset, expected_size);
   if (!data.first)
     return false;
 
@@ -664,7 +665,7 @@ bool Bus::CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress ad
   rr.size = data.second;
   rr.mapped_address = address;
   rr.mmio_handler = MMIO::CreateDirect(address, rr.size, rr.data.get(), true, false, true);
-  RegisterMMIO(rr.mmio_handler);
+  ConnectMMIO(rr.mmio_handler);
   m_rom_regions.push_back(std::move(rr));
   return true;
 }
@@ -678,7 +679,7 @@ bool Bus::CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMem
   std::memcpy(rr.data.get(), buffer, size);
 
   rr.mmio_handler = MMIO::CreateDirect(address, size, rr.data.get(), true, false, true);
-  RegisterMMIO(rr.mmio_handler);
+  ConnectMMIO(rr.mmio_handler);
 
   m_rom_regions.push_back(std::move(rr));
   return true;
@@ -750,13 +751,7 @@ void Bus::EnumeratePagesForRange(PhysicalMemoryAddress start_address, PhysicalMe
   }
 }
 
-static MMIO* CreateMMIOSplitter(MMIO* mmio1, MMIO* mmio2)
-{
-  Assert("implement me");
-  return nullptr;
-}
-
-void Bus::RegisterMMIO(MMIO* mmio)
+void Bus::ConnectMMIO(MMIO* mmio)
 {
   // MMIO size should be 4 byte aligned, that way we don't have to split reads/writes.
   Assert((mmio->GetSize() & uint32(sizeof(uint32) - 1)) == 0);
@@ -764,23 +759,30 @@ void Bus::RegisterMMIO(MMIO* mmio)
   auto callback = [this, mmio](uint32 page_number, PhysicalMemoryPage* page) {
     if (page->mmio_handler)
     {
-      MMIO* splitter = CreateMMIOSplitter(page->mmio_handler, mmio);
+      Log_WarningPrintf("Duplicate MMIO handlers for page %08X, most recent will take precedence",
+                        unsigned(page_number * MEMORY_PAGE_SIZE));
       page->mmio_handler->Release();
-      page->mmio_handler = splitter;
-      return;
-    }
-
-    if (page->type & (PhysicalMemoryPage::kReadableRAM | PhysicalMemoryPage::kWritableRAM))
-    {
-      Log_DebugPrintf("Unmapping RAM page at address 0x%08X for MMIO page", unsigned(page_number * MEMORY_PAGE_SIZE));
-      page->type &= ~(PhysicalMemoryPage::kReadableRAM | PhysicalMemoryPage::kWritableRAM);
+      page->mmio_handler = nullptr;
     }
 
     page->mmio_handler = mmio;
     mmio->AddRef();
   };
 
-  EnumeratePagesForRange(mmio->GetStartAddress(), mmio->GetEndAddress(), callback);
+  EnumeratePagesForRange(mmio->GetStartAddress(), mmio->GetEndAddress(), std::move(callback));
+}
+
+void Bus::DisconnectMMIO(MMIO* mmio)
+{
+  auto callback = [this, mmio](uint32 page_number, PhysicalMemoryPage* page) {
+    if (page->mmio_handler != mmio)
+      return;
+
+    page->mmio_handler = nullptr;
+    mmio->Release();
+  };
+
+  EnumeratePagesForRange(mmio->GetStartAddress(), mmio->GetEndAddress(), std::move(callback));
 }
 
 bool Bus::IsCachablePage(const PhysicalMemoryPage& page)

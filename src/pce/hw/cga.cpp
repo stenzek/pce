@@ -160,8 +160,8 @@ void CGA::ConnectIOPorts(Bus* bus)
   // CGA is never removed from the system, so don't bother cleaning up the MMIO
   MMIO* mmio_B8000 = MMIO::CreateDirect(0x000B8000, sizeof(m_vram), m_vram);
   MMIO* mmio_BC000 = MMIO::CreateDirect(0x000BC000, sizeof(m_vram), m_vram);
-  bus->RegisterMMIO(mmio_B8000);
-  bus->RegisterMMIO(mmio_BC000);
+  bus->ConnectMMIO(mmio_B8000);
+  bus->ConnectMMIO(mmio_BC000);
   mmio_B8000->Release();
   mmio_BC000->Release();
 }

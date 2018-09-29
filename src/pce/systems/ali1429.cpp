@@ -19,7 +19,7 @@ ALi1429::ALi1429(CPU_X86::Model model /* = CPU_X86::MODEL_486 */, float cpu_freq
 {
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
   m_cpu = new CPU_X86::CPU("CPU", model, cpu_frequency);
-  AllocatePhysicalMemory(memory_size, false, false);
+  AllocatePhysicalMemory(memory_size, false, true, false);
   AddComponents();
 }
 
@@ -30,7 +30,7 @@ bool ALi1429::Initialize()
   if (!BaseClass::Initialize())
     return false;
 
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), 0, BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
     return false;
 
   m_bus->MirrorRegion(BIOS_ROM_ADDRESS, BIOS_ROM_SIZE, BIOS_ROM_MIRROR_ADDRESS);

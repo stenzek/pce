@@ -251,7 +251,7 @@ void VGA::ConnectIOPorts()
 bool VGA::LoadBIOSROM()
 {
   const PhysicalMemoryAddress bios_load_location = 0xC0000;
-  return m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), bios_load_location);
+  return m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), 0, bios_load_location);
 }
 
 void VGA::Render()
@@ -812,7 +812,7 @@ void VGA::RegisterVRAMMMIO()
 
   // Map the entire range (0xA0000 - 0xCFFFF), then throw the writes out in the handler.
   m_vram_mmio = MMIO::CreateComplex(0xA0000, 0x20000, std::move(handlers));
-  m_bus->RegisterMMIO(m_vram_mmio);
+  m_bus->ConnectMMIO(m_vram_mmio);
 
   // Log_DevPrintf("Mapped %u bytes of VRAM at 0x%08X-0x%08X", size, base, base + size - 1);
 }

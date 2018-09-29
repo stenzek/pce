@@ -34,15 +34,17 @@ bool i430FX::Initialize()
     return false;
   }
 
-  AllocatePhysicalMemory(m_ram_size, false, false);
+  AllocatePhysicalMemory(m_ram_size, false, true, false);
 
   if (!BaseClass::Initialize())
     return false;
 
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path, BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path, 0, BIOS_ROM_ADDRESS, BIOS_ROM_SIZE) ||
+      !m_bus->CreateROMRegionFromFile(m_bios_file_path, BIOS_ROM_MIRROR_SIZE, BIOS_ROM_MIRROR_ADDRESS,
+                                      BIOS_ROM_MIRROR_START))
+  {
     return false;
-
-  m_bus->MirrorRegion(BIOS_ROM_ADDRESS + BIOS_ROM_MIRROR_START, BIOS_ROM_MIRROR_SIZE, BIOS_ROM_MIRROR_ADDRESS);
+  }
 
   ConnectSystemIOPorts();
   SetCMOSVariables();

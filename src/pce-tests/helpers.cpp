@@ -67,7 +67,7 @@ bool MapFileToRam(System* system, const char* filename, PhysicalMemoryAddress ba
   data.DetachArray(&data_ptr, &length);
 
   MMIO* mmio = MMIO::CreateDirect(base_address, length, data_ptr, true, false);
-  system->GetBus()->RegisterMMIO(mmio);
+  system->GetBus()->ConnectMMIO(mmio);
   mmio->Release();
   return true;
 }

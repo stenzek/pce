@@ -38,9 +38,9 @@ bool IBMXT::Initialize()
   if (!BaseClass::Initialize())
     return false;
 
-  AllocatePhysicalMemory(m_ram_size, true, true);
+  AllocatePhysicalMemory(m_ram_size, true, true, true);
 
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path, BIOS_ROM_ADDRESS_8K, 8192))
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path, 0, BIOS_ROM_ADDRESS_8K, 8192))
     return false;
 
   ConnectSystemIOPorts();

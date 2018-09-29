@@ -19,7 +19,7 @@ AMI386::AMI386(CPU_X86::Model model /* = CPU_X86::MODEL_386 */, float cpu_freque
 {
   m_cpu = new CPU_X86::CPU("CPU", model, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
-  AllocatePhysicalMemory(memory_size, false, true);
+  AllocatePhysicalMemory(memory_size, false, true, true);
   AddComponents();
 }
 
@@ -30,7 +30,7 @@ bool AMI386::Initialize()
   if (!BaseClass::Initialize())
     return false;
 
-  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
+  if (!m_bus->CreateROMRegionFromFile(m_bios_file_path.c_str(), 0, BIOS_ROM_ADDRESS, BIOS_ROM_SIZE))
     return false;
 
   ConnectSystemIOPorts();

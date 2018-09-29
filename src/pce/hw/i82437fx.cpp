@@ -44,6 +44,14 @@ void i82437FX::Reset()
   // m_config_space[0].bytes[0x53] = 0x14;
   // m_config_space[0].bytes[0x56] = 0x52;
   m_config_space[0].bytes[0x57] = 0x01;
+  m_config_space[0].bytes[0x59] = 0x00;
+  m_config_space[0].bytes[0x58] = 0x00;
+  m_config_space[0].bytes[0x5A] = 0x00;
+  m_config_space[0].bytes[0x5B] = 0x00;
+  m_config_space[0].bytes[0x5C] = 0x00;
+  m_config_space[0].bytes[0x5D] = 0x00;
+  m_config_space[0].bytes[0x5E] = 0x00;
+  m_config_space[0].bytes[0x5F] = 0x00;
   m_config_space[0].bytes[0x60] = 0x02;
   m_config_space[0].bytes[0x61] = 0x02;
   m_config_space[0].bytes[0x62] = 0x02;

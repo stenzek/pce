@@ -60,7 +60,8 @@ public:
   uint32 CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end);
 
   // Creates a MMIO ROM region from an external file.
-  bool CreateROMRegionFromFile(const char* filename, PhysicalMemoryAddress address, uint32 expected_size = 0);
+  bool CreateROMRegionFromFile(const char* filename, u32 file_offset, PhysicalMemoryAddress address,
+                               uint32 expected_size = 0);
 
   // Creates a MMIO ROM region from a buffer.
   bool CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address);
@@ -148,7 +149,8 @@ public:
   byte* GetRAMPointer(PhysicalMemoryAddress address);
 
   // MMIO handlers
-  void RegisterMMIO(MMIO* mmio);
+  void ConnectMMIO(MMIO* mmio);
+  void DisconnectMMIO(MMIO* mmio);
 
   // Checks if a page contains only RAM.
   // RAM-only pages can be cached, with changes detected through the bitmask.

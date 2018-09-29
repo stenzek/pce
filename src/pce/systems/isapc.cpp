@@ -81,7 +81,7 @@ PhysicalMemoryAddress ISAPC::GetTotalMemorySize() const
   return m_bus->GetTotalRAMInPageRange(0, m_bus->GetMemoryPageCount());
 }
 
-void ISAPC::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, bool reserve_uma)
+void ISAPC::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, bool reserve_uma, bool reserve_rom)
 {
   // Allocate RAM
   DebugAssert(ram_size > 0);
@@ -94,7 +94,9 @@ void ISAPC::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, boo
 
   // Is UMA reserved?
   if (!reserve_uma)
-    MAKE_RAM_REGION(0x000A0000, 0x000FFFFF);
+    MAKE_RAM_REGION(0x000A0000, 0x000BFFFF);
+  if (!reserve_rom)
+    MAKE_RAM_REGION(0x000C0000, 0x000FFFFF);
 
   // High memory area from 0x00100000 - 0x00EFFFFF (14MiB)
   MAKE_RAM_REGION(0x00100000, 0x00EFFFFF);
