@@ -164,6 +164,12 @@
     <ClCompile Include="hw\pci_ide.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="hw\voodoo.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\voodoo_emu.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -353,6 +359,21 @@
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="hw\pci_ide.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\voodoo.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\voodoo_types.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\voodoo_regs.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\voodoo_emu.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\voodoo_funcs.h">
       <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>

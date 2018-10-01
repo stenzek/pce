@@ -55,6 +55,8 @@
     <ClCompile Include="hw\pci_bus.cpp" />
     <ClCompile Include="hw\pci_device.cpp" />
     <ClCompile Include="hw\pci_ide.cpp" />
+    <ClCompile Include="hw\voodoo.cpp" />
+    <ClCompile Include="hw\voodoo_emu.cpp" />
     <ClCompile Include="hw\xt_ide.cpp" />
     <ClCompile Include="hw\ymf262.cpp" />
     <ClCompile Include="hw\keyboard_scancodes.cpp" />
@@ -126,6 +128,11 @@
     <ClInclude Include="hw\pci_bus.h" />
     <ClInclude Include="hw\pci_device.h" />
     <ClInclude Include="hw\pci_ide.h" />
+    <ClInclude Include="hw\voodoo.h" />
+    <ClInclude Include="hw\voodoo_funcs.h" />
+    <ClInclude Include="hw\voodoo_emu.h" />
+    <ClInclude Include="hw\voodoo_regs.h" />
+    <ClInclude Include="hw\voodoo_types.h" />
     <ClInclude Include="hw\xt_ide.h" />
     <ClInclude Include="hw\ymf262.h" />
     <ClInclude Include="hw\keyboard_scancodes.h" />
