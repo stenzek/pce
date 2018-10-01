@@ -34,6 +34,7 @@
     <ClInclude Include="display_renderer_d3d.h" />
     <ClInclude Include="display_renderer.h" />
     <ClInclude Include="display_renderer_gl.h" />
+    <ClInclude Include="display_timing.h" />
     <ClInclude Include="fastjmp.h" />
     <ClInclude Include="hdd_image.h" />
     <ClInclude Include="object.h" />
@@ -50,6 +51,7 @@
     <ClCompile Include="display_renderer_d3d.cpp" />
     <ClCompile Include="display_renderer.cpp" />
     <ClCompile Include="display_renderer_gl.cpp" />
+    <ClCompile Include="display_timing.cpp" />
     <ClCompile Include="hdd_image.cpp" />
     <ClCompile Include="object.cpp" />
     <ClCompile Include="object_type_info.cpp" />
