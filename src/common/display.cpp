@@ -154,7 +154,7 @@ void Display::DestroyFramebuffer(Framebuffer* fbuf)
 
 void Display::ResizeFramebuffer(u32 width, u32 height)
 {
-  if (m_framebuffer_width == width || m_framebuffer_height == height)
+  if (m_framebuffer_width == width && m_framebuffer_height == height)
     return;
 
   m_framebuffer_width = width;
