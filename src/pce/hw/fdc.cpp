@@ -80,7 +80,7 @@ void FDC::Reset(bool software_reset)
     m_head_unload_time = 0;
     m_pio_mode = false;
     m_fifo_threshold = 1;
-    m_implied_seeks = false;
+    m_implied_seeks = (m_model >= Model_82072); // TODO: Is this correct? Bochs BIOS doesn't seek...
     m_fifo_disabled = true;
     m_polling_disabled = false;
     m_precompensation_start_track = 0;
