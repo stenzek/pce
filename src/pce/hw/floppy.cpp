@@ -37,24 +37,24 @@ static_assert(sizeof(FAT_HEADER) == 512, "FAT header is 512 bytes");
 struct DiskTypeInfo
 {
   Floppy::DriveType drive_type;
-  Floppy::DiskType disk_type;
   uint32 size;
   uint32 num_tracks;
   uint32 num_heads;
   uint32 num_sectors_per_track;
   uint8 media_descriptor_byte;
 };
-static const DiskTypeInfo disk_types[] = {
-  {Floppy::DriveType_5_25, Floppy::DiskType_160K, 163840, 40, 1, 8, 0xFE},    // DiskType_160K
-  {Floppy::DriveType_5_25, Floppy::DiskType_180K, 184320, 40, 1, 9, 0xFC},    // DiskType_180K
-  {Floppy::DriveType_5_25, Floppy::DiskType_320K, 327680, 40, 2, 8, 0xFF},    // DiskType_320K
-  {Floppy::DriveType_5_25, Floppy::DiskType_360K, 368640, 40, 2, 9, 0xFD},    // DiskType_360K
-  {Floppy::DriveType_5_25, Floppy::DiskType_640K, 655360, 80, 2, 8, 0xFB},    // DiskType_640K
-  {Floppy::DriveType_3_5, Floppy::DiskType_720K, 737280, 80, 2, 9, 0xF9},     // DiskType_720K
-  {Floppy::DriveType_5_25, Floppy::DiskType_1220K, 1310720, 80, 2, 15, 0xF9}, // DiskType_1220K
-  {Floppy::DriveType_3_5, Floppy::DiskType_1440K, 1474560, 80, 2, 18, 0xF0},  // DiskType_1440K
-  {Floppy::DriveType_3_5, Floppy::DiskType_1680K, 1720320, 80, 2, 21, 0xF0},  // DiskType_1680K
-  {Floppy::DriveType_3_5, Floppy::DiskType_2880K, 2949120, 80, 2, 36, 0xF0},  // DiskType_2880K
+static const DiskTypeInfo disk_types[Floppy::DiskType_Count] = {
+  {Floppy::DriveType_None, 0, 0, 0, 0, 0x00},          // DiskType_None
+  {Floppy::DriveType_5_25, 163840, 40, 1, 8, 0xFE},    // DiskType_160K
+  {Floppy::DriveType_5_25, 184320, 40, 1, 9, 0xFC},    // DiskType_180K
+  {Floppy::DriveType_5_25, 327680, 40, 2, 8, 0xFF},    // DiskType_320K
+  {Floppy::DriveType_5_25, 368640, 40, 2, 9, 0xFD},    // DiskType_360K
+  {Floppy::DriveType_5_25, 655360, 80, 2, 8, 0xFB},    // DiskType_640K
+  {Floppy::DriveType_3_5, 737280, 80, 2, 9, 0xF9},     // DiskType_720K
+  {Floppy::DriveType_5_25, 1310720, 80, 2, 15, 0xF9}, // DiskType_1220K
+  {Floppy::DriveType_3_5, 1474560, 80, 2, 18, 0xF0},  // DiskType_1440K
+  {Floppy::DriveType_3_5, 1720320, 80, 2, 21, 0xF0},  // DiskType_1680K
+  {Floppy::DriveType_3_5, 2949120, 80, 2, 36, 0xF0}   // DiskType_2880K
 };
 
 DEFINE_OBJECT_TYPE_INFO(Floppy);
@@ -110,18 +110,18 @@ Floppy::DiskType Floppy::DetectDiskType(ByteStream* stream, Error* error)
     Log_DevPrintf("FAT detected, media descriptor = 0x%02X", fat_header.media_descriptor_type);
 
     // Use media descriptor byte to find a matching type
-    for (size_t i = 0; i < countof(disk_types); i++)
+    for (u32 i = 0; i < DiskType_Count; i++)
     {
       if (fat_header.media_descriptor_type == disk_types[i].media_descriptor_byte && file_size <= disk_types[i].size)
-        return disk_types[i].disk_type;
+        return static_cast<DiskType>(i);
     }
   }
 
   // Use size alone to find a matching type
-  for (size_t i = 0; i < countof(disk_types); i++)
+  for (u32 i = 0; i < DiskType_Count; i++)
   {
     if (file_size <= disk_types[i].size)
-      return disk_types[i].disk_type;
+      return static_cast<DiskType>(i);
   }
 
   // Unknown
@@ -131,13 +131,7 @@ Floppy::DiskType Floppy::DetectDiskType(ByteStream* stream, Error* error)
 
 Floppy::DriveType Floppy::GetDriveTypeForDiskType(DiskType type)
 {
-  for (size_t i = 0; i < countof(disk_types); i++)
-  {
-    if (disk_types[i].disk_type == type)
-      return disk_types[i].drive_type;
-  }
-
-  return DriveType_None;
+  return (type >= DiskType_Count) ? DriveType_None : disk_types[type].drive_type;
 }
 
 bool Floppy::Initialize(System* system, Bus* bus)
@@ -315,7 +309,7 @@ bool Floppy::InsertDisk(const char* filename, ByteStream* stream, Error* error)
     return false;
   }
 
-  const DiskTypeInfo* info = &disk_types[disk_type - 1];
+  const DiskTypeInfo* info = &disk_types[disk_type];
   m_disk_type = disk_type;
   m_tracks = info->num_tracks;
   m_heads = info->num_heads;
