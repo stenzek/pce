@@ -20,7 +20,14 @@ Display::~Display()
 void Display::SetEnable(bool enabled)
 {
   std::lock_guard<std::mutex> guard(m_buffer_lock);
+  if (m_enabled == enabled)
+    return;
+
   m_enabled = enabled;
+  if (enabled)
+    m_renderer->DisplayEnabled(this);
+  else
+    m_renderer->DisplayDisabled(this);
 }
 
 void Display::SetDisplayAspectRatio(u32 numerator, u32 denominator)
