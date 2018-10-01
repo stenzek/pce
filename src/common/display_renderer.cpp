@@ -47,6 +47,8 @@ void DisplayRenderer::RemoveDisplay(Display* display)
     std::remove(m_primary_displays.begin(), m_primary_displays.end(), display);
   else
     std::remove(m_secondary_displays.begin(), m_secondary_displays.end(), display);
+
+  UpdateActiveDisplays();
 }
 
 void DisplayRenderer::DisplayEnabled(Display* display)

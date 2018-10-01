@@ -12,6 +12,7 @@ Display::Display(DisplayRenderer* manager, const String& name, Type type, u8 pri
 
 Display::~Display()
 {
+  m_renderer->RemoveDisplay(this);
   DestroyFramebuffer(&m_front_buffer);
   DestroyFramebuffer(&m_back_buffers[0]);
   DestroyFramebuffer(&m_back_buffers[1]);
