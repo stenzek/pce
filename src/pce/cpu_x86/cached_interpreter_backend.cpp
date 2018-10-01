@@ -113,7 +113,7 @@ void CachedInterpreterBackend::Execute()
 void CachedInterpreterBackend::AbortCurrentInstruction()
 {
   // Since we won't return to the dispatcher, clean up the block here.
-  if (m_current_block->destroy_pending)
+  if (m_current_block && m_current_block->destroy_pending)
   {
     DestroyBlock(m_current_block);
     m_current_block = nullptr;
