@@ -72,6 +72,11 @@ void PCIDevice::Reset()
   for (u8 i = 0; i < m_num_functions; i++)
   {
     auto& cs = m_config_space[i];
+
+    // Disable memory and IO decoding?
+    cs.header.command.enable_io_space = false;
+    cs.header.command.enable_memory_space = false;
+
     for (u8 j = 0; j < NumMemoryRegions; j++)
     {
       const auto& mr = cs.memory_regions[j];
@@ -83,7 +88,7 @@ void PCIDevice::Reset()
         else
           cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFFC) | 0x01);
 
-        OnMemoryRegionChanged(i, static_cast<MemoryRegion>(j));
+        OnMemoryRegionChanged(i, static_cast<MemoryRegion>(j), false);
       }
     }
   }
@@ -105,10 +110,15 @@ bool PCIDevice::LoadState(BinaryReader& reader)
     result &= reader.SafeReadBytes(m_config_space[i].bytes, sizeof(m_config_space[i].bytes));
     if (result)
     {
+      const bool io_active = m_config_space[i].header.command.enable_io_space;
+      const bool memory_active = m_config_space[i].header.command.enable_memory_space;
       for (u32 j = 0; j < NumMemoryRegions; j++)
       {
         if (m_config_space[i].memory_regions[j].size > 0)
-          OnMemoryRegionChanged(i, static_cast<MemoryRegion>(j));
+        {
+          OnMemoryRegionChanged(i, static_cast<MemoryRegion>(j),
+                                m_config_space[i].memory_regions[j].is_io ? io_active : memory_active);
+        }
       }
     }
   }
@@ -205,7 +215,7 @@ PhysicalMemoryAddress PCIDevice::GetMemoryRegionBaseAddress(u8 function, MemoryR
 
 void PCIDevice::OnCommandRegisterChanged(u8 function) {}
 
-void PCIDevice::OnMemoryRegionChanged(u8 function, MemoryRegion region) {}
+void PCIDevice::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active) {}
 
 u8 PCIDevice::ReadConfigSpace(u8 function, u8 offset)
 {
@@ -218,6 +228,7 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
   // TODO: Perhaps make this DWORD-based...
   DebugAssert(function < m_num_functions);
   auto& cs = m_config_space[function];
+  const u8 old_value = cs.bytes[offset];
   switch (offset)
   {
     case 0x00:
@@ -250,9 +261,33 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
       break;
 
     case 0x04: // Command Register
+    {
       cs.bytes[offset] = value;
       OnCommandRegisterChanged(function);
-      break;
+
+      // Least significant bits of command register control memory/IO decoding.
+      if ((value & 0x01) != (old_value & 0x01))
+      {
+        // I/O changed.
+        const bool active = m_config_space[function].header.command.enable_io_space;
+        for (u8 i = 0; i < NumMemoryRegions; i++)
+        {
+          if (m_config_space[function].memory_regions[i].size > 0 && m_config_space[function].memory_regions[i].is_io)
+            OnMemoryRegionChanged(function, static_cast<MemoryRegion>(i), active);
+        }
+      }
+      if ((value & 0x02) != (old_value & 0x02))
+      {
+        // Memory changed.
+        const bool active = m_config_space[function].header.command.enable_memory_space;
+        for (u8 i = 0; i < NumMemoryRegions; i++)
+        {
+          if (m_config_space[function].memory_regions[i].size > 0 && !m_config_space[function].memory_regions[i].is_io)
+            OnMemoryRegionChanged(function, static_cast<MemoryRegion>(i), active);
+        }
+      }
+    }
+    break;
     case 0x05:
       cs.bytes[offset] = value;
       OnCommandRegisterChanged(function);
@@ -313,6 +348,10 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
         PhysicalMemoryAddress base_address = cs.dwords[offset / 4] & UINT32_C(0xFFFFFFF0);
         base_address = Common::AlignDown(base_address, mr.size);
         cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFF0)) | (cs.dwords[offset / 4] & 0xF));
+
+        // Last byte? Call the update handler.
+        if ((offset & 3) == 3 && m_config_space[function].header.command.enable_io_space)
+          OnMemoryRegionChanged(function, region, true);
       }
       else
       {
@@ -321,6 +360,8 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
         PhysicalMemoryAddress base_address = cs.dwords[offset / 4] & UINT32_C(0xFFFFFFFC);
         base_address = Common::AlignDown(base_address, mr.size);
         cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFFC)) | (cs.dwords[offset / 4] & 0x3));
+        if ((offset & 3) == 3 && m_config_space[function].header.command.enable_memory_space)
+          OnMemoryRegionChanged(function, region, false);
       }
     }
     break;

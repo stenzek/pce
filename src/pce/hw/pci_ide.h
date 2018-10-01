@@ -70,7 +70,7 @@ protected:
   void UpdateHostInterruptLine(u32 channel) override;
 
   void OnCommandRegisterChanged(u8 function) override;
-  void OnMemoryRegionChanged(u8 function, MemoryRegion region) override;
+  void OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active) override;
 
   void IOReadBusMasterCommandRegister(u8 channel, u8* value);
   void IOReadBusMasterStatusRegister(u8 channel, u8* value);

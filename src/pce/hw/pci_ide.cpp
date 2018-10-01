@@ -184,7 +184,7 @@ void PCIIDE::OnCommandRegisterChanged(u8 function)
   ConnectIOPorts(BaseClass::m_bus);
 }
 
-void PCIIDE::OnMemoryRegionChanged(u8 function, MemoryRegion region)
+void PCIIDE::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active)
 {
   ConnectIOPorts(BaseClass::m_bus);
 }

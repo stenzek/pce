@@ -147,7 +147,7 @@ protected:
 
   // Memory region change notifications.
   virtual void OnCommandRegisterChanged(u8 function);
-  virtual void OnMemoryRegionChanged(u8 function, MemoryRegion region);
+  virtual void OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active);
 
   u32 m_pci_bus_number = 0xFFFFFFFFu;
   u32 m_pci_device_number = 0xFFFFFFFFu;

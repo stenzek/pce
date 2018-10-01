@@ -29,7 +29,6 @@ bool CPU_X86_TestSystem::Initialize()
   m_bus->CreateRAMRegion(UINT32_C(0x00000000), UINT32_C(0x0009FFFF));
   m_bus->CreateRAMRegion(UINT32_C(0x00100000), UINT32_C(0xFFFEFFFF));
 
-
   for (const ROMFile& rom : m_rom_files)
   {
     if (!m_bus->CreateROMRegionFromFile(rom.filename, 0, rom.load_address, rom.expected_size))
