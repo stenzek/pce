@@ -3473,6 +3473,8 @@ void Interpreter::Execute_Operation_STI(CPU* cpu)
   }
 
   SET_FLAG(&cpu->m_registers, IF, true);
+  if (cpu->HasExternalInterrupt())
+    cpu->m_execution_downcount = 0;
 }
 
 void Interpreter::Execute_Operation_SALC(CPU* cpu)

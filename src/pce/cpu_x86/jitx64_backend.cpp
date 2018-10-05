@@ -29,9 +29,6 @@ void JitX64Backend::Reset()
 
 void JitX64Backend::Execute()
 {
-  // We'll jump back here when an instruction is aborted.
-  fastjmp_set(&m_jmp_buf);
-
   // Assume each instruction takes a single cycle
   // This is totally wrong, but whatever
   while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
@@ -54,10 +51,6 @@ void JitX64Backend::AbortCurrentInstruction()
     DestroyBlock(m_current_block);
     m_current_block = nullptr;
   }
-
-  // Log_WarningPrintf("Executing longjmp()");
-  m_cpu->CommitPendingCycles();
-  fastjmp_jmp(&m_jmp_buf);
 }
 
 void JitX64Backend::BranchTo(uint32 new_EIP) {}

@@ -93,8 +93,7 @@ void CPU::Reset()
   BaseClass::Reset();
 
   m_pending_cycles = 0;
-  m_execution_downcount = 0;
-  m_tsc_cycles = 0;
+  m_cycle_count = 0;
 
   Y_memzero(&m_registers, sizeof(m_registers));
   Y_memzero(&m_fpu_registers, sizeof(m_fpu_registers));
@@ -204,8 +203,7 @@ bool CPU::LoadState(BinaryReader& reader)
   }
 
   reader.SafeReadInt64(&m_pending_cycles);
-  reader.SafeReadInt64(&m_execution_downcount);
-  reader.SafeReadInt64(&m_tsc_cycles);
+  reader.SafeReadInt64(&m_cycle_count);
   reader.SafeReadUInt32(&m_current_EIP);
   reader.SafeReadUInt32(&m_current_ESP);
 
@@ -310,8 +308,7 @@ bool CPU::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(static_cast<uint8>(m_model));
 
   writer.WriteInt64(m_pending_cycles);
-  writer.WriteInt64(m_execution_downcount);
-  writer.WriteInt64(m_tsc_cycles);
+  writer.WriteInt64(m_cycle_count);
   writer.WriteUInt32(m_current_EIP);
   writer.WriteUInt32(m_current_ESP);
 
@@ -399,9 +396,12 @@ void CPU::SetIRQState(bool state)
 
   m_irq_state = state;
 
-  if (state && m_halted && m_registers.EFLAGS.IF)
+  if (state & m_registers.EFLAGS.IF)
   {
-    Log_TracePrintf("Bringing CPU up from halt due to IRQ");
+    // Zero the downcount, ensuring the interrupt is dispatched as soon as possible.
+    m_execution_downcount = 0;
+    if (m_halted)
+      Log_TracePrintf("Bringing CPU up from halt due to IRQ");
     m_halted = false;
   }
 }
@@ -410,6 +410,7 @@ void CPU::SignalNMI()
 {
   Log_DebugPrintf("NMI line signaled");
   m_nmi_state = true;
+  m_execution_downcount = 0;
 
   if (m_halted)
   {
@@ -452,15 +453,16 @@ void CPU::SetBackend(CPU::BackendType mode)
 
 void CPU::ExecuteCycles(CycleCount cycles)
 {
-  m_execution_downcount += cycles;
+  m_remaining_cycles_in_slice = cycles;
 
-  while (m_execution_downcount > 0)
+  // We'll jump back here when an instruction is aborted.
+  fastjmp_set(&m_jmp_buf);
+
+  while (m_remaining_cycles_in_slice > 0)
   {
     // If we're halted, don't even bother calling into the backend.
     if (m_halted)
     {
-      CommitPendingCycles();
-
       // Run as many ticks until we hit the downcount.
       const SimulationTime time_to_execute =
         std::max(m_system->GetTimingManager()->GetNextEventTime() - m_system->GetTimingManager()->GetPendingTime(),
@@ -469,38 +471,43 @@ void CPU::ExecuteCycles(CycleCount cycles)
       // Align the execution time to the cycle period, this way we don't drift due to halt.
       const CycleCount cycles_to_next_event =
         std::max((time_to_execute + m_cycle_period - 1) / m_cycle_period, CycleCount(1));
-      const CycleCount cycles_to_idle = std::min(m_execution_downcount, cycles_to_next_event);
+      const CycleCount cycles_to_idle = std::min(m_remaining_cycles_in_slice, cycles_to_next_event);
       m_system->GetTimingManager()->AddPendingTime(cycles_to_idle * m_cycle_period);
-      m_execution_downcount -= cycles_to_idle;
+      m_cycle_count += cycles_to_idle;
+      m_remaining_cycles_in_slice -= cycles_to_idle;
       continue;
     }
 
-    // Execute instructions in the backend.
-    m_backend->Execute();
-  }
+    // External interrupt? Dispatch it before executing.
+    if (HasExternalInterrupt())
+      DispatchExternalInterrupt();
 
-  // If we had a long-running instruction (e.g. a long REP), set downcount to zero, as it'll likely be negative.
-  // This is safe, as any time-dependent events occur during CommitPendingCycles();
-  m_execution_downcount = std::max(m_execution_downcount, CycleCount(0));
+    // Execute instructions in the backend.
+    m_execution_downcount = m_remaining_cycles_in_slice;
+    m_backend->Execute();
+    CommitPendingCycles();
+  }
 }
 
 void CPU::StopExecution()
 {
   // Zero the downcount, causing the above loop to exit early.
+  m_remaining_cycles_in_slice = 0;
   m_execution_downcount = 0;
 }
 
 void CPU::CommitPendingCycles()
 {
-  m_tsc_cycles += m_pending_cycles;
+  m_cycle_count += m_pending_cycles;
   m_execution_downcount -= m_pending_cycles;
+  m_remaining_cycles_in_slice -= m_pending_cycles;
   m_system->GetTimingManager()->AddPendingTime(m_pending_cycles * GetCyclePeriod());
   m_pending_cycles = 0;
 }
 
 u64 CPU::ReadTSC() const
 {
-  return static_cast<u64>(m_tsc_cycles + m_pending_cycles);
+  return static_cast<u64>(m_cycle_count + m_pending_cycles);
 }
 
 void CPU::FlushCodeCache()
@@ -861,14 +868,20 @@ void CPU::SetFlags(uint32 value)
 
   m_registers.EFLAGS.bits = (value & MASK) | (m_registers.EFLAGS.bits & ~MASK);
   UpdateAlignmentCheckMask();
+
+  // Break execution if there is now an available block due to IF being unmasked.
+  if (HasExternalInterrupt())
+    m_execution_downcount = 0;
 }
 
 void CPU::SetHalted(bool halt)
 {
-  if (halt)
-    Log_TracePrintf("CPU Halt");
-
   m_halted = halt;
+  if (halt)
+  {
+    Log_TracePrintf("CPU Halt");
+    m_execution_downcount = 0;
+  }
 }
 
 void CPU::UpdateAlignmentCheckMask()
@@ -2095,10 +2108,17 @@ void CPU::BranchFromException(uint32 new_EIP)
 
 void CPU::AbortCurrentInstruction()
 {
-  FlushPrefetchQueue();
-
   Log_TracePrintf("Aborting instruction at %04X:%08X", ZeroExtend32(m_registers.CS), m_registers.EIP);
+
+  // Allow the backend to clean up, if needed.
   m_backend->AbortCurrentInstruction();
+
+  // Flush the prefetch queue, and run events.
+  FlushPrefetchQueue();
+  CommitPendingCycles();
+
+  // Jump back to ExecuteCycles().
+  fastjmp_jmp(&m_jmp_buf);
 }
 
 void CPU::RestartCurrentInstruction()

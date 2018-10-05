@@ -25,24 +25,13 @@ void CachedInterpreterBackend::Reset()
 void CachedInterpreterBackend::Execute()
 {
   BlockKey key;
-
-  // We'll jump back here when an instruction is aborted.
-  fastjmp_set(&m_jmp_buf);
   m_current_block = nullptr;
 
-  while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
+  while (m_cpu->m_execution_downcount > 0)
   {
-    // Check for external interrupts.
-    if (m_cpu->HasExternalInterrupt())
-    {
-      DebugAssert(m_current_block == nullptr);
-      m_cpu->DispatchExternalInterrupt();
-    }
-
-    // Execute code.
+    // Lookup the next block to execute.
     if (!m_current_block)
     {
-      // No next block, try to get one.
       m_current_block = GetNextBlock();
       if (!m_current_block)
       {
@@ -62,50 +51,52 @@ void CachedInterpreterBackend::Execute()
     m_current_block = nullptr;
     if (previous_block->destroy_pending)
     {
-      FlushBlock(previous_block);
+      DestroyBlock(previous_block);
       continue;
     }
 
-    // Block chaining?
-    if (!m_cpu->HasExternalInterrupt() && previous_block->IsLinkable())
+    if (!previous_block->IsLinkable())
     {
-      if (GetBlockKeyForCurrentState(&key))
+      // block not linkable, so lookup again
+      continue;
+    }
+
+    // otherwise, check the block links
+    if (!GetBlockKeyForCurrentState(&key))
+      break;
+
+    // Block points to itself?
+    if (previous_block->key == key && CanExecuteBlock(previous_block))
+    {
+      // Execute self again.
+      m_current_block = previous_block;
+      continue;
+    }
+
+    // Try to find an already-linked block.
+    for (BlockBase* linked_block : previous_block->link_successors)
+    {
+      if (linked_block->key != key)
+        continue;
+
+      if (!CanExecuteBlock(linked_block))
       {
-        // Block points to itself?
-        if (previous_block->key == key && CanExecuteBlock(previous_block))
-        {
-          // Execute self again.
-          m_current_block = previous_block;
-        }
-        else
-        {
-          // Try to find an already-linked block.
-          for (BlockBase* linked_block : previous_block->link_successors)
-          {
-            if (linked_block->key == key)
-            {
-              if (!CanExecuteBlock(linked_block))
-              {
-                // CanExecuteBlock can result in a block flush, so stop iterating here.
-                break;
-              }
-
-              // Execute the
-              m_current_block = static_cast<Block*>(linked_block);
-              continue;
-            }
-          }
-
-          // No acceptable blocks found in the successor list, try a new one.
-          if (!m_current_block)
-          {
-            // Link the previous block to this new block if we find a new block.
-            m_current_block = GetNextBlock();
-            if (m_current_block)
-              LinkBlockBase(previous_block, m_current_block);
-          }
-        }
+        // CanExecuteBlock can result in a block flush, so stop iterating here.
+        break;
       }
+
+      // Execute the previously linked block
+      m_current_block = static_cast<Block*>(linked_block);
+      break;
+    }
+
+    // No acceptable blocks found in the successor list, try a new one.
+    if (!m_current_block)
+    {
+      // Link the previous block to this new block if we find a new block.
+      m_current_block = GetNextBlock();
+      if (m_current_block)
+        LinkBlockBase(previous_block, m_current_block);
     }
   }
 }
@@ -118,10 +109,6 @@ void CachedInterpreterBackend::AbortCurrentInstruction()
     DestroyBlock(m_current_block);
     m_current_block = nullptr;
   }
-
-  // Log_WarningPrintf("Executing longjmp()");
-  m_cpu->CommitPendingCycles();
-  fastjmp_jmp(&m_jmp_buf);
 }
 
 void CachedInterpreterBackend::BranchTo(uint32 new_EIP)
@@ -137,7 +124,7 @@ void CachedInterpreterBackend::BranchFromException(uint32 new_EIP)
 void CachedInterpreterBackend::FlushCodeCache()
 {
   // Prevent the current block from being flushed.
-  if (m_current_block)
+  if (m_current_block && !m_current_block->destroy_pending)
     FlushBlock(m_current_block, true);
 
   CodeCacheBackend::FlushCodeCache();

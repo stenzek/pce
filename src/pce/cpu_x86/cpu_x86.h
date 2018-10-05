@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/clock.h"
+#include "common/fastjmp.h"
 #include "pce/cpu.h"
 #include "pce/cpu_x86/cycles.h"
 #include "pce/cpu_x86/types.h"
@@ -523,7 +524,7 @@ protected:
   // Pending time is added at the start of the block, then committed at the next block execution.
   CycleCount m_pending_cycles = 0;
   CycleCount m_execution_downcount = 0;
-  CycleCount m_tsc_cycles = 0;
+  CycleCount m_cycle_count = 0;
 
   // CPU model that determines behavior.
   Model m_model = MODEL_386;
@@ -585,6 +586,9 @@ protected:
   // Exception currently being thrown. Interrupt_Count at all other times. Not saved to state.
   uint32 m_current_exception = Interrupt_Count;
 
+  // Number of remaining cycles in current slice.
+  CycleCount m_remaining_cycles_in_slice = 0;
+
   // Timing data.
   uint16 m_cycle_group_timings[NUM_CYCLE_GROUPS] = {};
 
@@ -610,6 +614,15 @@ protected:
   // Current execution state.
   VirtualMemoryAddress m_effective_address = 0;
   InstructionData idata = {};
+
+#ifdef Y_COMPILER_MSVC
+#pragma warning(push)
+#pragma warning(disable : 4324)
+#endif
+  fastjmp_buf m_jmp_buf = {};
+#ifdef Y_COMPILER_MSVC
+#pragma warning(pop)
+#endif
 };
 
 template<u32 size, AccessType access>

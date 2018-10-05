@@ -27,27 +27,11 @@ void InterpreterBackend::Reset() {}
 
 void InterpreterBackend::Execute()
 {
-  fastjmp_set(&m_jmp_buf);
-
-  while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
-  {
-    // Check for external interrupts.
-    if (m_cpu->HasExternalInterrupt())
-      m_cpu->DispatchExternalInterrupt();
-
+  while (m_cpu->m_execution_downcount > 0)
     ExecuteInstruction(m_cpu);
-
-    // Run events if needed.
-    m_cpu->CommitPendingCycles();
-  }
 }
 
-void InterpreterBackend::AbortCurrentInstruction()
-{
-  // Log_WarningPrintf("Executing longjmp()");
-  m_cpu->CommitPendingCycles();
-  fastjmp_jmp(&m_jmp_buf);
-}
+void InterpreterBackend::AbortCurrentInstruction() {}
 
 void InterpreterBackend::BranchTo(uint32 new_EIP) {}
 
@@ -74,12 +58,14 @@ void InterpreterBackend::ExecuteInstruction(CPU* cpu)
     TRACE_EXECUTION = true;
 #endif
 
+#if defined(DEBUG) || 0
   if (TRACE_EXECUTION)
   {
     if (TRACE_EXECUTION_LAST_EIP != cpu->m_current_EIP)
       cpu->PrintCurrentStateAndInstruction();
     TRACE_EXECUTION_LAST_EIP = cpu->m_current_EIP;
   }
+#endif
 
   // Cycle for this execution
   cpu->AddCycle();
@@ -92,6 +78,7 @@ void InterpreterBackend::ExecuteInstruction(CPU* cpu)
 
   // Read and decode an instruction from the current IP.
   Dispatch_Base(cpu);
+  cpu->CommitPendingCycles();
 
   if (cpu->m_trap_after_instruction)
   {

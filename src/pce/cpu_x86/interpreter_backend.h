@@ -1,5 +1,4 @@
 #pragma once
-#include "common/fastjmp.h"
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cpu_x86.h"
 
@@ -27,14 +26,6 @@ private:
   CPU* m_cpu;
   Bus* m_bus;
   System* m_system;
-#ifdef Y_COMPILER_MSVC
-#pragma warning(push)
-#pragma warning(disable : 4324)
-#endif
-  fastjmp_buf m_jmp_buf = {};
-#ifdef Y_COMPILER_MSVC
-#pragma warning(pop)
-#endif
 
   // Helper routines
   static void RaiseInvalidOpcode(CPU* cpu);

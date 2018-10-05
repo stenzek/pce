@@ -1,5 +1,4 @@
 #pragma once
-#include "common/fastjmp.h"
 #include "pce/cpu_x86/code_cache_backend.h"
 #include "pce/cpu_x86/cpu_x86.h"
 #include <unordered_map>
@@ -29,15 +28,6 @@ protected:
   void ResetBlock(BlockBase* block) override;
   void FlushBlock(BlockBase* block, bool defer_destroy = false) override;
   void DestroyBlock(BlockBase* block) override;
-
-#ifdef Y_COMPILER_MSVC
-#pragma warning(push)
-#pragma warning(disable : 4324)
-#endif
-  fastjmp_buf m_jmp_buf = {};
-#ifdef Y_COMPILER_MSVC
-#pragma warning(pop)
-#endif
 
   Block* m_current_block = nullptr;
 };

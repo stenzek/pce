@@ -691,17 +691,8 @@ void CodeCacheBackend::InterpretUncachedBlock()
   // Execute until we hit a branch.
   // This isn't our "formal" block exit, but it's a point where we know we'll be in a good state.
   m_branched = false;
-  while (!m_branched && !m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
-  {
-    if (m_cpu->HasExternalInterrupt())
-    {
-      m_cpu->DispatchExternalInterrupt();
-      break;
-    }
-
+  while (!m_branched && m_cpu->m_execution_downcount > 0)
     InterpreterBackend::ExecuteInstruction(m_cpu);
-    m_cpu->CommitPendingCycles();
-  }
 #else
   // This is slower, but the trace output will match the cached variant.
   for (;;)

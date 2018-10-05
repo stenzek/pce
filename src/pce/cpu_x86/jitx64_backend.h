@@ -1,5 +1,4 @@
 #pragma once
-#include "common/fastjmp.h"
 #include "pce/cpu_x86/code_cache_backend.h"
 #include "pce/cpu_x86/cpu_x86.h"
 #include <unordered_map>
@@ -46,15 +45,6 @@ private:
 
   // Block execution dispatcher.
   void Dispatch();
-
-#ifdef Y_COMPILER_MSVC
-#pragma warning(push)
-#pragma warning(disable : 4324)
-#endif
-  fastjmp_buf m_jmp_buf = {};
-#ifdef Y_COMPILER_MSVC
-#pragma warning(pop)
-#endif
 
   CycleCount m_cycles_remaining = 0;
 
