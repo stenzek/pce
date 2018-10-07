@@ -28,8 +28,9 @@ SimulationTime TimingManager::GetEmulatedTimeDifference(SimulationTime timestamp
 
 void TimingManager::AddPendingTime(SimulationTime time)
 {
-  m_total_emulated_time += time;
+  // TODO: Accuracy of total while running events..
   m_pending_time += time;
+  m_total_emulated_time += time;
   if (m_pending_time >= m_next_event_time)
     RunEvents();
 }

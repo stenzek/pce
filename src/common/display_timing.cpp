@@ -77,6 +77,15 @@ bool DisplayTiming::InVerticalBlank(SimulationTime time) const
   return (line_number >= m_vertical_visible);
 }
 
+u32 DisplayTiming::GetCurrentLine(SimulationTime time) const
+{
+  if (!m_clock_enable || !IsValid())
+    return 0;
+
+  const u32 time_in_frame = static_cast<u32>(time % m_vertical_total_duration);
+  return static_cast<u32>(time_in_frame / m_horizontal_total_duration);
+}
+
 void DisplayTiming::LogFrequencies(const char* what) const
 {
   Log_InfoPrintf("%s: horizontal frequency %.3f Khz, vertical frequency %.3f hz", what, m_horizontal_frequency / 1000.0,
@@ -126,10 +135,18 @@ void DisplayTiming::UpdateVerticalFrequency()
     return;
   }
 
+  // TODO: Handle vblank at top properly..
+  u32 vblank_start = m_vertical_blank_start;
+  u32 vblank_end = m_vertical_blank_end;
+  if (vblank_start < m_vertical_visible)
+    vblank_start += m_vertical_total;
+  if (vblank_end < m_vertical_blank_start)
+    vblank_end += m_vertical_total;
+
   m_vertical_frequency = m_horizontal_frequency / static_cast<double>(m_vertical_total);
   m_vertical_active_duration = m_horizontal_total_duration * m_vertical_visible;
-  m_vertical_blank_start_time = m_horizontal_total_duration * m_vertical_blank_start;
-  m_vertical_blank_end_time = m_horizontal_total_duration * m_vertical_blank_end_time;
+  m_vertical_blank_start_time = m_horizontal_total_duration * vblank_start;
+  m_vertical_blank_end_time = m_horizontal_total_duration * vblank_end;
   m_vertical_total_duration = m_horizontal_total_duration * m_vertical_total;
   UpdateValid();
 }

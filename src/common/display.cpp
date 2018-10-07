@@ -126,10 +126,12 @@ void Display::AllocateFramebuffer(Framebuffer* fbuf)
     switch (m_framebuffer_format)
     {
       case FramebufferFormat::RGB8:
+      case FramebufferFormat::BGR8:
         fbuf->stride = m_framebuffer_width * 3;
         break;
 
       case FramebufferFormat::RGBX8:
+      case FramebufferFormat::BGRX8:
         fbuf->stride = m_framebuffer_width * 4;
         break;
 
@@ -318,6 +320,47 @@ void Display::CopyFramebufferToRGBA8Buffer(const Framebuffer* fbuf, void* dst, u
       for (u32 row = 0; row < fbuf->height; row++)
       {
         std::memcpy(dst_ptr, src_ptr, copy_size);
+        src_ptr += fbuf->stride;
+        dst_ptr += dst_stride;
+      }
+    }
+    break;
+
+    case FramebufferFormat::BGR8:
+    {
+      // yuck.. TODO optimize this, using vectorization?
+      for (u32 row = 0; row < fbuf->height; row++)
+      {
+        const byte* src_row_ptr = src_ptr;
+        byte* dst_row_ptr = dst_ptr;
+        for (u32 col = 0; col < fbuf->width; col++)
+        {
+          u32 ocol = 0xFF000000;
+          ocol |= ZeroExtend32(*(src_row_ptr++)) << 16; // B
+          ocol |= ZeroExtend32(*(src_row_ptr++)) << 8;  // G
+          ocol |= ZeroExtend32(*(src_row_ptr++));       // R
+          std::memcpy(&ocol, dst_row_ptr, sizeof(ocol));
+          dst_row_ptr += sizeof(ocol);
+        }
+
+        src_ptr += fbuf->stride;
+        dst_ptr += dst_stride;
+      }
+    }
+    break;
+
+    case FramebufferFormat::BGRX8:
+    {
+      for (u32 row = 0; row < fbuf->height; row++)
+      {
+        const u32* row_src_ptr = reinterpret_cast<const u32*>(src_ptr);
+        u32* row_dst_ptr = reinterpret_cast<u32*>(dst_ptr);
+        for (u32 col = 0; col < fbuf->width; col++)
+        {
+          const u32 pix = *(row_src_ptr++);
+          *(row_dst_ptr++) =
+            (pix & UINT32_C(0xFF00FF00)) | ((pix & UINT32_C(0xFF)) << 16) | ((pix >> 16) & UINT32_C(0xFF));
+        }
         src_ptr += fbuf->stride;
         dst_ptr += dst_stride;
       }

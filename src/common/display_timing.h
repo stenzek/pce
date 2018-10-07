@@ -58,6 +58,7 @@ public:
   // Shorter versions of the above.
   bool IsDisplayActive(SimulationTime time) const;
   bool InVerticalBlank(SimulationTime time) const;
+  u32 GetCurrentLine(SimulationTime time) const;
 
   // Writes frequency information to the log.
   void LogFrequencies(const char* what) const;
