@@ -19,6 +19,7 @@
 class ByteStream;
 class BinaryReader;
 class BinaryWriter;
+class TimingManager;
 
 class Bus : public Object
 {
@@ -171,6 +172,9 @@ public:
   void SetPageRAMState(PhysicalMemoryAddress page_address, bool readable_memory, bool writable_memory);
   void SetPagesRAMState(PhysicalMemoryAddress start_address, uint32 size, bool readable_memory, bool writable_memory);
 
+  // Hold the bus, stalling the main CPU for the specified amount of time.
+  void Stall(SimulationTime time);
+
 protected:
   struct PhysicalMemoryPage
   {
@@ -229,6 +233,7 @@ protected:
   void RemoveIOPortConnection(u16 port, const void* owner);
 
   System* m_system = nullptr;
+  TimingManager* m_timing_manager = nullptr;
 
   // IO ports
   IOPortConnection** m_ioport_handlers = nullptr;
