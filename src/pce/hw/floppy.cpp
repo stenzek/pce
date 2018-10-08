@@ -44,13 +44,13 @@ struct DiskTypeInfo
   uint8 media_descriptor_byte;
 };
 static const DiskTypeInfo disk_types[Floppy::DiskType_Count] = {
-  {Floppy::DriveType_None, 0, 0, 0, 0, 0x00},          // DiskType_None
-  {Floppy::DriveType_5_25, 163840, 40, 1, 8, 0xFE},    // DiskType_160K
-  {Floppy::DriveType_5_25, 184320, 40, 1, 9, 0xFC},    // DiskType_180K
-  {Floppy::DriveType_5_25, 327680, 40, 2, 8, 0xFF},    // DiskType_320K
-  {Floppy::DriveType_5_25, 368640, 40, 2, 9, 0xFD},    // DiskType_360K
-  {Floppy::DriveType_5_25, 655360, 80, 2, 8, 0xFB},    // DiskType_640K
-  {Floppy::DriveType_3_5, 737280, 80, 2, 9, 0xF9},     // DiskType_720K
+  {Floppy::DriveType_None, 0, 0, 0, 0, 0x00},         // DiskType_None
+  {Floppy::DriveType_5_25, 163840, 40, 1, 8, 0xFE},   // DiskType_160K
+  {Floppy::DriveType_5_25, 184320, 40, 1, 9, 0xFC},   // DiskType_180K
+  {Floppy::DriveType_5_25, 327680, 40, 2, 8, 0xFF},   // DiskType_320K
+  {Floppy::DriveType_5_25, 368640, 40, 2, 9, 0xFD},   // DiskType_360K
+  {Floppy::DriveType_5_25, 655360, 80, 2, 8, 0xFB},   // DiskType_640K
+  {Floppy::DriveType_3_5, 737280, 80, 2, 9, 0xF9},    // DiskType_720K
   {Floppy::DriveType_5_25, 1310720, 80, 2, 15, 0xF9}, // DiskType_1220K
   {Floppy::DriveType_3_5, 1474560, 80, 2, 18, 0xF0},  // DiskType_1440K
   {Floppy::DriveType_3_5, 1720320, 80, 2, 21, 0xF0},  // DiskType_1680K

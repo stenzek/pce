@@ -61,7 +61,6 @@ Bus::~Bus()
 bool Bus::Initialize(System* system)
 {
   m_system = system;
-  m_timing_manager = system->GetTimingManager();
   return true;
 }
 
@@ -886,11 +885,7 @@ void Bus::SetPagesRAMState(PhysicalMemoryAddress start_address, uint32 size, boo
 void Bus::Stall(SimulationTime time)
 {
   Log_DebugPrintf("Stalling bus for %" PRId64 " ns", time);
-
-  // Just pass it through to the event manager.
-  // The CPU will "lose" the time, and overrun its slice.
-  // But this will be caught in the next slice, so it's okay.
-  m_timing_manager->AddPendingTime(time);
+  m_system->GetCPU()->StallExecution(time);
 }
 
 Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)

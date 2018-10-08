@@ -171,7 +171,8 @@ public:
   void SetBackend(BackendType mode) override;
 
   // Executes instructions/cycles.
-  void ExecuteCycles(CycleCount cycles) override;
+  void ExecuteSlice(SimulationTime time) override;
+  void StallExecution(SimulationTime time) override;
   void StopExecution() override;
 
 protected:

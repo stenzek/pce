@@ -50,9 +50,12 @@ public:
   virtual void SetBackend(BackendType mode) = 0;
 
   // Execute cycles
-  virtual void ExecuteCycles(CycleCount cycles) = 0;
+  virtual void ExecuteSlice(SimulationTime time) = 0;
 
-  // Immediatley stops execution of the CPU, i.e. zeros the downcount.
+  // Stalls the CPU (i.e. subtracts from the downcount).
+  virtual void StallExecution(SimulationTime time) = 0;
+
+  // Immediately stops execution of the CPU, i.e. zeros the downcount.
   virtual void StopExecution() = 0;
 
   // Code cache flushing - for recompiler backends

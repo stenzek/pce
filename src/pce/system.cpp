@@ -236,7 +236,7 @@ SimulationTime System::ExecuteSlice(SimulationTime time)
 
   // CPU will call back to us to run components.
   if (slice_cycles > 0)
-    m_cpu->ExecuteCycles(slice_cycles);
+    m_cpu->ExecuteSlice(slice_cycles);
 
   return m_timing_manager.GetEmulatedTimeDifference(start_timestamp);
 }

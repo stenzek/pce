@@ -195,9 +195,10 @@ void CPU::SetBackend(BackendType mode)
   Assert(mode == BackendType::Interpreter);
 }
 
-void CPU::ExecuteCycles(CycleCount cycles)
+void CPU::ExecuteSlice(SimulationTime time)
 {
-  m_execution_downcount += cycles;
+  const CycleCount cycles_in_slice = (time + (m_cycle_period - 1)) / m_cycle_period;
+  m_execution_downcount += cycles_in_slice;
   if (m_execution_downcount <= 0)
     return;
 
@@ -237,6 +238,13 @@ void CPU::ExecuteCycles(CycleCount cycles)
   // If we had a long-running instruction (e.g. a long REP), set downcount to zero, as it'll likely be negative.
   // This is safe, as any time-dependent events occur during CommitPendingCycles();
   m_execution_downcount = std::max(m_execution_downcount, CycleCount(0));
+}
+
+void CPU::StallExecution(SimulationTime time)
+{
+  const CycleCount cycles_in_slice = (time + (m_cycle_period - 1)) / m_cycle_period;
+  m_execution_downcount -= cycles_in_slice;
+  m_system->GetTimingManager()->AddPendingTime(cycles_in_slice * m_cycle_period);
 }
 
 void CPU::StopExecution()

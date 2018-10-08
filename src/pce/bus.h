@@ -233,7 +233,6 @@ protected:
   void RemoveIOPortConnection(u16 port, const void* owner);
 
   System* m_system = nullptr;
-  TimingManager* m_timing_manager = nullptr;
 
   // IO ports
   IOPortConnection** m_ioport_handlers = nullptr;

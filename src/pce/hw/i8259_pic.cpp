@@ -281,7 +281,7 @@ void i8259_PIC::CommandPortWriteHandler(uint32 pic_index, uint8 value)
         interrupt = value & 0x07;
         if (!(pic->in_service_register & (UINT8_C(1) << interrupt)))
         {
-          Log_WarningPrintf("Specific EOI %u received on PIC %u without ISR set", ZeroExtend32(interrupt), pic_index);
+          Log_DevPrintf("Specific EOI %u received on PIC %u without ISR set", ZeroExtend32(interrupt), pic_index);
           return;
         }
       }
@@ -290,7 +290,7 @@ void i8259_PIC::CommandPortWriteHandler(uint32 pic_index, uint8 value)
         // Find the highest priority interrupt, this will be the one being EOI'ed
         if (pic->in_service_register == 0)
         {
-          Log_WarningPrintf("Auto EOI received on PIC %u without ISR set", pic_index);
+          Log_DevPrintf("Auto EOI received on PIC %u without ISR set", pic_index);
           return;
         }
 
