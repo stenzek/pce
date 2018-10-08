@@ -16,31 +16,45 @@ public:
   void ResetClock(SimulationTime start_time);
 
   // Accessors.
-  u32 GetHorizontalVisible() const { return m_horizontal_visible; }
-  u32 GetHorizontalBlankStart() const { return m_horizontal_blank_start; }
-  u32 GetHorizontalBlankEnd() const { return m_horizontal_blank_end; }
-  u32 GetHorizontalTotal() const { return m_horizontal_total; }
-  u32 GetVerticalVisible() const { return m_vertical_visible; }
-  u32 GetVerticalBlankStart() const { return m_vertical_blank_start; }
-  u32 GetVerticalBlankEnd() const { return m_vertical_blank_end; }
-  u32 GetVerticalTotal() const { return m_vertical_total; }
+  s32 GetHorizontalVisible() const { return m_horizontal_visible; }
+  s32 GetHorizontalFrontPorch() const { return m_horizontal_front_porch; }
+  s32 GetHorizontalSyncLength() const { return m_horizontal_sync_length; }
+  s32 GetHorizontalBackPorch() const { return m_horizontal_back_porch; }
+  s32 GetHorizontalTotal() const { return m_horizontal_total; }
+  s32 GetVerticalVisible() const { return m_vertical_visible; }
+  s32 GetVerticalFrontPorch() const { return m_vertical_front_porch; }
+  s32 GetVerticalSyncLength() const { return m_vertical_sync_length; }
+  s32 GetVerticallBackPorch() const { return m_vertical_back_porch; }
+  s32 GetVerticalTotal() const { return m_vertical_total; }
   double GetPixelClock() const { return m_pixel_clock; }
   double GetHorizontalFrequency() const { return m_horizontal_frequency; }
   double GetVerticalFrequency() const { return m_vertical_frequency; }
-  u32 GetHorizontalPixelDuration() const { return m_horizontal_pixel_duration; }
-  u32 GetHorizontalActiveDuration() const { return m_horizontal_active_duration; }
-  u32 GetHorizontalBlankStartTime() const { return m_horizontal_blank_start_time; }
-  u32 GetHorizontalBlankEndTime() const { return m_horizontal_blank_end_time; }
-  u32 GetHorizontalTotalDuration() const { return m_horizontal_total_duration; }
-  u32 GetVerticalActiveDuration() const { return m_vertical_active_duration; }
-  u32 GetVerticalBlankStartTime() const { return m_vertical_blank_start_time; }
-  u32 GetVerticalBlankEndTime() const { return m_vertical_blank_end_time; }
-  u32 GetVerticalTotalDuration() const { return m_vertical_total_duration; }
+  s32 GetHorizontalPixelDuration() const { return m_horizontal_pixel_duration; }
+  s32 GetHorizontalActiveDuration() const { return m_horizontal_active_duration; }
+  s32 GetHorizontalSyncStartTime() const { return m_horizontal_sync_start_time; }
+  s32 GetHorizontalSyncEndTime() const { return m_horizontal_sync_end_time; }
+  s32 GetHorizontalTotalDuration() const { return m_horizontal_total_duration; }
+  s32 GetHorizontalBlankStartTime() const { return m_horizontal_active_duration; }
+  s32 GetHorizontalBlankDuration() const { return m_horizontal_total_duration - m_horizontal_active_duration; }
+  s32 GetVerticalActiveDuration() const { return m_vertical_active_duration; }
+  s32 GetVerticalSyncStartTime() const { return m_vertical_sync_start_time; }
+  s32 GetVerticalSyncEndTime() const { return m_vertical_sync_end_time; }
+  s32 GetVerticalTotalDuration() const { return m_vertical_total_duration; }
+  s32 GetVerticalBlankStartTime() const { return m_vertical_active_duration; }
+  s32 GetVerticalBlankDuration() const { return m_vertical_total_duration - m_vertical_active_duration; }
 
   // Setting horizontal timing based on pixels and clock.
-  void SetPixelClock(double clock) { m_pixel_clock = clock; }
-  void SetHorizontalRange(u32 visible, u32 blank_start, u32 blank_end, u32 total);
-  void SetVerticalRange(u32 visible, u32 blank_start, u32 blank_end, u32 total);
+  void SetPixelClock(double clock);
+  void SetHorizontalVisible(s32 visible);
+  void SetHorizontalSyncRange(s32 start, s32 end);
+  void SetHorizontalSyncLength(s32 start, s32 length);
+  void SetHorizontalBackPorch(s32 bp);
+  void SetHorizontalTotal(s32 total);
+  void SetVerticalVisible(s32 visible);
+  void SetVerticalSyncRange(s32 start, s32 end);
+  void SetVerticalSyncLength(s32 start, s32 length);
+  void SetVerticalBackPorch(s32 bp);
+  void SetVerticalTotal(s32 total);
 
   // Gets the timing state for the specified time point.
   struct Snapshot
@@ -58,6 +72,8 @@ public:
   // Shorter versions of the above.
   bool IsDisplayActive(SimulationTime time) const;
   bool InVerticalBlank(SimulationTime time) const;
+  bool InHorizontalSync(SimulationTime time) const;
+  bool InVerticalSync(SimulationTime time) const;
   u32 GetCurrentLine(SimulationTime time) const;
 
   // Writes frequency information to the log.
@@ -70,29 +86,34 @@ private:
 
   SimulationTime m_clock_start_time = 0;
 
-  u32 m_horizontal_visible = 0;
-  u32 m_horizontal_blank_start = 0;
-  u32 m_horizontal_blank_end = 0;
-  u32 m_horizontal_total = 0;
-  u32 m_vertical_visible = 0;
-  u32 m_vertical_blank_start = 0;
-  u32 m_vertical_blank_end = 0;
-  u32 m_vertical_total = 0;
+  // Set
+  s32 m_horizontal_visible = 0;
+  s32 m_horizontal_front_porch = 0;
+  s32 m_horizontal_sync_length = 0;
+  s32 m_horizontal_back_porch = 0;
+  s32 m_vertical_visible = 0;
+  s32 m_vertical_front_porch = 0;
+  s32 m_vertical_sync_length = 0;
+  s32 m_vertical_back_porch = 0;
+
+  // Computed. End values are exclusive.
+  s32 m_horizontal_total = 0;
+  s32 m_vertical_total = 0;
 
   double m_pixel_clock = 0.0;
   double m_horizontal_frequency = 0.0f;
   double m_vertical_frequency = 0.0f;
 
   // TODO: Make these doubles?
-  u32 m_horizontal_pixel_duration = 0;
-  u32 m_horizontal_active_duration = 0;
-  u32 m_horizontal_blank_start_time = 0;
-  u32 m_horizontal_blank_end_time = 0;
-  u32 m_horizontal_total_duration = 0;
-  u32 m_vertical_active_duration = 0;
-  u32 m_vertical_blank_start_time = 0;
-  u32 m_vertical_blank_end_time = 0;
-  u32 m_vertical_total_duration = 0;
+  s32 m_horizontal_pixel_duration = 0;
+  s32 m_horizontal_active_duration = 0;
+  s32 m_horizontal_sync_start_time = 0;
+  s32 m_horizontal_sync_end_time = 0;
+  s32 m_horizontal_total_duration = 0;
+  s32 m_vertical_active_duration = 0;
+  s32 m_vertical_sync_start_time = 0;
+  s32 m_vertical_sync_end_time = 0;
+  s32 m_vertical_total_duration = 0;
 
   bool m_clock_enable = false;
   bool m_valid = false;

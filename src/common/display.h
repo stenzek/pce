@@ -72,6 +72,7 @@ public:
   void SetPixel(u32 x, u32 y, u8 r, u8 g, u8 b);
   void SetPixel(u32 x, u32 y, u32 rgb);
   void CopyFrame(const void* pixels, u32 stride);
+  void RepeatFrame();
 
 protected:
   static const u32 NUM_BACK_BUFFERS = 2;

@@ -227,6 +227,12 @@ void Display::CopyFrame(const void* pixels, u32 stride)
   }
 }
 
+void Display::RepeatFrame()
+{
+  // Don't change the framebuffer.
+  AddFrameRendered();
+}
+
 void Display::AddFrameRendered()
 {
   m_frames_rendered++;
