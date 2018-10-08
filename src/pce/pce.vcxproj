@@ -55,6 +55,7 @@
     <ClCompile Include="hw\pci_bus.cpp" />
     <ClCompile Include="hw\pci_device.cpp" />
     <ClCompile Include="hw\pci_ide.cpp" />
+    <ClCompile Include="hw\voodoo.cpp" />
     <ClCompile Include="hw\xt_ide.cpp" />
     <ClCompile Include="hw\ymf262.cpp" />
     <ClCompile Include="hw\keyboard_scancodes.cpp" />
@@ -85,6 +86,12 @@
     <ClCompile Include="systems\ibmat.cpp" />
     <ClCompile Include="systems\isapc.cpp" />
     <ClCompile Include="systems\ibmxt.cpp" />
+    <ClCompile Include="thirdparty\mame\osdcore.cpp" />
+    <ClCompile Include="thirdparty\mame\osdsync.cpp" />
+    <ClCompile Include="thirdparty\mame\polylgcy.cpp" />
+    <ClCompile Include="thirdparty\mame\rgbgen.cpp" />
+    <ClCompile Include="thirdparty\mame\rgbsse.cpp" />
+    <ClCompile Include="thirdparty\mame\voodoo.cpp" />
     <ClCompile Include="types.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -126,6 +133,7 @@
     <ClInclude Include="hw\pci_bus.h" />
     <ClInclude Include="hw\pci_device.h" />
     <ClInclude Include="hw\pci_ide.h" />
+    <ClInclude Include="hw\voodoo.h" />
     <ClInclude Include="hw\xt_ide.h" />
     <ClInclude Include="hw\ymf262.h" />
     <ClInclude Include="hw\keyboard_scancodes.h" />
@@ -159,6 +167,18 @@
     <ClInclude Include="systems\ibmat.h" />
     <ClInclude Include="systems\isapc.h" />
     <ClInclude Include="systems\ibmxt.h" />
+    <ClInclude Include="thirdparty\mame\osdcomm.h" />
+    <ClInclude Include="thirdparty\mame\osdcore.h" />
+    <ClInclude Include="thirdparty\mame\osdsync.h" />
+    <ClInclude Include="thirdparty\mame\rectangle.h" />
+    <ClInclude Include="thirdparty\mame\palette.h" />
+    <ClInclude Include="thirdparty\mame\polylgcy.h" />
+    <ClInclude Include="thirdparty\mame\rgbgen.h" />
+    <ClInclude Include="thirdparty\mame\rgbsse.h" />
+    <ClInclude Include="thirdparty\mame\rgbutil.h" />
+    <ClInclude Include="thirdparty\mame\vooddefs.h" />
+    <ClInclude Include="thirdparty\mame\voodoo.h" />
+    <ClInclude Include="thirdparty\mame\voodoo_rast.hxx" />
     <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>

@@ -49,9 +49,6 @@
     <ClCompile Include="hw\adlib.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="thirdparty\dosbox\dbopl.cpp">
-      <Filter>thirdparty</Filter>
-    </ClCompile>
     <ClCompile Include="hw\soundblaster.cpp">
       <Filter>hw</Filter>
     </ClCompile>
@@ -164,6 +161,30 @@
     <ClCompile Include="hw\pci_ide.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="hw\voodoo.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\dosbox\dbopl.cpp">
+      <Filter>thirdparty\dosbox</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\mame\rgbgen.cpp">
+      <Filter>thirdparty\mame</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\mame\rgbsse.cpp">
+      <Filter>thirdparty\mame</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\mame\polylgcy.cpp">
+      <Filter>thirdparty\mame</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\mame\voodoo.cpp">
+      <Filter>thirdparty\mame</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\mame\osdsync.cpp">
+      <Filter>thirdparty\mame</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\mame\osdcore.cpp">
+      <Filter>thirdparty\mame</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -226,9 +247,6 @@
     </ClInclude>
     <ClInclude Include="hw\adlib.h">
       <Filter>hw</Filter>
-    </ClInclude>
-    <ClInclude Include="thirdparty\dosbox\dbopl.h">
-      <Filter>thirdparty</Filter>
     </ClInclude>
     <ClInclude Include="hw\soundblaster.h">
       <Filter>hw</Filter>
@@ -355,6 +373,48 @@
     <ClInclude Include="hw\pci_ide.h">
       <Filter>hw</Filter>
     </ClInclude>
+    <ClInclude Include="hw\voodoo.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\dosbox\dbopl.h">
+      <Filter>thirdparty\dosbox</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\polylgcy.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\rgbgen.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\rgbsse.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\rgbutil.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\rectangle.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\voodoo.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\voodoo_rast.hxx">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\vooddefs.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\palette.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\osdsync.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\osdcomm.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\mame\osdcore.h">
+      <Filter>thirdparty\mame</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="hw">
@@ -371,6 +431,12 @@
     </Filter>
     <Filter Include="cpu_8086">
       <UniqueIdentifier>{5d3e4686-d1e2-4d1a-a8bd-f0262dd3e121}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\dosbox">
+      <UniqueIdentifier>{01084ce9-ca77-482c-8a94-70af6e61b70d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\mame">
+      <UniqueIdentifier>{d8c797f8-7b97-4eba-9566-f0b7b8703338}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
