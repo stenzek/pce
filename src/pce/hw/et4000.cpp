@@ -253,6 +253,9 @@ void ET4000::Render()
     m_cursor_state ^= true;
   }
 
+  if (!m_display->IsActive())
+    return;
+
   if (m_graphics_registers.misc.text_mode_disable)
     RenderGraphicsMode();
   else
