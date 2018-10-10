@@ -43,10 +43,10 @@ void DisplayRenderer::RemoveDisplay(Display* display)
 {
   std::lock_guard<std::mutex> guard(m_display_lock);
 
-  if (display->GetType() == Display::Type::Primary)
-    std::remove(m_primary_displays.begin(), m_primary_displays.end(), display);
-  else
-    std::remove(m_secondary_displays.begin(), m_secondary_displays.end(), display);
+  auto& container = (display->GetType() == Display::Type::Primary) ? m_primary_displays : m_secondary_displays;
+  auto iter = std::find(container.begin(), container.end(), display);
+  if (iter != container.end())
+    container.erase(iter);
 
   UpdateActiveDisplays();
 }
