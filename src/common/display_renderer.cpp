@@ -81,17 +81,28 @@ void DisplayRenderer::UpdateActiveDisplays()
   Display* primary_display = nullptr;
   for (Display* dpy : m_primary_displays)
   {
+    dpy->SetActive(false);
     if (dpy->IsEnabled() && (!primary_display || dpy->GetPriority() > primary_display->GetPriority()))
       primary_display = dpy;
   }
   if (primary_display)
+  {
+    primary_display->SetActive(true);
     m_active_displays.push_back(primary_display);
+  }
 
   // Add all enabled secondary displays.
   for (Display* dpy : m_secondary_displays)
   {
     if (dpy->IsEnabled())
+    {
+      dpy->SetActive(true);
       m_active_displays.push_back(dpy);
+    }
+    else
+    {
+      dpy->SetActive(false);
+    }
   }
 }
 

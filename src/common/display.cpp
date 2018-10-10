@@ -31,6 +31,11 @@ void Display::SetEnable(bool enabled)
     m_renderer->DisplayDisabled(this);
 }
 
+void Display::SetActive(bool active)
+{
+  m_active = active;
+}
+
 void Display::SetDisplayAspectRatio(u32 numerator, u32 denominator)
 {
   if (m_display_aspect_numerator == numerator && m_display_aspect_denominator == denominator)

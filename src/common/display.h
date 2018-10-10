@@ -40,7 +40,9 @@ public:
   u8 GetPriority() const { return m_priority; }
 
   bool IsEnabled() const { return m_enabled; }
+  bool IsActive() const { return m_active; }
   void SetEnable(bool enabled);
+  void SetActive(bool active);
 
   u32 GetFramesRendered() const { return m_frames_rendered; }
   float GetFramesPerSecond() const { return m_fps; }
@@ -123,4 +125,5 @@ protected:
   float m_fps = 0.0f;
 
   bool m_enabled = true;
+  bool m_active = true;
 };
