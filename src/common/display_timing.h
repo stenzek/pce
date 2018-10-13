@@ -15,6 +15,12 @@ public:
   void SetClockEnable(bool enable) { m_clock_enable = enable; }
   void ResetClock(SimulationTime start_time);
 
+  // Returns the number of ticks since the clock was enabled.
+  SimulationTime GetTime(SimulationTime time) const;
+
+  // Returns the number of ticks elapsed in the current frame.
+  s32 GetTimeInFrame(SimulationTime time) const;
+
   // Accessors.
   s32 GetHorizontalVisible() const { return m_horizontal_visible; }
   s32 GetHorizontalFrontPorch() const { return m_horizontal_front_porch; }

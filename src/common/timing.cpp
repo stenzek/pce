@@ -20,10 +20,15 @@ TimingManager::~TimingManager()
 
 SimulationTime TimingManager::GetEmulatedTimeDifference(SimulationTime timestamp)
 {
-  if (timestamp <= m_total_emulated_time)
-    return m_total_emulated_time - timestamp;
+  return GetEmulatedTimeDifference(timestamp, m_total_emulated_time);
+}
+
+SimulationTime TimingManager::GetEmulatedTimeDifference(SimulationTime prev, SimulationTime now)
+{
+  if (prev <= now)
+    return now - prev;
   else
-    return (std::numeric_limits<SimulationTime>::max() - timestamp) + timestamp;
+    return (std::numeric_limits<SimulationTime>::max() - prev) + now;
 }
 
 void TimingManager::AddPendingTime(SimulationTime time)

@@ -69,6 +69,9 @@ public:
   bool LoadState(BinaryReader& reader);
   bool SaveState(BinaryWriter& writer);
 
+  // Calculates the difference between the specified timestamps, accounting for overflow.
+  static SimulationTime GetEmulatedTimeDifference(SimulationTime prev, SimulationTime now);
+
 private:
   static const u32 SAVE_STATE_SIGNATURE = 0x50435353;
 

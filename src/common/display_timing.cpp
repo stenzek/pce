@@ -1,5 +1,6 @@
 #include "display_timing.h"
 #include "YBaseLib/Log.h"
+#include "timing.h"
 Log_SetChannel(DisplayTiming);
 
 DisplayTiming::DisplayTiming() = default;
@@ -7,6 +8,16 @@ DisplayTiming::DisplayTiming() = default;
 void DisplayTiming::ResetClock(SimulationTime start_time)
 {
   m_clock_start_time = start_time;
+}
+
+SimulationTime DisplayTiming::GetTime(SimulationTime time) const
+{
+  return TimingManager::GetEmulatedTimeDifference(m_clock_start_time, time);
+}
+
+s32 DisplayTiming::GetTimeInFrame(SimulationTime time) const
+{
+  return static_cast<s32>(GetTime(time) % m_vertical_total_duration);
 }
 
 void DisplayTiming::SetPixelClock(double clock)
@@ -87,7 +98,7 @@ DisplayTiming::Snapshot DisplayTiming::GetSnapshot(SimulationTime time) const
   Snapshot ss;
   if (m_clock_enable && IsValid())
   {
-    const s32 time_in_frame = static_cast<s32>(time % m_vertical_total_duration);
+    const s32 time_in_frame = GetTimeInFrame(time);
     const s32 line_number = time_in_frame / m_horizontal_total_duration;
     const s32 time_in_line = time_in_frame % m_horizontal_total_duration;
     ss.current_line = static_cast<u32>(line_number);
@@ -118,7 +129,7 @@ bool DisplayTiming::IsDisplayActive(SimulationTime time) const
   if (!m_clock_enable || !IsValid())
     return false;
 
-  const s32 time_in_frame = static_cast<s32>(time % m_vertical_total_duration);
+  const s32 time_in_frame = GetTimeInFrame(time);
   return (time_in_frame < m_vertical_active_duration &&
           (time_in_frame % m_horizontal_total_duration) < m_horizontal_active_duration);
 }
@@ -128,7 +139,7 @@ bool DisplayTiming::InVerticalBlank(SimulationTime time) const
   if (!m_clock_enable || !IsValid())
     return false;
 
-  const s32 time_in_frame = static_cast<s32>(time % m_vertical_total_duration);
+  const s32 time_in_frame = GetTimeInFrame(time);
   return (time_in_frame >= m_vertical_active_duration);
 }
 
@@ -137,7 +148,7 @@ bool DisplayTiming::InHorizontalSync(SimulationTime time) const
   if (!m_clock_enable || !IsValid())
     return false;
 
-  const s32 time_in_frame = static_cast<s32>(time % m_vertical_total_duration);
+  const s32 time_in_frame = GetTimeInFrame(time);
   if (time_in_frame >= m_vertical_sync_start_time && time_in_frame < m_vertical_sync_end_time)
   {
     // In vsync.
@@ -150,7 +161,7 @@ bool DisplayTiming::InHorizontalSync(SimulationTime time) const
 
 bool DisplayTiming::InVerticalSync(SimulationTime time) const
 {
-  const s32 time_in_frame = static_cast<s32>(time % m_vertical_total_duration);
+  const s32 time_in_frame = GetTimeInFrame(time);
   return (time_in_frame >= m_vertical_sync_start_time && time_in_frame < m_vertical_sync_end_time);
 }
 
@@ -159,7 +170,7 @@ u32 DisplayTiming::GetCurrentLine(SimulationTime time) const
   if (!m_clock_enable || !IsValid())
     return 0;
 
-  const s32 time_in_frame = static_cast<s32>(time % m_vertical_total_duration);
+  const s32 time_in_frame = GetTimeInFrame(time);
   return static_cast<u32>(time_in_frame / m_horizontal_total_duration);
 }
 
