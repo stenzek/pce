@@ -38,13 +38,27 @@ protected:
       uint64 qword;
     };
 
-    bool operator==(const BlockKey& key) const;
-    bool operator!=(const BlockKey& key) const;
+    bool operator==(const BlockKey& key) const
+    {
+      // return (std::memcmp(this, &key, sizeof(key)) == 0);
+      return (qword == key.qword);
+    }
+    
+    bool operator!=(const BlockKey& key) const
+    {
+      // return (std::memcmp(this, &key, sizeof(key)) != 0);
+      return (qword != key.qword);
+    }
   };
 
   struct BlockKeyHash
   {
-    size_t operator()(const BlockKey& key) const;
+    size_t operator()(const BlockKey& key) const
+    {
+      return std::hash<uint64>()(key.qword);
+      // return size_t(key.qword);
+    }
+
     size_t operator()(const BlockKey& lhs, const BlockKey& rhs) const { return lhs.qword < rhs.qword; }
   };
 

@@ -47,24 +47,6 @@ void CodeCacheBackend::BranchFromException(uint32 new_EIP)
   m_branched = true;
 }
 
-bool CodeCacheBackend::BlockKey::operator==(const BlockKey& key) const
-{
-  // return (std::memcmp(this, &key, sizeof(key)) == 0);
-  return (qword == key.qword);
-}
-
-bool CodeCacheBackend::BlockKey::operator!=(const BlockKey& key) const
-{
-  // return (std::memcmp(this, &key, sizeof(key)) != 0);
-  return (qword != key.qword);
-}
-
-size_t CodeCacheBackend::BlockKeyHash::operator()(const BlockKey& key) const
-{
-  return std::hash<uint64>()(key.qword);
-  // return size_t(key.qword);
-}
-
 void CodeCacheBackend::InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page_address)
 {
   auto map_iter = m_physical_page_blocks.find(physical_page_address);
