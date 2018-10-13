@@ -1238,6 +1238,7 @@ protected:
   static raster_info* add_rasterizer(voodoo_device* vd, const raster_info* cinfo);
   static raster_info* find_rasterizer(voodoo_device* vd, int texcount);
   static void dump_rasterizer_stats(voodoo_device* vd);
+  static void blit(voodoo_device* vd);
 
   void accumulate_statistics(const stats_block& block);
   void update_statistics(bool accumulate);

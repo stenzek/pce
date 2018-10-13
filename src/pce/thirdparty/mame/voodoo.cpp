@@ -2520,6 +2520,41 @@ s32 voodoo_device::register_w(voodoo_device* vd, u32 offset, u32 data)
       }
       break;
 
+    case bltSrcBaseAddr:
+    case bltDstBaseAddr:
+    case bltXYStrides:
+    case bltSrcChromaRange:
+    case bltDstChromaRange:
+    case bltClipX:
+    case bltClipY:
+    case bltSrcXY:
+    case bltRop:
+    case bltColor:
+    case bltData:
+    {
+      if (vd->vd_type >= TYPE_VOODOO_2 && chips & 1)
+        vd->reg[regnum].u = data;
+    }
+    break;
+
+    case bltCommand:
+    case bltDstXY:
+    case bltSize:
+    {
+      if (vd->vd_type >= TYPE_VOODOO_2 && (chips & 1))
+      {
+        vd->reg[regnum].u = data;
+
+        // Bit 31 of these registers launches the blit.
+        if (data & (1u << 31))
+        {
+          poly_wait(vd->poly, vd->regnames[regnum]);
+          blit(vd);
+        }
+      }
+    }
+    break;
+
     /* gamma table access -- Voodoo/Voodoo2 only */
     case clutData:
       if (vd->vd_type <= TYPE_VOODOO_2 && (chips & 1))
@@ -4295,11 +4330,7 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
     int extnum, x, y;
 
     /* if we're not clearing either, take no time */
-    if (!FBZMODE_RGB_BUFFER_MASK(vd->reg[fbzMode].u) && !FBZMODE_AUX_BUFFER_MASK(vd->reg[fbzMode].u))
-      return 0;
-
-    /* are we clearing the RGB buffer? */
-    if (FBZMODE_RGB_BUFFER_MASK(vd->reg[fbzMode].u))
+    if (FBZMODE_RGB_BUFFER_MASK(vd->reg[fbzMode].u) || FBZMODE_AUX_BUFFER_MASK(vd->reg[fbzMode].u))
     {
       /* determine the draw buffer */
       int destbuf = FBZMODE_DRAW_BUFFER(vd->reg[fbzMode].u);
@@ -4911,6 +4942,61 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
     }
   }
 
+  void voodoo_device::blit(voodoo_device * vd)
+  {
+    const u32 command = vd->reg[bltCommand].u & 0x07u;
+    switch (command)
+    {
+      case 0:
+        Log_ErrorPrint("Screen-to-screen blit not implemented");
+        break;
+      case 1:
+        Log_ErrorPrint("CPU-to-screen blit not implemented");
+        break;
+      case 2:
+        Log_ErrorPrint("Rectangle blit not implemented");
+        break;
+      case 3:
+      {
+        const u32 dst_x = vd->reg[bltDstXY].u & 0x7FFu;
+        const u32 dst_y = (vd->reg[bltDstXY].u >> 16) & 0x7FFu;
+        const u32 cols = vd->reg[bltSize].u & 0x1FFu;
+        const u32 rows = (vd->reg[bltSize].u >> 16) & 0x1FFu;
+        const u32 fgcolor = vd->reg[bltColor].u & 0xFFFFu;
+        const u32 stride = 4 << vd->fbi.lfb_stride;
+        Log_DebugPrintf("SGRAM fill %u %u - %u %u - %04X", dst_x, dst_y, cols, rows, fgcolor);
+
+        u32 offset = dst_y * stride;
+        for (u32 row = 0; row <= rows; row++)
+        {
+          u32 addr, size;
+          if (row == 0)
+          {
+            addr = (offset + (dst_x * 2)) & vd->fbi.mask;
+            size = (stride / 2) - dst_x;
+          }
+          else
+          {
+            addr = offset & vd->fbi.mask;
+            size = (row == rows) ? cols : (stride / 2);
+          }
+
+          for (u32 col = 0; col < size; col++, addr += 2)
+          {
+            // NOTE: assumes little-endian.
+            std::memcpy(&vd->fbi.ram[addr], &fgcolor, sizeof(u16));
+          }
+
+          offset += stride;
+        }
+      }
+      break;
+      default:
+        Log_ErrorPrintf("Unknown blit command 0x%X", command);
+        break;
+    }
+  }
+
   voodoo_device::voodoo_device(u32 clock, u8 vdt) : m_fbmem(4), m_tmumem0(8), m_tmumem1(8), vd_type(vdt), freq(clock) {}
 
   //-------------------------------------------------
@@ -4958,6 +5044,8 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
     scry = y;
     if (FBZMODE_Y_ORIGIN(vd->reg[fbzMode].u))
       scry = (vd->fbi.yorigin - y);
+
+    // Log_DevPrintf("fastfill: %d %d %d", scry, startx, stopx);
 
     /* fill this RGB row */
     if (FBZMODE_RGB_BUFFER_MASK(vd->reg[fbzMode].u))
