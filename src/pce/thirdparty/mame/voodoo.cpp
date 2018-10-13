@@ -791,12 +791,12 @@ void voodoo_device::swap_buffers(voodoo_device* vd)
 {
   int count;
 
-  u32 current_line = vd->m_display_timing.GetCurrentLine(vd->m_timing_manager->GetTotalEmulatedTime());
+  s32 current_line = vd->m_display_timing.GetCurrentLine(vd->m_timing_manager->GetTotalEmulatedTime());
   if (LOG_VBLANK_SWAP)
-    Log_DevPrintf("--- swap_buffers @ %u", current_line);
+    Log_DevPrintf("--- swap_buffers @ %d", current_line);
 
   /* force a partial update */
-  vd->voodoo_update(std::min(current_line, vd->fbi.height));
+  // vd->voodoo_update(std::min(current_line, vd->fbi.height));
   vd->fbi.video_changed = true;
 
   /* keep a history of swap intervals */
@@ -811,12 +811,12 @@ void voodoo_device::swap_buffers(voodoo_device* vd)
     if (vd->fbi.rgboffs[2] == ~0)
     {
       vd->fbi.frontbuf = 1 - vd->fbi.frontbuf;
-      vd->fbi.backbuf = 1 - vd->fbi.frontbuf;
+      vd->fbi.backbuf = 1 - vd->fbi.backbuf;
     }
     else
     {
       vd->fbi.frontbuf = (vd->fbi.frontbuf + 1) % 3;
-      vd->fbi.backbuf = (vd->fbi.frontbuf + 1) % 3;
+      vd->fbi.backbuf = (vd->fbi.backbuf + 1) % 3;
     }
   }
 
@@ -905,8 +905,6 @@ void voodoo_device::vblank_callback(CycleCount time_late)
   if (LOG_VBLANK_SWAP)
     Log_DevPrintf("--- vblank start");
 
-  voodoo_update(fbi.height);
-
   /* flush the pipes */
   if (pci.op_pending)
   {
@@ -916,6 +914,9 @@ void voodoo_device::vblank_callback(CycleCount time_late)
     if (LOG_VBLANK_SWAP)
       Log_DevPrintf("---- vblank flush end");
   }
+
+  poly_wait(poly, "vblank scanout");
+  voodoo_update(m_display_timing.GetVerticalVisible());
 
   /* increment the count */
   fbi.vblank_count++;
@@ -2623,7 +2624,7 @@ s32 voodoo_device::register_w(voodoo_device* vd, u32 offset, u32 data)
             dt.SetPixelClock(65.000 * 1000000.0); // 1024x768 @ 60hz
 
           /* recompute the time of VBLANK */
-          if (vd->m_display_timing.IsValid() != prev_valid)
+          // if (vd->m_display_timing.IsValid())
           {
             vd->fbi.vsync_start_timer->SetActive(false);
             vd->fbi.vsync_stop_timer->SetActive(false);
@@ -2642,8 +2643,8 @@ s32 voodoo_device::register_w(voodoo_device* vd, u32 offset, u32 data)
         else
         {
           // Config is invalid. TODO: Use reset register?
-          vd->fbi.vsync_start_timer->SetActive(false);
-          vd->fbi.vsync_stop_timer->SetActive(false);
+          // vd->fbi.vsync_start_timer->SetActive(false);
+          // vd->fbi.vsync_stop_timer->SetActive(false);
         }
       }
       break;
