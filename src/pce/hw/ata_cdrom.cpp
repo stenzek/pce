@@ -49,6 +49,13 @@ bool ATACDROM::LoadState(BinaryReader& reader)
     return false;
 
   m_current_command = reader.ReadUInt16();
+  m_command_event->SetActive(false);
+  if (m_current_command != INVALID_COMMAND)
+  {
+    // Downcount will be fixed in event loading.
+    m_command_event->Queue(1);
+  }
+
   return !reader.GetErrorState();
 }
 

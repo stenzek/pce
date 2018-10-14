@@ -57,8 +57,7 @@ void CDROM::Reset()
   m_current_lba = 0;
   m_tray_locked = false;
 
-  if (m_command_event->IsActive())
-    m_command_event->Deactivate();
+  m_command_event->SetActive(false);
 }
 
 bool CDROM::LoadState(BinaryReader& reader)
@@ -85,6 +84,12 @@ bool CDROM::LoadState(BinaryReader& reader)
   bool result = reader.SafeReadUInt32(&m_data_response_size);
   result &= reader.SafeReadBool(&m_busy);
   result &= reader.SafeReadBool(&m_error);
+
+  bool command_active = false;
+  result &= reader.SafeReadBool(&command_active);
+  m_command_event->SetActive(false);
+  if (command_active)
+    m_command_event->Queue(1);
 
   uint8 sense_key = 0;
   result &= reader.SafeReadUInt8(&sense_key);
@@ -132,6 +137,7 @@ bool CDROM::SaveState(BinaryWriter& writer)
   result &= writer.SafeWriteUInt32(m_data_response_size);
   result &= writer.SafeWriteBool(m_busy);
   result &= writer.SafeWriteBool(m_error);
+  result &= writer.SafeWriteBool(m_command_event->IsActive());
 
   result &= writer.SafeWriteUInt8(static_cast<uint8>(m_sense.key));
   result &= writer.SafeWriteBytes(m_sense.information, sizeof(m_sense.information));
