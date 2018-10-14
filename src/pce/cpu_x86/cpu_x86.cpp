@@ -1824,12 +1824,18 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
   }
   else // DS,ES,FS,GS
   {
-    if ((!descriptor.IsDataSegment() && !descriptor.IsReadableCodeSegment()) ||
-        ((descriptor.IsDataSegment() || descriptor.IsConformingCodeSegment() || (reg_value.rpl > descriptor.dpl)) &&
-         (GetCPL() > descriptor.dpl)))
+    if (!descriptor.IsDataSegment() && !descriptor.IsReadableCodeSegment())
     {
       RaiseException(Interrupt_GeneralProtectionFault, reg_value.ValueForException());
       return;
+    }
+    if (descriptor.IsDataSegment() || !descriptor.IsConformingCodeSegment())
+    {
+      if (reg_value.rpl > descriptor.dpl || GetCPL() > descriptor.dpl)
+      {
+        RaiseException(Interrupt_GeneralProtectionFault, reg_value.ValueForException());
+        return;
+      }
     }
     if (!descriptor.IsPresent())
     {
