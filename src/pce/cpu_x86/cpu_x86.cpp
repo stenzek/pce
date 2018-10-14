@@ -2197,6 +2197,7 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
   }
   else if (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_16 || descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_32)
   {
+    const bool is_32bit_gate = (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_32);
     if (descriptor.dpl < GetCPL() || descriptor.dpl < selector.rpl)
     {
       RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
@@ -2231,7 +2232,7 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
     // All good to jump through it
     target_selector.rpl = GetCPL();
     LoadSegmentRegister(Segment_CS, target_selector.bits);
-    BranchTo((operand_size == OperandSize_16) ? (offset & 0xFFFF) : (offset));
+    BranchTo(is_32bit_gate ? (descriptor.call_gate.GetOffset()) : (descriptor.call_gate.GetOffset() & 0xFFFF));
   }
   else if (descriptor.type == DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_16 ||
            descriptor.type == DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_32 ||
