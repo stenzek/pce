@@ -43,7 +43,7 @@ protected:
       // return (std::memcmp(this, &key, sizeof(key)) == 0);
       return (qword == key.qword);
     }
-    
+
     bool operator!=(const BlockKey& key) const
     {
       // return (std::memcmp(this, &key, sizeof(key)) != 0);

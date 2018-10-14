@@ -1044,6 +1044,7 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
                           AccessFlags flags)
 {
   // TODO: Large (4MB) pages
+  const bool user_mode = (InUserMode() && !HasAccessFlagBit(flags, AccessFlags::UseSupervisorPrivileges));
 
   // Obtain the address of the page directory. Bits 22-31 index the page directory.
   LinearMemoryAddress dir_base_address = (m_registers.CR3 & 0xFFFFF000);
@@ -1061,7 +1062,7 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
   {
     // Page not present.
     if (!HasAccessFlagBit(flags, AccessFlags::NoPageFaults))
-      RaisePageFault(linear_address, GetAccessTypeFromFlags(flags) == AccessType::Write, false);
+      RaisePageFault(linear_address, flags, false);
     return false;
   }
 
@@ -1080,14 +1081,14 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
   {
     // Page not present.
     if (!HasAccessFlagBit(flags, AccessFlags::NoPageFaults))
-      RaisePageFault(linear_address, GetAccessTypeFromFlags(flags) == AccessType::Write, false);
+      RaisePageFault(linear_address, flags, false);
     return false;
   }
 
   // Check access, requires both directory and page access
   // Permission checks only apply in usermode, except if WP bit of CR0 is set
   const bool do_access_check =
-    (!HasAccessFlagBit(flags, AccessFlags::NoPageProtectionCheck) && ((m_registers.CR0 & CR0Bit_WP) || InUserMode()));
+    (!HasAccessFlagBit(flags, AccessFlags::NoPageProtectionCheck) && ((m_registers.CR0 & CR0Bit_WP) || user_mode));
   if (do_access_check)
   {
     // Permissions for directory
@@ -1110,12 +1111,12 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
     table_permissions |= (table_entry.bits) & 0x02;               // user=write from R/W bit
     table_permissions &= 0x3D | ((table_entry.bits >> 1) & 0x02); // user=write from U/S bit
 
-    u8 access_mask = (1 << static_cast<u8>(GetAccessTypeFromFlags(flags))) << (InUserMode() ? 0 : 3);
+    u8 access_mask = (1 << static_cast<u8>(GetAccessTypeFromFlags(flags))) << (user_mode ? 0 : 3);
 
     if ((access_mask & directory_permissions & table_permissions) == 0)
     {
       if (!HasAccessFlagBit(flags, AccessFlags::NoPageFaults))
-        RaisePageFault(linear_address, GetAccessTypeFromFlags(flags) == AccessType::Write, true);
+        RaisePageFault(linear_address, flags, true);
       return false;
     }
   }
@@ -1160,16 +1161,18 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
   return true;
 }
 
-void CPU::RaisePageFault(LinearMemoryAddress linear_address, bool is_write, bool page_present)
+void CPU::RaisePageFault(LinearMemoryAddress linear_address, AccessFlags flags, bool page_present)
 {
+  const bool is_write = (GetAccessTypeFromFlags(flags) == AccessType::Write);
+  const bool user_mode = (InUserMode() && !HasAccessFlagBit(flags, AccessFlags::UseSupervisorPrivileges));
   Log_DebugPrintf("Page fault at linear address 0x%08X: %s,%s,%s", linear_address,
                   page_present ? "Present" : "Not Present", is_write ? "Write" : "Read",
-                  InUserMode() ? "User Mode" : "Supervisor Mode");
+                  user_mode ? "User Mode" : "Supervisor Mode");
 
   // Determine bits of error code
-  uint32 error_code = (((page_present) ? (1u << 0) : 0) | // P
-                       ((is_write) ? (1u << 1) : 0) |     // W/R
-                       ((InUserMode()) ? (1u << 2) : 0)); // U/S
+  const u32 error_code = (BoolToUInt8(page_present) << 0) | // P
+                         (BoolToUInt8(is_write) << 1) |     // W/R
+                         (BoolToUInt8(user_mode) << 2);     // U/S
 
   // Update CR2 with the linear address that triggered the fault
   m_registers.CR2 = linear_address;

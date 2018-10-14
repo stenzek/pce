@@ -454,7 +454,7 @@ protected:
   void RaiseException(uint32 interrupt, uint32 error_code = 0);
 
   // Raises page fault exception.
-  void RaisePageFault(LinearMemoryAddress linear_address, bool is_write, bool page_present);
+  void RaisePageFault(LinearMemoryAddress linear_address, AccessFlags flags, bool page_present);
 
   // Checking for external interrupts.
   bool HasExternalInterrupt() const;

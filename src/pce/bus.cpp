@@ -120,7 +120,7 @@ void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, b
     uint32 a_start = check_addresses[i];
     uint32 a_end = a_start + check_addresses[i + 1];
 
-    if ((v_start >= a_start && v_end <= a_end) || (a_start >= v_start && a_end <= v_end))
+    if ((v_start >= a_start && v_end < a_end) || (a_start >= v_start && a_end < v_end))
     {
       if (is_write)
         Log_WarningPrintf("Mem BP %08X while writing %08X (value 0x%08X)", a_start, v_start, value);
