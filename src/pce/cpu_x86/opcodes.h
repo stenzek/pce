@@ -253,8 +253,8 @@ MakeTwoOperands(0xAA, Operation_STOS, Yb, AL) \
 MakeTwoOperands(0xAB, Operation_STOS, Yv, eAX) \
 MakeTwoOperands(0xAC, Operation_LODS, AL, Xb) \
 MakeTwoOperands(0xAD, Operation_LODS, eAX, Xv) \
-MakeTwoOperands(0xAE, Operation_SCAS, AL, Xb) \
-MakeTwoOperands(0xAF, Operation_SCAS, eAX, Xv) \
+MakeTwoOperands(0xAE, Operation_SCAS, AL, Yb) \
+MakeTwoOperands(0xAF, Operation_SCAS, eAX, Yv) \
 MakeTwoOperands(0xB0, Operation_MOV, AL, Ib) \
 MakeTwoOperands(0xB1, Operation_MOV, CL, Ib) \
 MakeTwoOperands(0xB2, Operation_MOV, DL, Ib) \
