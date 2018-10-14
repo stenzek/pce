@@ -185,6 +185,13 @@ bool FDC::LoadState(BinaryReader& reader)
   reader.SafeReadBytes(m_current_command.buf, sizeof(m_current_command.buf));
   reader.SafeReadUInt8(&m_current_command.command_length);
 
+  // If the command buffer is present and full, this means a command was in progress
+  // when the state was saved. If we enable the command event now, the downcount
+  // will be fixed up later when events are loaded.
+  m_command_event->SetActive(false);
+  if (m_current_command.HasAllParameters())
+    m_command_event->Queue(1);
+
   reader.SafeReadBool(&m_current_transfer.active);
   reader.SafeReadBool(&m_current_transfer.multi_track);
   reader.SafeReadUInt8(&m_current_transfer.drive);
