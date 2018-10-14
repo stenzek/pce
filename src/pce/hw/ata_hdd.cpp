@@ -123,6 +123,9 @@ bool ATAHDD::LoadState(BinaryReader& reader)
   m_current_lba = reader.ReadUInt64();
 
   m_current_command = reader.ReadUInt16();
+  m_command_event->SetActive(false);
+  if (reader.ReadBool())
+    m_command_event->Queue(1);
 
   m_transfer_remaining_sectors = reader.ReadUInt32();
   m_transfer_block_size = reader.ReadUInt32();
@@ -153,6 +156,7 @@ bool ATAHDD::SaveState(BinaryWriter& writer)
   writer.WriteUInt64(m_current_lba);
 
   writer.WriteUInt16(m_current_command);
+  writer.WriteBool(m_command_event->IsActive());
 
   writer.WriteUInt32(m_transfer_remaining_sectors);
   writer.WriteUInt32(m_transfer_block_size);
