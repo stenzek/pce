@@ -3385,23 +3385,16 @@ void Interpreter::Execute_Operation_INT(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_8, "size is 8 bits");
   static_assert(dst_mode == OperandMode_Constant || dst_mode == OperandMode_Immediate, "constant or immediate");
-  uint32 interrupt = ReadByteOperand<dst_mode, dst_constant>(cpu);
+  u8 interrupt = ReadByteOperand<dst_mode, dst_constant>(cpu);
 
   cpu->AddCycles(CYCLES_INT);
+  cpu->SoftwareInterrupt(interrupt);
+}
 
-  // The V8086 IOPL checks do not occur for the one-byte INT3 instruction.
-  if constexpr (dst_mode != OperandMode_Constant)
-  {
-    // In V8086 mode, IOPL has to be 3 otherwise GPF.
-    if (cpu->InVirtual8086Mode() && cpu->GetIOPL() != 3)
-    {
-      cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
-      return;
-    }
-  }
-
-  // Return to IP after this instruction
-  cpu->SetupInterruptCall(interrupt, true, false, 0, cpu->m_registers.EIP);
+void Interpreter::Execute_Operation_INT3(CPU* cpu)
+{
+  cpu->AddCycles(CYCLES_INT3);
+  cpu->RaiseSoftwareException(Interrupt_Breakpoint);
 }
 
 void Interpreter::Execute_Operation_INTO(CPU* cpu)
@@ -3413,9 +3406,8 @@ void Interpreter::Execute_Operation_INTO(CPU* cpu)
     return;
   }
 
-  // Return address should not point to the faulting instruction.
   cpu->AddCycles(CYCLES_INTO_TRUE);
-  cpu->SetupInterruptCall(Interrupt_Overflow, false, false, 0, cpu->m_registers.EIP);
+  cpu->RaiseSoftwareException(Interrupt_Overflow);
 }
 
 void Interpreter::Execute_Operation_IRET(CPU* cpu)
@@ -3446,8 +3438,23 @@ void Interpreter::Execute_Operation_CLI(CPU* cpu)
   cpu->AddCycles(CYCLES_CLI);
 
   // TODO: Delay of one instruction
-  if (cpu->InProtectedMode() && cpu->GetCPL() > cpu->GetIOPL())
+  if (cpu->InProtectedMode() && cpu->GetIOPL() < cpu->GetCPL())
   {
+    // Adjust VIF instead of IF for VME/PVI.
+    if (cpu->InVirtual8086Mode())
+    {
+      if (cpu->m_registers.CR4.VME)
+      {
+        SET_FLAG(&cpu->m_registers, VIF, false);
+        return;
+      }
+    }
+    else if (cpu->m_registers.CR4.PVI && cpu->GetCPL() == 3)
+    {
+      SET_FLAG(&cpu->m_registers, VIF, false);
+      return;
+    }
+
     cpu->RaiseException(Interrupt_GeneralProtectionFault);
     return;
   }
@@ -3488,8 +3495,24 @@ void Interpreter::Execute_Operation_STD(CPU* cpu)
 void Interpreter::Execute_Operation_STI(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_CLI);
-  if (cpu->InProtectedMode() && cpu->GetCPL() > cpu->GetIOPL())
+
+  if (cpu->InProtectedMode() && cpu->GetIOPL() < cpu->GetCPL())
   {
+    // Adjust VIF instead of IF for VME/PVI.
+    if (cpu->InVirtual8086Mode())
+    {
+      if (cpu->m_registers.CR4.VME && !cpu->m_registers.EFLAGS.VIP)
+      {
+        SET_FLAG(&cpu->m_registers, VIF, true);
+        return;
+      }
+    }
+    else if (cpu->m_registers.CR4.PVI && cpu->GetCPL() == 3 && !cpu->m_registers.EFLAGS.VIP)
+    {
+      SET_FLAG(&cpu->m_registers, VIF, true);
+      return;
+    }
+
     cpu->RaiseException(Interrupt_GeneralProtectionFault);
     return;
   }
@@ -3534,41 +3557,70 @@ void Interpreter::Execute_Operation_PUSHF(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_PUSHF);
 
-  // In V8086 mode if IOPL!=3, trap to V8086 monitor
-  if (cpu->InVirtual8086Mode() && cpu->GetIOPL() != 3)
+  // RF and VM flags are cleared in the copy
+  u32 EFLAGS = cpu->m_registers.EFLAGS.bits & ~(Flag_RF | Flag_VM);
+
+  // IF modification is protected by IOPL in V8086 mode.
+  if (cpu->InVirtual8086Mode() && cpu->GetIOPL() < 3)
   {
-    cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
-    return;
+    // Without VME, trap to monitor.
+    if (cpu->idata.operand_size != OperandSize_16 || !cpu->m_registers.CR4.VME)
+    {
+      cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+      return;
+    }
+
+    // With VME, only the 16-bit operand version replaces IF with VIF.
+    EFLAGS = (EFLAGS & ~(Flag_IF)) | ((EFLAGS & Flag_VIF) >> 10);
   }
-
-  // RF flag is cleared in the copy
-  uint32 EFLAGS = cpu->m_registers.EFLAGS.bits;
-  EFLAGS &= ~Flag_RF;
-
-  // VM flag is never set from PUSHF
-  EFLAGS &= ~Flag_VM;
 
   if (cpu->idata.operand_size == OperandSize_16)
     cpu->PushWord(Truncate16(EFLAGS));
   else if (cpu->idata.operand_size == OperandSize_32)
     cpu->PushDWord(EFLAGS);
-  else
-    DebugUnreachableCode();
 }
 
 void Interpreter::Execute_Operation_POPF(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_POPF);
 
-  // If V8086 and IOPL!=3, trap to monitor
-  if (cpu->InVirtual8086Mode() && cpu->GetIOPL() != 3)
+  bool move_if_to_vif = false;
+
+  // Some flags can't be changed if we're not in CPL=0.
+  u32 change_mask =
+    Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_DF | Flag_OF | Flag_NT | Flag_AC | Flag_ID;
+  if (cpu->InProtectedMode())
   {
-    cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
-    return;
+    // If V8086 and IOPL!=3, trap to monitor, unless VME is enabled.
+    if (cpu->InVirtual8086Mode() && cpu->GetIOPL() < 3)
+    {
+      // Only the 16-bit PUSHF can be used in VME. If VIP is set, we should also #GP.
+      if (cpu->idata.operand_size != OperandSize_16 || !cpu->m_registers.CR4.VME || cpu->m_registers.EFLAGS.VIP)
+      {
+        cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+        return;
+      }
+
+      move_if_to_vif = true;
+      change_mask |= Flag_VIF;
+    }
+    else
+    {
+      // Neither of these will be true in V8086 mode and IOPL=3.
+      if (cpu->GetCPL() <= cpu->GetIOPL())
+        change_mask |= Flag_IF;
+      if (cpu->GetCPL() == 0)
+        change_mask |= Flag_IOPL;
+    }
+  }
+  else
+  {
+    // Both can be updated in real mode.
+    change_mask |= Flag_IF | Flag_IOPL;
   }
 
   // Pop flags off stack, leaving top 16 bits intact for 16-bit instructions.
-  uint32 flags = 0;
+  u32 flags = 0;
   if (cpu->idata.operand_size == OperandSize_16)
     flags = (cpu->m_registers.EFLAGS.bits & 0xFFFF0000) | ZeroExtend32(cpu->PopWord());
   else if (cpu->idata.operand_size == OperandSize_32)
@@ -3576,21 +3628,9 @@ void Interpreter::Execute_Operation_POPF(CPU* cpu)
   else
     DebugUnreachableCode();
 
-  // Some flags can't be changed if we're not in CPL=0.
-  uint32 change_mask =
-    Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_DF | Flag_OF | Flag_NT | Flag_AC | Flag_ID;
-  if (cpu->InProtectedMode())
-  {
-    if (cpu->GetCPL() <= cpu->GetIOPL())
-      change_mask |= Flag_IF;
-    if (cpu->GetCPL() == 0)
-      change_mask |= Flag_IOPL;
-  }
-  else
-  {
-    // Both can be updated in real mode.
-    change_mask |= Flag_IF | Flag_IOPL;
-  }
+  // V8086 mode extensions, IF -> VIF.
+  if (move_if_to_vif)
+    flags = (flags & ~Flag_IF) | ((flags & Flag_VIF) >> 10);
 
   // Update flags.
   cpu->SetFlags((flags & change_mask) | (cpu->m_registers.EFLAGS.bits & ~change_mask));
@@ -3904,7 +3944,7 @@ void Interpreter::Execute_Operation_BOUND(CPU* cpu)
   if (address < lower_bound || address > upper_bound)
   {
     cpu->AddCycles(CYCLES_BOUND_FAIL);
-    cpu->RaiseException(Interrupt_Bounds);
+    cpu->RaiseSoftwareException(Interrupt_Bounds);
   }
   else
   {

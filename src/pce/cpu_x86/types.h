@@ -314,6 +314,7 @@ enum Operation : uint8
   Operation_IN,
   Operation_INC,
   Operation_INT,
+  Operation_INT3,
   Operation_INTO,
   Operation_IRET,
   Operation_Jcc,
@@ -944,7 +945,7 @@ union SEGMENT_SELECTOR_VALUE
   BitField<uint16, bool, 2, 1> ti;       // use local descriptor table
   BitField<uint16, uint16, 3, 13> index; // descriptor table index
 
-  uint16 ValueForException() const { return (bits & 0xFFFC); }
+  uint16 GetExceptionErrorCode(bool ext) const { return ((bits & 0xFFFC) | BoolToUInt16(ext)); }
   bool IsNullSelector() const { return ((bits & 0xFFFC) == 0); }
 };
 

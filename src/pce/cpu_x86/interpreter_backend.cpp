@@ -94,13 +94,7 @@ void InterpreterBackend::ExecuteInstruction(CPU* cpu)
   Dispatch_Base(cpu);
 
   if (cpu->m_trap_after_instruction)
-  {
-    // We should push the next instruction pointer, not the instruction that's trapping,
-    // since it has already executed. We also can't use m_cpu->RaiseException since this would
-    // reset the stack pointer too (and it could be a stack-modifying instruction). We
-    // also don't need to abort the current instruction since we're looping anyway.
-    cpu->SetupInterruptCall(Interrupt_Debugger, false, false, 0, cpu->m_registers.EIP);
-  }
+    cpu->RaiseDebugException();
 }
 
 void InterpreterBackend::RaiseInvalidOpcode(CPU* cpu)

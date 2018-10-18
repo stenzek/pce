@@ -322,10 +322,12 @@ bool CodeCacheBackend::IsExitBlockInstruction(const Instruction* instruction)
     case Operation_RET_Near:
     case Operation_RET_Far:
     case Operation_INT:
+    case Operation_INT3:
     case Operation_INTO:
     case Operation_IRET:
     case Operation_HLT:
     case Operation_INVLPG:
+    case Operation_BOUND:
       return true;
 
       // STI strictly shouldn't be an issue, but if a block has STI..CLI in the same block,

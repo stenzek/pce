@@ -155,6 +155,8 @@ public:
         FlagAccess<Flag_RF> RF;
         FlagAccess<Flag_VM> VM;
         FlagAccess<Flag_AC> AC;
+        FlagAccess<Flag_VIF> VIF;
+        FlagAccess<Flag_VIP> VIP;
         uint32 bits;
       } EFLAGS;
 
@@ -453,8 +455,20 @@ protected:
   // Throws an exception, leaving IP containing the address of the current instruction
   void RaiseException(uint32 interrupt, uint32 error_code = 0);
 
+  // Raises a software interrupt (INT3, INTO, BOUND). Does not abort the current instruction.
+  // EIP is set to the next instruction, not the excepting instruction. ESP is not reset.
+  void RaiseSoftwareException(uint32 interrupt);
+
+  // Debugger exceptions, whether from the INT1 instruction, or from debug exceptions should
+  // not be classed as software exceptions for the purpose of the EXT bit, or descriptor checks.
+  void RaiseDebugException();
+
   // Raises page fault exception.
   void RaisePageFault(LinearMemoryAddress linear_address, AccessFlags flags, bool page_present);
+
+  // Raises a software interrupt (INT n). Does not abort the current instruction, EIP is set to
+  // the next instruction, and ESP is not reset. VME-style interrupts are checked and invoked.
+  void SoftwareInterrupt(u8 interrupt);
 
   // Checking for external interrupts.
   bool HasExternalInterrupt() const;
@@ -476,6 +490,7 @@ protected:
   void SetupInterruptCall(uint32 interrupt, bool software_interrupt, bool push_error_code, uint32 error_code,
                           uint32 return_EIP);
   void SetupRealModeInterruptCall(uint32 interrupt, uint32 return_EIP);
+  void SetupV86ModeInterruptCall(u8 interrupt, u32 return_EIP);
   void SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interrupt, bool push_error_code,
                                        uint32 error_code, uint32 return_EIP);
 
@@ -501,6 +516,9 @@ protected:
 
   // Checks permissions for the specified IO port against the IO permission bitmap
   bool HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exceptions);
+
+  // Checks permissions for the specified interrupt against the interrupt bitmap in enhanced V8086 mode.
+  bool IsVMEInterruptBitSet(u8 port_number);
 
   // Temporary: TODO move to debugger interface
   void DumpPageTable();

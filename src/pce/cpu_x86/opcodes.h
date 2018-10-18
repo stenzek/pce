@@ -283,7 +283,7 @@ MakeTwoOperands(0xC8, Operation_ENTER, Iw, Ib2) \
 MakeNoOperands(0xC9, Operation_LEAVE) \
 MakeOneOperand(0xCA, Operation_RET_Far, Iw) \
 MakeNoOperands(0xCB, Operation_RET_Far) \
-MakeOneOperand(0xCC, Operation_INT, Cb(3)) \
+MakeNoOperands(0xCC, Operation_INT3) \
 MakeOneOperand(0xCD, Operation_INT, Ib) \
 MakeNoOperands(0xCE, Operation_INTO) \
 MakeNoOperands(0xCF, Operation_IRET) \

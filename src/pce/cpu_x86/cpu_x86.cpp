@@ -853,13 +853,12 @@ void CPU::TemporaryStack::SwitchTo()
 void CPU::SetFlags(uint32 value)
 {
   // Don't clear/set all flags, only those allowed
-  uint32 MASK =
+  u32 MASK =
     Flag_IOPL | Flag_NT | Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_IF | Flag_DF | Flag_OF;
-
   if (m_model >= MODEL_PENTIUM)
   {
     // ID is Pentium+
-    MASK |= Flag_AC | Flag_ID;
+    MASK |= Flag_VIP | Flag_VIF | Flag_AC | Flag_ID;
   }
   else if (m_model == MODEL_486)
   {
@@ -962,6 +961,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, uint32 value)
 
     case Reg32_CR4:
     {
+      // TODO: Test for invalid bits on 386/486.
       if (m_registers.CR4.bits != value)
         Log_DebugPrintf("CR4 <- 0x%08X", value);
 
@@ -1629,7 +1629,7 @@ bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 che
   if (selector.index == 0)
   {
     if (raise_exceptions)
-      RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return false;
   }
 
@@ -1638,7 +1638,7 @@ bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 che
   if (!ReadDescriptorEntry(&descriptor, selector.ti ? m_ldt_location : m_gdt_location, selector.index))
   {
     if (raise_exceptions)
-      RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return false;
   }
 
@@ -1646,7 +1646,7 @@ bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 che
   if (!descriptor.IsCodeSegment())
   {
     if (raise_exceptions)
-      RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return false;
   }
 
@@ -1656,7 +1656,7 @@ bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 che
     if (descriptor.dpl != check_cpl)
     {
       if (raise_exceptions)
-        RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+        RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
       return false;
     }
 
@@ -1664,7 +1664,7 @@ bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 che
     if (check_rpl > check_cpl)
     {
       if (raise_exceptions)
-        RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+        RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
       return false;
     }
   }
@@ -1674,7 +1674,7 @@ bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 che
     if (descriptor.dpl > check_cpl)
     {
       if (raise_exceptions)
-        RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+        RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
       return false;
     }
   }
@@ -1684,7 +1684,7 @@ bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 che
   if (!descriptor.IsPresent())
   {
     if (raise_exceptions)
-      RaiseException(Interrupt_SegmentNotPresent, selector.ValueForException());
+      RaiseException(Interrupt_SegmentNotPresent, selector.GetExceptionErrorCode(false));
     return false;
   }
 
@@ -1799,7 +1799,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
   DESCRIPTOR_ENTRY descriptor;
   if (!ReadDescriptorEntry(&descriptor, reg_value.ti ? m_ldt_location : m_gdt_location, reg_value.index))
   {
-    RaiseException(Interrupt_GeneralProtectionFault, reg_value.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, reg_value.GetExceptionErrorCode(false));
     return;
   }
 
@@ -1808,12 +1808,12 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
   {
     if (reg_value.rpl != GetCPL() || descriptor.dpl != GetCPL() || !descriptor.IsWritableDataSegment())
     {
-      RaiseException(Interrupt_GeneralProtectionFault, reg_value.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, reg_value.GetExceptionErrorCode(false));
       return;
     }
     if (!descriptor.IsPresent())
     {
-      RaiseException(Interrupt_StackFault, reg_value.ValueForException());
+      RaiseException(Interrupt_StackFault, reg_value.GetExceptionErrorCode(false));
       return;
     }
   }
@@ -1826,20 +1826,20 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
   {
     if (!descriptor.IsDataSegment() && !descriptor.IsReadableCodeSegment())
     {
-      RaiseException(Interrupt_GeneralProtectionFault, reg_value.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, reg_value.GetExceptionErrorCode(false));
       return;
     }
     if (descriptor.IsDataSegment() || !descriptor.IsConformingCodeSegment())
     {
       if (reg_value.rpl > descriptor.dpl || GetCPL() > descriptor.dpl)
       {
-        RaiseException(Interrupt_GeneralProtectionFault, reg_value.ValueForException());
+        RaiseException(Interrupt_GeneralProtectionFault, reg_value.GetExceptionErrorCode(false));
         return;
       }
     }
     if (!descriptor.IsPresent())
     {
-      RaiseException(Interrupt_SegmentNotPresent, reg_value.ValueForException());
+      RaiseException(Interrupt_SegmentNotPresent, reg_value.GetExceptionErrorCode(false));
       return;
     }
   }
@@ -1920,7 +1920,7 @@ void CPU::LoadLocalDescriptorTable(uint16 value)
   // Has to be a GDT selector
   if (selector.ti)
   {
-    RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -1928,19 +1928,19 @@ void CPU::LoadLocalDescriptorTable(uint16 value)
   DESCRIPTOR_ENTRY descriptor;
   if (!ReadDescriptorEntry(&descriptor, m_gdt_location, selector.index))
   {
-    RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
   if (!descriptor.present)
   {
-    RaiseException(Interrupt_SegmentNotPresent, selector.ValueForException());
+    RaiseException(Interrupt_SegmentNotPresent, selector.GetExceptionErrorCode(false));
     return;
   }
 
   // Has to be a LDT descriptor
   if (!descriptor.IsSystemSegment() || descriptor.type != DESCRIPTOR_TYPE_LDT)
   {
-    RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -1959,7 +1959,7 @@ void CPU::LoadTaskSegment(uint16 value)
   SEGMENT_SELECTOR_VALUE selector = {value};
   if (selector.ti || selector.index == 0)
   {
-    RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -1967,12 +1967,12 @@ void CPU::LoadTaskSegment(uint16 value)
   DESCRIPTOR_ENTRY descriptor;
   if (!ReadDescriptorEntry(&descriptor, m_gdt_location, selector.index))
   {
-    RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
   if (!descriptor.present)
   {
-    RaiseException(Interrupt_SegmentNotPresent, selector.ValueForException());
+    RaiseException(Interrupt_SegmentNotPresent, selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -1980,7 +1980,7 @@ void CPU::LoadTaskSegment(uint16 value)
   if (!descriptor.IsSystemSegment() || (descriptor.type != DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_16 &&
                                         descriptor.type != DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_32))
   {
-    RaiseException(Interrupt_SegmentNotPresent, selector.ValueForException());
+    RaiseException(Interrupt_SegmentNotPresent, selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -2040,10 +2040,11 @@ void CPU::DispatchExternalInterrupt()
 
   // Request interrupt number from the PIC.
   const uint32 interrupt_number = m_interrupt_controller->GetInterruptNumber();
+  Log_TracePrintf("Hardware interrupt %u", interrupt_number);
   SetupInterruptCall(interrupt_number, false, false, 0, m_registers.EIP);
 }
 
-void CPU::RaiseException(uint32 interrupt, uint32 error_code)
+void CPU::RaiseException(uint32 interrupt, uint32 error_code /* = 0 */)
 {
   if (interrupt == Interrupt_PageFault)
   {
@@ -2087,6 +2088,45 @@ void CPU::RaiseException(uint32 interrupt, uint32 error_code)
 
   // Abort the current instruction that is executing.
   AbortCurrentInstruction();
+}
+
+void CPU::SoftwareInterrupt(u8 interrupt)
+{
+  if (InVirtual8086Mode())
+  {
+    // Check the bit in the interrupt bitmap, to see whether we should do a real-mode call.
+    if (m_registers.CR4.VME && IsVMEInterruptBitSet(Truncate8(interrupt)))
+    {
+      // Invoke real-mode interrupt from within v8086 task.
+      SetupV86ModeInterruptCall(interrupt, m_registers.EIP);
+      return;
+    }
+
+    // Interrupts in V8086 mode with IOPL != 3 trap to monitor
+    if (GetIOPL() < 3)
+    {
+      RaiseException(Interrupt_GeneralProtectionFault, 0);
+      return;
+    }
+  }
+
+  SetupInterruptCall(interrupt, true, false, 0, m_registers.EIP);
+}
+
+void CPU::RaiseSoftwareException(uint32 interrupt)
+{
+  // TODO: Should this double fault on permission check fail? If so, uncomment the line below.
+  // m_current_exception = interrupt;
+  SetupInterruptCall(interrupt, true, false, 0, m_registers.EIP);
+}
+
+void CPU::RaiseDebugException()
+{
+  // We should push the next instruction pointer, not the instruction that's trapping,
+  // since it has already executed. We also can't use RaiseException() since this would
+  // reset the stack pointer too (and it could be a stack-modifying instruction). We
+  // also don't need to abort the current instruction since we're looping anyway.
+  SetupInterruptCall(Interrupt_Debugger, false, false, 0, m_registers.EIP);
 }
 
 void CPU::BranchTo(uint32 new_EIP)
@@ -2147,12 +2187,12 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
   if (selector.index == 0 ||
       !ReadDescriptorEntry(&descriptor, selector.ti ? m_ldt_location : m_gdt_location, selector.index))
   {
-    RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
   if (!descriptor.present)
   {
-    RaiseException(Interrupt_SegmentNotPresent, selector.ValueForException());
+    RaiseException(Interrupt_SegmentNotPresent, selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -2165,7 +2205,7 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
       // Can't jump to a segment of lower privilege (DPL > CPL)
       if (descriptor.dpl > GetCPL())
       {
-        RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+        RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
         return;
       }
 
@@ -2178,7 +2218,7 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
       // Can't lower privilege levels via RPL, must have matching privilege
       if (selector.rpl > GetCPL() || descriptor.dpl != GetCPL())
       {
-        RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+        RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
         return;
       }
 
@@ -2192,7 +2232,7 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
   else if (descriptor.IsDataSegment())
   {
     // We can't jump to a non-code segment
-    RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
   else if (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_16 || descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_32)
@@ -2200,7 +2240,7 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
     const bool is_32bit_gate = (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_32);
     if (descriptor.dpl < GetCPL() || descriptor.dpl < selector.rpl)
     {
-      RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
       return;
     }
 
@@ -2212,12 +2252,12 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
                              target_selector.index) ||
         !target_descriptor.IsCodeSegment())
     {
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(false));
       return;
     }
     if (!target_descriptor.IsPresent())
     {
-      RaiseException(Interrupt_SegmentNotPresent, target_selector.ValueForException());
+      RaiseException(Interrupt_SegmentNotPresent, target_selector.GetExceptionErrorCode(false));
       return;
     }
 
@@ -2225,7 +2265,7 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
     if ((target_descriptor.memory.IsConformingCodeSegment() && target_descriptor.dpl > GetCPL()) ||
         (!target_descriptor.memory.IsConformingCodeSegment() && target_descriptor.dpl != GetCPL()))
     {
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(false));
       return;
     }
 
@@ -2237,17 +2277,26 @@ void CPU::FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_si
   else if (descriptor.type == DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_16 ||
            descriptor.type == DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_32 ||
            descriptor.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_16 ||
-           descriptor.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_32)
+           descriptor.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_32 || descriptor.type == DESCRIPTOR_TYPE_TASK_GATE)
   {
-    // Jumping straight to a task segment without a task gate
-    SwitchToTask(segment_selector, false, false, false, 0);
-  }
-  else if (descriptor.type == DESCRIPTOR_TYPE_TASK_GATE)
-  {
-    // Switch to new task with nesting
-    DebugAssert(!m_registers.EFLAGS.VM);
-    Log_DebugPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
-    SwitchToTask(descriptor.task_gate.selector, false, false, false, 0);
+    if (descriptor.dpl < GetCPL() || selector.rpl > descriptor.dpl)
+    {
+      RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
+      return;
+    }
+
+    if (descriptor.type == DESCRIPTOR_TYPE_TASK_GATE)
+    {
+      // Switch to new task with nesting
+      Log_DebugPrintf("Jump task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
+      SwitchToTask(descriptor.task_gate.selector, false, false, false, 0);
+    }
+    else
+    {
+      // Jumping straight to a task segment without a task gate
+      Log_DebugPrintf("Jump task segment -> 0x%04X", ZeroExtend32(segment_selector));
+      SwitchToTask(segment_selector, false, false, false, 0);
+    }
   }
   else
   {
@@ -2288,12 +2337,12 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
   if (selector.index == 0 ||
       !ReadDescriptorEntry(&descriptor, selector.ti ? m_ldt_location : m_gdt_location, selector.index))
   {
-    RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
   if (!descriptor.present)
   {
-    RaiseException(Interrupt_SegmentNotPresent, selector.ValueForException());
+    RaiseException(Interrupt_SegmentNotPresent, selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -2306,7 +2355,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
       // Can't jump to a segment of lower privilege (DPL > CPL)
       if (descriptor.dpl > GetCPL())
       {
-        RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+        RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
         return;
       }
 
@@ -2319,7 +2368,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
       // Can't lower privilege levels via RPL, must have matching privilege
       if (selector.rpl > GetCPL() || descriptor.dpl != GetCPL())
       {
-        RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+        RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
         return;
       }
 
@@ -2332,7 +2381,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
   else if (descriptor.IsDataSegment())
   {
     // We can't jump to a non-code segment
-    RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
   else if (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_16 || descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_32)
@@ -2340,7 +2389,7 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
     const bool is_32bit_gate = (descriptor.type == DESCRIPTOR_TYPE_CALL_GATE_32);
     if (descriptor.dpl < GetCPL() || selector.rpl > descriptor.dpl)
     {
-      RaiseException(Interrupt_GeneralProtectionFault, selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
       return;
     }
 
@@ -2352,19 +2401,19 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
                              target_selector.index) ||
         !target_descriptor.IsCodeSegment())
     {
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(false));
       return;
     }
     if (!target_descriptor.IsPresent())
     {
-      RaiseException(Interrupt_SegmentNotPresent, target_selector.ValueForException());
+      RaiseException(Interrupt_SegmentNotPresent, target_selector.GetExceptionErrorCode(false));
       return;
     }
 
     // Can't lower privilege?
     if (target_descriptor.dpl > GetCPL())
     {
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(false));
       return;
     }
 
@@ -2422,14 +2471,14 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
       if (inner_ss_selector.IsNullSelector() || !ReadDescriptorEntry(&inner_ss_descriptor, inner_ss_selector) ||
           inner_ss_descriptor.dpl != target_descriptor.dpl || !inner_ss_descriptor.IsWritableDataSegment())
       {
-        RaiseException(Interrupt_InvalidTaskStateSegment, inner_ss_selector.ValueForException());
+        RaiseException(Interrupt_InvalidTaskStateSegment, inner_ss_selector.GetExceptionErrorCode(false));
         return;
       }
 
       // Must be present. This triggers a different exception.
       if (!inner_ss_descriptor.IsPresent())
       {
-        RaiseException(Interrupt_StackFault, inner_ss_selector.ValueForException());
+        RaiseException(Interrupt_StackFault, inner_ss_selector.GetExceptionErrorCode(false));
         return;
       }
 
@@ -2508,17 +2557,26 @@ void CPU::FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_si
   else if (descriptor.type == DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_16 ||
            descriptor.type == DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_32 ||
            descriptor.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_16 ||
-           descriptor.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_32)
+           descriptor.type == DESCRIPTOR_TYPE_BUSY_TASK_SEGMENT_32 || descriptor.type == DESCRIPTOR_TYPE_TASK_GATE)
   {
-    // Jumping straight to a task segment without a task gate
-    SwitchToTask(segment_selector, true, false, false, 0);
-  }
-  else if (descriptor.type == DESCRIPTOR_TYPE_TASK_GATE)
-  {
-    // Switch to new task with nesting
-    DebugAssert(!m_registers.EFLAGS.VM);
-    Log_DebugPrintf("Task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
-    SwitchToTask(descriptor.task_gate.selector, true, false, false, 0);
+    if (descriptor.dpl < GetCPL() || selector.rpl > descriptor.dpl)
+    {
+      RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
+      return;
+    }
+
+    if (descriptor.type == DESCRIPTOR_TYPE_TASK_GATE)
+    {
+      // Switch to new task with nesting
+      Log_DebugPrintf("Call task gate -> 0x%04X", ZeroExtend32(descriptor.task_gate.selector.GetValue()));
+      SwitchToTask(descriptor.task_gate.selector, true, false, false, 0);
+    }
+    else
+    {
+      // Jumping straight to a task segment without a task gate
+      Log_DebugPrintf("Call task segment -> 0x%04X", ZeroExtend32(segment_selector));
+      SwitchToTask(segment_selector, true, false, false, 0);
+    }
   }
   else
   {
@@ -2566,29 +2624,29 @@ void CPU::FarReturn(OperandSize operand_size, uint32 pop_byte_count)
                              target_selector.index) || // Check table limits
         !target_descriptor.IsCodeSegment())            // Check for code segment
     {
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(false));
       return;
     }
     if (target_selector.rpl < GetCPL()) // Check RPL<CPL
     {
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(false));
       return;
     }
     if (target_descriptor.IsConformingCodeSegment() &&
         target_descriptor.dpl > target_selector.rpl) // conforming and DPL>selector RPL
     {
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(false));
       return;
     }
     if (!target_descriptor.IsConformingCodeSegment() &&
         target_descriptor.dpl != target_selector.rpl) // non-conforming and DPL!=RPL
     {
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(false));
       return;
     }
     if (!target_descriptor.IsPresent())
     {
-      RaiseException(Interrupt_SegmentNotPresent, target_selector.ValueForException());
+      RaiseException(Interrupt_SegmentNotPresent, target_selector.GetExceptionErrorCode(false));
       return;
     }
     if (target_selector.rpl > GetCPL())
@@ -2640,9 +2698,9 @@ void CPU::InterruptReturn(OperandSize operand_size)
   if (InRealMode())
   {
     // Pull EIP/CS/FLAGS off the stack
-    uint32 return_EIP;
-    uint16 return_CS;
-    uint32 return_EFLAGS;
+    u32 return_EIP;
+    u16 return_CS;
+    u32 return_EFLAGS;
     if (operand_size == OperandSize_16)
     {
       return_EIP = ZeroExtend32(PopWord());
@@ -2663,33 +2721,57 @@ void CPU::InterruptReturn(OperandSize operand_size)
   }
   else if (InVirtual8086Mode())
   {
-    // V8086 return and IOPL != 3 traps to monitor
+    // V8086 return and IOPL != 3 traps to monitor.
     if (GetIOPL() != 3)
     {
-      RaiseException(Interrupt_GeneralProtectionFault, 0);
-      return;
+      // VME only kicks in on 16-bit IRET.
+      if (!m_registers.CR4.VME || operand_size != OperandSize_16)
+      {
+        RaiseException(Interrupt_GeneralProtectionFault, 0);
+        return;
+      }
     }
 
     // Pull EIP/CS/FLAGS off the stack
-    uint32 return_EIP;
-    uint16 return_CS;
-    uint32 return_EFLAGS;
+    // VM, IOPL, VIP, VIF not modified by flags change
+    u32 return_EIP;
+    u16 return_CS;
+    u32 return_EFLAGS;
     if (operand_size == OperandSize_16)
     {
       return_EIP = ZeroExtend32(PopWord());
       return_CS = PopWord();
       return_EFLAGS = (m_registers.EFLAGS.bits & 0xFFFF0000) | ZeroExtend32(PopWord());
+
+      // In all V8086 mode returns, mask away flags it can't change.
+      return_EFLAGS = (return_EFLAGS & ~(Flag_VM | Flag_IOPL)) | (m_registers.EFLAGS.bits & (Flag_VM | Flag_IOPL));
+
+      if (m_registers.CR4.VME)
+      {
+        // If the stack image IF is set, and VIP is 1, #GP.
+        if (m_registers.EFLAGS.VIP && (return_EFLAGS & Flag_IF) != 0)
+        {
+          RaiseException(Interrupt_GeneralProtectionFault, 0);
+          return;
+        }
+
+        // If VME is enabled, VIP = IF unless IOPL = 0.
+        if (GetIOPL() < 3)
+          return_EFLAGS = (return_EFLAGS & ~Flag_VIF) | ((return_EFLAGS & Flag_IF) << 10);
+      }
     }
     else
     {
       return_EIP = PopDWord();
       return_CS = Truncate16(PopDWord());
       return_EFLAGS = PopDWord();
-    }
+      return_EFLAGS &= ~(Flag_VM | Flag_IOPL | Flag_VIP | Flag_VIF);
+      return_EFLAGS |= m_registers.EFLAGS.bits & (Flag_VM | Flag_IOPL | Flag_VIP | Flag_VIF);
 
-    // VM, IOPL, VIP, VIF not modified by flags change
-    return_EFLAGS &= ~(Flag_VM | Flag_IOPL | Flag_VIP | Flag_VIF);
-    return_EFLAGS |= m_registers.EFLAGS.bits & (Flag_VM | Flag_IOPL | Flag_VIP | Flag_VIF);
+      // If VME is enabled, VIF = IF.
+      if (m_registers.CR4.VME)
+        return_EFLAGS = (return_EFLAGS & ~Flag_VIF) | ((return_EFLAGS & Flag_IF) << 10);
+    }
 
     // IRET within V8086 mode, handle the same as real mode
     LoadSegmentRegister(Segment_CS, return_CS);
@@ -2715,9 +2797,9 @@ void CPU::InterruptReturn(OperandSize operand_size)
   {
     // Protected mode
     // Pull EIP/CS/FLAGS off the stack
-    uint32 return_EIP;
-    uint16 return_CS;
-    uint32 return_EFLAGS;
+    u32 return_EIP;
+    u16 return_CS;
+    u32 return_EFLAGS;
     if (operand_size == OperandSize_16)
     {
       return_EIP = ZeroExtend32(PopWord());
@@ -2739,12 +2821,12 @@ void CPU::InterruptReturn(OperandSize operand_size)
                       return_EIP);
 
       // TODO: Check EIP lies within CS limits.
-      uint32 v86_ESP = PopDWord();
-      uint16 v86_SS = Truncate16(PopDWord());
-      uint16 v86_ES = Truncate16(PopDWord());
-      uint16 v86_DS = Truncate16(PopDWord());
-      uint16 v86_FS = Truncate16(PopDWord());
-      uint16 v86_GS = Truncate16(PopDWord());
+      u32 v86_ESP = PopDWord();
+      u16 v86_SS = Truncate16(PopDWord());
+      u16 v86_ES = Truncate16(PopDWord());
+      u16 v86_DS = Truncate16(PopDWord());
+      u16 v86_FS = Truncate16(PopDWord());
+      u16 v86_GS = Truncate16(PopDWord());
 
       // Enter v8086 mode
       // TODO: Validate segment registers
@@ -2767,7 +2849,7 @@ void CPU::InterruptReturn(OperandSize operand_size)
     SEGMENT_SELECTOR_VALUE target_selector = {return_CS};
     if (target_selector.rpl < GetCPL())
     {
-      RaiseException(Interrupt_GeneralProtectionFault, target_selector.ValueForException());
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(false));
       return;
     }
 
@@ -2776,8 +2858,8 @@ void CPU::InterruptReturn(OperandSize operand_size)
       return;
 
     // Some flags can't be changed if we're not in CPL=0.
-    uint32 change_mask = Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_DF | Flag_OF | Flag_NT |
-                         Flag_RF | Flag_AC | Flag_ID;
+    u32 change_mask = Flag_CF | Flag_PF | Flag_AF | Flag_ZF | Flag_SF | Flag_TF | Flag_DF | Flag_OF | Flag_NT |
+                      Flag_RF | Flag_AC | Flag_ID;
     if (GetCPL() <= GetIOPL())
       change_mask |= Flag_IF;
     if (GetCPL() == 0)
@@ -2792,8 +2874,8 @@ void CPU::InterruptReturn(OperandSize operand_size)
                       ZeroExtend32(target_selector.rpl.GetValue()));
 
       // Grab ESP/SS from stack
-      uint32 outer_ESP;
-      uint16 outer_SS;
+      u32 outer_ESP;
+      u16 outer_SS;
       if (operand_size == OperandSize_16)
       {
         outer_ESP = ZeroExtend32(PopWord());
@@ -2836,17 +2918,6 @@ void CPU::InterruptReturn(OperandSize operand_size)
 void CPU::SetupInterruptCall(uint32 interrupt, bool software_interrupt, bool push_error_code, uint32 error_code,
                              uint32 return_EIP)
 {
-  // Log_DevPrintf("Interrupt %02Xh", interrupt);
-  if (!software_interrupt)
-    Log_TracePrintf("Hardware interrupt %u", interrupt);
-
-  // Interrupts in V8086 mode with IOPL != 3 trap to monitor
-  if (InVirtual8086Mode() && GetIOPL() != 3 && software_interrupt)
-  {
-    RaiseException(Interrupt_GeneralProtectionFault, 0);
-    return;
-  }
-
   if (InRealMode())
     SetupRealModeInterruptCall(interrupt, return_EIP);
   else
@@ -2855,25 +2926,25 @@ void CPU::SetupInterruptCall(uint32 interrupt, bool software_interrupt, bool pus
 
 void CPU::SetupRealModeInterruptCall(uint32 interrupt, uint32 return_EIP)
 {
-  // Read IVT
-  // TODO: Check limit?
-  PhysicalMemoryAddress address = m_idt_location.base_address;
-  address += PhysicalMemoryAddress(interrupt) * 4;
+  // Check IVT limit.
+  const PhysicalMemoryAddress table_offset = static_cast<PhysicalMemoryAddress>(interrupt) * 4;
+  if (table_offset > m_idt_location.limit)
+  {
+    RaiseException(Interrupt_GeneralProtectionFault, 0);
+    return;
+  }
 
-  uint32 ivt_entry = 0;
-  SafeReadMemoryDWord(address, &ivt_entry, AccessFlags::UseSupervisorPrivileges);
+  // Read IVT.
+  u32 ivt_entry = 0;
+  SafeReadMemoryDWord(m_idt_location.base_address + table_offset, &ivt_entry, AccessFlags::UseSupervisorPrivileges);
 
   // Extract segment/instruction pointer from IDT entry
-  uint16 isr_segment_selector = uint16(ivt_entry >> 16);
-  uint32 isr_EIP = ZeroExtend32(ivt_entry & 0xFFFF);
-
-  // Load segment selector first in case it throws an exception
-  uint16 old_CS = m_registers.CS;
-  LoadSegmentRegister(Segment_CS, isr_segment_selector);
+  const u16 isr_segment_selector = Truncate16(ivt_entry >> 16);
+  const u32 isr_EIP = ZeroExtend32(ivt_entry & 0xFFFF);
 
   // Push FLAGS, CS, IP
   PushWord(Truncate16(m_registers.EFLAGS.bits));
-  PushWord(old_CS);
+  PushWord(m_registers.CS);
   PushWord(Truncate16(return_EIP));
 
   // Clear interrupt flag if set (stop recursive interrupts)
@@ -2882,19 +2953,44 @@ void CPU::SetupRealModeInterruptCall(uint32 interrupt, uint32 return_EIP)
   m_registers.EFLAGS.AC = false;
 
   // Resume code execution at interrupt entry point
+  LoadSegmentRegister(Segment_CS, isr_segment_selector);
   BranchFromException(isr_EIP);
+}
+
+void CPU::SetupV86ModeInterruptCall(u8 interrupt, u32 return_EIP)
+{
+  // Read virtual IVT.
+  u32 ivt_entry = 0;
+  SafeReadMemoryDWord(static_cast<PhysicalMemoryAddress>(interrupt) * 4, &ivt_entry,
+                      AccessFlags::UseSupervisorPrivileges);
+
+  // Extract segment/instruction pointer from IDT entry
+  const u16 isr_segment_selector = Truncate16(ivt_entry >> 16);
+  const u32 isr_EIP = ZeroExtend32(ivt_entry & 0xFFFF);
+
+  // VIF -> IF in flags if IOPL < 3
+  u16 push_FLAGS = Truncate16(m_registers.EFLAGS.bits);
+  if (GetIOPL() < 3)
+    push_FLAGS = (push_FLAGS & ~Flag_IF) | Truncate16((m_registers.EFLAGS.bits & Flag_VIF) >> 10) | Flag_IOPL;
+
+  // Push FLAGS, CS, IP
+  PushWord(push_FLAGS);
+  PushWord(m_registers.CS);
+  PushWord(Truncate16(return_EIP));
+
+  // Resume code execution at interrupt entry point
+  LoadSegmentRegister(Segment_CS, isr_segment_selector);
+  BranchFromException(isr_EIP);
+}
+
+constexpr u32 MakeIDTErrorCode(u32 num, bool software_interrupt)
+{
+  return ((num << 3) | u32(2) | BoolToUInt32(software_interrupt));
 }
 
 void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interrupt, bool push_error_code,
                                           uint32 error_code, uint32 return_EIP)
 {
-  auto MakeErrorCode = [](uint32 num, uint8 idt, bool software_interrupt) {
-    if (idt == 0)
-      return ((num & 0xFFFC) | BoolToUInt32(!software_interrupt));
-    else
-      return ((num << 3) | 2 | BoolToUInt32(!software_interrupt));
-  };
-
   // Check against bounds of the IDT
   DESCRIPTOR_ENTRY descriptor;
   if (!ReadDescriptorEntry(&descriptor, m_idt_location, interrupt))
@@ -2902,7 +2998,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
     // Raise GPF for out-of-range.
     // TODO: Arguments
     Log_WarningPrintf("Interrupt out of range: %u (limit %u)", interrupt, uint32(m_idt_location.limit));
-    RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(interrupt, 1, software_interrupt));
+    RaiseException(Interrupt_GeneralProtectionFault, MakeIDTErrorCode(interrupt, software_interrupt));
     return;
   }
 
@@ -2912,22 +3008,21 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
       descriptor.type != DESCRIPTOR_TYPE_TASK_GATE)
   {
     Log_WarningPrintf("Invalid IDT gate type");
-    RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(interrupt, 1, software_interrupt));
+    RaiseException(Interrupt_GeneralProtectionFault, MakeIDTErrorCode(interrupt, software_interrupt));
     return;
   }
 
   // Software interrupts have to check that CPL <= DPL to access privileged interrupts
   if (software_interrupt && descriptor.dpl < GetCPL())
   {
-    RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(interrupt, 1, software_interrupt));
+    RaiseException(Interrupt_GeneralProtectionFault, MakeIDTErrorCode(interrupt, software_interrupt));
     return;
   }
 
   // Check present flag
   if (!descriptor.IsPresent())
   {
-    Log_WarningPrintf("IDT gate not present");
-    RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(interrupt, 1, software_interrupt));
+    RaiseException(Interrupt_GeneralProtectionFault, MakeIDTErrorCode(interrupt, software_interrupt));
     return;
   }
 
@@ -2939,19 +3034,19 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
     DESCRIPTOR_ENTRY target_descriptor;
     if (target_selector.index == 0)
     {
-      RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(target_selector.bits, 0, software_interrupt));
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(!software_interrupt));
       return;
     }
     if (!ReadDescriptorEntry(&target_descriptor, target_selector.ti ? m_ldt_location : m_gdt_location,
                              target_selector.index) ||
         !target_descriptor.IsCodeSegment() || target_descriptor.dpl > GetCPL())
     {
-      RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(target_selector.bits, 0, software_interrupt));
+      RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(!software_interrupt));
       return;
     }
     if (!target_descriptor.IsPresent())
     {
-      RaiseException(Interrupt_SegmentNotPresent, MakeErrorCode(target_selector.bits, 0, software_interrupt));
+      RaiseException(Interrupt_SegmentNotPresent, target_selector.GetExceptionErrorCode(!software_interrupt));
       return;
     }
 
@@ -2964,7 +3059,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
         // If new code segment DPL != 0, then #GP(
         if (target_descriptor.dpl != 0)
         {
-          RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(target_selector.bits, 0, software_interrupt));
+          RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(!software_interrupt));
           return;
         }
 
@@ -3126,7 +3221,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
       // Trap to V8086 monitor
       if (InVirtual8086Mode())
       {
-        RaiseException(Interrupt_GeneralProtectionFault, MakeErrorCode(target_selector.bits, 0, software_interrupt));
+        RaiseException(Interrupt_GeneralProtectionFault, target_selector.GetExceptionErrorCode(!software_interrupt));
         return;
       }
 
@@ -3205,7 +3300,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
   if (current_task_selector.index == 0 || current_task_selector.ti ||
       !ReadDescriptorEntry(&current_task_descriptor, m_gdt_location, current_task_selector.index))
   {
-    RaiseException(Interrupt_SegmentNotPresent, current_task_selector.ValueForException());
+    RaiseException(Interrupt_SegmentNotPresent, current_task_selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -3217,7 +3312,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
                       ZeroExtend32(current_task_descriptor.type.GetValue()));
 
     // TODO: Is this correct?
-    RaiseException(Interrupt_GeneralProtectionFault, current_task_selector.ValueForException());
+    RaiseException(Interrupt_GeneralProtectionFault, current_task_selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -3229,7 +3324,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     // TODO: Is this correct?
     Log_WarningPrintf("Outgoing task segment is too small - %u required %u", current_task_descriptor.tss.GetLimit() + 1,
                       current_tss_min_size);
-    RaiseException(Interrupt_InvalidTaskStateSegment, current_task_selector.ValueForException());
+    RaiseException(Interrupt_InvalidTaskStateSegment, current_task_selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -3245,15 +3340,13 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
   }
 
   // Validate the new task before switching out.
-  // TODO: Privilege level check should not happen on interrupt or IRET.
   SEGMENT_SELECTOR_VALUE new_task_selector = {new_task};
   DESCRIPTOR_ENTRY new_task_descriptor;
   if (new_task_selector.index == 0 || new_task_selector.ti ||
-      !ReadDescriptorEntry(&new_task_descriptor, m_gdt_location, new_task_selector.index) ||
-      new_task_descriptor.dpl < GetCPL() || new_task_descriptor.dpl < new_task_selector.rpl)
+      !ReadDescriptorEntry(&new_task_descriptor, m_gdt_location, new_task_selector.index))
   {
-    Log_WarningPrintf("Incoming task descriptor is not valid or privilege error");
-    RaiseException(Interrupt_GeneralProtectionFault, new_task_selector.ValueForException());
+    Log_WarningPrintf("Incoming task descriptor is not valid");
+    RaiseException(Interrupt_GeneralProtectionFault, new_task_selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -3266,7 +3359,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     Log_WarningPrintf("Incoming task descriptor is incorrect type - %u",
                       ZeroExtend32(new_task_descriptor.type.GetValue()));
     RaiseException(from_iret ? Interrupt_InvalidTaskStateSegment : Interrupt_GeneralProtectionFault,
-                   new_task_selector.ValueForException());
+                   new_task_selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -3278,7 +3371,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     // TODO: Is this correct?
     Log_WarningPrintf("Incoming task segment is too small - %u required %u", new_task_descriptor.tss.GetLimit() + 1,
                       new_tss_min_size);
-    RaiseException(Interrupt_InvalidTaskStateSegment, new_task_selector.ValueForException());
+    RaiseException(Interrupt_InvalidTaskStateSegment, new_task_selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -3493,7 +3586,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
       (ldt_selector.ti || !ReadDescriptorEntry(&ldt_descriptor, m_gdt_location, ldt_selector.index) ||
        !ldt_descriptor.IsPresent() || !ldt_descriptor.IsSystemSegment() || ldt_descriptor.type != DESCRIPTOR_TYPE_LDT))
   {
-    RaiseException(Interrupt_InvalidTaskStateSegment, ldt_selector.ValueForException());
+    RaiseException(Interrupt_InvalidTaskStateSegment, ldt_selector.GetExceptionErrorCode(false));
     return;
   }
   m_ldt_location.base_address = ldt_descriptor.ldt.GetBase();
@@ -3509,7 +3602,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
   if (cs_selector.IsNullSelector() || !ReadDescriptorEntry(&cs_descriptor, cs_selector) ||
       (!cs_descriptor.IsConformingCodeSegment() && cs_selector.rpl != cs_descriptor.dpl))
   {
-    RaiseException(Interrupt_InvalidTaskStateSegment, cs_selector.ValueForException());
+    RaiseException(Interrupt_InvalidTaskStateSegment, cs_selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -3519,42 +3612,42 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
   if (ss_selector.IsNullSelector() || !ReadDescriptorEntry(&ss_descriptor, ss_selector) ||
       !ss_descriptor.IsWritableDataSegment())
   {
-    RaiseException(Interrupt_InvalidTaskStateSegment, ss_selector.ValueForException());
+    RaiseException(Interrupt_InvalidTaskStateSegment, ss_selector.GetExceptionErrorCode(false));
     return;
   }
 
   // (8) Stack segment is present in memory.
   if (!ss_descriptor.IsPresent())
   {
-    RaiseException(Interrupt_StackFault, ss_selector.ValueForException());
+    RaiseException(Interrupt_StackFault, ss_selector.GetExceptionErrorCode(false));
     return;
   }
 
   // (9) Stack segment DPL matches CPL.
   if (ss_descriptor.dpl != cs_selector.rpl)
   {
-    RaiseException(Interrupt_InvalidTaskStateSegment, ss_selector.ValueForException());
+    RaiseException(Interrupt_InvalidTaskStateSegment, ss_selector.GetExceptionErrorCode(false));
     return;
   }
 
   // (11) CS selector is valid.
   if (!cs_descriptor.IsCodeSegment())
   {
-    RaiseException(Interrupt_InvalidTaskStateSegment, cs_selector.ValueForException());
+    RaiseException(Interrupt_InvalidTaskStateSegment, cs_selector.GetExceptionErrorCode(false));
     return;
   }
 
   // (12) Code segment is present in memory.
   if (!cs_descriptor.IsPresent())
   {
-    RaiseException(Interrupt_SegmentNotPresent, cs_selector.ValueForException());
+    RaiseException(Interrupt_SegmentNotPresent, cs_selector.GetExceptionErrorCode(false));
     return;
   }
 
   // (13) Stack segment DPL matches selector RPL.
   if (ss_descriptor.dpl != ss_selector.rpl)
   {
-    RaiseException(Interrupt_InvalidTaskStateSegment, ss_selector.ValueForException());
+    RaiseException(Interrupt_InvalidTaskStateSegment, ss_selector.GetExceptionErrorCode(false));
     return;
   }
 
@@ -3570,7 +3663,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     DESCRIPTOR_ENTRY& descriptor = segment_descriptors[segment];
     if (!selector.IsNullSelector() && !ReadDescriptorEntry(&descriptor, selector))
     {
-      RaiseException(Interrupt_InvalidTaskStateSegment, selector.ValueForException());
+      RaiseException(Interrupt_InvalidTaskStateSegment, selector.GetExceptionErrorCode(false));
       return;
     }
   }
@@ -3582,7 +3675,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     const DESCRIPTOR_ENTRY& descriptor = segment_descriptors[segment];
     if (!selector.IsNullSelector() && !descriptor.IsReadableSegment())
     {
-      RaiseException(Interrupt_InvalidTaskStateSegment, selector.ValueForException());
+      RaiseException(Interrupt_InvalidTaskStateSegment, selector.GetExceptionErrorCode(false));
       return;
     }
   }
@@ -3594,7 +3687,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     const DESCRIPTOR_ENTRY& descriptor = segment_descriptors[segment];
     if (!selector.IsNullSelector() && !descriptor.IsPresent())
     {
-      RaiseException(Interrupt_SegmentNotPresent, selector.ValueForException());
+      RaiseException(Interrupt_SegmentNotPresent, selector.GetExceptionErrorCode(false));
       return;
     }
   }
@@ -3606,7 +3699,7 @@ void CPU::SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool p
     const DESCRIPTOR_ENTRY& descriptor = segment_descriptors[segment];
     if (!selector.IsNullSelector() && descriptor.dpl < cs_selector.rpl && !descriptor.IsConformingCodeSegment())
     {
-      RaiseException(Interrupt_InvalidTaskStateSegment, selector.ValueForException());
+      RaiseException(Interrupt_InvalidTaskStateSegment, selector.GetExceptionErrorCode(false));
       return;
     }
   }
@@ -3686,6 +3779,32 @@ bool CPU::HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exc
 
   // IO operation is allowed
   return true;
+}
+
+bool CPU::IsVMEInterruptBitSet(u8 port_number)
+{
+  // Check TSS validity
+  if ((offsetof(TASK_STATE_SEGMENT_32, IOPB_offset) + (sizeof(uint16) - 1)) > m_tss_location.limit)
+    return true;
+
+  // Get IOPB offset
+  u16 iopb_offset;
+  LinearMemoryAddress iopb_offset_address = m_tss_location.base_address + offsetof(TASK_STATE_SEGMENT_32, IOPB_offset);
+  SafeReadMemoryWord(iopb_offset_address, &iopb_offset, AccessFlags::UseSupervisorPrivileges);
+  if (iopb_offset < 32)
+  {
+    // TODO: Is this correct?
+    return true;
+  }
+
+  const u8 byte_number = port_number / 8;
+  const u8 bit_mask = (1u << (port_number % 8));
+  u8 permission_bit;
+  SafeReadMemoryByte(m_tss_location.base_address + ZeroExtend32(iopb_offset - 32 + byte_number), &permission_bit,
+                     AccessFlags::UseSupervisorPrivileges);
+
+  // The bit *not* being set enables VME behavior.
+  return ((permission_bit & bit_mask) == 0);
 }
 
 void CPU::CheckFloatingPointException()
@@ -3917,8 +4036,8 @@ void CPU::ExecuteCPUIDInstruction()
           break;
 
         case MODEL_PENTIUM:
-          m_registers.EDX = CPUID_FLAG_FPU /*| CPUID_FLAG_DE */ /*| CPUID_FLAG_VME*/ /*| CPUID_FLAG_PSE*/
-                            | CPUID_FLAG_TSC                                         /* | CPUID_FLAG_MSR*/
+          m_registers.EDX = CPUID_FLAG_FPU /*| CPUID_FLAG_DE */ | CPUID_FLAG_VME /*| CPUID_FLAG_PSE*/
+                            | CPUID_FLAG_TSC                                     /* | CPUID_FLAG_MSR*/
                             |
                             /*| CPUID_FLAG_MCE */ CPUID_FLAG_CX8;
           break;
@@ -4161,6 +4280,7 @@ bool CPU::FillPrefetchQueue()
   return false;
 #endif
 }
+
 #if 0
 float80* CPU::GetFloatRegister(uint8 relative_index)
 {

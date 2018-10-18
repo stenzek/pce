@@ -171,6 +171,7 @@ public:
   static inline void Execute_Operation_RET_Far(CPU* cpu);
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
   static inline void Execute_Operation_INT(CPU* cpu);
+  static inline void Execute_Operation_INT3(CPU* cpu);
   static inline void Execute_Operation_INTO(CPU* cpu);
   static inline void Execute_Operation_IRET(CPU* cpu);
 
