@@ -4,9 +4,11 @@
 
 int main(int argc, char** argv)
 {
-  // LOGLEVEL filter_level = LOGLEVEL_PROFILE;
+#ifdef Y_BUILD_CONFIG_RELEASE
   LOGLEVEL filter_level = LOGLEVEL_INFO;
-  // LOGLEVEL filter_level = LOGLEVEL_ERROR;
+#else
+  LOGLEVEL filter_level = LOGLEVEL_PROFILE;
+#endif
   Log::GetInstance().SetFilterLevel(filter_level);
   Log::GetInstance().SetConsoleOutputParams(true, nullptr, filter_level);
   // Log::GetInstance().SetDebugOutputParams(true, nullptr, filter_level);
