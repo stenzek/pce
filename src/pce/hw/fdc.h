@@ -63,6 +63,7 @@ protected:
   DMAController* m_dma = nullptr;
   Clock m_clock;
   Model m_model;
+  bool m_fast_transfers = false;
 
   struct DriveState
   {

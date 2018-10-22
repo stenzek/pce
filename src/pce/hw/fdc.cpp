@@ -16,6 +16,7 @@ static const uint32 data_rates[4] = {500, 300, 250, 1000};
 namespace HW {
 DEFINE_OBJECT_TYPE_INFO(FDC);
 BEGIN_OBJECT_PROPERTY_MAP(FDC)
+PROPERTY_TABLE_MEMBER_BOOL("FastTransfers", 0, offsetof(FDC, m_fast_transfers), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
 FDC::FDC(const String& identifier, Model model /* = Model_8272 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
@@ -1264,6 +1265,9 @@ CycleCount FDC::CalculateHeadSeekTime(u32 drive, u32 destination_track) const
 
 CycleCount FDC::CalculateHeadSeekTime(u32 drive) const
 {
+  if (m_fast_transfers)
+    return 1;
+
   // SRT value = 16 - (milliseconds * data_rate / 500000) (https://wiki.osdev.org/Floppy_Disk_Controller)
   u32 val = u32(m_step_rate_time ^ 0x0F) + 1;
   return (val * 500000) / data_rates[m_data_rate_index];
@@ -1271,6 +1275,9 @@ CycleCount FDC::CalculateHeadSeekTime(u32 drive) const
 
 CycleCount FDC::CalculateSectorReadTime() const
 {
+  if (m_fast_transfers)
+    return 1;
+
   // to-microseconds, bits-per-sector / (data-rate-in-kbs*1000)
   return 1000000u * (512u * 8u) / (data_rates[m_data_rate_index] * 1000);
 }
