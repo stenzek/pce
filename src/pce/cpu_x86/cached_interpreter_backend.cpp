@@ -108,6 +108,9 @@ void CachedInterpreterBackend::Execute()
       }
     }
   }
+
+  // Current block should be cleared after executing, in case of external reset.
+  m_current_block = nullptr;
 }
 
 void CachedInterpreterBackend::AbortCurrentInstruction()
