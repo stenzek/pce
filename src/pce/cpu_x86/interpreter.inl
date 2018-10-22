@@ -3164,6 +3164,14 @@ void Interpreter::Execute_Operation_LXS(CPU* cpu)
   static_assert(sreg_mode == OperandMode_SegmentRegister, "sreg_mode is Segment Register");
   static_assert(reg_mode == OperandMode_ModRM_Reg, "reg_mode is Register");
   static_assert(ptr_mode == OperandMode_ModRM_RM, "reg_mode is Pointer");
+
+  // #UD if the second argument is a register, not memory.
+  if (ptr_mode == OperandMode_ModRM_RM && cpu->idata.modrm_rm_register)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
   CalculateEffectiveAddress<ptr_mode>(cpu);
   cpu->AddCyclesPMode(CYCLES_LxS);
 
@@ -3307,6 +3315,13 @@ void Interpreter::Execute_Operation_RET_Near(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_JMP_Far(CPU* cpu)
 {
+  // #UD if the second argument is a register, not memory.
+  if (dst_mode == OperandMode_ModRM_RM && cpu->idata.modrm_rm_register)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
 
@@ -3327,6 +3342,13 @@ void Interpreter::Execute_Operation_JMP_Far(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_CALL_Far(CPU* cpu)
 {
+  // #UD if the second argument is a register, not memory.
+  if (dst_mode == OperandMode_ModRM_RM && cpu->idata.modrm_rm_register)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   CalculateEffectiveAddress<dst_mode>(cpu);
 
