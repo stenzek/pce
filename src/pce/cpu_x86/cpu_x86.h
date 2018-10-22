@@ -527,7 +527,7 @@ protected:
 
   // TLB emulation
   size_t GetTLBEntryIndex(uint32 linear_address);
-  void InvalidateAllTLBEntries();
+  void InvalidateAllTLBEntries(bool force_clear = false);
   void InvalidateTLBEntry(uint32 linear_address);
 
   // Prefetch queue emulation
@@ -608,6 +608,10 @@ protected:
   uint16 m_cycle_group_timings[NUM_CYCLE_GROUPS] = {};
 
 #ifdef ENABLE_TLB_EMULATION
+  // We use the lower 12 bits to represent a "counter" which is incremented each
+  // time the TLB is flushed. This way, we don't need to wipe out the array every
+  // flush, instead only when the counter wraps around. We still have 12 bits free
+  // in the physical adress if we need to store anything else.
   struct TLBEntry
   {
     // Invalid TLB entries will be set to 0xFFFFFFFF, which has the lower-most
@@ -618,6 +622,7 @@ protected:
 
   // Indexed by [user_supervisor][write_read]
   TLBEntry m_tlb_entries[2][3][TLB_ENTRY_COUNT] = {};
+  uint32 m_tlb_counter_bits = 0;
 #endif
 
 #ifdef ENABLE_PREFETCH_EMULATION

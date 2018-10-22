@@ -55,9 +55,6 @@ CPU::CPU(const String& identifier, Model model, float frequency,
          const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(identifier, frequency, backend_type, type_info), m_model(model)
 {
-#ifdef ENABLE_TLB_EMULATION
-  InvalidateAllTLBEntries();
-#endif
 }
 
 CPU::~CPU() {}
@@ -83,6 +80,10 @@ bool CPU::Initialize(System* system, Bus* bus)
   // Copy cycle timings in.
   for (uint32 i = 0; i < NUM_CYCLE_GROUPS; i++)
     m_cycle_group_timings[i] = Truncate16(g_cycle_group_timings[i][m_model]);
+
+#ifdef ENABLE_TLB_EMULATION
+  InvalidateAllTLBEntries(true);
+#endif
 
   CreateBackend();
   return true;
@@ -179,7 +180,7 @@ void CPU::Reset()
   m_fpu_registers.TW.bits = 0x5555;
   std::memset(m_fpu_registers.ST, 0, sizeof(m_fpu_registers.ST));
 
-  InvalidateAllTLBEntries();
+  InvalidateAllTLBEntries(true);
   FlushPrefetchQueue();
 
   m_effective_address = 0;
@@ -284,6 +285,7 @@ bool CPU::LoadState(BinaryReader& reader)
       }
     }
   }
+  reader.SafeReadUInt32(&m_tlb_counter_bits);
 #endif
 
 #ifdef ENABLE_PREFETCH_EMULATION
@@ -380,6 +382,7 @@ bool CPU::SaveState(BinaryWriter& writer)
       }
     }
   }
+  writer.WriteUInt32(m_tlb_counter_bits);
 #endif
 
 #ifdef ENABLE_PREFETCH_EMULATION
@@ -1028,7 +1031,7 @@ bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, Li
   const u8 tlb_user_bit = BoolToUInt8(HasAccessFlagBit(flags, AccessFlags::UseSupervisorPrivileges));
   const u8 tlb_type = static_cast<u8>(GetAccessTypeFromFlags(flags));
   TLBEntry& tlb_entry = m_tlb_entries[tlb_user_bit][tlb_type][tlb_index];
-  if (tlb_entry.linear_address == (linear_address & PAGE_MASK))
+  if (tlb_entry.linear_address == ((linear_address & PAGE_MASK) | m_tlb_counter_bits))
   {
     // TLB hit!
     *out_physical_address = tlb_entry.physical_address + (linear_address & PAGE_OFFSET_MASK);
@@ -1036,7 +1039,6 @@ bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, Li
   }
 #endif
 
-  // TODO: Convert some of these parameters to flags.
   return LookupPageTable(out_physical_address, linear_address, flags);
 }
 
@@ -1152,7 +1154,7 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
     const u8 tlb_user_bit = BoolToUInt8(HasAccessFlagBit(flags, AccessFlags::UseSupervisorPrivileges));
     const u8 tlb_type = static_cast<u8>(GetAccessTypeFromFlags(flags));
     TLBEntry& tlb_entry = m_tlb_entries[tlb_user_bit][tlb_type][tlb_index];
-    tlb_entry.linear_address = linear_address & PAGE_MASK;
+    tlb_entry.linear_address = (linear_address & PAGE_MASK) | m_tlb_counter_bits;
     tlb_entry.physical_address = page_base_address;
 #endif
   }
@@ -2996,8 +2998,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
   if (!ReadDescriptorEntry(&descriptor, m_idt_location, interrupt))
   {
     // Raise GPF for out-of-range.
-    // TODO: Arguments
-    Log_WarningPrintf("Interrupt out of range: %u (limit %u)", interrupt, uint32(m_idt_location.limit));
+    Log_DebugPrintf("Interrupt out of range: %u (limit %u)", interrupt, uint32(m_idt_location.limit));
     RaiseException(Interrupt_GeneralProtectionFault, MakeIDTErrorCode(interrupt, software_interrupt));
     return;
   }
@@ -3007,7 +3008,7 @@ void CPU::SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interr
       descriptor.type != DESCRIPTOR_TYPE_TRAP_GATE_16 && descriptor.type != DESCRIPTOR_TYPE_TRAP_GATE_32 &&
       descriptor.type != DESCRIPTOR_TYPE_TASK_GATE)
   {
-    Log_WarningPrintf("Invalid IDT gate type");
+    Log_DebugPrintf("Invalid IDT gate type");
     RaiseException(Interrupt_GeneralProtectionFault, MakeIDTErrorCode(interrupt, software_interrupt));
     return;
   }
@@ -4213,10 +4214,16 @@ size_t CPU::GetTLBEntryIndex(uint32 linear_address)
   return size_t(linear_address >> 12) % TLB_ENTRY_COUNT;
 }
 
-void CPU::InvalidateAllTLBEntries()
+void CPU::InvalidateAllTLBEntries(bool force_clear /* = false */)
 {
 #ifdef ENABLE_TLB_EMULATION
-  std::memset(m_tlb_entries, 0xFF, sizeof(m_tlb_entries));
+  m_tlb_counter_bits++;
+  Log_DebugPrintf("Invaliding TLB entries, counter=0x%03X", m_tlb_counter_bits);
+  if (m_tlb_counter_bits == 0xFFF || force_clear)
+  {
+    std::memset(m_tlb_entries, 0xFF, sizeof(m_tlb_entries));
+    m_tlb_counter_bits = 0;
+  }
 #endif
 }
 
