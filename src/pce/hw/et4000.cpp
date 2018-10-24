@@ -268,8 +268,8 @@ void ET4000::IOReadStatusRegister1(uint8* value)
 
   StatusRegister1 st1 = {};
   st1.display_enable_n = si.in_horizontal_blank || si.in_vertical_blank;
-  st1.vertical_blank = !si.in_vertical_blank;
-  st1.vertical_blank_n = si.in_vertical_blank;
+  st1.vertical_blank = si.in_vertical_blank;
+  st1.vertical_blank_n = !si.in_vertical_blank;
   st1.display_feedback_test = 0x3; // Connected to output of attribute controller
   *value = st1.bits;
 
