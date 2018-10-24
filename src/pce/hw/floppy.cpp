@@ -54,6 +54,7 @@ static const DiskTypeInfo disk_types[Floppy::DiskType_Count] = {
   {Floppy::DriveType_5_25, 1310720, 80, 2, 15, 0xF9}, // DiskType_1220K
   {Floppy::DriveType_3_5, 1474560, 80, 2, 18, 0xF0},  // DiskType_1440K
   {Floppy::DriveType_3_5, 1720320, 80, 2, 21, 0xF0},  // DiskType_1680K
+  {Floppy::DriveType_3_5, 1884160, 80, 2, 23, 0xF0},  // DiskType_1840K
   {Floppy::DriveType_3_5, 2949120, 80, 2, 36, 0xF0}   // DiskType_2880K
 };
 

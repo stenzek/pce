@@ -37,6 +37,7 @@ public:
     DiskType_1220K, // 5.25-inch, double-sided, 80 tracks, 15 sectors per track
     DiskType_1440K, // 3.5-inch, double-sided, 80 tracks, 18 sectors per track
     DiskType_1680K, // 3.5-inch, double-sided, 80 tracks, 21 sectors per track, "DMF"
+    DiskType_1840K, // 3.5-inch, double-sided, 80 tracks, 23 sectors per track, "XDF"
     DiskType_2880K, // 3.5-inch, double-sided, 80 tracks, 36 sectors per track
 
     DiskType_Count
