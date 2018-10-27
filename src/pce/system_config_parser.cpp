@@ -60,8 +60,8 @@ static Component* CreateComponent(const std::string& component_identifier, const
     return nullptr;
   }
 
-  Log_InfoPrintf("Creating instance '%s' of optional component '%s'", component_identifier.c_str(),
-                 type_info->GetTypeName());
+  Log_DevPrintf("Creating instance '%s' of optional component '%s'", component_identifier.c_str(),
+                type_info->GetTypeName());
   Object* obj = type_info->GetFactory()->CreateObject(component_identifier.c_str());
   Assert(obj && obj->IsDerived<Component>());
   return obj->Cast<Component>();
@@ -92,8 +92,8 @@ static bool ApplyProperties(Object* object, const std::string& object_name, INIR
     }
 
     const std::string& value = ini.Get(object_name, name, "");
-    Log_DebugPrintf("Setting property '%s' to '%s' on object '%s' (%s)", name.c_str(), value.c_str(),
-                    object_name.c_str(), type_info->GetTypeName());
+    Log_DevPrintf("Setting property '%s' to '%s' on object '%s' (%s)", name.c_str(), value.c_str(), object_name.c_str(),
+                  type_info->GetTypeName());
 
     if (!SetPropertyValueFromString(object, prop, value.c_str()))
     {
@@ -104,6 +104,22 @@ static bool ApplyProperties(Object* object, const std::string& object_name, INIR
   }
 
   return true;
+}
+
+static String GetBasePath(const char* filename)
+{
+  String base_path = filename;
+  if (base_path.EndsWith(".ini", false))
+  {
+    base_path.Erase(-4);
+  }
+  else
+  {
+    Log_WarningPrintf("Filename '%s' does not end with .ini, base path may be incorrect.", filename);
+  }
+
+  Log_DevPrintf("Base path for system: %s", base_path.GetCharArray());
+  return base_path;
 }
 
 std::unique_ptr<System> System::ParseConfig(const char* filename, Error* error)
@@ -169,5 +185,6 @@ std::unique_ptr<System> System::ParseConfig(const char* filename, Error* error)
       return nullptr;
   }
 
+  system->m_base_path = GetBasePath(filename);
   return system;
 }

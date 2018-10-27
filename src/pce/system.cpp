@@ -269,3 +269,8 @@ std::pair<std::unique_ptr<byte[]>, uint32> System::ReadFileToBuffer(const char* 
   stream->Release();
   return std::make_pair(std::move(data), size - offset);
 }
+
+String System::GetMiscDataFilename(const char* suffix) const
+{
+  return suffix ? String::FromFormat("%s%s", m_base_path.GetCharArray(), suffix) : m_base_path;
+}

@@ -4,6 +4,7 @@
 
 #include "YBaseLib/Common.h"
 #include "YBaseLib/PODArray.h"
+#include "YBaseLib/String.h"
 #include "common/clock.h"
 #include "common/timing.h"
 #include "pce/component.h"
@@ -92,6 +93,13 @@ public:
   bool LoadState(BinaryReader& reader);
   bool SaveState(BinaryWriter& writer);
 
+  // Returns the base path for the system, based on the ini path.
+  const String& GetConfigBasePath() const { return m_base_path; }
+
+  // Returns a filename based on the ini path for the system for system-specific storage.
+  // e.g. CMOS/NVRAM data - GetMiscDataFilename(".nvr") -> "/path/mysystem.nvr".
+  String GetMiscDataFilename(const char* suffix) const;
+
 private:
   bool LoadComponentsState(BinaryReader& reader);
   bool SaveComponentsState(BinaryWriter& writer);
@@ -107,6 +115,7 @@ private:
 
   PODArray<Component*> m_components;
   State m_state = State::Initializing;
+  String m_base_path;
 };
 
 template<typename T, typename... Args>
