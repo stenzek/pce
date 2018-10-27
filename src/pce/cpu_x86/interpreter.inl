@@ -2336,9 +2336,6 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
   else
     static_assert(false, "unknown mode");
 
-  // IN/OUT are often timing-sensitive.
-  cpu->CommitPendingCycles();
-
   const uint16 port_number = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
   if (actual_size == OperandSize_8)
   {
@@ -2392,9 +2389,6 @@ void Interpreter::Execute_Operation_OUT(CPU* cpu)
     cpu->AddCyclesPMode(CYCLES_OUT_EDX);
   else
     static_assert(false, "unknown mode");
-
-  // IN/OUT are often timing-sensitive.
-  cpu->CommitPendingCycles();
 
   const uint16 port_number = ReadZeroExtendedWordOperand<dst_size, dst_mode, dst_constant>(cpu);
   if (actual_size == OperandSize_8)
