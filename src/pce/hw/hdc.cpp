@@ -310,7 +310,7 @@ void HDC::IOReadStatusRegister(u32 channel, u8* value)
   }
 
   const ATADevice* device = GetCurrentDevice(channel);
-  *value = device ? device->ReadStatusRegister() : 0x00;
+  *value = device ? device->ReadStatusRegister() : 0xFF;
 }
 
 void HDC::IOReadAltStatusRegister(u32 channel, u8* value)
@@ -322,7 +322,7 @@ void HDC::IOReadAltStatusRegister(u32 channel, u8* value)
   }
 
   const ATADevice* device = GetCurrentDevice(channel);
-  *value = device ? device->ReadStatusRegister() : 0x00;
+  *value = device ? device->ReadStatusRegister() : 0xFF;
 }
 
 void HDC::IOWriteCommandRegister(u32 channel, u8 value)
