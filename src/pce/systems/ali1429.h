@@ -1,6 +1,6 @@
 #pragma once
 #include "pce/cpu_x86/cpu_x86.h"
-#include "pce/hw/cmos.h"
+#include "pce/hw/ds12887.h"
 #include "pce/hw/fdc.h"
 #include "pce/hw/hdc.h"
 #include "pce/hw/i8042_ps2.h"
@@ -72,7 +72,7 @@ private:
   HW::i8253_PIT* m_timer = nullptr;
   HW::i8259_PIC* m_interrupt_controller = nullptr;
 
-  HW::CMOS* m_cmos = nullptr;
+  HW::DS12887* m_cmos = nullptr;
 
   HW::PCSpeaker* m_speaker = nullptr;
 

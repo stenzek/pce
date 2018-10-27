@@ -100,7 +100,7 @@ void IBMAT::AddComponents()
   m_dma_controller = CreateComponent<HW::i8237_DMA>("DMAController");
   m_timer = CreateComponent<HW::i8253_PIT>("PIT");
   m_keyboard_controller = CreateComponent<HW::i8042_PS2>("KeyboardController");
-  m_cmos = CreateComponent<HW::CMOS>("CMOS");
+  m_cmos = CreateComponent<HW::DS12887>("CMOS");
 
   m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_8272);
   m_hdd_controller = CreateComponent<HW::HDC>("HDC", 1);
@@ -114,13 +114,13 @@ void IBMAT::SetCMOSVariables()
 
   // Base memory
   kb = base_memory / 1024;
-  m_cmos->SetVariable(0x15, Truncate8(kb));
-  m_cmos->SetVariable(0x16, Truncate8(kb >> 8));
+  m_cmos->SetConfigVariable(0x15, Truncate8(kb));
+  m_cmos->SetConfigVariable(0x16, Truncate8(kb >> 8));
 
   // Extended memory
   kb = extended_memory / 1024;
-  m_cmos->SetVariable(0x17, Truncate8(kb));
-  m_cmos->SetVariable(0x18, Truncate8(kb >> 8));
+  m_cmos->SetConfigVariable(0x17, Truncate8(kb));
+  m_cmos->SetConfigVariable(0x18, Truncate8(kb >> 8));
 }
 
 } // namespace Systems

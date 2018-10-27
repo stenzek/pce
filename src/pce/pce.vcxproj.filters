@@ -21,9 +21,6 @@
     <ClCompile Include="hw\i8237_dma.cpp">
       <Filter>hw</Filter>
     </ClCompile>
-    <ClCompile Include="hw\cmos.cpp">
-      <Filter>hw</Filter>
-    </ClCompile>
     <ClCompile Include="hw\vga.cpp">
       <Filter>hw</Filter>
     </ClCompile>
@@ -185,6 +182,9 @@
     <ClCompile Include="thirdparty\mame\osdcore.cpp">
       <Filter>thirdparty\mame</Filter>
     </ClCompile>
+    <ClCompile Include="hw\ds12887.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -211,9 +211,6 @@
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="dma_controller.h" />
-    <ClInclude Include="hw\cmos.h">
-      <Filter>hw</Filter>
-    </ClInclude>
     <ClInclude Include="hw\vga.h">
       <Filter>hw</Filter>
     </ClInclude>
@@ -414,6 +411,9 @@
     </ClInclude>
     <ClInclude Include="thirdparty\mame\osdcore.h">
       <Filter>thirdparty\mame</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\ds12887.h">
+      <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

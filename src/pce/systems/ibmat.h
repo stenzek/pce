@@ -1,5 +1,5 @@
 #pragma once
-#include "pce/hw/cmos.h"
+#include "pce/hw/ds12887.h"
 #include "pce/hw/fdc.h"
 #include "pce/hw/hdc.h"
 #include "pce/hw/i8042_ps2.h"
@@ -57,7 +57,7 @@ private:
   HW::i8237_DMA* m_dma_controller = nullptr;
   HW::i8253_PIT* m_timer = nullptr;
   HW::i8259_PIC* m_interrupt_controller = nullptr;
-  HW::CMOS* m_cmos = nullptr;
+  HW::DS12887* m_cmos = nullptr;
 
   HW::FDC* m_fdd_controller = nullptr;
   HW::HDC* m_hdd_controller = nullptr;

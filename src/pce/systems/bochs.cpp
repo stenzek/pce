@@ -107,14 +107,14 @@ void Bochs::SetCMOSVariables()
   // 0x5f   1   number of processors
 
   PhysicalMemoryAddress base_memory_in_k = GetBaseMemorySize() / 1024;
-  m_cmos->SetWordVariable(0x15, Truncate16(base_memory_in_k));
+  m_cmos->SetConfigWordVariable(0x15, Truncate16(base_memory_in_k));
   Log_DevPrintf("Base memory in KB: %u", Truncate32(base_memory_in_k));
 
   PhysicalMemoryAddress extended_memory_in_k = GetTotalMemorySize() / 1024 - 1024;
   if (extended_memory_in_k > 0xFC00)
     extended_memory_in_k = 0xFC00;
-  m_cmos->SetWordVariable(0x17, Truncate16(extended_memory_in_k));
-  m_cmos->SetWordVariable(0x30, Truncate16(extended_memory_in_k));
+  m_cmos->SetConfigWordVariable(0x17, Truncate16(extended_memory_in_k));
+  m_cmos->SetConfigWordVariable(0x30, Truncate16(extended_memory_in_k));
   Log_DevPrintf("Extended memory in KB: %u", Truncate32(extended_memory_in_k));
 
   PhysicalMemoryAddress extended_memory_in_64k = GetTotalMemorySize() / 1024; // TODO: Fix this
@@ -125,14 +125,14 @@ void Bochs::SetCMOSVariables()
   if (extended_memory_in_64k > 0xBF00)
     extended_memory_in_64k = 0xBF00;
 
-  m_cmos->SetWordVariable(0x34, Truncate16(extended_memory_in_64k));
+  m_cmos->SetConfigWordVariable(0x34, Truncate16(extended_memory_in_64k));
   Log_DevPrintf("Extended memory above 16MB in KB: %u", Truncate32(extended_memory_in_64k * 64));
 
-  m_cmos->SetFloppyCount(m_fdd_controller->GetDriveCount());
+  m_cmos->SetConfigFloppyCount(m_fdd_controller->GetDriveCount());
   for (uint32 i = 0; i < HW::FDC::MAX_DRIVES; i++)
   {
     if (m_fdd_controller->IsDrivePresent(i))
-      m_cmos->SetFloppyType(i, m_fdd_controller->GetDriveType_(i));
+      m_cmos->SetConfigFloppyType(i, m_fdd_controller->GetDriveType_(i));
   }
 
   // Equipment byte
@@ -145,48 +145,48 @@ void Bochs::SetCMOSVariables()
     if (m_fdd_controller->GetDriveCount() > 1)
       equipment_byte |= (0b01 << 7); // 2 drives installed
   }
-  m_cmos->SetVariable(0x14, equipment_byte);
+  m_cmos->SetConfigVariable(0x14, equipment_byte);
 
   // Boot from HDD first
   // Legacy - 0 - C: -> A:, 1 - A: -> C:
-  m_cmos->SetVariable(0x2D, (0 << 5));
+  m_cmos->SetConfigVariable(0x2D, (0 << 5));
   // 0x00 - undefined, 0x01 - first floppy, 0x02 - first HDD, 0x03 - first cdrom
   if (m_hdd_controller->GetDeviceCount(0) > 0)
-    m_cmos->SetVariable(0x3D, 0x02);
+    m_cmos->SetConfigVariable(0x3D, 0x02);
   else
-    m_cmos->SetVariable(0x3D, 0x01);
+    m_cmos->SetConfigVariable(0x3D, 0x01);
 
   // Skip IPL validity check
-  m_cmos->SetVariable(0x38, 0x01);
+  m_cmos->SetConfigVariable(0x38, 0x01);
 
   // HDD information
   if (m_hdd_controller->IsHDDPresent(0, 0))
   {
-    m_cmos->SetVariable(0x12, m_cmos->GetVariable(0x12) | 0xF0);
-    m_cmos->SetVariable(0x19, 47); // user-defined type
-    m_cmos->SetVariable(0x1B, Truncate8(m_hdd_controller->GetHDDCylinders(0, 0)));
-    m_cmos->SetVariable(0x1C, Truncate8(m_hdd_controller->GetHDDCylinders(0, 0) >> 8));
-    m_cmos->SetVariable(0x1D, Truncate8(m_hdd_controller->GetHDDHeads(0, 0)));
-    m_cmos->SetVariable(0x1E, 0xFF);
-    m_cmos->SetVariable(0x1F, 0xFF);
-    m_cmos->SetVariable(0x20, 0xC0 | ((m_hdd_controller->GetHDDHeads(0, 0) > 8) ? 8 : 0));
-    m_cmos->SetVariable(0x21, m_cmos->GetVariable(0x1B));
-    m_cmos->SetVariable(0x22, m_cmos->GetVariable(0x1C));
-    m_cmos->SetVariable(0x23, Truncate8(m_hdd_controller->GetHDDSectors(0, 0)));
+    m_cmos->SetConfigVariable(0x12, m_cmos->GetConfigVariable(0x12) | 0xF0);
+    m_cmos->SetConfigVariable(0x19, 47); // user-defined type
+    m_cmos->SetConfigVariable(0x1B, Truncate8(m_hdd_controller->GetHDDCylinders(0, 0)));
+    m_cmos->SetConfigVariable(0x1C, Truncate8(m_hdd_controller->GetHDDCylinders(0, 0) >> 8));
+    m_cmos->SetConfigVariable(0x1D, Truncate8(m_hdd_controller->GetHDDHeads(0, 0)));
+    m_cmos->SetConfigVariable(0x1E, 0xFF);
+    m_cmos->SetConfigVariable(0x1F, 0xFF);
+    m_cmos->SetConfigVariable(0x20, 0xC0 | ((m_hdd_controller->GetHDDHeads(0, 0) > 8) ? 8 : 0));
+    m_cmos->SetConfigVariable(0x21, m_cmos->GetConfigVariable(0x1B));
+    m_cmos->SetConfigVariable(0x22, m_cmos->GetConfigVariable(0x1C));
+    m_cmos->SetConfigVariable(0x23, Truncate8(m_hdd_controller->GetHDDSectors(0, 0)));
   }
   if (m_hdd_controller->IsHDDPresent(0, 1))
   {
-    m_cmos->SetVariable(0x12, m_cmos->GetVariable(0x12) | 0x0F);
-    m_cmos->SetVariable(0x1A, 48); // user-defined type
-    m_cmos->SetVariable(0x24, Truncate8(m_hdd_controller->GetHDDCylinders(0, 1)));
-    m_cmos->SetVariable(0x25, Truncate8(m_hdd_controller->GetHDDCylinders(0, 1) >> 8));
-    m_cmos->SetVariable(0x26, Truncate8(m_hdd_controller->GetHDDHeads(0, 1)));
-    m_cmos->SetVariable(0x27, 0xFF);
-    m_cmos->SetVariable(0x28, 0xFF);
-    m_cmos->SetVariable(0x29, 0xC0 | ((m_hdd_controller->GetHDDHeads(0, 1) > 8) ? 8 : 0));
-    m_cmos->SetVariable(0x2A, m_cmos->GetVariable(0x1B));
-    m_cmos->SetVariable(0x2B, m_cmos->GetVariable(0x1C));
-    m_cmos->SetVariable(0x2C, Truncate8(m_hdd_controller->GetHDDSectors(0, 1)));
+    m_cmos->SetConfigVariable(0x12, m_cmos->GetConfigVariable(0x12) | 0x0F);
+    m_cmos->SetConfigVariable(0x1A, 48); // user-defined type
+    m_cmos->SetConfigVariable(0x24, Truncate8(m_hdd_controller->GetHDDCylinders(0, 1)));
+    m_cmos->SetConfigVariable(0x25, Truncate8(m_hdd_controller->GetHDDCylinders(0, 1) >> 8));
+    m_cmos->SetConfigVariable(0x26, Truncate8(m_hdd_controller->GetHDDHeads(0, 1)));
+    m_cmos->SetConfigVariable(0x27, 0xFF);
+    m_cmos->SetConfigVariable(0x28, 0xFF);
+    m_cmos->SetConfigVariable(0x29, 0xC0 | ((m_hdd_controller->GetHDDHeads(0, 1) > 8) ? 8 : 0));
+    m_cmos->SetConfigVariable(0x2A, m_cmos->GetConfigVariable(0x1B));
+    m_cmos->SetConfigVariable(0x2B, m_cmos->GetConfigVariable(0x1C));
+    m_cmos->SetConfigVariable(0x2C, Truncate8(m_hdd_controller->GetHDDSectors(0, 1)));
   }
 }
 

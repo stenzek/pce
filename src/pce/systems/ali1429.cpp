@@ -229,7 +229,7 @@ void ALi1429::AddComponents()
   m_dma_controller = CreateComponent<HW::i8237_DMA>("DMAController");
   m_timer = CreateComponent<HW::i8253_PIT>("PIT");
   m_keyboard_controller = CreateComponent<HW::i8042_PS2>("KeyboardController");
-  m_cmos = CreateComponent<HW::CMOS>("CMOS");
+  m_cmos = CreateComponent<HW::DS12887>("CMOS");
   m_speaker = CreateComponent<HW::PCSpeaker>("Speaker");
 
   m_fdd_controller = CreateComponent<HW::FDC>("FDC", HW::FDC::Model_8272);

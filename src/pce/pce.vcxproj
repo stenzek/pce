@@ -69,7 +69,7 @@
     <ClCompile Include="thirdparty\dosbox\dbopl.cpp" />
     <ClCompile Include="host_interface.cpp" />
     <ClCompile Include="hw\cga.cpp" />
-    <ClCompile Include="hw\cmos.cpp" />
+    <ClCompile Include="hw\ds12887.cpp" />
     <ClCompile Include="hw\fdc.cpp" />
     <ClCompile Include="hw\hdc.cpp" />
     <ClCompile Include="hw\i8042_ps2.cpp" />
@@ -147,7 +147,7 @@
     <ClInclude Include="thirdparty\dosbox\dbopl.h" />
     <ClInclude Include="host_interface.h" />
     <ClInclude Include="hw\cga.h" />
-    <ClInclude Include="hw\cmos.h" />
+    <ClInclude Include="hw\ds12887.h" />
     <ClInclude Include="hw\fdc.h" />
     <ClInclude Include="hw\hdc.h" />
     <ClInclude Include="hw\i8042_ps2.h" />

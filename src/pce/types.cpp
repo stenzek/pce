@@ -7,7 +7,7 @@
 #include "pce/hw/ata_hdd.h"
 #include "pce/hw/cdrom.h"
 #include "pce/hw/cga.h"
-#include "pce/hw/cmos.h"
+#include "pce/hw/ds12887.h"
 #include "pce/hw/et4000.h"
 #include "pce/hw/fdc.h"
 #include "pce/hw/floppy.h"
@@ -64,7 +64,7 @@ void RegisterAllTypes()
   REGISTER_HW_TYPE(ATACDROM);
   REGISTER_HW_TYPE(CDROM);
   REGISTER_HW_TYPE(CGA);
-  REGISTER_HW_TYPE(CMOS);
+  REGISTER_HW_TYPE(DS12887);
   REGISTER_HW_TYPE(ET4000);
   REGISTER_HW_TYPE(FDC);
   REGISTER_HW_TYPE(Floppy);
