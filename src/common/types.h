@@ -20,6 +20,32 @@ using CycleCount = int64_t;
 // Use int64 for time tracking
 using SimulationTime = int64_t;
 
+// Helpers for simulation time.
+constexpr SimulationTime SecondsToSimulationTime(SimulationTime s)
+{
+  return s * INT64_C(1000000000);
+}
+constexpr SimulationTime MillisecondsToSimulationTime(SimulationTime ms)
+{
+  return ms * INT64_C(1000000);
+}
+constexpr SimulationTime MicrosecondsToSimulationTime(SimulationTime us)
+{
+  return us * INT64_C(1000);
+}
+constexpr SimulationTime SimulationTimeToSeconds(SimulationTime s)
+{
+  return s / INT64_C(1000000000);
+}
+constexpr SimulationTime SimulationTimeToMilliseconds(SimulationTime ms)
+{
+  return ms / INT64_C(1000000);
+}
+constexpr SimulationTime SimulationTimeToMicroseconds(SimulationTime us)
+{
+  return us / INT64_C(1000);
+}
+
 // Zero-extending helper
 template<typename TReturn, typename TValue>
 constexpr TReturn ZeroExtend(TValue value)
