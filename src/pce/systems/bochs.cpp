@@ -188,6 +188,41 @@ void Bochs::SetCMOSVariables()
     m_cmos->SetConfigVariable(0x2B, m_cmos->GetConfigVariable(0x1C));
     m_cmos->SetConfigVariable(0x2C, Truncate8(m_hdd_controller->GetHDDSectors(0, 1)));
   }
+
+  // Disk translation type
+  for (u32 device = 0; device < (HW::HDC::MAX_CHANNELS * HW::HDC::DEVICES_PER_CHANNEL); device++)
+  {
+    const u32 channel = device / 2;
+    const u32 drive = device % 2;
+    if (!m_hdd_controller->IsHDDPresent(channel, drive))
+      continue;
+
+    const u32 cylinders = m_hdd_controller->GetHDDCylinders(channel, drive);
+    const u32 heads = m_hdd_controller->GetHDDHeads(channel, drive);
+    const u32 sectors = m_hdd_controller->GetHDDSectors(channel, drive);
+
+    u8 translation;
+    if (cylinders <= 1024 && heads <= 16 && sectors <= 63)
+    {
+      // Use Normal/CHS mode for small disks.
+      Log_DevPrintf("Setting normal/CHS mode for channel %u drive %u", channel, drive);
+      translation = 0;
+    }
+    else if ((static_cast<u64>(cylinders) * static_cast<u64>(heads)) < 131072)
+    {
+      // Use LARGE up to ~4GB.
+      Log_DevPrintf("Setting LARGE mode for channel %u drive %u", channel, drive);
+      translation = 2;
+    }
+    else
+    {
+      // Use LBA for large disks.
+      Log_DevPrintf("Setting LBA mode for channel %u drive %u", channel, drive);
+      translation = 1;
+    }
+
+    m_cmos->SetConfigVariable(0x39, (translation & 0x03) << (device * 2));
+  }
 }
 
 } // namespace Systems
