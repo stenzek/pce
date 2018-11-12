@@ -142,6 +142,7 @@ protected:
   // Implemented in derived classes.
   virtual void OnSystemInitialized();
   virtual void OnSystemReset();
+  virtual void OnSystemStateLoaded();
   virtual void OnSystemDestroy();
   virtual void OnSimulationSpeedUpdate(float speed_percent);
   virtual void OnSimulationResumed();

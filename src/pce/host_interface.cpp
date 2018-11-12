@@ -88,6 +88,7 @@ bool HostInterface::LoadSystemState(const char* filename, Error* error)
         return;
       }
 
+      OnSystemStateLoaded();
       result = true;
     },
     true);
@@ -310,13 +311,27 @@ void HostInterface::SendCtrlAltDel()
 
 void HostInterface::OnSystemInitialized()
 {
-  m_elapsed_real_time.Reset();
   ReportFormattedMessage("System initialized: %s", m_system->GetTypeInfo()->GetTypeName());
+  m_elapsed_real_time.Reset();
+  m_speed_elapsed_real_time.Reset();
 }
 
 void HostInterface::OnSystemReset()
 {
   ReportFormattedMessage("System reset.");
+  m_elapsed_real_time.Reset();
+  m_speed_elapsed_real_time.Reset();
+  m_speed_elapsed_simulation_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+}
+
+void HostInterface::OnSystemStateLoaded()
+{
+  ReportFormattedMessage("State loaded.");
+  m_elapsed_real_time.Reset();
+  m_speed_elapsed_real_time.Reset();
+  m_speed_elapsed_simulation_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+  m_speed_elapsed_kernel_time = 0;
+  m_speed_elapsed_user_time = 0;
 }
 
 void HostInterface::OnSimulationSpeedUpdate(float speed_percent) {}
