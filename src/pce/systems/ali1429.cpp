@@ -42,6 +42,8 @@ bool ALi1429::Initialize()
 
 void ALi1429::Reset()
 {
+  m_cmos->UpdateClock();
+
   ISAPC::Reset();
 
   m_cmos_lock = false;

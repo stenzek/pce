@@ -53,6 +53,8 @@ bool i430FX::Initialize()
 
 void i430FX::Reset()
 {
+  m_cmos->UpdateClock();
+
   BaseClass::Reset();
 
   m_cmos_lock = false;

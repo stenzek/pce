@@ -1,7 +1,10 @@
 #include "pce/hw/ds12887.h"
+#include "YBaseLib/AutoReleasePtr.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
+#include "YBaseLib/FileSystem.h"
 #include "YBaseLib/Log.h"
+#include "YBaseLib/Timestamp.h"
 #include "pce/bus.h"
 #include "pce/hw/fdc.h"
 #include "pce/interrupt_controller.h"
@@ -15,6 +18,8 @@ DEFINE_OBJECT_TYPE_INFO(DS12887);
 BEGIN_OBJECT_PROPERTY_MAP(DS12887)
 PROPERTY_TABLE_MEMBER_UINT("RAMSize", 0, offsetof(DS12887, m_size), nullptr, 0)
 PROPERTY_TABLE_MEMBER_UINT("IRQ", 0, offsetof(DS12887, m_irq), nullptr, 0)
+PROPERTY_TABLE_MEMBER_BOOL("SyncTimeOnReset", 0, offsetof(DS12887, m_sync_time_on_reset), nullptr, 0)
+PROPERTY_TABLE_MEMBER_STRING("SaveFileSuffix", 0, offsetof(DS12887, m_save_filename_suffix), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
 DS12887::DS12887(const String& identifier, u32 size /* = 128 */, u32 irq /* = 8 */,
@@ -43,7 +48,13 @@ bool DS12887::Initialize(System* system, Bus* bus)
   ConnectIOPorts(bus);
 
   m_rtc_interrupt_event = system->GetTimingManager()->CreateFrequencyEvent(
-    "RTC Interrupt", 1.0f, std::bind(&DS12887::RTCInterruptEvent, this, std::placeholders::_2), false);
+    "RTC Interrupt", 1.0f, std::bind(&DS12887::RTCInterruptEvent, this), false);
+
+  // Set up file saving.
+  m_save_ram_event = system->GetTimingManager()->CreateMillisecondIntervalEvent(
+    "RAM Save Event", SAVE_TO_FILE_DELAY_MS, std::bind(&DS12887::SaveRAMEvent, this), false);
+  m_save_filename.Format("%s%s", m_system->GetConfigBasePath().GetCharArray(), m_save_filename_suffix.GetCharArray());
+  Log_DevPrintf("RTC saving to file '%s'", m_save_filename.GetCharArray());
 
   // Index register mask clears the high bit for older RTCs.
   if (m_size > 128)
@@ -53,17 +64,19 @@ bool DS12887::Initialize(System* system, Bus* bus)
   else
     m_index_register_mask = 0x3F;
 
-  // Set the RTC base frequency to 32768hz
-  m_data[RTC_REGISTER_STATUS_REGISTER_A] = 0b0000 | 0b0100000;
-
-  // Default to 24 hour mode.
-  m_data[RTC_REGISTER_STATUS_REGISTER_B] = RTC_SRB_24_HOUR_MODE;
-
-  // RTC has power
-  m_data[RTC_REGISTER_STATUS_REGISTER_D] = RTC_SRD_RAM_VALID;
+  // Load RAM, this may fail
+  if (!LoadRAM())
+  {
+    Log_WarningPrintf("Failed to load RAM from %s, using default values", m_save_filename.GetCharArray());
+    ResetRAM();
+  }
+  Log_InfoPrintf("RTC time is %04u-%02u-%02u %02u:%02u:%02u",
+                 (u32(ReadClockRegister(RTC_REGISTER_CENTURY)) * 100) + ReadClockRegister(RTC_REGISTER_YEAR),
+                 ReadClockRegister(RTC_REGISTER_MONTH) + u32(1), ReadClockRegister(RTC_REGISTER_DATE_OF_MONTH) + u32(1),
+                 ReadClockRegister(RTC_REGISTER_HOURS), ReadClockRegister(RTC_REGISTER_MINUTES),
+                 ReadClockRegister(RTC_REGISTER_SECONDS));
 
   UpdateRTCFrequency();
-  SynchronizeTimeWithHost();
   return true;
 }
 
@@ -75,6 +88,12 @@ void DS12887::Reset()
   m_data[RTC_REGISTER_STATUS_REGISTER_C] &=
     ~(RTC_SRC_PERIODIC_INTERRUPT | RTC_SRC_ALARM_INTERRUPT | RTC_SRC_UPDATE_ENDED_INTERRUPT);
   UpdateInterruptState();
+
+  if (m_sync_time_on_reset)
+    SynchronizeTimeWithHost();
+
+  m_last_clock_update_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+  m_clock_partial_time = 0;
 }
 
 bool DS12887::LoadState(BinaryReader& reader)
@@ -228,6 +247,7 @@ void DS12887::IOWriteDataPort(uint8 value)
     UpdateClock();
 
   m_data[index] = value;
+  QueueSaveRAM();
 }
 
 void DS12887::UpdateRTCFrequency()
@@ -259,7 +279,7 @@ void DS12887::UpdateRTCFrequency()
   }
 }
 
-void DS12887::RTCInterruptEvent(CycleCount cycles)
+void DS12887::RTCInterruptEvent()
 {
   if (m_data[RTC_REGISTER_STATUS_REGISTER_C] & RTC_SRC_PERIODIC_INTERRUPT)
   {
@@ -274,6 +294,12 @@ void DS12887::RTCInterruptEvent(CycleCount cycles)
   // Keep the event inactive until it's read again.
   // This may not be accurate...
   m_rtc_interrupt_event->Deactivate();
+}
+
+void DS12887::SaveRAMEvent()
+{
+  SaveRAM();
+  m_save_ram_event->Deactivate();
 }
 
 void DS12887::UpdateInterruptState()
@@ -306,6 +332,7 @@ void DS12887::UpdateClock()
   const u32 elapsed_seconds = Truncate32(SimulationTimeToSeconds(elapsed_time));
   if (elapsed_seconds > 0)
   {
+    Log_ErrorPrintf("Adding %u seconds", elapsed_seconds);
     // Leave the fraction for the next update.
     m_clock_partial_time = elapsed_time - SecondsToSimulationTime(elapsed_seconds);
     if ((m_data[RTC_REGISTER_STATUS_REGISTER_B] & RTC_SRB_SET) == 0)
@@ -315,6 +342,91 @@ void DS12887::UpdateClock()
   {
     m_clock_partial_time = elapsed_time;
   }
+}
+
+void DS12887::ResetRAM()
+{
+  std::fill(m_data.begin(), m_data.end(), u8(0));
+
+  // Set the RTC base frequency to 32768hz
+  m_data[RTC_REGISTER_STATUS_REGISTER_A] = 0b0000 | 0b0100000;
+
+  // Default to 24 hour mode.
+  m_data[RTC_REGISTER_STATUS_REGISTER_B] = RTC_SRB_24_HOUR_MODE;
+
+  // RTC has power
+  m_data[RTC_REGISTER_STATUS_REGISTER_D] = RTC_SRD_RAM_VALID;
+
+  m_last_clock_update_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+  m_clock_partial_time = 0;
+  SynchronizeTimeWithHost();
+}
+
+bool DS12887::LoadRAM()
+{
+  // Get last modification time.
+  FILESYSTEM_STAT_DATA sd;
+  if (!FileSystem::StatFile(m_save_filename, &sd))
+    return false;
+
+  // Load the RAM.
+  AutoReleasePtr<ByteStream> stream =
+    FileSystem::OpenFile(m_save_filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED);
+  if (!stream)
+    return false;
+
+  // Check the size.
+  if (stream->GetSize() != static_cast<u64>(m_size))
+  {
+    Log_WarningPrintf("Incorrect size for RAM: found %u expected %u", static_cast<u32>(stream->GetSize()), m_size);
+    return false;
+  }
+
+  if (!stream->Read2(m_data.data(), m_size))
+    return false;
+
+  Log_DevPrintf("Loaded %u bytes of RAM from %s", m_size, m_save_filename.GetCharArray());
+
+  // Determine how much time has passed since the RAM was saved.
+  // That is the offset which we need to add to the time.
+  const double time_since_saved = Timestamp::Now().DifferenceInSeconds(sd.ModificationTime);
+  if (time_since_saved > 0.0)
+  {
+    Log_InfoPrintf("Adding %f seconds of time to RTC", time_since_saved);
+
+    const u32 seconds = static_cast<u32>(time_since_saved);
+    if (seconds > 0)
+      AddClockSeconds(seconds);
+
+    m_last_clock_update_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+    m_clock_partial_time =
+      static_cast<SimulationTime>(time_since_saved - static_cast<double>(seconds)) * INT64_C(1000000000);
+  }
+
+  return true;
+}
+
+void DS12887::SaveRAM()
+{
+  AutoReleasePtr<ByteStream> stream =
+    FileSystem::OpenFile(m_save_filename, BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_WRITE | BYTESTREAM_OPEN_TRUNCATE |
+                                            BYTESTREAM_OPEN_STREAMED);
+  if (!stream)
+  {
+    Log_WarningPrintf("Failed to open '%s'", m_save_filename.GetCharArray());
+    return;
+  }
+
+  stream->Write(m_data.data(), m_size);
+  Log_InfoPrintf("Saved RAM to '%s'", m_save_filename.GetCharArray());
+}
+
+void DS12887::QueueSaveRAM()
+{
+  if (m_save_ram_event->IsActive())
+    return;
+
+  m_save_ram_event->SetActive(true);
 }
 
 u8 DS12887::ReadClockRegister(u8 index) const

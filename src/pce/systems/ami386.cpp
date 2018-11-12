@@ -40,6 +40,8 @@ bool AMI386::Initialize()
 
 void AMI386::Reset()
 {
+  m_cmos->UpdateClock();
+
   BaseClass::Reset();
 
   m_cmos_lock = false;

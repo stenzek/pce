@@ -41,6 +41,8 @@ bool IBMAT::Initialize()
 
 void IBMAT::Reset()
 {
+  m_cmos->UpdateClock();
+
   BaseClass::Reset();
 
   // Default gate A20 to on

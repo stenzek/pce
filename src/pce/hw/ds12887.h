@@ -30,6 +30,9 @@ public:
   /// Synchronizes the RTC with the real time of the host.
   void SynchronizeTimeWithHost();
 
+  /// Adds any pending time to the clock registers.
+  void UpdateClock();
+
   uint8 GetConfigVariable(uint8 index) const { return m_data[index]; }
   void SetConfigVariable(uint8 index, uint8 value) { m_data[index] = value; }
 
@@ -40,9 +43,10 @@ public:
   void SetConfigFloppyCount(uint32 count);
 
 protected:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('D', 'S', '1', '7');
-  static const uint32 IOPORT_INDEX_REGISTER = 0x70;
-  static const uint32 IOPORT_DATA_PORT = 0x71;
+  static const u32 SERIALIZATION_ID = MakeSerializationID('D', 'S', '1', '7');
+  static const u32 IOPORT_INDEX_REGISTER = 0x70;
+  static const u32 IOPORT_DATA_PORT = 0x71;
+  static const u32 SAVE_TO_FILE_DELAY_MS = 5000;
 
   enum RTC_REGISTERS
   {
@@ -98,16 +102,28 @@ protected:
   void IOWriteDataPort(uint8 value);
 
   void UpdateRTCFrequency();
-  void RTCInterruptEvent(CycleCount cycles);
+  void RTCInterruptEvent();
+  void SaveRAMEvent();
 
   void UpdateInterruptState();
-  void UpdateClock();
 
-  // Reads/writes the clock register in binary/BCD mode.
+  /// Reset RAM with default values.
+  void ResetRAM();
+
+  /// Loads the NVRAM/data from the configured file.
+  bool LoadRAM();
+
+  /// Saves the NVRAM/data to the configured file.
+  void SaveRAM();
+
+  /// Queues the RAM to be saved to file.
+  void QueueSaveRAM();
+
+  /// Reads/writes the clock register in binary/BCD mode.
   u8 ReadClockRegister(u8 index) const;
   void WriteClockRegister(u8 index, u8 value);
 
-  // Clock increment helpers. seconds can be greater than 60, which will be added to minutes, etc.
+  /// Clock increment helpers. seconds can be greater than 60, which will be added to minutes, etc.
   void AddClockSeconds(const u32 elapsed_seconds);
   void AddClockMinutes(const u32 elapsed_minutes);
   void AddClockHours(const u32 elapsed_hours);
@@ -117,11 +133,17 @@ protected:
   u32 m_size = 256;
   u32 m_irq = 8;
 
+  String m_save_filename_suffix{".nvr"};
+  bool m_sync_time_on_reset = true;
+
+  String m_save_filename;
+
   std::vector<u8> m_data;
   u8 m_index_register = 0;
   u8 m_index_register_mask = 0xFF;
 
   TimingEvent::Pointer m_rtc_interrupt_event{};
+  TimingEvent::Pointer m_save_ram_event{};
 
   SimulationTime m_last_clock_update_time = 0;
 

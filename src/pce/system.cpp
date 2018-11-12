@@ -55,6 +55,8 @@ bool System::Initialize()
 
 void System::Reset()
 {
+  m_timing_manager.ResetTotalEmulatedTime();
+
   m_cpu->Reset();
 
   for (Component* component : m_components)
