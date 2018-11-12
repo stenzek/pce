@@ -48,7 +48,7 @@ bool DS12887::Initialize(System* system, Bus* bus)
   ConnectIOPorts(bus);
 
   m_rtc_interrupt_event = system->GetTimingManager()->CreateFrequencyEvent(
-    "RTC Interrupt", 1.0f, std::bind(&DS12887::RTCInterruptEvent, this), false);
+    "RTC Interrupt", 32768.0f, std::bind(&DS12887::RTCInterruptEvent, this), false);
 
   // Set up file saving.
   m_save_ram_event = system->GetTimingManager()->CreateMillisecondIntervalEvent(
@@ -230,6 +230,7 @@ void DS12887::IOReadDataPort(uint8* value)
     m_data[RTC_REGISTER_STATUS_REGISTER_C] &=
       ~(RTC_SRC_PERIODIC_INTERRUPT | RTC_SRC_ALARM_INTERRUPT | RTC_SRC_UPDATE_ENDED_INTERRUPT);
     UpdateInterruptState();
+    m_rtc_interrupt_event->SetActive(true);
   }
 }
 
@@ -238,13 +239,15 @@ void DS12887::IOWriteDataPort(uint8 value)
   const u8 index = m_index_register & m_index_register_mask;
 
 #ifdef Y_BUILD_CONFIG_DEBUG
-  if (index >= RTC_REGISTER_STATUS_REGISTER_A && index != RTC_REGISTER_CENTURY)
+  if (index >= RTC_REGISTER_STATUS_REGISTER_D && index != RTC_REGISTER_CENTURY)
     Log_DebugPrintf("Write register 0x%02X value=0x%02X", ZeroExtend32(index), ZeroExtend32(value));
 #endif
 
   // Handle RTC and special stuff.
   if (index < RTC_REGISTER_STATUS_REGISTER_A || index == RTC_REGISTER_CENTURY)
     UpdateClock();
+  else if (index >= RTC_REGISTER_STATUS_REGISTER_A && index <= RTC_REGISTER_STATUS_REGISTER_D)
+    UpdateRTCFrequency();
 
   m_data[index] = value;
   QueueSaveRAM();
@@ -254,8 +257,8 @@ void DS12887::UpdateRTCFrequency()
 {
   static const uint32 base_rate_table[] = {4194304, 1048576, 32768, 16384};
 
-  uint8 base_rate_index = ((m_data[0x0A] >> 4) & 3);
-  uint8 rate_divider = (m_data[0x0A] & 15);
+  uint8 base_rate_index = ((m_data[RTC_REGISTER_STATUS_REGISTER_A] >> RTC_SRA_DV_SHIFT) & RTC_SRA_DV_MASK);
+  uint8 rate_divider = ((m_data[RTC_REGISTER_STATUS_REGISTER_A] >> RTC_SRA_RS_SHIFT) & RTC_SRA_RS_MASK);
 
   uint32 base_rate = base_rate_table[base_rate_index];
   uint32 interrupt_rate = base_rate >> rate_divider;
