@@ -4230,15 +4230,14 @@ void CPU::InvalidateAllTLBEntries(bool force_clear /* = false */)
 void CPU::InvalidateTLBEntry(uint32 linear_address)
 {
 #ifdef ENABLE_TLB_EMULATION
-  linear_address &= PAGE_MASK;
-
-  size_t index = GetTLBEntryIndex(linear_address);
+  const u32 compare_linear_address = (linear_address & PAGE_MASK) | m_tlb_counter_bits;
+  const size_t index = GetTLBEntryIndex(linear_address);
   for (uint32 user_supervisor = 0; user_supervisor < 2; user_supervisor++)
   {
     for (uint32 write_read = 0; write_read < 2; write_read++)
     {
       TLBEntry& entry = m_tlb_entries[user_supervisor][write_read][index];
-      if (entry.linear_address == linear_address)
+      if (entry.linear_address == compare_linear_address)
         entry.linear_address = 0xFFFFFFFF;
     }
   }
