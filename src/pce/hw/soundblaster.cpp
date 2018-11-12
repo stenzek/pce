@@ -75,7 +75,7 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus) || !m_ymf262.Initialize(system))
     return false;
 
-  if (m_type < Type::SoundBlaster10 || m_type >= Type::SoundBlaster16)
+  if (m_type < Type::SoundBlaster10 || m_type > Type::SoundBlaster16)
   {
     Log_ErrorPrintf("Invalid board type");
     return false;
