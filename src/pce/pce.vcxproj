@@ -204,7 +204,9 @@
   <ItemGroup>
     <None Include="bus.inl" />
     <ClCompile Include="cpu_8086\instructions.cpp" />
+    <None Include="cpu_8086\instructions_dispatch.inl" />
     <None Include="cpu_x86\decoder.inl" />
+    <None Include="cpu_x86\interpreter_dispatch.inl" />
     <None Include="cpu_x86\interpreter_x87.inl" />
     <None Include="hw\cga_font.inl" />
     <None Include="hw\cga_palette.inl" />

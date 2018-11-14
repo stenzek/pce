@@ -43,33 +43,7 @@ private:
   static void FetchImmediate(CPU* cpu);
 
   // Dispatcher routines
-  static void Dispatch_Base(CPU* cpu);
-  static void Dispatch_Prefix_0f(CPU* cpu);
-  static void Dispatch_Prefix_0f00(CPU* cpu);
-  static void Dispatch_Prefix_0f01(CPU* cpu);
-  static void Dispatch_Prefix_0fba(CPU* cpu);
-  static void Dispatch_Prefix_80(CPU* cpu);
-  static void Dispatch_Prefix_81(CPU* cpu);
-  static void Dispatch_Prefix_82(CPU* cpu);
-  static void Dispatch_Prefix_83(CPU* cpu);
-  static void Dispatch_Prefix_c0(CPU* cpu);
-  static void Dispatch_Prefix_c1(CPU* cpu);
-  static void Dispatch_Prefix_d0(CPU* cpu);
-  static void Dispatch_Prefix_d1(CPU* cpu);
-  static void Dispatch_Prefix_d2(CPU* cpu);
-  static void Dispatch_Prefix_d3(CPU* cpu);
-  static void Dispatch_Prefix_d8(CPU* cpu);
-  static void Dispatch_Prefix_d9(CPU* cpu);
-  static void Dispatch_Prefix_da(CPU* cpu);
-  static void Dispatch_Prefix_db(CPU* cpu);
-  static void Dispatch_Prefix_dc(CPU* cpu);
-  static void Dispatch_Prefix_dd(CPU* cpu);
-  static void Dispatch_Prefix_de(CPU* cpu);
-  static void Dispatch_Prefix_df(CPU* cpu);
-  static void Dispatch_Prefix_f6(CPU* cpu);
-  static void Dispatch_Prefix_f7(CPU* cpu);
-  static void Dispatch_Prefix_fe(CPU* cpu);
-  static void Dispatch_Prefix_ff(CPU* cpu);
+  static void Dispatch(CPU* cpu);
 };
 
 } // namespace CPU_X86

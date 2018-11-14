@@ -456,5 +456,11 @@
       <Filter>cpu_x86</Filter>
     </None>
     <None Include="bus.inl" />
+    <None Include="cpu_x86\interpreter_dispatch.inl">
+      <Filter>cpu_x86</Filter>
+    </None>
+    <None Include="cpu_8086\instructions_dispatch.inl">
+      <Filter>cpu_8086</Filter>
+    </None>
   </ItemGroup>
 </Project>

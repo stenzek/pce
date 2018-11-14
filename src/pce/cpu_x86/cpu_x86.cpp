@@ -1545,7 +1545,9 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
   else
   {
 #ifndef COMMON_LOGGING_FORMAT
-    std::fprintf(stdout, "Decoding failed, bytes at failure point: %s\n", hex_string.GetCharArray());
+    LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, m_current_EIP);
+    std::fprintf(stdout, "%04X:%08Xh (0x%08X) Decoding failed, bytes at failure point: %s\n",
+                 ZeroExtend32(m_registers.CS), m_current_EIP, linear_address, hex_string.GetCharArray());
 #else
     std::fprintf(stdout, "%04x:%08x %s??????\n", ZeroExtend32(m_registers.CS), m_current_EIP,
                  hex_string.GetCharArray());
