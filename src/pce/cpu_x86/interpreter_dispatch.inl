@@ -1291,7 +1291,7 @@ void CPU_X86::InterpreterBackend::Dispatch(CPU* cpu)
         Interpreter::Execute_Operation_POP<OperandSize_Count, OperandMode_ModRM_RM, 0>(cpu);
         return;
       case 0x90: // NOP
-        cpu->AddCycles(CYCLES_NOP);
+        Interpreter::Execute_Operation_NOP(cpu);
         return;
       case 0x91: // XCHG eCX, eAX
         Interpreter::Execute_Operation_XCHG<OperandSize_Count, OperandMode_Register, Reg32_ECX, OperandSize_Count, OperandMode_Register, Reg32_EAX>(cpu);

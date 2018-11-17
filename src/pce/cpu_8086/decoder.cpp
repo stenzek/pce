@@ -595,42 +595,6 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
   }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// clang-format off
-#define MakeInvalidOpcode(opcode) { Operation_Invalid, {}, nullptr },
-#define MakeSegmentPrefix(opcode, seg) { Operation_Segment_Prefix, { { OperandSize_Count, OperandMode_SegmentRegister, seg } }, nullptr },
-#define MakeOperandSizePrefix(opcode) { Operation_OperandSize_Prefix, {}, nullptr },
-#define MakeAddressSizePrefix(opcode) { Operation_AddressSize_Prefix, {}, nullptr },
-#define MakeLockPrefix(opcode) { Operation_Lock_Prefix, {}, nullptr },
-#define MakeRepPrefix(opcode) { Operation_Rep_Prefix, {}, nullptr },
-#define MakeRepNEPrefix(opcode) { Operation_RepNE_Prefix, {}, nullptr },
-#define MakeNop(opcode) { Operation_NOP, {}, nullptr },
-#define MakeNoOperands(opcode, inst) { inst, {}, nullptr },
-#define MakeOneOperand(opcode, inst, op1) { inst, { {op1} }, nullptr },
-#define MakeOneOperandCC(opcode, inst, cc, op1) { inst, { { OperandSize_Count, OperandMode_JumpCondition, cc}, {op1} }, nullptr },
-#define MakeTwoOperands(opcode, inst, op1, op2) { inst, { {op1}, {op2} }, nullptr },
-#define MakeTwoOperandsCC(opcode, inst, cc, op1, op2) { inst, { { OperandSize_Count, OperandMode_JumpCondition, cc}, {op1}, {op2} }, nullptr },
-#define MakeThreeOperands(opcode, inst, op1, op2, op3) { inst, { {op1}, {op2}, {op3} }, nullptr },
-#define MakeExtension(opcode, prefix) { Operation_Extension, {}, prefix_##prefix },
-#define MakeModRMRegExtension(opcode, prefix) { Operation_Extension_ModRM_Reg, {}, prefix_##prefix },
-
-#include "pce/cpu_8086/opcodes.h"
-
-// Instruction table definitions
-const Decoder::TableEntry Decoder::base[OPCODE_TABLE_SIZE] = { EnumBaseOpcodes() };
-const Decoder::TableEntry Decoder::prefix_80[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp1Opcodes(Eb, Ib) };
-const Decoder::TableEntry Decoder::prefix_81[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp1Opcodes(Ew, Iw) };
-const Decoder::TableEntry Decoder::prefix_82[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp1Opcodes(Eb, Ib) };
-const Decoder::TableEntry Decoder::prefix_83[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp1Opcodes(Ew, Ib) };
-const Decoder::TableEntry Decoder::prefix_d0[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp2Opcodes(Eb, Cb(1)) };
-const Decoder::TableEntry Decoder::prefix_d1[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp2Opcodes(Ew, Cb(1)) };
-const Decoder::TableEntry Decoder::prefix_d2[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp2Opcodes(Eb, CL) };
-const Decoder::TableEntry Decoder::prefix_d3[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp2Opcodes(Ew, CL) };
-const Decoder::TableEntry Decoder::prefix_f6[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp3aOpcodes(Eb) };
-const Decoder::TableEntry Decoder::prefix_f7[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp3bOpcodes(Ew) };
-const Decoder::TableEntry Decoder::prefix_fe[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp4Opcodes(Eb) };
-const Decoder::TableEntry Decoder::prefix_ff[MODRM_EXTENSION_OPCODE_TABLE_SIZE] = { EnumGrp5Opcodes(Ew) };
-// clang-format on
-
 } // namespace CPU_8086
+
+#include "decoder_tables.inl"

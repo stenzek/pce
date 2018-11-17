@@ -51,14 +51,14 @@ private:
   static const TableEntry prefix_81[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
   static const TableEntry prefix_82[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
   static const TableEntry prefix_83[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
-  static const TableEntry prefix_d0[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
-  static const TableEntry prefix_d1[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
-  static const TableEntry prefix_d2[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
-  static const TableEntry prefix_d3[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
-  static const TableEntry prefix_f6[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
-  static const TableEntry prefix_f7[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
-  static const TableEntry prefix_fe[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
-  static const TableEntry prefix_ff[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
+  static const TableEntry prefix_D0[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
+  static const TableEntry prefix_D1[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
+  static const TableEntry prefix_D2[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
+  static const TableEntry prefix_D3[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
+  static const TableEntry prefix_F6[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
+  static const TableEntry prefix_F7[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
+  static const TableEntry prefix_FE[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
+  static const TableEntry prefix_FF[MODRM_EXTENSION_OPCODE_TABLE_SIZE];
 };
 
 } // namespace CPU_8086

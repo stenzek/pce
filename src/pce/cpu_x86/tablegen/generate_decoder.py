@@ -89,7 +89,7 @@ def gen_opcode(writer, opcode, parent):
         writer.write(line)
     elif opcode.type == OpcodeType.Extension or opcode.type == OpcodeType.ModRMRegExtension or \
          opcode.type == OpcodeType.X87Extension:
-        writer.write("{ %s, {}, %sprefix_%s%02X }," % (opcode.operation.value, ", nullptr" if ADD_INTERPRETER_POINTER else "", parent, opcode.encoding))
+        writer.write("{ %s, {}, %sprefix_%s%02X }," % (opcode.operation.value, "nullptr, " if ADD_INTERPRETER_POINTER else "", parent, opcode.encoding))
 
 
 if __name__ == "__main__":

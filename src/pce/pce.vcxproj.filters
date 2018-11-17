@@ -267,9 +267,6 @@
       <Filter>cpu_x86</Filter>
     </ClInclude>
     <ClInclude Include="bus.h" />
-    <ClInclude Include="cpu_x86\opcodes.h">
-      <Filter>cpu_x86</Filter>
-    </ClInclude>
     <ClInclude Include="cpu_x86\decoder.h">
       <Filter>cpu_x86</Filter>
     </ClInclude>
@@ -353,9 +350,6 @@
       <Filter>cpu_8086</Filter>
     </ClInclude>
     <ClInclude Include="cpu_8086\instruction.h">
-      <Filter>cpu_8086</Filter>
-    </ClInclude>
-    <ClInclude Include="cpu_8086\opcodes.h">
       <Filter>cpu_8086</Filter>
     </ClInclude>
     <ClInclude Include="cpu_8086\types.h">
@@ -460,6 +454,12 @@
       <Filter>cpu_x86</Filter>
     </None>
     <None Include="cpu_8086\instructions_dispatch.inl">
+      <Filter>cpu_8086</Filter>
+    </None>
+    <None Include="cpu_x86\decoder_tables.inl">
+      <Filter>cpu_x86</Filter>
+    </None>
+    <None Include="cpu_8086\decoder_tables.inl">
       <Filter>cpu_8086</Filter>
     </None>
   </ItemGroup>

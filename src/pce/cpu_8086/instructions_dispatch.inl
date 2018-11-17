@@ -824,16 +824,16 @@ void CPU_8086::Instructions::DispatchInstruction(CPU* cpu)
         FetchImmediate<OperandSize_16, OperandMode_Memory, 0>(cpu); // fetch immediate for operand 0 (OperandMode_Memory)
         Execute_Operation_MOV<OperandSize_16, OperandMode_Memory, 0, OperandSize_16, OperandMode_Register, Reg16_AX>(cpu);
         return;
-      case 0xA4: // MOVS Yb, Xb
+      case 0xA4: // MOVS WYb, WXb
         Execute_Operation_MOVS<OperandSize_8, OperandMode_RegisterIndirect, Reg16_DI, OperandSize_8, OperandMode_RegisterIndirect, Reg16_SI>(cpu);
         return;
-      case 0xA5: // MOVS Yw, Xw
+      case 0xA5: // MOVS WYw, WXw
         Execute_Operation_MOVS<OperandSize_16, OperandMode_RegisterIndirect, Reg16_DI, OperandSize_16, OperandMode_RegisterIndirect, Reg16_SI>(cpu);
         return;
-      case 0xA6: // CMPS Xb, Yb
+      case 0xA6: // CMPS WXb, WYb
         Execute_Operation_CMPS<OperandSize_8, OperandMode_RegisterIndirect, Reg16_SI, OperandSize_8, OperandMode_RegisterIndirect, Reg16_DI>(cpu);
         return;
-      case 0xA7: // CMPS Xw, Yw
+      case 0xA7: // CMPS WXw, WYw
         Execute_Operation_CMPS<OperandSize_16, OperandMode_RegisterIndirect, Reg16_SI, OperandSize_16, OperandMode_RegisterIndirect, Reg16_DI>(cpu);
         return;
       case 0xA8: // TEST AL, Ib
@@ -844,22 +844,22 @@ void CPU_8086::Instructions::DispatchInstruction(CPU* cpu)
         FetchImmediate<OperandSize_16, OperandMode_Immediate, 0>(cpu); // fetch immediate for operand 1 (OperandMode_Immediate)
         Execute_Operation_TEST<OperandSize_16, OperandMode_Register, Reg16_AX, OperandSize_16, OperandMode_Immediate, 0>(cpu);
         return;
-      case 0xAA: // STOS Yb, AL
+      case 0xAA: // STOS WYb, AL
         Execute_Operation_STOS<OperandSize_8, OperandMode_RegisterIndirect, Reg16_DI, OperandSize_8, OperandMode_Register, Reg8_AL>(cpu);
         return;
-      case 0xAB: // STOS Yw, AX
+      case 0xAB: // STOS WYw, AX
         Execute_Operation_STOS<OperandSize_16, OperandMode_RegisterIndirect, Reg16_DI, OperandSize_16, OperandMode_Register, Reg16_AX>(cpu);
         return;
-      case 0xAC: // LODS AL, Xb
+      case 0xAC: // LODS AL, WXb
         Execute_Operation_LODS<OperandSize_8, OperandMode_Register, Reg8_AL, OperandSize_8, OperandMode_RegisterIndirect, Reg16_SI>(cpu);
         return;
-      case 0xAD: // LODS AX, Xw
+      case 0xAD: // LODS AX, WXw
         Execute_Operation_LODS<OperandSize_16, OperandMode_Register, Reg16_AX, OperandSize_16, OperandMode_RegisterIndirect, Reg16_SI>(cpu);
         return;
-      case 0xAE: // SCAS AL, Xb
+      case 0xAE: // SCAS AL, WXb
         Execute_Operation_SCAS<OperandSize_8, OperandMode_Register, Reg8_AL, OperandSize_8, OperandMode_RegisterIndirect, Reg16_SI>(cpu);
         return;
-      case 0xAF: // SCAS AX, Xw
+      case 0xAF: // SCAS AX, WXw
         Execute_Operation_SCAS<OperandSize_16, OperandMode_Register, Reg16_AX, OperandSize_16, OperandMode_RegisterIndirect, Reg16_SI>(cpu);
         return;
       case 0xB0: // MOV AL, Ib
@@ -1148,15 +1148,44 @@ void CPU_8086::Instructions::DispatchInstruction(CPU* cpu)
         Execute_Operation_XLAT(cpu);
         return;
       case 0xD8: // Escape Eb
+        FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_RM)
+        FetchImmediate<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
+        Execute_Operation_Escape<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu);
+        return;
       case 0xD9: // Escape Eb
+        FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_RM)
+        FetchImmediate<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
+        Execute_Operation_Escape<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu);
+        return;
       case 0xDA: // Escape Eb
+        FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_RM)
+        FetchImmediate<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
+        Execute_Operation_Escape<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu);
+        return;
       case 0xDB: // Escape Eb
+        FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_RM)
+        FetchImmediate<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
+        Execute_Operation_Escape<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu);
+        return;
       case 0xDC: // Escape Eb
+        FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_RM)
+        FetchImmediate<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
+        Execute_Operation_Escape<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu);
+        return;
       case 0xDD: // Escape Eb
+        FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_RM)
+        FetchImmediate<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
+        Execute_Operation_Escape<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu);
+        return;
       case 0xDE: // Escape Eb
+        FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_RM)
+        FetchImmediate<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
+        Execute_Operation_Escape<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu);
+        return;
       case 0xDF: // Escape Eb
         FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_RM)
         FetchImmediate<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
+        Execute_Operation_Escape<OperandSize_8, OperandMode_ModRM_RM, 0>(cpu);
         return;
       case 0xE0: // LOOP Jb
         FetchImmediate<OperandSize_8, OperandMode_Relative, 0>(cpu); // fetch immediate for operand 0 (OperandMode_Relative)
@@ -1370,7 +1399,7 @@ void CPU_8086::Instructions::DispatchInstruction(CPU* cpu)
             FetchImmediate<OperandSize_16, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
             Execute_Operation_JMP_Near<OperandSize_16, OperandMode_ModRM_RM, 0>(cpu);
             return;
-          case 0x05: // JMP_Far Mw
+          case 0x05: // JMP_Far Mp
             FetchImmediate<OperandSize_Count, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 0 (OperandMode_ModRM_RM)
             Execute_Operation_JMP_Far<OperandSize_Count, OperandMode_ModRM_RM, 0>(cpu);
             return;
@@ -1384,6 +1413,7 @@ void CPU_8086::Instructions::DispatchInstruction(CPU* cpu)
     }
     // If we hit here, it means the opcode is invalid, as all other switch cases continue
     RaiseInvalidOpcode(cpu);
+    return;
   }
 }
 

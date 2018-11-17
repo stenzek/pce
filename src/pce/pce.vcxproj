@@ -102,7 +102,6 @@
     <ClInclude Include="cpu_8086\debugger_interface.h" />
     <ClInclude Include="cpu_8086\decoder.h" />
     <ClInclude Include="cpu_8086\instruction.h" />
-    <ClInclude Include="cpu_8086\opcodes.h" />
     <ClInclude Include="cpu_8086\types.h" />
     <ClInclude Include="cpu_x86\backend.h" />
     <ClInclude Include="cpu_x86\cached_interpreter_backend.h" />
@@ -116,7 +115,6 @@
     <ClInclude Include="cpu_x86\interpreter.h" />
     <ClInclude Include="cpu_x86\interpreter_backend.h" />
     <ClInclude Include="cpu_x86\interpreter.inl" />
-    <ClInclude Include="cpu_x86\opcodes.h" />
     <ClInclude Include="cpu_x86\cycles.h" />
     <ClInclude Include="cpu_x86\types.h" />
     <ClInclude Include="debugger_interface.h" />
@@ -204,8 +202,10 @@
   <ItemGroup>
     <None Include="bus.inl" />
     <ClCompile Include="cpu_8086\instructions.cpp" />
+    <None Include="cpu_8086\decoder_tables.inl" />
     <None Include="cpu_8086\instructions_dispatch.inl" />
     <None Include="cpu_x86\decoder.inl" />
+    <None Include="cpu_x86\decoder_tables.inl" />
     <None Include="cpu_x86\interpreter_dispatch.inl" />
     <None Include="cpu_x86\interpreter_x87.inl" />
     <None Include="hw\cga_font.inl" />

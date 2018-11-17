@@ -2698,6 +2698,11 @@ public:
 
   static inline void Execute_Operation_WAIT(CPU* cpu) {}
 
+  template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
+  static inline void Execute_Operation_Escape(CPU* cpu)
+  {
+  }
+
   static inline void DispatchInstruction(CPU* cpu);
 };
 
