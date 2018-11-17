@@ -146,7 +146,7 @@ base = {
     0x8D: Opcode(0x8D, OpcodeType.Normal, Operation.LEA, Gw, M),
     0x8E: Opcode(0x8E, OpcodeType.Normal, Operation.MOV_Sreg, Sw, Ew),
     0x8F: Opcode(0x8F, OpcodeType.Normal, Operation.POP, Ew),
-    0x90: Opcode(0x90, OpcodeType.Nop, Operation.NOP),
+    0x90: Opcode(0x90, OpcodeType.Normal, Operation.NOP),
     0x91: Opcode(0x91, OpcodeType.Normal, Operation.XCHG, CX, AX),
     0x92: Opcode(0x92, OpcodeType.Normal, Operation.XCHG, DX, AX),
     0x93: Opcode(0x93, OpcodeType.Normal, Operation.XCHG, BX, AX),
@@ -166,18 +166,18 @@ base = {
     0xA1: Opcode(0xA1, OpcodeType.Normal, Operation.MOV, AX, Ow),
     0xA2: Opcode(0xA2, OpcodeType.Normal, Operation.MOV, Ob, AL),
     0xA3: Opcode(0xA3, OpcodeType.Normal, Operation.MOV, Ow, AX),
-    0xA4: Opcode(0xA4, OpcodeType.Normal, Operation.MOVS, Yb, Xb),
-    0xA5: Opcode(0xA5, OpcodeType.Normal, Operation.MOVS, Yw, Xw),
-    0xA6: Opcode(0xA6, OpcodeType.Normal, Operation.CMPS, Xb, Yb),
-    0xA7: Opcode(0xA7, OpcodeType.Normal, Operation.CMPS, Xw, Yw),
+    0xA4: Opcode(0xA4, OpcodeType.Normal, Operation.MOVS, WYb, WXb),
+    0xA5: Opcode(0xA5, OpcodeType.Normal, Operation.MOVS, WYw, WXw),
+    0xA6: Opcode(0xA6, OpcodeType.Normal, Operation.CMPS, WXb, WYb),
+    0xA7: Opcode(0xA7, OpcodeType.Normal, Operation.CMPS, WXw, WYw),
     0xA8: Opcode(0xA8, OpcodeType.Normal, Operation.TEST, AL, Ib),
     0xA9: Opcode(0xA9, OpcodeType.Normal, Operation.TEST, AX, Iw),
-    0xAA: Opcode(0xAA, OpcodeType.Normal, Operation.STOS, Yb, AL),
-    0xAB: Opcode(0xAB, OpcodeType.Normal, Operation.STOS, Yw, AX),
-    0xAC: Opcode(0xAC, OpcodeType.Normal, Operation.LODS, AL, Xb),
-    0xAD: Opcode(0xAD, OpcodeType.Normal, Operation.LODS, AX, Xw),
-    0xAE: Opcode(0xAE, OpcodeType.Normal, Operation.SCAS, AL, Xb),
-    0xAF: Opcode(0xAF, OpcodeType.Normal, Operation.SCAS, AX, Xw),
+    0xAA: Opcode(0xAA, OpcodeType.Normal, Operation.STOS, WYb, AL),
+    0xAB: Opcode(0xAB, OpcodeType.Normal, Operation.STOS, WYw, AX),
+    0xAC: Opcode(0xAC, OpcodeType.Normal, Operation.LODS, AL, WXb),
+    0xAD: Opcode(0xAD, OpcodeType.Normal, Operation.LODS, AX, WXw),
+    0xAE: Opcode(0xAE, OpcodeType.Normal, Operation.SCAS, AL, WXb),
+    0xAF: Opcode(0xAF, OpcodeType.Normal, Operation.SCAS, AX, WXw),
     0xB0: Opcode(0xB0, OpcodeType.Normal, Operation.MOV, AL, Ib),
     0xB1: Opcode(0xB1, OpcodeType.Normal, Operation.MOV, CL, Ib),
     0xB2: Opcode(0xB2, OpcodeType.Normal, Operation.MOV, DL, Ib),
@@ -272,14 +272,14 @@ prefix_80 = {
 }
 
 prefix_81 = {
-    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ADD, Ev, Iv),
-    0x01: Opcode(0x01, OpcodeType.Normal, Operation.OR, Ev, Iv),
-    0x02: Opcode(0x02, OpcodeType.Normal, Operation.ADC, Ev, Iv),
-    0x03: Opcode(0x03, OpcodeType.Normal, Operation.SBB, Ev, Iv),
-    0x04: Opcode(0x04, OpcodeType.Normal, Operation.AND, Ev, Iv),
-    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SUB, Ev, Iv),
-    0x06: Opcode(0x06, OpcodeType.Normal, Operation.XOR, Ev, Iv),
-    0x07: Opcode(0x07, OpcodeType.Normal, Operation.CMP, Ev, Iv),
+    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ADD, Ew, Iw),
+    0x01: Opcode(0x01, OpcodeType.Normal, Operation.OR, Ew, Iw),
+    0x02: Opcode(0x02, OpcodeType.Normal, Operation.ADC, Ew, Iw),
+    0x03: Opcode(0x03, OpcodeType.Normal, Operation.SBB, Ew, Iw),
+    0x04: Opcode(0x04, OpcodeType.Normal, Operation.AND, Ew, Iw),
+    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SUB, Ew, Iw),
+    0x06: Opcode(0x06, OpcodeType.Normal, Operation.XOR, Ew, Iw),
+    0x07: Opcode(0x07, OpcodeType.Normal, Operation.CMP, Ew, Iw),
 }
 
 prefix_82 = {
@@ -293,14 +293,14 @@ prefix_82 = {
     0x07: Opcode(0x07, OpcodeType.Normal, Operation.CMP, Eb, Ib),
 }
 prefix_83 = {
-    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ADD, Ev, Ib),
-    0x01: Opcode(0x01, OpcodeType.Normal, Operation.OR, Ev, Ib),
-    0x02: Opcode(0x02, OpcodeType.Normal, Operation.ADC, Ev, Ib),
-    0x03: Opcode(0x03, OpcodeType.Normal, Operation.SBB, Ev, Ib),
-    0x04: Opcode(0x04, OpcodeType.Normal, Operation.AND, Ev, Ib),
-    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SUB, Ev, Ib),
-    0x06: Opcode(0x06, OpcodeType.Normal, Operation.XOR, Ev, Ib),
-    0x07: Opcode(0x07, OpcodeType.Normal, Operation.CMP, Ev, Ib),
+    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ADD, Ew, Ib),
+    0x01: Opcode(0x01, OpcodeType.Normal, Operation.OR, Ew, Ib),
+    0x02: Opcode(0x02, OpcodeType.Normal, Operation.ADC, Ew, Ib),
+    0x03: Opcode(0x03, OpcodeType.Normal, Operation.SBB, Ew, Ib),
+    0x04: Opcode(0x04, OpcodeType.Normal, Operation.AND, Ew, Ib),
+    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SUB, Ew, Ib),
+    0x06: Opcode(0x06, OpcodeType.Normal, Operation.XOR, Ew, Ib),
+    0x07: Opcode(0x07, OpcodeType.Normal, Operation.CMP, Ew, Ib),
 }
 prefix_C0 = {
     0x00: Opcode(0x00, OpcodeType.Normal, Operation.ROL, Eb, Ib),
@@ -313,14 +313,14 @@ prefix_C0 = {
     0x07: Opcode(0x07, OpcodeType.Normal, Operation.SAR, Eb, Ib),
 }
 prefix_C1 = {
-    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ROL, Ev, Ib),
-    0x01: Opcode(0x01, OpcodeType.Normal, Operation.ROR, Ev, Ib),
-    0x02: Opcode(0x02, OpcodeType.Normal, Operation.RCL, Ev, Ib),
-    0x03: Opcode(0x03, OpcodeType.Normal, Operation.RCR, Ev, Ib),
-    0x04: Opcode(0x04, OpcodeType.Normal, Operation.SHL, Ev, Ib),
-    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SHR, Ev, Ib),
+    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ROL, Ew, Ib),
+    0x01: Opcode(0x01, OpcodeType.Normal, Operation.ROR, Ew, Ib),
+    0x02: Opcode(0x02, OpcodeType.Normal, Operation.RCL, Ew, Ib),
+    0x03: Opcode(0x03, OpcodeType.Normal, Operation.RCR, Ew, Ib),
+    0x04: Opcode(0x04, OpcodeType.Normal, Operation.SHL, Ew, Ib),
+    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SHR, Ew, Ib),
     0x06: Opcode(0x06, OpcodeType.Invalid, Operation.Invalid),
-    0x07: Opcode(0x07, OpcodeType.Normal, Operation.SAR, Ev, Ib),
+    0x07: Opcode(0x07, OpcodeType.Normal, Operation.SAR, Ew, Ib),
 }
 prefix_D0 = {
     0x00: Opcode(0x00, OpcodeType.Normal, Operation.ROL, Eb, Cb(1)),
@@ -333,14 +333,14 @@ prefix_D0 = {
     0x07: Opcode(0x07, OpcodeType.Normal, Operation.SAR, Eb, Cb(1)),
 }
 prefix_D1 = {
-    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ROL, Ev, Cb(1)),
-    0x01: Opcode(0x01, OpcodeType.Normal, Operation.ROR, Ev, Cb(1)),
-    0x02: Opcode(0x02, OpcodeType.Normal, Operation.RCL, Ev, Cb(1)),
-    0x03: Opcode(0x03, OpcodeType.Normal, Operation.RCR, Ev, Cb(1)),
-    0x04: Opcode(0x04, OpcodeType.Normal, Operation.SHL, Ev, Cb(1)),
-    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SHR, Ev, Cb(1)),
+    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ROL, Ew, Cb(1)),
+    0x01: Opcode(0x01, OpcodeType.Normal, Operation.ROR, Ew, Cb(1)),
+    0x02: Opcode(0x02, OpcodeType.Normal, Operation.RCL, Ew, Cb(1)),
+    0x03: Opcode(0x03, OpcodeType.Normal, Operation.RCR, Ew, Cb(1)),
+    0x04: Opcode(0x04, OpcodeType.Normal, Operation.SHL, Ew, Cb(1)),
+    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SHR, Ew, Cb(1)),
     0x06: Opcode(0x06, OpcodeType.Invalid, Operation.Invalid),
-    0x07: Opcode(0x07, OpcodeType.Normal, Operation.SAR, Ev, Cb(1)),
+    0x07: Opcode(0x07, OpcodeType.Normal, Operation.SAR, Ew, Cb(1)),
 }
 prefix_D2 = {
     0x00: Opcode(0x00, OpcodeType.Normal, Operation.ROL, Eb, CL),
@@ -353,14 +353,14 @@ prefix_D2 = {
     0x07: Opcode(0x07, OpcodeType.Normal, Operation.SAR, Eb, CL),
 }
 prefix_D3 = {
-    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ROL, Ev, CL),
-    0x01: Opcode(0x01, OpcodeType.Normal, Operation.ROR, Ev, CL),
-    0x02: Opcode(0x02, OpcodeType.Normal, Operation.RCL, Ev, CL),
-    0x03: Opcode(0x03, OpcodeType.Normal, Operation.RCR, Ev, CL),
-    0x04: Opcode(0x04, OpcodeType.Normal, Operation.SHL, Ev, CL),
-    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SHR, Ev, CL),
+    0x00: Opcode(0x00, OpcodeType.Normal, Operation.ROL, Ew, CL),
+    0x01: Opcode(0x01, OpcodeType.Normal, Operation.ROR, Ew, CL),
+    0x02: Opcode(0x02, OpcodeType.Normal, Operation.RCL, Ew, CL),
+    0x03: Opcode(0x03, OpcodeType.Normal, Operation.RCR, Ew, CL),
+    0x04: Opcode(0x04, OpcodeType.Normal, Operation.SHL, Ew, CL),
+    0x05: Opcode(0x05, OpcodeType.Normal, Operation.SHR, Ew, CL),
     0x06: Opcode(0x06, OpcodeType.Invalid, Operation.Invalid),
-    0x07: Opcode(0x07, OpcodeType.Normal, Operation.SAR, Ev, CL),
+    0x07: Opcode(0x07, OpcodeType.Normal, Operation.SAR, Ew, CL),
 }
 prefix_F6 = {
     0x00: Opcode(0x00, OpcodeType.Normal, Operation.TEST, Eb, Ib),
@@ -375,12 +375,12 @@ prefix_F6 = {
 prefix_F7 = {
     0x00: Opcode(0x00, OpcodeType.Normal, Operation.TEST, Ew, Iw),
     0x01: Opcode(0x01, OpcodeType.Invalid, Operation.Invalid),
-    0x02: Opcode(0x02, OpcodeType.Normal, Operation.NOT, Ev),
-    0x03: Opcode(0x03, OpcodeType.Normal, Operation.NEG, Ev),
-    0x04: Opcode(0x04, OpcodeType.Normal, Operation.MUL, Ev),
-    0x05: Opcode(0x05, OpcodeType.Normal, Operation.IMUL, Ev),
-    0x06: Opcode(0x06, OpcodeType.Normal, Operation.DIV, Ev),
-    0x07: Opcode(0x07, OpcodeType.Normal, Operation.IDIV, Ev),
+    0x02: Opcode(0x02, OpcodeType.Normal, Operation.NOT, Ew),
+    0x03: Opcode(0x03, OpcodeType.Normal, Operation.NEG, Ew),
+    0x04: Opcode(0x04, OpcodeType.Normal, Operation.MUL, Ew),
+    0x05: Opcode(0x05, OpcodeType.Normal, Operation.IMUL, Ew),
+    0x06: Opcode(0x06, OpcodeType.Normal, Operation.DIV, Ew),
+    0x07: Opcode(0x07, OpcodeType.Normal, Operation.IDIV, Ew),
 }
 prefix_FE = {
     0x00: Opcode(0x00, OpcodeType.Normal, Operation.INC, Eb),
@@ -393,12 +393,12 @@ prefix_FE = {
     0x07: Opcode(0x07, OpcodeType.Invalid, Operation.Invalid),
 }
 prefix_FF = {
-    0x00: Opcode(0x00, OpcodeType.Normal, Operation.INC, Ev),
-    0x01: Opcode(0x01, OpcodeType.Normal, Operation.DEC, Ev),
-    0x02: Opcode(0x02, OpcodeType.Normal, Operation.CALL_Near, Ev),
+    0x00: Opcode(0x00, OpcodeType.Normal, Operation.INC, Ew),
+    0x01: Opcode(0x01, OpcodeType.Normal, Operation.DEC, Ew),
+    0x02: Opcode(0x02, OpcodeType.Normal, Operation.CALL_Near, Ew),
     0x03: Opcode(0x03, OpcodeType.Normal, Operation.CALL_Far, Mp),
-    0x04: Opcode(0x04, OpcodeType.Normal, Operation.JMP_Near, Ev),
+    0x04: Opcode(0x04, OpcodeType.Normal, Operation.JMP_Near, Ew),
     0x05: Opcode(0x05, OpcodeType.Normal, Operation.JMP_Far, Mp),
-    0x06: Opcode(0x06, OpcodeType.Normal, Operation.PUSH, Ev),
+    0x06: Opcode(0x06, OpcodeType.Normal, Operation.PUSH, Ew),
     0x07: Opcode(0x07, OpcodeType.Invalid, Operation.Invalid),
 }

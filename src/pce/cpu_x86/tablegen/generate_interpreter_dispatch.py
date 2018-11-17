@@ -1,10 +1,15 @@
 from common import *
 from writer import Writer
 import opcodes_8086
+import opcodes_x86
+import sys
 
+MODULE = None
+INTERPRETER_PREFIX = ""
+DISPATCH_FUNCTION_NAME = ""
 
 def gen_dispatch(writer):
-    writer.write("void CPU_X86::InterpreterBackend::Dispatch(CPU* cpu)")
+    writer.write("void %s(CPU* cpu)" % DISPATCH_FUNCTION_NAME)
     writer.begin_scope()
     writer.write("for (;;)")
     writer.begin_scope()
@@ -16,13 +21,14 @@ def gen_dispatch(writer):
 
     writer.write("// If we hit here, it means the opcode is invalid, as all other switch cases continue")
     writer.write("RaiseInvalidOpcode(cpu);")
+    writer.write("return;")
     writer.end_scope()  # end for loop
 
     writer.end_scope()  # end function
 
 
 def gen_cases(writer, table_name, modrm_fetched, prefix):
-    table = getattr(opcodes_8086, table_name)
+    table = getattr(MODULE, table_name)
     for encoding in table:
         opcode = table[encoding]
         if opcode.type == OpcodeType.Invalid or opcode.type == OpcodeType.InvalidX87:
@@ -68,11 +74,6 @@ def gen_opcode(writer, opcode, modrm_fetched, prefix):
         writer.write("cpu->idata.has_repne = true;")
         writer.write("continue;")
         writer.deindent()
-    elif opcode.type == OpcodeType.Nop:
-        writer.indent()
-        writer.write("cpu->AddCycles(CYCLES_NOP);")
-        writer.write("return;")
-        writer.deindent()
     elif opcode.type == OpcodeType.Normal:
         writer.indent()
         for i in range(len(opcode.operands)):
@@ -86,7 +87,7 @@ def gen_opcode(writer, opcode, modrm_fetched, prefix):
                 writer.write("FetchImmediate<%s>(cpu); // fetch immediate for operand %d (%s)" %
                              (operand.template_value(), i, operand.mode.value))
 
-        line = "Interpreter::Execute_%s" % opcode.operation.value
+        line = INTERPRETER_PREFIX + "Execute_%s" % opcode.operation.value
         count = 0
         if opcode.cc is not None:
             line += "<" + opcode.cc.value
@@ -138,7 +139,7 @@ def gen_opcode(writer, opcode, modrm_fetched, prefix):
             writer.write("default:")
             writer.indent()
             writer.write("FetchImmediate<OperandSize_Count, OperandMode_ModRM_RM, 0>(cpu);")
-            writer.write("Interpreter::StartX87Instruction(cpu);")
+            writer.write(INTERPRETER_PREFIX + "StartX87Instruction(cpu);")
             writer.write("return;")
             writer.deindent()  # default
             writer.end_scope()  # switch
@@ -154,6 +155,19 @@ def gen_opcode(writer, opcode, modrm_fetched, prefix):
 
 
 if __name__ == "__main__":
-    writer = Writer("../interpreter_dispatch.inl")
+    if len(sys.argv) < 3:
+        print("usage: %s <8086|x86> output_filename" % sys.argv[0])
+        sys.exit(1)
+
+    table = None
+    if sys.argv[1] == "8086":
+        MODULE = opcodes_8086
+        DISPATCH_FUNCTION_NAME = "CPU_8086::Instructions::DispatchInstruction"
+    elif sys.argv[1] == "x86":
+        MODULE = opcodes_x86
+        INTERPRETER_PREFIX = "Interpreter::"
+        DISPATCH_FUNCTION_NAME = "CPU_X86::InterpreterBackend::Dispatch"
+
+    writer = Writer(sys.argv[2])
     gen_dispatch(writer)
     writer.close()

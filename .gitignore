@@ -33,3 +33,5 @@ config.h
 # qt creator
 CMakeLists.txt.user
 
+# python bytecode
+__pycache__
