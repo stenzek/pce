@@ -156,7 +156,7 @@ bool DisplayTiming::InHorizontalSync(SimulationTime time) const
   }
 
   const s32 time_in_line = time_in_frame % m_horizontal_total_duration;
-  return (time_in_frame >= m_horizontal_sync_start_time && time_in_frame < m_horizontal_sync_end_time);
+  return (time_in_line >= m_horizontal_sync_start_time && time_in_frame < m_horizontal_sync_end_time);
 }
 
 bool DisplayTiming::InVerticalSync(SimulationTime time) const
@@ -209,7 +209,7 @@ void DisplayTiming::UpdateHorizontalFrequency()
   m_horizontal_active_duration = static_cast<u32>(1000000000.0 * active_duration_s);
   m_horizontal_sync_start_time = static_cast<u32>(1000000000.0 * sync_start_time_s);
   m_horizontal_sync_end_time = static_cast<u32>(1000000000.0 * sync_end_time_s);
-  m_horizontal_total_duration = static_cast<u32>(1000000000.0 * active_duration_s);
+  m_horizontal_total_duration = static_cast<u32>(1000000000.0 * total_duration_s);
   UpdateVerticalFrequency();
 }
 
