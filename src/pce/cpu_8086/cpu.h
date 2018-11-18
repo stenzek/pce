@@ -258,7 +258,9 @@ protected:
 #ifdef Y_COMPILER_MSVC
 #pragma warning(push)
 #pragma warning(disable : 4324)
+#endif
   fastjmp_buf m_jmp_buf = {};
+#ifdef Y_COMPILER_MSVC
 #pragma warning(pop)
 #endif
 };

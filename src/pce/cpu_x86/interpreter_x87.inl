@@ -100,7 +100,7 @@ floatx80 Interpreter::ReadIntegerOperandAsFloat(CPU* cpu, float_status_t& fs)
     uint32 low = cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
     uint32 high =
       cpu->ReadMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
-    int64 int_value = int_value = int64((ZeroExtend64(high) << 32) | ZeroExtend64(low));
+    int64 int_value = int64((ZeroExtend64(high) << 32) | ZeroExtend64(low));
     return int64_to_floatx80(int_value);
   }
 }

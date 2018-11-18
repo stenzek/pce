@@ -19,7 +19,7 @@ END_OBJECT_PROPERTY_MAP()
 
 SerialMouse::SerialMouse(const String& identifier, const String& serial_port_name /* = "COM1" */,
                          const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_serial_port_name(serial_port_name), m_clock("SerialMouse", UPDATES_PER_SEC)
+  : BaseClass(identifier, type_info), m_clock("SerialMouse", UPDATES_PER_SEC), m_serial_port_name(serial_port_name)
 {
 }
 

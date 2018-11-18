@@ -84,9 +84,9 @@ void PCIDevice::Reset()
       {
         const u32 base = (j == MemoryRegion_ExpansionROM) ? (0x30 / 4) : ((0x10 / 4) + static_cast<u32>(j));
         if (!mr.is_io)
-          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFF0) | BoolToUInt32(mr.is_prefetchable));
+          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFF0)) | BoolToUInt32(mr.is_prefetchable);
         else
-          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFFC) | 0x01);
+          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFFC)) | 0x01;
 
         OnMemoryRegionChanged(i, static_cast<MemoryRegion>(j), false);
       }

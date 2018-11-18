@@ -175,9 +175,11 @@ std::unique_ptr<DisplayRenderer> DisplayRenderer::Create(BackendType backend, Wi
       renderer = std::make_unique<DisplayRendererNull>(window_handle, window_width, window_height);
       break;
 
+#ifdef Y_PLATFORM_WINDOWS
     case BackendType::Direct3D:
       renderer = std::make_unique<DisplayRendererD3D>(window_handle, window_width, window_height);
       break;
+#endif
 
     case BackendType::OpenGL:
       renderer = std::make_unique<DisplayRendererGL>(window_handle, window_width, window_height);

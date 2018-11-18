@@ -38,11 +38,11 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
     else if constexpr (std::is_same<T, uint64>::value)
       page.mmio_handler->ReadQWord(address, reinterpret_cast<uint64*>(&value));
     else
-      static_assert(false && "unknown type");
+      value = static_cast<T>(-1);
   }
   else
   {
-    value = T(-1);
+    value = static_cast<T>(-1);
   }
 
 #if defined(Y_BUILD_CONFIG_DEBUG) || defined(Y_BUILD_CONFIG_DEBUGFAST)

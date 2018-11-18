@@ -1206,7 +1206,7 @@ void Interpreter::Execute_Operation_ADD(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_ALU_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1246,7 +1246,7 @@ void Interpreter::Execute_Operation_ADC(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_ALU_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1286,7 +1286,7 @@ void Interpreter::Execute_Operation_SUB(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_ALU_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1326,7 +1326,7 @@ void Interpreter::Execute_Operation_SBB(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_ALU_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1364,7 +1364,7 @@ void Interpreter::Execute_Operation_CMP(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_CMP_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1431,7 +1431,7 @@ void Interpreter::Execute_Operation_AND(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_ALU_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1498,7 +1498,7 @@ void Interpreter::Execute_Operation_OR(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_ALU_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1565,7 +1565,7 @@ void Interpreter::Execute_Operation_XOR(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_ALU_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1629,7 +1629,7 @@ void Interpreter::Execute_Operation_TEST(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_TEST_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1660,7 +1660,7 @@ void Interpreter::Execute_Operation_MOV(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_MOV_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   if (actual_size == OperandSize_8)
   {
@@ -1690,7 +1690,7 @@ void Interpreter::Execute_Operation_MOVZX(CPU* cpu)
   if constexpr (dst_mode == OperandMode_ModRM_Reg && src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_MOVZX_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   if (actual_size == OperandSize_16)
   {
@@ -1715,7 +1715,7 @@ void Interpreter::Execute_Operation_MOVSX(CPU* cpu)
   if constexpr (dst_mode == OperandMode_ModRM_Reg && src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_MOVSX_REG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   if (actual_size == OperandSize_16)
   {
@@ -2334,7 +2334,7 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
   else if constexpr (src_mode == OperandMode_Register)
     cpu->AddCyclesPMode(CYCLES_IN_EDX);
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   const uint16 port_number = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
   if (actual_size == OperandSize_8)
@@ -2388,7 +2388,7 @@ void Interpreter::Execute_Operation_OUT(CPU* cpu)
   else if constexpr (dst_mode == OperandMode_Register)
     cpu->AddCyclesPMode(CYCLES_OUT_EDX);
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   const uint16 port_number = ReadZeroExtendedWordOperand<dst_size, dst_mode, dst_constant>(cpu);
   if (actual_size == OperandSize_8)
@@ -2437,7 +2437,7 @@ void Interpreter::Execute_Operation_INC(CPU* cpu)
   else if constexpr (val_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_INC_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<val_mode>::value, "unknown mode");
 
   // Preserve CF
   bool cf = cpu->m_registers.EFLAGS.CF;
@@ -2474,7 +2474,7 @@ void Interpreter::Execute_Operation_DEC(CPU* cpu)
   else if constexpr (val_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_INC_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<val_mode>::value, "unknown mode");
 
   // Preserve CF
   bool cf = cpu->m_registers.EFLAGS.CF;
@@ -2511,7 +2511,7 @@ void Interpreter::Execute_Operation_NOT(CPU* cpu)
   else if constexpr (val_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_NEG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<val_mode>::value, "unknown mode");
 
   if (actual_size == OperandSize_8)
   {
@@ -2544,7 +2544,7 @@ void Interpreter::Execute_Operation_NEG(CPU* cpu)
   else if constexpr (val_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_NEG_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<val_mode>::value, "unknown mode");
 
   if (actual_size == OperandSize_8)
   {
@@ -2931,7 +2931,7 @@ void Interpreter::Execute_Operation_PUSH(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_PUSH_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<src_mode>::value, "unknown mode");
 
   if (cpu->idata.operand_size == OperandSize_16)
   {
@@ -2988,7 +2988,7 @@ void Interpreter::Execute_Operation_POP(CPU* cpu)
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_PUSH_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   // POP can use ESP in the address calculations, in this case the value of ESP
   // is that after the pop operation has occurred, not before.
@@ -3210,7 +3210,7 @@ void Interpreter::Execute_Operation_JMP_Near(CPU* cpu)
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_JMP_NEAR_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   VirtualMemoryAddress jump_address = CalculateJumpTarget<dst_size, dst_mode, dst_constant>(cpu);
   cpu->BranchTo(jump_address);
@@ -3262,7 +3262,7 @@ void Interpreter::Execute_Operation_CALL_Near(CPU* cpu)
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_CALL_NEAR_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   VirtualMemoryAddress jump_address = CalculateJumpTarget<dst_size, dst_mode, dst_constant>(cpu);
   if (cpu->idata.operand_size == OperandSize_16)
@@ -3324,7 +3324,7 @@ void Interpreter::Execute_Operation_JMP_Far(CPU* cpu)
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesPMode(CYCLES_JMP_FAR_PTR);
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   uint16 segment_selector;
   VirtualMemoryAddress address;
@@ -3351,7 +3351,7 @@ void Interpreter::Execute_Operation_CALL_Far(CPU* cpu)
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesPMode(CYCLES_CALL_FAR_PTR);
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   uint16 segment_selector;
   VirtualMemoryAddress address;
@@ -4346,7 +4346,7 @@ void Interpreter::Execute_Operation_SHLD(CPU* cpu)
   if constexpr (dst_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_SHLD_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -4404,7 +4404,7 @@ void Interpreter::Execute_Operation_SHRD(CPU* cpu)
   if constexpr (dst_mode == OperandMode_ModRM_RM)
     cpu->AddCyclesRM(CYCLES_SHLD_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   else
-    static_assert(false, "unknown mode");
+    static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   if (actual_size == OperandSize_16)

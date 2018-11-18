@@ -58,7 +58,7 @@ private:
 
   // void DrawGraphicsLine
 
-  std::unique_ptr<Display> m_display = nullptr;
+  std::unique_ptr<Display> m_display;
 
   // 03C2h: Status register 0
   uint8 m_st0 = 0;

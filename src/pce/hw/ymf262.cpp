@@ -1,12 +1,10 @@
 #include "pce/hw/ymf262.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
 #include "YBaseLib/Timer.h"
 #include "pce/host_interface.h"
 #include "pce/thirdparty/dosbox/dbopl.h"
 #include <cmath>
-Log_SetChannel(HW::YMF262);
 
 namespace HW {
 

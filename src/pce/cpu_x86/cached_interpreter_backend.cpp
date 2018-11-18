@@ -1,12 +1,10 @@
 #include "pce/cpu_x86/cached_interpreter_backend.h"
-#include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/system.h"
 #include <array>
 #include <cstdint>
 #include <cstdio>
-Log_SetChannel(CPUX86::Interpreter);
 
 namespace CPU_X86 {
 
@@ -122,7 +120,6 @@ void CachedInterpreterBackend::AbortCurrentInstruction()
     m_current_block = nullptr;
   }
 
-  // Log_WarningPrintf("Executing longjmp()");
   m_cpu->CommitPendingCycles();
   fastjmp_jmp(&m_jmp_buf);
 }

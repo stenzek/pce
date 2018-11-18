@@ -10,7 +10,6 @@
 #include <cstdio>
 
 namespace CPU_X86 {
-Log_SetChannel(CPU_X86::Interpreter);
 
 extern bool TRACE_EXECUTION;
 extern uint32 TRACE_EXECUTION_LAST_EIP;
@@ -40,7 +39,6 @@ void InterpreterBackend::Execute()
 
 void InterpreterBackend::AbortCurrentInstruction()
 {
-  // Log_WarningPrintf("Executing longjmp()");
   m_cpu->CommitPendingCycles();
   fastjmp_jmp(&m_jmp_buf);
 }

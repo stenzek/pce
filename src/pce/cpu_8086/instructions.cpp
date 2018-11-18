@@ -43,7 +43,7 @@ public:
     else if constexpr (src_mode == OperandMode_ModRM_RM)
       return RMCycles(cpu, 3, 9, 13);
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   template<OperandMode val_mode>
@@ -920,7 +920,7 @@ public:
     else if constexpr (src_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 3, 9, 13));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1097,7 +1097,7 @@ public:
     else if constexpr (dst_mode == OperandMode_ModRM_RM || src_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 3, 9, 13));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1132,7 +1132,7 @@ public:
     else if constexpr (src_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 2, 8, 12));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1576,7 +1576,7 @@ public:
     else if constexpr (src_mode == OperandMode_Register)
       cpu->AddCycles(MemoryCycles(cpu, 8, 12));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
@@ -1603,7 +1603,7 @@ public:
     else if constexpr (src_mode == OperandMode_Register)
       cpu->AddCycles(MemoryCycles(cpu, 8, 12));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
@@ -1633,7 +1633,7 @@ public:
     else if constexpr (val_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 3, 15, 23));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<val_mode>::value, "unknown mode");
   }
 
   template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
@@ -1663,7 +1663,7 @@ public:
     else if constexpr (val_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 3, 15, 23));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<val_mode>::value, "unknown mode");
   }
 
   template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
@@ -1689,7 +1689,7 @@ public:
     else if constexpr (val_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 3, 16, 24));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<val_mode>::value, "unknown mode");
   }
 
   template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
@@ -1721,7 +1721,7 @@ public:
     else if constexpr (val_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 3, 16, 24));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<val_mode>::value, "unknown mode");
   }
 
   template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
@@ -1921,7 +1921,7 @@ public:
     else if constexpr (src_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 15, 16, 24));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<src_mode>::value, "unknown mode");
   }
 
   template<OperandSize src_size, OperandMode src_mode, u32 src_constant>
@@ -1960,7 +1960,7 @@ public:
     else if constexpr (dst_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 8, 17, 17));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   static inline void Execute_Operation_PUSHA(CPU* cpu)
@@ -2044,7 +2044,7 @@ public:
     else if constexpr (dst_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(RMCycles(cpu, 11, 18, 22));
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
@@ -2093,7 +2093,7 @@ public:
     else if constexpr (dst_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(16);
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   template<OperandSize dst_size = OperandSize_Count, OperandMode dst_mode = OperandMode_None, u32 dst_constant = 0>
@@ -2130,7 +2130,7 @@ public:
     else if constexpr (dst_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(29);
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
     cpu->BranchTo(segment_selector, address);
   }
@@ -2154,7 +2154,7 @@ public:
     else if constexpr (dst_mode == OperandMode_ModRM_RM)
       cpu->AddCycles(37);
     else
-      static_assert(false, "unknown mode");
+      static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
   }
 
   template<OperandSize dst_size = OperandSize_Count, OperandMode dst_mode = OperandMode_None, u32 dst_constant = 0>

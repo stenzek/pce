@@ -275,7 +275,7 @@ private:
     std::array<float, 2> master_volume;
     std::array<float, 2> voice_volume;
   };
-  MixerState m_mixer_state;
+  MixerState m_mixer_state = {};
   uint8 m_mixer_index_register = 0;
 
   uint8 ReadMixerIndexPort();

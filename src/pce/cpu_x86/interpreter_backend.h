@@ -25,8 +25,8 @@ public:
 
 private:
   CPU* m_cpu;
-  Bus* m_bus;
   System* m_system;
+  Bus* m_bus;
 #ifdef Y_COMPILER_MSVC
 #pragma warning(push)
 #pragma warning(disable : 4324)

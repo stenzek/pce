@@ -38,7 +38,7 @@ void fastjmp_jmp(fastjmp_buf*);
 
 #include <setjmp.h>
 #define fastjmp_buf jmp_buf
-#define fastjmp_set(buf) setjmp(buf)
-#define fastjmp_jmp(buf) longjmp(buf)
+#define fastjmp_set(buf) setjmp(*(buf))
+#define fastjmp_jmp(buf) longjmp(*(buf), 0)
 
 #endif

@@ -1,12 +1,10 @@
 #include "pce/hw/adlib.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
 #include "YBaseLib/Timer.h"
 #include "pce/bus.h"
 #include "pce/host_interface.h"
 #include <cmath>
-Log_SetChannel(HW::AdLib);
 
 namespace HW {
 

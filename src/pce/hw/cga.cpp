@@ -1,7 +1,6 @@
 #include "pce/hw/cga.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
 #include "YBaseLib/Memory.h"
 #include "common/display.h"
 #include "pce/bus.h"
@@ -9,7 +8,6 @@
 #include "pce/mmio.h"
 #include "pce/system.h"
 #include <utility>
-Log_SetChannel(CGA);
 
 namespace HW {
 #include "cga_font.inl"
@@ -300,7 +298,6 @@ void CGA::RenderLineText()
     if ((character_attributes >> 7) & m_blink_state)
       foreground_color = background_color;
 
-    const uint32 colors[2] = {background_color, foreground_color};
     for (uint32 k = 0; k < 8; k++)
     {
       // This goes MSB..LSB.
