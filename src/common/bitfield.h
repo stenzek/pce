@@ -10,18 +10,17 @@
 template<typename BackingDataType, typename DataType, unsigned BitIndex, unsigned BitCount>
 struct BitField
 {
+  constexpr BitField() = default;
+#ifndef _MSC_VER
+  BitField& operator=(const BitField& value) = delete;
+#endif
+
   constexpr BackingDataType GetMask() const
   {
     return ((static_cast<BackingDataType>(~0)) >> (8 * sizeof(BackingDataType) - BitCount)) << BitIndex;
   }
 
   operator DataType() const { return GetValue(); }
-
-  BitField& operator=(const typename BitField<BackingDataType, DataType, BitIndex, BitCount>& value)
-  {
-    SetValue(value.GetValue());
-    return *this;
-  }
 
   BitField& operator=(DataType value)
   {

@@ -3966,7 +3966,7 @@ void Interpreter::Execute_Operation_ARPL(CPU* cpu)
 
   if (dst.rpl < src.rpl)
   {
-    dst.rpl = src.rpl;
+    dst.rpl = src.rpl.GetValue();
     WriteWordOperand<dst_mode, dst_constant>(cpu, dst.bits);
     cpu->m_registers.EFLAGS.ZF = true;
   }

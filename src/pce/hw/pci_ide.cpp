@@ -210,11 +210,11 @@ void PCIIDE::IOWriteBusMasterCommandRegister(u8 channel, u8 value)
   DMAState::CommandRegister new_value = {value};
 
   // TODO: Should changing R/W during a transfer be allowed?
-  ds.command.is_write = new_value.is_write;
+  ds.command.is_write = new_value.is_write.GetValue();
 
-  if (new_value.transfer_start != ds.command.transfer_start)
+  if (new_value.transfer_start != ds.command.transfer_start.GetValue())
   {
-    ds.command.transfer_start = new_value.transfer_start;
+    ds.command.transfer_start = new_value.transfer_start.GetValue();
     OnDMAStateChanged(channel);
   }
 }
@@ -230,7 +230,7 @@ void PCIIDE::IOWriteBusMasterStatusRegister(u8 channel, u8 value)
   if (new_value.irq_requested)
     ds.status.irq_requested = false;
 
-  ds.status.user = new_value.user;
+  ds.status.user = new_value.user.GetValue();
 }
 
 void PCIIDE::IOWriteBusMasterPRDTAddress(u8 channel, u8 offset, u8 value)
