@@ -29,7 +29,7 @@ private:
 
   bool CreateQuadProgram();
 
-  u32 m_quad_vbo_id;
-  u32 m_quad_vao_id;
-  u32 m_quad_program_id;
+  u32 m_quad_vbo_id = 0;
+  u32 m_quad_vao_id = 0;
+  u32 m_quad_program_id = 0;
 };

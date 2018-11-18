@@ -1,5 +1,4 @@
 #pragma once
-#include "YBaseLib/BitSet.h"
 #include "YBaseLib/ByteStream.h"
 #include "pce/types.h"
 #include <memory>

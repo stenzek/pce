@@ -171,7 +171,7 @@ void DisplayRendererGL::RenderDisplays()
   const int window_width = int(m_window_width);
   const int window_height = std::max(1, int(m_window_height) - int(m_top_padding));
 
-  int viewport_x = (m_window_width - total_width) / 2;
+  int viewport_x = (window_width - total_width) / 2;
   for (Display* display : m_active_displays)
   {
     auto dim = GetDisplayRenderSize(display);

@@ -1,9 +1,7 @@
 #include "audio.h"
-#include "YBaseLib/Log.h"
 #include "samplerate.h"
 #include <cmath>
 #include <cstring>
-Log_SetChannel(Audio);
 
 namespace Audio {
 
@@ -161,8 +159,8 @@ Channel::Channel(const char* name, float output_sample_rate, float input_sample_
     m_output_buffer(uint32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels *
                     sizeof(OutputFormatType)),
     m_resample_buffer(uint32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels),
-    m_resampler_state(src_new(SRC_SINC_FASTEST, int(channels), nullptr)),
-    m_resample_ratio(double(output_sample_rate) / double(input_sample_rate))
+    m_resample_ratio(double(output_sample_rate) / double(input_sample_rate)),
+    m_resampler_state(src_new(SRC_SINC_FASTEST, int(channels), nullptr))
 {
   Assert(m_resampler_state != nullptr);
 }
@@ -230,7 +228,6 @@ void Channel::ReadSamples(float* destination, size_t num_samples)
     }
 
     // If we hit here, it's because we're out of input data.
-    // Log_WarningPrintf("%u extra samples inserted", Truncate32(num_samples));
     std::memset(destination, 0, num_samples * m_output_frame_size);
     break;
   }

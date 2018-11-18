@@ -187,7 +187,7 @@ std::unique_ptr<HDDImage> HDDImage::Create(const char* filename, u64 size_in_byt
 {
   String log_filename = GetLogFileName(filename);
   if (FileSystem::FileExists(filename) || FileSystem::FileExists(log_filename))
-    return false;
+    return nullptr;
 
   ByteStream* base_stream = FileSystem::OpenFile(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_WRITE |
                                                              BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_SEEKABLE);

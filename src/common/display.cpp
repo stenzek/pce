@@ -297,7 +297,6 @@ inline u32 ConvertBGR565ToRGBX8888(u16 color)
 void Display::CopyFramebufferToRGBA8Buffer(const Framebuffer* fbuf, void* dst, u32 dst_stride)
 {
   const byte* src_ptr = reinterpret_cast<const byte*>(fbuf->data);
-  const u32 src_stride = fbuf->stride;
   byte* dst_ptr = reinterpret_cast<byte*>(dst);
 
   switch (fbuf->format)

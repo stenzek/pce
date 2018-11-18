@@ -101,17 +101,17 @@ constexpr uint64 SignExtend64(TValue value)
 template<typename TValue>
 constexpr uint8 Truncate8(TValue value)
 {
-  return static_cast<uint8>(static_cast<std::make_unsigned<decltype(value)>::type>(value));
+  return static_cast<uint8>(static_cast<typename std::make_unsigned<decltype(value)>::type>(value));
 }
 template<typename TValue>
 constexpr uint16 Truncate16(TValue value)
 {
-  return static_cast<uint16>(static_cast<std::make_unsigned<decltype(value)>::type>(value));
+  return static_cast<uint16>(static_cast<typename std::make_unsigned<decltype(value)>::type>(value));
 }
 template<typename TValue>
 constexpr uint32 Truncate32(TValue value)
 {
-  return static_cast<uint32>(static_cast<std::make_unsigned<decltype(value)>::type>(value));
+  return static_cast<uint32>(static_cast<typename std::make_unsigned<decltype(value)>::type>(value));
 }
 
 // BCD helpers
