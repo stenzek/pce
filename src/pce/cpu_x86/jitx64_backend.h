@@ -29,7 +29,7 @@ private:
     Block(const BlockKey key);
     ~Block();
 
-    static const size_t CODE_SIZE = 4096;
+    static constexpr size_t CODE_SIZE = 4096;
     using CodePointer = void (*)(CPU*);
     // void AllocCode(size_t size);
 

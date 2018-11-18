@@ -82,7 +82,7 @@ public:
   bool SaveImage(const char* filename, Error* error);
 
 private:
-  static const u32 SECTOR_SIZE = 512;
+  static constexpr u32 SECTOR_SIZE = 512;
 
   DriveType m_drive_type;
   u32 m_drive_number;

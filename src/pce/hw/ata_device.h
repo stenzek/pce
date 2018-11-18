@@ -242,7 +242,7 @@ public:
   void WriteDataPort(const void* buffer, u32 size);
 
 protected:
-  static const u32 SERIALIZATION_ID = MakeSerializationID('A', 'T', 'A', 'D');
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('A', 'T', 'A', 'D');
 
   static void PutIdentifyString(char* buffer, uint32 buffer_size, const char* str);
 

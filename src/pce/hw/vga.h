@@ -20,9 +20,9 @@ class VGA : public Component
   DECLARE_OBJECT_PROPERTY_MAP(VGA);
 
 public:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('V', 'G', 'A');
-  static const uint32 MAX_BIOS_SIZE = 65536;
-  static const uint32 VRAM_SIZE = 524288;
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('V', 'G', 'A');
+  static constexpr uint32 MAX_BIOS_SIZE = 65536;
+  static constexpr uint32 VRAM_SIZE = 524288;
 
 public:
   VGA(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);

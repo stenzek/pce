@@ -16,20 +16,20 @@ class CGA : public Component
   DECLARE_OBJECT_PROPERTY_MAP(CGA);
 
 public:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('C', 'G', 'A');
-  static const uint32 VRAM_SIZE = 16384;
-  static const uint32 PIXEL_CLOCK = 14318181;
-  static const uint32 NUM_CRTC_REGISTERS = 18;
-  static const uint32 CHARACTER_WIDTH = 8;
-  static const uint32 CHARACTER_HEIGHT = 8;
-  static const uint32 ADDRESS_COUNTER_MASK = 0x3FFF;
-  static const uint32 ADDRESS_COUNTER_VRAM_MASK_TEXT = 0x1FFF;
-  static const uint32 ADDRESS_COUNTER_VRAM_MASK_GRAPHICS = 0x0FFF;
-  static const uint32 CHARACTER_ROW_COUNTER_MASK = 0x1F;
-  static const uint32 VERTICAL_COUNTER_MASK = 0x7F;
-  static const uint32 CRTC_ADDRESS_SHIFT = 1;
-  static const uint32 VSYNC_PULSE_WIDTH = 16;
-  static const uint8 BLINK_INTERVAL = 8;
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('C', 'G', 'A');
+  static constexpr uint32 VRAM_SIZE = 16384;
+  static constexpr uint32 PIXEL_CLOCK = 14318181;
+  static constexpr uint32 NUM_CRTC_REGISTERS = 18;
+  static constexpr uint32 CHARACTER_WIDTH = 8;
+  static constexpr uint32 CHARACTER_HEIGHT = 8;
+  static constexpr uint32 ADDRESS_COUNTER_MASK = 0x3FFF;
+  static constexpr uint32 ADDRESS_COUNTER_VRAM_MASK_TEXT = 0x1FFF;
+  static constexpr uint32 ADDRESS_COUNTER_VRAM_MASK_GRAPHICS = 0x0FFF;
+  static constexpr uint32 CHARACTER_ROW_COUNTER_MASK = 0x1F;
+  static constexpr uint32 VERTICAL_COUNTER_MASK = 0x7F;
+  static constexpr uint32 CRTC_ADDRESS_SHIFT = 1;
+  static constexpr uint32 VSYNC_PULSE_WIDTH = 16;
+  static constexpr uint8 BLINK_INTERVAL = 8;
 
 public:
   CGA(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);

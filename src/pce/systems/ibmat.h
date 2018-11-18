@@ -19,9 +19,9 @@ class IBMAT : public ISAPC
   DECLARE_OBJECT_PROPERTY_MAP(IBMAT);
 
 public:
-  static const uint32 PHYSICAL_MEMORY_BITS = 24;
-  static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
-  static const uint32 BIOS_ROM_SIZE = 65536;
+  static constexpr uint32 PHYSICAL_MEMORY_BITS = 24;
+  static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
+  static constexpr uint32 BIOS_ROM_SIZE = 65536;
 
   IBMAT(float cpu_frequency = 2000000.0f, uint32 memory_size = 1024 * 1024,
         const ObjectTypeInfo* type_info = &s_type_info);

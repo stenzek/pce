@@ -73,7 +73,7 @@ public:
   static SimulationTime GetEmulatedTimeDifference(SimulationTime prev, SimulationTime now);
 
 private:
-  static const u32 SAVE_STATE_SIGNATURE = 0x50435353;
+  static constexpr u32 SAVE_STATE_SIGNATURE = 0x50435353;
 
   void UpdateNextEventTime();
 

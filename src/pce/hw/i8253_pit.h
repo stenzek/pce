@@ -45,12 +45,12 @@ public:
   void SetChannelMonitorCallback(size_t channel_index, ChannelMonitorCallback callback);
 
 private:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '3');
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '3');
 
-  static const uint32 IOPORT_CHANNEL_0_DATA = 0x40;
-  static const uint32 IOPORT_CHANNEL_1_DATA = 0x41;
-  static const uint32 IOPORT_CHANNEL_2_DATA = 0x42;
-  static const uint32 IOPORT_COMMAND_REGISTER = 0x43;
+  static constexpr uint32 IOPORT_CHANNEL_0_DATA = 0x40;
+  static constexpr uint32 IOPORT_CHANNEL_1_DATA = 0x41;
+  static constexpr uint32 IOPORT_CHANNEL_2_DATA = 0x42;
+  static constexpr uint32 IOPORT_COMMAND_REGISTER = 0x43;
 
   enum ChannelAccessMode : uint8
   {

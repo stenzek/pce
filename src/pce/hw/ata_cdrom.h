@@ -28,7 +28,7 @@ protected:
   void OnBufferEnd() override;
 
 private:
-  static const u16 INVALID_COMMAND = 0x100;
+  static constexpr u16 INVALID_COMMAND = 0x100;
 
   void SetSignature();
   void SetInterruptReason(bool is_command, bool data_from_device, bool release);

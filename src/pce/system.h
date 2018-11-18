@@ -111,7 +111,7 @@ protected:
   TimingManager m_timing_manager;
 
 private:
-  static const uint32 SERIALIZATION_ID = Component::MakeSerializationID('S', 'Y', 'S');
+  static constexpr uint32 SERIALIZATION_ID = Component::MakeSerializationID('S', 'Y', 'S');
 
   PODArray<Component*> m_components;
   State m_state = State::Initializing;

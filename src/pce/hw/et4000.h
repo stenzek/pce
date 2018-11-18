@@ -21,12 +21,12 @@ class ET4000 : public Component
   DECLARE_OBJECT_PROPERTY_MAP(ET4000);
 
 public:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('E', 'T', '4', 'K');
-  static const uint32 MAX_BIOS_SIZE = 32768;
-  static const uint32 VRAM_SIZE = 1048576;
-  static const uint32 VRAM_MASK = 1048576 - 1;
-  static const uint32 VRAM_SIZE_PER_PLANE = VRAM_SIZE / 4;
-  static const uint32 VRAM_MASK_PER_PLANE = (VRAM_SIZE / 4) - 1;
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('E', 'T', '4', 'K');
+  static constexpr uint32 MAX_BIOS_SIZE = 32768;
+  static constexpr uint32 VRAM_SIZE = 1048576;
+  static constexpr uint32 VRAM_MASK = 1048576 - 1;
+  static constexpr uint32 VRAM_SIZE_PER_PLANE = VRAM_SIZE / 4;
+  static constexpr uint32 VRAM_MASK_PER_PLANE = (VRAM_SIZE / 4) - 1;
 
 public:
   ET4000(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);

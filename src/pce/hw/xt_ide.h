@@ -12,7 +12,7 @@ class XT_IDE : public HDC
   DECLARE_OBJECT_PROPERTY_MAP(XT_IDE);
 
 public:
-  static const PhysicalMemoryAddress XTIDE_BIOS_ROM_ADDRESS = 0xD8000;
+  static constexpr PhysicalMemoryAddress XTIDE_BIOS_ROM_ADDRESS = 0xD8000;
 
   XT_IDE(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~XT_IDE();

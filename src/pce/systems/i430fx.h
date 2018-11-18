@@ -42,12 +42,12 @@ public:
   auto GetCMOS() const { return m_cmos; }
 
 protected:
-  static const uint32 PHYSICAL_MEMORY_BITS = 32;
-  static const PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xE0000;
-  static const uint32 BIOS_ROM_SIZE = 131072;
-  static const PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFF0000;
-  static const uint32 BIOS_ROM_MIRROR_START = 0x10000;
-  static const uint32 BIOS_ROM_MIRROR_SIZE = 65536;
+  static constexpr uint32 PHYSICAL_MEMORY_BITS = 32;
+  static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xE0000;
+  static constexpr uint32 BIOS_ROM_SIZE = 131072;
+  static constexpr PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFF0000;
+  static constexpr uint32 BIOS_ROM_MIRROR_START = 0x10000;
+  static constexpr uint32 BIOS_ROM_MIRROR_SIZE = 65536;
 
   void ConnectSystemIOPorts();
   void AddComponents();

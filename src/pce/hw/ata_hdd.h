@@ -41,9 +41,9 @@ protected:
   bool SupportsDMA() const override;
 
 private:
-  static const u32 SERIALIZATION_ID = MakeSerializationID('A', 'T', 'A', 'H');
-  static const u32 SECTOR_SIZE = 512;
-  static const u16 INVALID_COMMAND = 0x100;
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('A', 'T', 'A', 'H');
+  static constexpr u32 SECTOR_SIZE = 512;
+  static constexpr u16 INVALID_COMMAND = 0x100;
 
   void SetSignature();
   void ClearActivity();

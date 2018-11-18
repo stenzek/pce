@@ -9,8 +9,8 @@ class HDDImage
 public:
   using SectorIndex = u32;
 
-  static const u32 InvalidSectorNumber = UINT32_C(0xFFFFFFFF);
-  static const u32 DefaultSectorSize = 4096;
+  static constexpr u32 InvalidSectorNumber = UINT32_C(0xFFFFFFFF);
+  static constexpr u32 DefaultSectorSize = 4096;
 
   static std::unique_ptr<HDDImage> Create(const char* filename, u64 size_in_bytes, u32 sector_size = DefaultSectorSize);
   static std::unique_ptr<HDDImage> Open(const char* filename, u32 sector_size = DefaultSectorSize);

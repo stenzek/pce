@@ -3,9 +3,9 @@
 
 struct CMOSInfo
 {
-  static const u32 NumFloppies = 2;
-  static const u32 NumATAChannels = 2;
-  static const u32 ATADevicesPerChannel = 2;
+  static constexpr u32 NumFloppies = 2;
+  static constexpr u32 NumATAChannels = 2;
+  static constexpr u32 ATADevicesPerChannel = 2;
 
   enum class ATADeviceType
   {

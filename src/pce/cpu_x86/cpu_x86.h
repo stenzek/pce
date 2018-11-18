@@ -36,12 +36,12 @@ class CPU : public ::CPU
   friend class JitX64CodeGenerator;
 
 public:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
-  static const uint32 PAGE_SIZE = 4096;
-  static const uint32 PAGE_OFFSET_MASK = (PAGE_SIZE - 1);
-  static const uint32 PAGE_MASK = ~PAGE_OFFSET_MASK;
-  static const uint32 PAGE_SHIFT = 12;
-  static const size_t TLB_ENTRY_COUNT = 8192;
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
+  static constexpr uint32 PAGE_SIZE = 4096;
+  static constexpr uint32 PAGE_OFFSET_MASK = (PAGE_SIZE - 1);
+  static constexpr uint32 PAGE_MASK = ~PAGE_OFFSET_MASK;
+  static constexpr uint32 PAGE_SHIFT = 12;
+  static constexpr size_t TLB_ENTRY_COUNT = 8192;
 
 #pragma pack(push, 1)
   // Needed because the 8-bit register indices are all low bits -> all high bits

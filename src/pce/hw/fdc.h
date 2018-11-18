@@ -28,9 +28,9 @@ public:
     Model_82077,
   };
 
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('F', 'D', 'C');
-  static const uint32 SECTOR_SIZE = 512;
-  static const uint32 MAX_DRIVES = 4;
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('F', 'D', 'C');
+  static constexpr uint32 SECTOR_SIZE = 512;
+  static constexpr uint32 MAX_DRIVES = 4;
 
   // We use 1MHz as the clock frequency for the FDC, so we can specify "cycles" as microseconds.
   static constexpr float CLOCK_FREQUENCY = 1000000;
@@ -86,7 +86,7 @@ protected:
   };
   std::array<DriveState, MAX_DRIVES> m_drives;
 
-  static const uint32 FIFO_SIZE = 16;
+  static constexpr uint32 FIFO_SIZE = 16;
 
   // 03F2h: Digital Output Register
   union

@@ -43,10 +43,10 @@ public:
   void SetConfigFloppyCount(uint32 count);
 
 protected:
-  static const u32 SERIALIZATION_ID = MakeSerializationID('D', 'S', '1', '7');
-  static const u32 IOPORT_INDEX_REGISTER = 0x70;
-  static const u32 IOPORT_DATA_PORT = 0x71;
-  static const u32 SAVE_TO_FILE_DELAY_MS = 5000;
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('D', 'S', '1', '7');
+  static constexpr u32 IOPORT_INDEX_REGISTER = 0x70;
+  static constexpr u32 IOPORT_DATA_PORT = 0x71;
+  static constexpr u32 SAVE_TO_FILE_DELAY_MS = 5000;
 
   enum RTC_REGISTERS
   {

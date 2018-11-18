@@ -77,7 +77,7 @@ public:
   void RepeatFrame();
 
 protected:
-  static const u32 NUM_BACK_BUFFERS = 2;
+  static constexpr u32 NUM_BACK_BUFFERS = 2;
 
   struct Framebuffer
   {
@@ -119,7 +119,7 @@ protected:
   u32 m_display_aspect_numerator = 1;
   u32 m_display_aspect_denominator = 1;
 
-  static const u32 FRAME_COUNTER_FRAME_COUNT = 100;
+  static constexpr u32 FRAME_COUNTER_FRAME_COUNT = 100;
   Timer m_frame_counter_timer;
   u32 m_frames_rendered = 0;
   float m_fps = 0.0f;

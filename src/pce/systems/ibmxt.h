@@ -26,9 +26,9 @@ public:
     Other
   };
 
-  static const uint32 PHYSICAL_MEMORY_BITS = 20;
-  static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_8K = 0xFE000;
-  static const PhysicalMemoryAddress BIOS_ROM_ADDRESS_32K = 0xF8000;
+  static constexpr uint32 PHYSICAL_MEMORY_BITS = 20;
+  static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS_8K = 0xFE000;
+  static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS_32K = 0xF8000;
 
   IBMXT(float cpu_frequency = 4770000.0f, uint32 memory_size = 640 * 1024, VideoType video_type = VideoType::Other,
         const ObjectTypeInfo* type_info = &s_type_info);

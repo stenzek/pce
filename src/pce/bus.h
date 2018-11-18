@@ -31,11 +31,11 @@ public:
   using CodeHashType = uint64;
   using CodeInvalidateCallback = std::function<void(PhysicalMemoryAddress)>;
 
-  static const u32 SERIALIZATION_ID = Component::MakeSerializationID('B', 'U', 'S');
-  static const u32 MEMORY_PAGE_SIZE = 0x1000; // 4KiB
-  static const u32 MEMORY_PAGE_OFFSET_MASK = PhysicalMemoryAddress(MEMORY_PAGE_SIZE - 1);
-  static const u32 MEMORY_PAGE_MASK = ~MEMORY_PAGE_OFFSET_MASK;
-  static const u32 NUM_IOPORTS = 0x10000;
+  static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('B', 'U', 'S');
+  static constexpr u32 MEMORY_PAGE_SIZE = 0x1000; // 4KiB
+  static constexpr u32 MEMORY_PAGE_OFFSET_MASK = PhysicalMemoryAddress(MEMORY_PAGE_SIZE - 1);
+  static constexpr u32 MEMORY_PAGE_MASK = ~MEMORY_PAGE_OFFSET_MASK;
+  static constexpr u32 NUM_IOPORTS = 0x10000;
 
   Bus(u32 memory_address_bits, const ObjectTypeInfo* type_info = &s_type_info);
   ~Bus();

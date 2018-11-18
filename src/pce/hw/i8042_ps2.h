@@ -38,18 +38,18 @@ public:
   }
 
 private:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('8', '0', '4', '2');
-  static const uint32 PORT_1_IRQ = 1;
-  static const uint32 PORT_2_IRQ = 12;
-  static const uint32 NUM_PORTS = 2;
-  static const uint32 INTERNAL_RAM_SIZE = 32;
-  static const uint32 INPUT_BUFFER_SIZE = 32;
-  static const uint32 PORT_BUFFER_SIZE = 32;
-  static const uint32 EXTERNAL_BUFFER_SIZE = 1024;
-  static const uint16 NO_PENDING_COMMAND = 0xFFFF;
-  static const CycleCount SERIAL_TRANSFER_DELAY = 250;
-  static const uint8 DEFAULT_MOUSE_SAMPLE_RATE = 100;
-  static const uint32 NUM_MOUSE_BUTTONS = 3;
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '0', '4', '2');
+  static constexpr uint32 PORT_1_IRQ = 1;
+  static constexpr uint32 PORT_2_IRQ = 12;
+  static constexpr uint32 NUM_PORTS = 2;
+  static constexpr uint32 INTERNAL_RAM_SIZE = 32;
+  static constexpr uint32 INPUT_BUFFER_SIZE = 32;
+  static constexpr uint32 PORT_BUFFER_SIZE = 32;
+  static constexpr uint32 EXTERNAL_BUFFER_SIZE = 1024;
+  static constexpr uint16 NO_PENDING_COMMAND = 0xFFFF;
+  static constexpr CycleCount SERIAL_TRANSFER_DELAY = 250;
+  static constexpr uint8 DEFAULT_MOUSE_SAMPLE_RATE = 100;
+  static constexpr uint32 NUM_MOUSE_BUTTONS = 3;
 
   void SoftReset();
 

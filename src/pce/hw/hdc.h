@@ -22,9 +22,8 @@ class HDC : public Component
   DECLARE_OBJECT_PROPERTY_MAP(HDC);
 
 public:
-  static const u32 SERIALIZATION_ID = MakeSerializationID('H', 'D', 'C');
-  static const u32 DEVICES_PER_CHANNEL = 2;
-  static const u32 MAX_CHANNELS = 2;
+  static constexpr u32 DEVICES_PER_CHANNEL = 2;
+  static constexpr u32 MAX_CHANNELS = 2;
 
   HDC(const String& identifier, u32 num_channels = 1, const ObjectTypeInfo* type_info = &s_type_info);
   ~HDC();
@@ -55,6 +54,8 @@ public:
   virtual u32 DMATransfer(u32 channel, u32 drive, bool is_write, void* data, u32 size);
 
 protected:
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('H', 'D', 'C');
+
   InterruptController* m_interrupt_controller = nullptr;
 
   struct Channel

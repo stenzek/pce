@@ -156,5 +156,5 @@ protected:
   std::vector<ConfigSpaceData> m_config_space;
 
 private:
-  static const u32 SERIALIZATION_ID = MakeSerializationID('P', 'C', 'I', '-');
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('P', 'C', 'I', '-');
 };

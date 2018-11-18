@@ -29,7 +29,7 @@ class CPU : public ::CPU
   friend Instructions;
 
 public:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('8', '0', '8', '6');
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '0', '8', '6');
 
 #pragma pack(push, 1)
   // Needed because the 8-bit register indices are all low bits -> all high bits

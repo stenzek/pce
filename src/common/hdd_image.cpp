@@ -4,7 +4,7 @@
 Log_SetChannel(HDDImage);
 
 #pragma pack(push, 1)
-static const u32 LOG_FILE_MAGIC = 0x89374897;
+static constexpr u32 LOG_FILE_MAGIC = 0x89374897;
 struct LOG_FILE_HEADER
 {
   u32 magic;
@@ -14,7 +14,7 @@ struct LOG_FILE_HEADER
   u32 version_number;
   u8 padding[12];
 };
-static const u32 STATE_MAGIC = 0x92087348;
+static constexpr u32 STATE_MAGIC = 0x92087348;
 struct STATE_HEADER
 {
   u32 magic;

@@ -25,23 +25,23 @@ public:
   void SetInterruptState(uint32 interrupt, bool active) override;
 
 private:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '9');
-  static const uint32 NUM_INTERRUPTS = 16; // IRQs
-  static const uint32 NUM_INTERRUPTS_PER_PIC = 8;
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '9');
+  static constexpr uint32 NUM_INTERRUPTS = 16; // IRQs
+  static constexpr uint32 NUM_INTERRUPTS_PER_PIC = 8;
 
-  static const uint32 MASTER_PIC = 0;
-  static const uint32 SLAVE_PIC = 1;
-  static const uint32 NUM_PICS = 2;
+  static constexpr uint32 MASTER_PIC = 0;
+  static constexpr uint32 SLAVE_PIC = 1;
+  static constexpr uint32 NUM_PICS = 2;
 
-  static const uint32 IOPORT_MASTER_COMMAND = 0x20;
-  static const uint32 IOPORT_MASTER_DATA = 0x21;
-  static const uint32 IOPORT_SLAVE_COMMAND = 0xA0;
-  static const uint32 IOPORT_SLAVE_DATA = 0xA1;
+  static constexpr uint32 IOPORT_MASTER_COMMAND = 0x20;
+  static constexpr uint32 IOPORT_MASTER_DATA = 0x21;
+  static constexpr uint32 IOPORT_SLAVE_COMMAND = 0xA0;
+  static constexpr uint32 IOPORT_SLAVE_DATA = 0xA1;
 
-  static const uint8 NUM_ICW_VALUES = 4;
+  static constexpr uint8 NUM_ICW_VALUES = 4;
 
   // Slave PIC is connected to IRQ 2 on the master.
-  static const uint8 SLAVE_IRQ_ON_MASTER = 2;
+  static constexpr uint8 SLAVE_IRQ_ON_MASTER = 2;
 
   enum ICW_FLAGS : uint8
   {

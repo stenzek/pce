@@ -111,7 +111,7 @@ private:
     BitField<uint8, bool, 0, 1> switch_1;
   };
 
-  static const uint32 KEYBOARD_BUFFER_SIZE = 32;
+  static constexpr uint32 KEYBOARD_BUFFER_SIZE = 32;
   uint8 m_output_buffer[KEYBOARD_BUFFER_SIZE] = {};
   uint32 m_output_buffer_pos = 0;
 

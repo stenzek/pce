@@ -23,7 +23,7 @@ class Serial : public Component
 public:
   // Input/output buffer sizes. These are external to the chip emulation, allowing senders to buffer large
   // amounts of data without multiple calls into this class.
-  static const size_t ExternalBufferSize = 128 * 1024;
+  static constexpr size_t ExternalBufferSize = 128 * 1024;
 
   // Serial IC types
   enum Model : uint32
@@ -75,12 +75,12 @@ public:
   void SetClearToSend(bool enabled);
 
 private:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '0');
-  static const CycleCount CLOCK_FREQUENCY = 115200;
-  static const size_t MAX_FIFO_SIZE = 64;
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '0');
+  static constexpr CycleCount CLOCK_FREQUENCY = 115200;
+  static constexpr size_t MAX_FIFO_SIZE = 64;
 
-  static const uint8 INTERRUPT_ENABLE_REGISTER_MASK = 0x0F;
-  static const uint8 INTERRUPT_IDENTIFICATION_REGISTER_MASK = 0xFF;
+  static constexpr uint8 INTERRUPT_ENABLE_REGISTER_MASK = 0x0F;
+  static constexpr uint8 INTERRUPT_IDENTIFICATION_REGISTER_MASK = 0xFF;
 
   enum InterruptBits : uint8
   {

@@ -44,9 +44,9 @@ public:
   void SetDMAState(uint32 channel_index, bool request) override;
 
 private:
-  static const uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '3', '7');
-  static const uint32 NUM_CHANNELS = 8;
-  static const uint32 NUM_CHANNELS_PER_CONTROLLER = 4;
+  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '3', '7');
+  static constexpr uint32 NUM_CHANNELS = 8;
+  static constexpr uint32 NUM_CHANNELS_PER_CONTROLLER = 4;
 
   struct Channel
   {
