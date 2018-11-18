@@ -79,7 +79,9 @@ void RegisterAllTypes()
   REGISTER_HW_TYPE(SerialMouse);
   REGISTER_HW_TYPE(SoundBlaster);
   REGISTER_HW_TYPE(VGA);
+#ifdef ENABLE_VOODOO
   REGISTER_HW_TYPE(Voodoo);
+#endif
   REGISTER_HW_TYPE(XT_IDE);
   REGISTER_HW_TYPE(XT_PPI);
 

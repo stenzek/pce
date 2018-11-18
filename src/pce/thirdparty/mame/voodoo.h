@@ -16,6 +16,7 @@
 #include "pce/bus.h"
 #include "polylgcy.h"
 #include "rgbutil.h"
+#include <cmath>
 
 /*************************************
  *
@@ -615,7 +616,7 @@ static const u8 dither_subtract_2x2[16] = {(15 - 8) >> 1,  (15 - 10) >> 1, (15 -
   } while (0)
 
 /* macro to compute the base 2 log for LOD calculations */
-#define LOGB2(x) (log((double)(x)) / log(2.0))
+#define LOGB2(x) (std::log((double)(x)) / std::log(2.0))
 
 /*************************************
  *

@@ -1,3 +1,4 @@
+#ifdef ENABLE_VOODOO
 #include "voodoo.h"
 #include "../bus.h"
 #include "../host_interface.h"
@@ -330,3 +331,4 @@ void Voodoo::HandleBusDWordWrite(u32 offset, u32 val)
 }
 
 } // namespace HW
+#endif

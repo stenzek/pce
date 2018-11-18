@@ -1,4 +1,5 @@
 #pragma once
+#ifdef ENABLE_VOODOO
 #include "pce/hw/pci_device.h"
 
 class Display;
@@ -60,3 +61,4 @@ protected:
 };
 
 } // namespace HW
+#endif

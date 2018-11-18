@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <cmath>
 
 namespace {
 
@@ -200,7 +201,7 @@ static void poly_state_presave(legacy_poly_manager* poly);
 
 static inline s32 round_coordinate(float value)
 {
-  s32 result = floor(value);
+  s32 result = static_cast<s32>(value);
   return result + (value - (float)result > 0.5f);
 }
 
@@ -593,7 +594,7 @@ u32 poly_render_triangle(legacy_poly_manager* poly, void* dest, const rectangle&
     float a22 = v1->x * v2->y - v2->x * v1->y;
     float det = a02 + a12 + a22;
 
-    if (fabsf(det) < 0.001f)
+    if (std::fabs(det) < 0.001f)
     {
       for (int paramnum = 0; paramnum < paramcount; paramnum++)
       {
