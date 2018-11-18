@@ -1,8 +1,6 @@
 #include "pce-sdl/audio_sdl.h"
-#include "YBaseLib/Log.h"
 #include "YBaseLib/Timer.h"
 #include <SDL_audio.h>
-Log_SetChannel(Audio_SDL);
 
 using namespace Audio;
 

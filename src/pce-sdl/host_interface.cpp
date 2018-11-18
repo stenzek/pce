@@ -1,7 +1,6 @@
 #include "host_interface.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Error.h"
-#include "YBaseLib/Log.h"
 #include "common/display_renderer_d3d.h"
 #include "imgui.h"
 #include "imgui_impl_sdl_gl3.h"
@@ -9,12 +8,11 @@
 #include "pce-sdl/scancodes_sdl.h"
 #include "pce/system.h"
 #include <SDL.h>
-#include <SDL_syswm.h>
 #include <glad.h>
 #ifdef Y_PLATFORM_WINDOWS
 #include "imgui_impl_dx11.h"
+#include <SDL_syswm.h>
 #endif
-Log_SetChannel(SDLHostInterface);
 
 SDLHostInterface::SDLHostInterface(SDL_Window* window, std::unique_ptr<DisplayRenderer> display_renderer,
                                    std::unique_ptr<MixerType> mixer)
@@ -32,6 +30,7 @@ SDLHostInterface::~SDLHostInterface()
 
   switch (m_display_renderer->GetBackendType())
   {
+#ifdef Y_PLATFORM_WINDOWS
     case DisplayRenderer::BackendType::Direct3D:
     {
       ImGui_ImplDX11_Shutdown();
@@ -39,6 +38,7 @@ SDLHostInterface::~SDLHostInterface()
       m_display_renderer.reset();
     }
     break;
+#endif
 
     case DisplayRenderer::BackendType::OpenGL:
     {
@@ -82,15 +82,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
     return nullptr;
   }
 
-  // Get window handle from SDL window
-  SDL_SysWMinfo info = {};
-  SDL_VERSION(&info.version);
-  if (!SDL_GetWindowWMInfo(window.get(), &info))
-  {
-    Panic("SDL_GetWindowWMInfo failed");
-    return nullptr;
-  }
-
+  DisplayRenderer::WindowHandleType window_handle = nullptr;
   if (display_renderer_backend == DisplayRenderer::BackendType::OpenGL)
   {
     // We need a GL context. TODO: Move this to common.
@@ -101,12 +93,20 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
       return nullptr;
     }
   }
-
-    // Ugh, platform-specific.
 #ifdef Y_PLATFORM_WINDOWS
-  const DisplayRenderer::WindowHandleType window_handle = info.info.win.window;
-#else
-  const DisplayRenderer::WindowHandleType window_handle = nullptr;
+  if (display_renderer_backend == DisplayRenderer::BackendType::Direct3D)
+  {
+    // Get window handle from SDL window
+    SDL_SysWMinfo info = {};
+    SDL_VERSION(&info.version);
+    if (!SDL_GetWindowWMInfo(window.get(), &info))
+    {
+      Panic("SDL_GetWindowWMInfo failed");
+      return nullptr;
+    }
+
+    window_handle = info.info.win.window;
+  }
 #endif
 
   // Create renderer.
@@ -124,7 +124,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
   if (!mixer)
   {
     Panic("Failed to create audio mixer");
-    return false;
+    return nullptr;
   }
 
   // Initialize imgui.
@@ -139,7 +139,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
       if (!ImGui_ImplDX11_Init(window_handle, static_cast<DisplayRendererD3D*>(display_renderer.get())->GetD3DDevice(),
                                static_cast<DisplayRendererD3D*>(display_renderer.get())->GetD3DContext()))
       {
-        return false;
+        return nullptr;
       }
 
       ImGui_ImplDX11_NewFrame();
@@ -150,7 +150,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
     case DisplayRenderer::BackendType::OpenGL:
     {
       if (!ImGui_ImplSdlGL3_Init(window.get()))
-        return false;
+        return nullptr;
 
       ImGui_ImplSdlGL3_NewFrame(window.get());
     }
