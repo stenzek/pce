@@ -102,7 +102,7 @@ public:
       ready = true;
       seek_complete = false;
       data_request_ready = false;
-      write_fault = write_fault;
+      write_fault = write_fault_;
       error = true;
     }
 
@@ -120,8 +120,8 @@ public:
       busy = false;
       ready = true;
       data_request_ready = true;
-      write_fault = write_fault;
-      error = error;
+      write_fault = false;
+      error = false;
     }
 
     void Reset()
