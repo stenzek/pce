@@ -1,18 +1,32 @@
 #pragma once
+#include "cpu_x86.h"
+#include "decoder.h"
 
-#include "pce/cpu_x86/backend.h"
-#include "pce/cpu_x86/cpu_x86.h"
-#include <csetjmp>
-
+#include <map>
 #include <softfloat.h>
 #include <softfloatx80.h>
 
 namespace CPU_X86 {
 class Interpreter
 {
+public:
+  // Instruction executer, can be used by other backends.
+  static void ExecuteInstruction(CPU* cpu);
+
+  // Retrieves a function pointer to execute a given instruction.
+  using HandlerFunction = void (*)(CPU*);
+  static HandlerFunction GetInterpreterHandlerForInstruction(const Instruction* instruction);
+
 private:
-  // Raises undefined opcode exception.
+  // Helper routines
   static inline void RaiseInvalidOpcode(CPU* cpu);
+
+  static inline void FetchModRM(CPU* cpu);
+
+  template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
+  static inline void FetchImmediate(CPU* cpu);
+
+  static inline void Dispatch(CPU* cpu);
 
   // Calculate the effective address for memory operands
   template<OperandMode op_mode>
@@ -20,7 +34,6 @@ private:
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
   static VirtualMemoryAddress CalculateJumpTarget(CPU* cpu);
 
-public:
   // Instruction handlers
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant>
@@ -518,5 +531,45 @@ public:
   template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
            uint32 src_constant>
   static inline void Execute_Operation_FUCOMPP(CPU* cpu);
+
+  /// Instruction handler key - used to get a pointer to an opcode handler
+  union HandlerFunctionKey
+  {
+    u64 bits;
+    struct
+    {
+      u16 operation;
+      struct
+      {
+        u16 size : 3;
+        u16 mode : 5;
+        u16 data : 5;
+        u16 pad : 3;
+      } operands[3];
+    };
+
+    static constexpr u64 Build(Operation operation, OperandSize opsize_1 = OperandSize_8,
+                               OperandMode opmode_1 = OperandMode_None, u32 opdata_1 = 0,
+                               OperandSize opsize_2 = OperandSize_8, OperandMode opmode_2 = OperandMode_None,
+                               u32 opdata_2 = 0, OperandSize opsize_3 = OperandSize_8,
+                               OperandMode opmode_3 = OperandMode_None, u32 opdata_3 = 0)
+    {
+      HandlerFunctionKey k = {};
+      k.operation = static_cast<u16>(operation);
+      k.operands[0].size = static_cast<u16>(opsize_1);
+      k.operands[0].mode = static_cast<u16>(opmode_1);
+      k.operands[0].data = static_cast<u16>(opdata_1);
+      k.operands[1].size = static_cast<u16>(opsize_2);
+      k.operands[1].mode = static_cast<u16>(opmode_2);
+      k.operands[1].data = static_cast<u16>(opdata_2);
+      k.operands[2].size = static_cast<u16>(opsize_3);
+      k.operands[2].mode = static_cast<u16>(opmode_3);
+      k.operands[2].data = static_cast<u16>(opdata_3);
+      return k.bits;
+    }
+  };
+  static_assert(sizeof(HandlerFunctionKey) == 8, "InstructionHandlerKey is qword-sized");
+  using HandlerFunctionMap = std::map<u64, HandlerFunction>;
+  static HandlerFunctionMap s_handler_functions;
 };
 } // namespace CPU_X86

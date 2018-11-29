@@ -428,6 +428,17 @@ class Opcode:
         self.cc = cc
         self.min_model = min_model
 
+
+    def override_operand_size(self, size):
+        op = Opcode(self.encoding, self.type, self.operation, cc=self.cc, min_model=self.min_model)
+        for operand in self.operands:
+            if operand.size == OperandSize.Auto:
+                op.operands.append(Operand(operand.text, size, operand.mode, operand.data))
+            else:
+                op.operands.append(operand)
+        return op
+
+
     def __str__(self):
         if self.type == OpcodeType.Invalid:
             return "Invalid 0x%02X" % self.encoding

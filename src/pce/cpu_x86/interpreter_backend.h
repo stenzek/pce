@@ -20,9 +20,6 @@ public:
 
   void FlushCodeCache() override;
 
-  // Instruction executer, can be used by other backends.
-  static void ExecuteInstruction(CPU* cpu);
-
 private:
   CPU* m_cpu;
   System* m_system;
@@ -35,15 +32,6 @@ private:
 #ifdef Y_COMPILER_MSVC
 #pragma warning(pop)
 #endif
-
-  // Helper routines
-  static void RaiseInvalidOpcode(CPU* cpu);
-  static void FetchModRM(CPU* cpu);
-  template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
-  static void FetchImmediate(CPU* cpu);
-
-  // Dispatcher routines
-  static void Dispatch(CPU* cpu);
 };
 
 } // namespace CPU_X86

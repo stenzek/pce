@@ -15,8 +15,14 @@ using s64 = int64_t;
 using u64 = uint64_t;
 
 // Enable use of static_assert in constexpr if
-template<class T> struct dependent_false : std::false_type {};
-template<int T> struct dependent_int_false : std::false_type {};
+template<class T>
+struct dependent_false : std::false_type
+{
+};
+template<int T>
+struct dependent_int_false : std::false_type
+{
+};
 
 // Use a signed number for cycle counting
 using CycleCount = int64_t;

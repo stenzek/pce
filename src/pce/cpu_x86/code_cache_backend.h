@@ -142,7 +142,7 @@ protected:
   /// Unlink all blocks which point to this block, and any that this block links to.
   void UnlinkBlockBase(BlockBase* block);
 
-  void InterpretCachedBlock(const BlockBase* block);
+  /// Runs the interpreter until the emulated CPU branches.
   void InterpretUncachedBlock();
 
   CPU* m_cpu;

@@ -28,6 +28,7 @@ set(SRCS
     cpu_x86/decoder.cpp
     cpu_x86/decoder.h
     cpu_x86/instruction.h
+    cpu_x86/interpreter.cpp
     cpu_x86/interpreter.h
     cpu_x86/interpreter_backend.cpp
     cpu_x86/interpreter_backend.h

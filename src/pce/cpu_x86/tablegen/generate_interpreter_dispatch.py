@@ -5,7 +5,6 @@ import opcodes_x86
 import sys
 
 MODULE = None
-INTERPRETER_PREFIX = ""
 DISPATCH_FUNCTION_NAME = ""
 
 def gen_dispatch(writer):
@@ -87,7 +86,7 @@ def gen_opcode(writer, opcode, modrm_fetched, prefix):
                 writer.write("FetchImmediate<%s>(cpu); // fetch immediate for operand %d (%s)" %
                              (operand.template_value(), i, operand.mode.value))
 
-        line = INTERPRETER_PREFIX + "Execute_%s" % opcode.operation.value
+        line = "Execute_%s" % opcode.operation.value
         count = 0
         if opcode.cc is not None:
             line += "<" + opcode.cc.value
@@ -139,7 +138,7 @@ def gen_opcode(writer, opcode, modrm_fetched, prefix):
             writer.write("default:")
             writer.indent()
             writer.write("FetchImmediate<OperandSize_Count, OperandMode_ModRM_RM, 0>(cpu);")
-            writer.write(INTERPRETER_PREFIX + "StartX87Instruction(cpu);")
+            writer.write("StartX87Instruction(cpu);")
             writer.write("return;")
             writer.deindent()  # default
             writer.end_scope()  # switch
@@ -153,21 +152,76 @@ def gen_opcode(writer, opcode, modrm_fetched, prefix):
         writer.write("return;")
         writer.end_scope()
 
+def gen_handler_table(writer, class_name, table_var_name):
+    writer.write("%s::HandlerFunctionMap %s::%s = {" % (class_name, class_name, table_var_name))
+    writer.indent()
+    gen_handler_table_entries(writer, class_name, "base", "prefix_")
+    writer.deindent()
+    writer.write("};")
+
+
+def gen_handler_table_entries(writer, class_name, table_name, prefix):
+    table = getattr(MODULE, table_name)
+    for encoding in table:
+        opcode = table[encoding]
+        if opcode.type == OpcodeType.Extension or opcode.type == OpcodeType.ModRMRegExtension:
+            child_table_name = prefix + "%02X" % encoding
+            gen_handler_table_entries(writer, class_name, child_table_name, child_table_name)
+            continue
+        elif opcode.type == OpcodeType.X87Extension:
+            for suffix in ["reg", "mem"]:
+                child_table_name = prefix + "%02X_%s" % (encoding, suffix)
+                gen_handler_table_entries(writer, class_name, child_table_name, child_table_name)
+            continue
+        if opcode.type != OpcodeType.Normal:
+            continue
+
+        is_auto_size = False
+        for operand in opcode.operands:
+            if operand.size == OperandSize.Auto:
+                gen_handler_table_entry(writer, class_name, opcode.override_operand_size(OperandSize.Word))
+                gen_handler_table_entry(writer, class_name, opcode.override_operand_size(OperandSize.DWord))
+                is_auto_size = True
+                break
+        if not is_auto_size:
+            gen_handler_table_entry(writer, class_name, opcode)
+
+
+def gen_handler_table_entry(writer, class_name, opcode):
+    line = "{ HandlerFunctionKey::Build(" + opcode.operation.value
+    if opcode.cc is not None:
+        line += ", OperandSize_8, OperandMode_JumpCondition, %s" % opcode.cc.value
+    for operand in opcode.operands:
+        line += ", " + operand.template_value()
+
+    line += "), &%s::Execute_%s" % (class_name, opcode.operation.value)
+    count = 0
+    if opcode.cc is not None:
+        line += "<" + opcode.cc.value
+        count += 1
+    for operand in opcode.operands:
+        line += (", " if count > 0 else "<") + operand.template_value()
+        count += 1
+    if count > 0:
+        line += ">"
+
+    line += "},"
+    writer.write(line)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("usage: %s <8086|x86> output_filename" % sys.argv[0])
         sys.exit(1)
 
-    table = None
+    writer = Writer(sys.argv[2])
     if sys.argv[1] == "8086":
         MODULE = opcodes_8086
         DISPATCH_FUNCTION_NAME = "CPU_8086::Instructions::DispatchInstruction"
+        gen_dispatch(writer)
     elif sys.argv[1] == "x86":
         MODULE = opcodes_x86
-        INTERPRETER_PREFIX = "Interpreter::"
-        DISPATCH_FUNCTION_NAME = "CPU_X86::InterpreterBackend::Dispatch"
-
-    writer = Writer(sys.argv[2])
-    gen_dispatch(writer)
+        DISPATCH_FUNCTION_NAME = "CPU_X86::Interpreter::Dispatch"
+        gen_dispatch(writer)
+        gen_handler_table(writer, "CPU_X86::Interpreter", "s_handler_functions")
+    
     writer.close()

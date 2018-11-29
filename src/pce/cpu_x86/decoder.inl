@@ -82,7 +82,6 @@ bool CPU_X86::Decoder::DecodeInstruction(Instruction* instruction, AddressSize a
 
     // Copy operands from this table entry, if any.
     instruction->operation = te->operation;
-    instruction->interpreter_handler = te->interpreter_handler;
     for (uint32 i = 0; i < countof(te->operands); i++)
     {
       const Instruction::Operand& table_operand = te->operands[i];

@@ -185,6 +185,9 @@
     <ClCompile Include="hw\ds12887.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="cpu_x86\interpreter.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />

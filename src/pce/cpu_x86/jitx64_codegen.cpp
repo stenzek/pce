@@ -1,7 +1,8 @@
-#include "pce/cpu_x86/jitx64_codegen.h"
+#include "jitx64_codegen.h"
+#include "../system.h"
 #include "YBaseLib/Log.h"
-#include "pce/cpu_x86/debugger_interface.h"
-#include "pce/system.h"
+#include "debugger_interface.h"
+#include "interpreter.h"
 #include "xbyak.h"
 Log_SetChannel(CPUX86::Interpreter);
 
@@ -2177,7 +2178,8 @@ bool JitX64CodeGenerator::Compile_Flags(const Instruction* instruction)
 void JitX64CodeGenerator::InterpretInstructionTrampoline(CPU* cpu, const Instruction* instruction)
 {
   std::memcpy(&cpu->idata, &instruction->data, sizeof(cpu->idata));
-  instruction->interpreter_handler(cpu);
+  // instruction->interpreter_handler(cpu);
+  Panic("Fixme");
 }
 
 bool JitX64CodeGenerator::Compile_Fallback(const Instruction* instruction)
@@ -2201,9 +2203,22 @@ bool JitX64CodeGenerator::Compile_Fallback(const Instruction* instruction)
   // db(0xcc);
   // L(blah);
 
+  Interpreter::HandlerFunction interpreter_handler = Interpreter::GetInterpreterHandlerForInstruction(instruction);
+  if (!interpreter_handler)
+    return false;
+
+  u64 idata_qwords[2];
+  std::memcpy(&idata_qwords[0], &instruction->data, sizeof(idata_qwords[0]));
+  std::memcpy(&idata_qwords[1], reinterpret_cast<const u8*>(&instruction->data) + sizeof(idata_qwords[0]),
+              sizeof(idata_qwords[1]));
+
+  mov(RSCRATCH64, idata_qwords[0]);
+  mov(qword[RCPUPTR + offsetof(CPU, idata)], RSCRATCH64);
+  mov(RSCRATCH64, idata_qwords[1]);
+  mov(qword[RCPUPTR + (offsetof(CPU, idata) + sizeof(idata_qwords[0]))], RSCRATCH64);
   mov(RPARAM1_64, RCPUPTR);
-  mov(RPARAM2_64, reinterpret_cast<size_t>(instruction));
-  CallModuleFunction(InterpretInstructionTrampoline);
+  mov(RSCRATCH64, reinterpret_cast<size_t>(interpreter_handler));
+  call(RSCRATCH64);
 
   if (instruction->data.has_rep & InstructionFlag_Rep)
   {

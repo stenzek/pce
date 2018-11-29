@@ -6,7 +6,6 @@ class CPU;
 
 struct Instruction
 {
-  using IntepreterHandler = void (*)(CPU*);
   struct Operand
   {
     OperandSize size;
@@ -27,7 +26,6 @@ struct Instruction
   Operation operation;
   Operand operands[3];
   InstructionData data;
-  IntepreterHandler interpreter_handler;
   VirtualMemoryAddress address;
   uint32 length;
 

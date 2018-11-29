@@ -65,7 +65,7 @@ def gen_opcode(writer, opcode, parent):
         line = "{ " + opcode.operation.value + ", {"
         count = 0
         if opcode.cc is not None:
-            line += " { OperandSize_Count, OperandMode_JumpCondition, %s}" % opcode.cc.value
+            line += " { OperandSize_8, OperandMode_JumpCondition, %s}" % opcode.cc.value
             count += 1
         for operand in opcode.operands:
             line += (", " if count > 0 else "") + operand.template_value()
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     elif sys.argv[1] == "x86":
         MODULE = opcodes_x86
         TABLE_DECLARATION = "const CPU_X86::Decoder::TableEntry CPU_X86::Decoder::"
-        ADD_INTERPRETER_POINTER = True
+        #ADD_INTERPRETER_POINTER = True
     writer = Writer(sys.argv[2])
     gen_tables(writer)
     writer.close()

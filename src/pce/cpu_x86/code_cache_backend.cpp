@@ -3,7 +3,7 @@
 #include "pce/bus.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
-#include "pce/cpu_x86/interpreter_backend.h"
+#include "pce/cpu_x86/interpreter.h"
 #include "pce/system.h"
 #include <array>
 #include <cstdint>
@@ -515,7 +515,6 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
     uint32 EIP_mask;
     uint32 first_physical_page = 0xFFFFFFFF;
     uint32 last_physical_page = 0xFFFFFFFF;
-    bool is_32bit_code;
 
     std::array<uint8, BUFFER_SIZE> buffer;
     uint32 buffer_size = 0;
@@ -638,40 +637,12 @@ void CodeCacheBackend::UnlinkBlockBase(BlockBase* block)
   block->link_successors.clear();
 }
 
-void CodeCacheBackend::InterpretCachedBlock(const BlockBase* block)
-{
-  for (const Instruction& instruction : block->instructions)
-  {
-    m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
-    m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
-
-#if 0
-    if (m_cpu->m_registers.EIP == 0xAB && m_cpu->ReadTSC() == 0x3589AFA9)
-    {
-      TRACE_EXECUTION = true;
-      __debugbreak();
-    }
-
-    if (TRACE_EXECUTION && m_cpu->m_current_EIP != TRACE_EXECUTION_LAST_EIP)
-    {
-      m_cpu->PrintCurrentStateAndInstruction(nullptr);
-      TRACE_EXECUTION_LAST_EIP = m_cpu->m_current_EIP;
-    }
-#endif
-
-    m_cpu->AddCycle();
-    m_cpu->m_registers.EIP = (m_cpu->m_registers.EIP + instruction.length) & m_cpu->m_EIP_mask;
-    std::memcpy(&m_cpu->idata, &instruction.data, sizeof(m_cpu->idata));
-    instruction.interpreter_handler(m_cpu);
-  }
-}
-
 void CodeCacheBackend::InterpretUncachedBlock()
 {
   // The prefetch queue is an unknown state, and likely not in sync with our execution.
   m_cpu->FlushPrefetchQueue();
 
-#if 1
+#if 0
   // Execute until we hit a branch.
   // This isn't our "formal" block exit, but it's a point where we know we'll be in a good state.
   m_branched = false;
@@ -683,7 +654,7 @@ void CodeCacheBackend::InterpretUncachedBlock()
       break;
     }
 
-    InterpreterBackend::ExecuteInstruction(m_cpu);
+    Interpreter::ExecuteInstruction(m_cpu);
     m_cpu->CommitPendingCycles();
   }
 #else
@@ -692,14 +663,6 @@ void CodeCacheBackend::InterpretUncachedBlock()
   {
     m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
     m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
-
-#if 0
-    if (m_cpu->m_registers.EIP == 0xAB && m_cpu->ReadTSC() == 0x3589AFA9)
-    {
-      TRACE_EXECUTION = true;
-      __debugbreak();
-    }
-#endif
 
     if (TRACE_EXECUTION && m_cpu->m_current_EIP != TRACE_EXECUTION_LAST_EIP)
     {
@@ -728,19 +691,11 @@ void CodeCacheBackend::InterpretUncachedBlock()
     Instruction instruction;
     bool instruction_valid = Decoder::DecodeInstruction(
       &instruction, m_cpu->m_current_address_size, m_cpu->m_current_operand_size, fetch_EIP, fetchb, fetchw, fetchd);
-    if (!instruction_valid)
-    {
-      InterpreterBackend::ExecuteInstruction(m_cpu);
+
+    Interpreter::ExecuteInstruction(m_cpu);
+
+    if (!instruction_valid || IsExitBlockInstruction(&instruction))
       return;
-    }
-
-    m_cpu->AddCycle();
-    m_cpu->m_registers.EIP = (m_cpu->m_registers.EIP + instruction.length) & m_cpu->m_EIP_mask;
-    std::memcpy(&m_cpu->idata, &instruction.data, sizeof(m_cpu->idata));
-    instruction.interpreter_handler(m_cpu);
-
-    if (IsExitBlockInstruction(&instruction))
-      break;
   }
 #endif
 }

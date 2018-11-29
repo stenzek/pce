@@ -22,13 +22,26 @@ public:
 
 protected:
   // We don't need to store any additional information, only the instruction stream.
-  using Block = BlockBase;
+  struct Block : public BlockBase
+  {
+    Block(const BlockKey key_) : BlockBase(key_) {}
+
+    struct Entry
+    {
+      void (*handler)(CPU*);
+      InstructionData data;
+      u8 length;
+    };
+    std::vector<Entry> entries;
+  };
 
   BlockBase* AllocateBlock(const BlockKey key) override;
   bool CompileBlock(BlockBase* block) override;
   void ResetBlock(BlockBase* block) override;
   void FlushBlock(BlockBase* block, bool defer_destroy = false) override;
   void DestroyBlock(BlockBase* block) override;
+
+  void ExecuteBlock(BlockBase* block);
 
 #ifdef Y_COMPILER_MSVC
 #pragma warning(push)

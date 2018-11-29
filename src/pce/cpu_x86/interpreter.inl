@@ -21,6 +21,134 @@ void Interpreter::RaiseInvalidOpcode(CPU* cpu)
   cpu->RaiseException(Interrupt_InvalidOpcode);
 }
 
+void Interpreter::FetchModRM(CPU* cpu)
+{
+  cpu->idata.modrm = cpu->FetchInstructionByte();
+}
+
+template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
+void Interpreter::FetchImmediate(CPU* cpu)
+{
+  switch (op_mode)
+  {
+    case OperandMode_Immediate:
+    {
+      OperandSize actual_size = (op_size == OperandSize_Count) ? cpu->idata.operand_size : op_size;
+      switch (actual_size)
+      {
+        case OperandSize_8:
+          cpu->idata.imm8 = cpu->FetchInstructionByte();
+          break;
+        case OperandSize_16:
+          cpu->idata.imm16 = cpu->FetchInstructionWord();
+          break;
+        case OperandSize_32:
+          cpu->idata.imm32 = cpu->FetchInstructionDWord();
+          break;
+      }
+    }
+    break;
+
+    case OperandMode_Immediate2:
+    {
+      OperandSize actual_size = (op_size == OperandSize_Count) ? cpu->idata.operand_size : op_size;
+      switch (actual_size)
+      {
+        case OperandSize_8:
+          cpu->idata.imm2_8 = cpu->FetchInstructionByte();
+          break;
+        case OperandSize_16:
+          cpu->idata.imm2_16 = cpu->FetchInstructionWord();
+          break;
+        case OperandSize_32:
+          cpu->idata.imm2_32 = cpu->FetchInstructionDWord();
+          break;
+      }
+    }
+    break;
+
+    case OperandMode_Relative:
+    {
+      OperandSize actual_size = (op_size == OperandSize_Count) ? cpu->idata.operand_size : op_size;
+      switch (actual_size)
+      {
+        case OperandSize_8:
+          cpu->idata.disp32 = SignExtend32(cpu->FetchInstructionByte());
+          break;
+        case OperandSize_16:
+          cpu->idata.disp32 = SignExtend32(cpu->FetchInstructionWord());
+          break;
+        case OperandSize_32:
+          cpu->idata.disp32 = SignExtend32(cpu->FetchInstructionDWord());
+          break;
+      }
+    }
+    break;
+
+    case OperandMode_Memory:
+    {
+      if (cpu->idata.address_size == AddressSize_16)
+        cpu->idata.disp32 = ZeroExtend32(cpu->FetchInstructionWord());
+      else
+        cpu->idata.disp32 = cpu->FetchInstructionDWord();
+    }
+    break;
+
+    case OperandMode_FarAddress:
+    {
+      if (cpu->idata.operand_size == OperandSize_16)
+        cpu->idata.disp32 = ZeroExtend32(cpu->FetchInstructionWord());
+      else
+        cpu->idata.disp32 = cpu->FetchInstructionDWord();
+      cpu->idata.imm16 = cpu->FetchInstructionWord();
+    }
+    break;
+
+    case OperandMode_ModRM_RM:
+    {
+      const Decoder::ModRMAddress* addr = Decoder::DecodeModRMAddress(cpu->idata.address_size, cpu->idata.modrm);
+      if (addr->addressing_mode == ModRMAddressingMode::Register)
+      {
+        // not a memory address
+        cpu->idata.modrm_rm_register = true;
+      }
+      else
+      {
+        uint8 displacement_size = addr->displacement_size;
+        if (addr->addressing_mode == ModRMAddressingMode::SIB)
+        {
+          // SIB has a displacement instead of base if set to EBP
+          cpu->idata.sib = cpu->FetchInstructionByte();
+          const Reg32 base_reg = cpu->idata.GetSIBBaseRegister();
+          if (!cpu->idata.HasSIBBase())
+            displacement_size = 4;
+          else if (!cpu->idata.has_segment_override && (base_reg == Reg32_ESP || base_reg == Reg32_EBP))
+            cpu->idata.segment = Segment_SS;
+        }
+        else
+        {
+          if (!cpu->idata.has_segment_override)
+            cpu->idata.segment = addr->default_segment;
+        }
+
+        switch (displacement_size)
+        {
+          case 1:
+            cpu->idata.disp32 = SignExtend32(cpu->FetchInstructionByte());
+            break;
+          case 2:
+            cpu->idata.disp32 = SignExtend32(cpu->FetchInstructionWord());
+            break;
+          case 4:
+            cpu->idata.disp32 = cpu->FetchInstructionDWord();
+            break;
+        }
+      }
+    }
+    break;
+  }
+}
+
 template<OperandMode op_mode>
 void Interpreter::CalculateEffectiveAddress(CPU* cpu)
 {
@@ -2981,8 +3109,6 @@ void Interpreter::Execute_Operation_POP_Sreg(CPU* cpu)
 template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
 void Interpreter::Execute_Operation_POP(CPU* cpu)
 {
-  static_assert(dst_size == OperandSize_Count, "operand size is current mode");
-
   if constexpr (dst_mode == OperandMode_Register)
     cpu->AddCycles(CYCLES_PUSH_REG);
   else if constexpr (dst_mode == OperandMode_ModRM_RM)

@@ -1,8 +1,5 @@
 #include "pce/cpu_x86/decoder.h"
 #include "YBaseLib/BinaryReader.h"
-#include "pce/cpu_x86/interpreter.h"
-#include "pce/cpu_x86/interpreter.inl"
-#include "pce/cpu_x86/interpreter_x87.inl"
 // Log_SetChannel(Decoder);
 
 namespace CPU_X86 {

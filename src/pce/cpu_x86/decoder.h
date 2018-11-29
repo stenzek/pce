@@ -1,3 +1,4 @@
+#pragma once
 #include "pce/cpu_x86/instruction.h"
 
 class ByteStream;
@@ -44,7 +45,6 @@ private:
   {
     Operation operation;
     Instruction::Operand operands[3];
-    Instruction::IntepreterHandler interpreter_handler;
     const TableEntry* next_table;
     // mincpu, etc.
   };
