@@ -3984,27 +3984,27 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
 
       /* return visible horizontal and vertical positions. Read by the Vegas startup sequence */
       case hvRetrace:
+      {
+        /* eat some cycles since people like polling here */
+        if (EAT_CYCLES)
+          vd->m_bus->Stall(10);
+        // result = 0x200 << 16;   /* should be between 0x7b and 0x267 */
+        // result |= 0x80;         /* should be between 0x17 and 0x103 */
+        // Return 0 if vblank is active
+        auto ss = vd->m_display_timing.GetSnapshot(vd->m_timing_manager->GetTotalEmulatedTime());
+        if (vd->fbi.vblank)
         {
-          /* eat some cycles since people like polling here */
-          if (EAT_CYCLES)
-            vd->m_bus->Stall(10);
-          // result = 0x200 << 16;   /* should be between 0x7b and 0x267 */
-          // result |= 0x80;         /* should be between 0x17 and 0x103 */
-          // Return 0 if vblank is active
-          auto ss = vd->m_display_timing.GetSnapshot(vd->m_timing_manager->GetTotalEmulatedTime());
-          if (vd->fbi.vblank)
-          {
-            result = 0;
-          }
-          else
-          {
-            // Want screen position from vblank off
-            result = ss.current_line;
-          }
-          // Hpos
-          result |= ss.current_pixel << 16;
+          result = 0;
         }
-        break;
+        else
+        {
+          // Want screen position from vblank off
+          result = ss.current_line;
+        }
+        // Hpos
+        result |= ss.current_pixel << 16;
+      }
+      break;
 
       /* cmdFifo -- Voodoo2 only */
       case cmdFifoRdPtr:
