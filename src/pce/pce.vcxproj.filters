@@ -188,6 +188,9 @@
     <ClCompile Include="cpu_x86\interpreter.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
+    <ClCompile Include="hw\vgabase.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -410,6 +413,12 @@
       <Filter>thirdparty\mame</Filter>
     </ClInclude>
     <ClInclude Include="hw\ds12887.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\vgabase.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\vgahelpers.h">
       <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>
