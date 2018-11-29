@@ -5091,7 +5091,7 @@ void Interpreter::Execute_REP(CPU* cpu, callback cb)
     if (!branch)
       return;
 
-#if 1
+#if 0
     // Add a cycle, for the next byte. This could cause an interrupt.
     // This way long-running REP instructions will be paused mid-way.
     cpu->CommitPendingCycles();
