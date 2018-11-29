@@ -3838,7 +3838,7 @@ void CPU::LoadFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddr
   uint16 fds = 0;
   uint32 fop = 0;
 
-  if (idata.operand_size == OperandSize_32)
+  if (is_32bit)
   {
     cw = ReadMemoryWord(seg, (addr + 0) & addr_mask);
     sw = ReadMemoryWord(seg, (addr + 4) & addr_mask);
