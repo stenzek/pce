@@ -56,10 +56,12 @@ public:
 
   u32 GetFramebufferWidth() const { return m_framebuffer_width; }
   u32 GetFramebufferHeight() const { return m_framebuffer_height; }
+  FramebufferFormat GetFramebufferFormat() const { return m_framebuffer_format; }
 
   void ClearFramebuffer();
   void ResizeFramebuffer(u32 width, u32 height);
   void ChangeFramebufferFormat(FramebufferFormat new_format);
+  void UpdateFramebuffer(u32 width, u32 height, FramebufferFormat format, float refresh_rate);
   void SwapFramebuffer();
 
   static constexpr u32 PackRGBX(u8 r, u8 g, u8 b)

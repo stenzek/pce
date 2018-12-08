@@ -179,6 +179,17 @@ void Display::ChangeFramebufferFormat(FramebufferFormat new_format)
   AllocateFramebuffer(&m_back_buffers[0]);
 }
 
+void Display::UpdateFramebuffer(u32 width, u32 height, FramebufferFormat format, float refresh_rate)
+{
+  if (m_framebuffer_width != width || m_framebuffer_height != height || m_framebuffer_format != m_framebuffer_format)
+  {
+    m_framebuffer_width = width;
+    m_framebuffer_height = height;
+    m_framebuffer_format = format;
+    AllocateFramebuffer(&m_back_buffers[0]);
+  }
+}
+
 void Display::SetPixel(u32 x, u32 y, u8 r, u8 g, u8 b)
 {
   SetPixel(x, y, PackRGBX(r, g, b));

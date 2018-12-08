@@ -85,6 +85,14 @@ public:
   // Writes frequency information to the log.
   void LogFrequencies(const char* what) const;
 
+  // Tests whether frequencies and dimensions match.
+  bool FrequenciesMatch(const DisplayTiming& timing) const;
+
+  // Copy operator.
+  DisplayTiming& operator=(const DisplayTiming& timing);
+
+  // TODO: Serialization, clock update to prevent wrap-around.
+
 private:
   void UpdateHorizontalFrequency();
   void UpdateVerticalFrequency();

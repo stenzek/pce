@@ -27,25 +27,23 @@ public:
   VGABase(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~VGABase();
 
-  const u8* GetVRAM() const { return m_vram; }
-  u8* GetVRAM() { return m_vram; }
+  const u8* GetVRAM() const { return m_vram_ptr; }
+  u8* GetVRAM() { return m_vram_ptr; }
 
   virtual bool Initialize(System* system, Bus* bus) override;
   virtual void Reset() override;
   virtual bool LoadState(BinaryReader& reader) override;
   virtual bool SaveState(BinaryWriter& writer) override;
 
-private:
+protected:
   virtual void ConnectIOPorts();
-  virtual void UpdateDisplayTiming();
+  virtual void GetDisplayTiming(DisplayTiming& timing, u32* render_width, u32* render_height);
   virtual void LatchStartAddress();
-
-  u32 CRTCReadVRAMPlanes(u32 address_counter, u32 row_scan_counter) const;
-  u32 CRTCWrapAddress(u32 address_counter, u32 row_scan_counter) const;
-
-  void Render();
   virtual void RenderTextMode();
   virtual void RenderGraphicsMode();
+
+  u32 ReadVRAMPlanes(u32 base_address, u32 address_counter, u32 row_scan_counter) const;
+  u32 CRTCWrapAddress(u32 base_address, u32 address_counter, u32 row_scan_counter) const;
 
   void DrawTextGlyph8(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color, s32 dup9);
   void DrawTextGlyph16(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color);
@@ -55,7 +53,18 @@ private:
   DisplayTiming m_display_timing;
 
   // VRAM
-  u8* m_vram;
+  // The 4 planes of 64KB (256KB) VRAM is interleaved here.
+  // Array Offset | Plane | Offset
+  // -----------------------------
+  //            0 |     0 |      0
+  //            1 |     1 |      0
+  //            2 |     2 |      0
+  //            3 |     3 |      0
+  //            4 |     0 |      1
+  //            5 |     1 |      1
+  //            6 |     2 |      1
+  //            7 |     3 |      1
+  u8* m_vram_ptr;
   u32 m_vram_size;
   u32 m_vram_mask;
 
@@ -67,6 +76,7 @@ private:
   // 03D1/3/5: CRT data register
   virtual void IOCRTCDataRegisterRead(u8* value);
   virtual void IOCRTCDataRegisterWrite(u8 value);
+  void CRTCTimingChanged();
 
   // Graphics Registers
   u8* m_graphics_registers_ptr = nullptr;
@@ -151,14 +161,19 @@ private:
   // Information for rendering the screen, latched after vblank
   struct
   {
-    u32 visible_columns = 0;
-    u32 visible_rows = 0;
-    u32 start_address = 0;
-    u32 cursor_address = 0;
-    u32 cursor_height = 0;
-    u32 pitch = 0;
-    u8 character_width = 8;
-    u8 character_height = 8;
-  } m_render_latch;
+    u32 start_address;
+    u32 cursor_address;
+    u32 pitch;
+    u32 line_compare;
+    u8 character_width;
+    u8 character_height; // or scanlines per row in graphics mode
+    u8 row_scan_counter;
+    u8 cursor_start_line;
+    u8 cursor_end_line;
+  } m_render_latch = {};
+
+private:
+  void UpdateDisplayTiming();
+  void Render();
 };
 } // namespace HW
