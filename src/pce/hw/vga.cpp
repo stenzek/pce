@@ -56,10 +56,12 @@ bool VGA::LoadState(BinaryReader& reader)
   if (!BaseClass::LoadState(reader) || reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
+  reader.SafeReadBytes(m_vram.data(), m_vram_size);
   reader.SafeReadBytes(m_crtc_registers.data(), static_cast<u32>(m_crtc_registers.size()));
   reader.SafeReadBytes(m_graphics_registers.data(), static_cast<u32>(m_graphics_registers.size()));
   reader.SafeReadBytes(m_attribute_registers.data(), static_cast<u32>(m_attribute_registers.size()));
   reader.SafeReadBytes(m_sequencer_registers.data(), static_cast<u32>(m_sequencer_registers.size()));
+  reader.SafeReadUInt8(&m_vga_adapter_enable.bits);
 
   return !reader.GetErrorState();
 }
@@ -71,10 +73,12 @@ bool VGA::SaveState(BinaryWriter& writer)
 
   writer.WriteUInt32(SERIALIZATION_ID);
 
+  writer.WriteBytes(m_vram.data(), m_vram_size);
   writer.WriteBytes(m_crtc_registers.data(), static_cast<u32>(m_crtc_registers.size()));
   writer.WriteBytes(m_graphics_registers.data(), static_cast<u32>(m_graphics_registers.size()));
   writer.WriteBytes(m_attribute_registers.data(), static_cast<u32>(m_attribute_registers.size()));
   writer.WriteBytes(m_sequencer_registers.data(), static_cast<u32>(m_sequencer_registers.size()));
+  writer.WriteUInt8(m_vga_adapter_enable.bits);
 
   return !writer.InErrorState();
 }

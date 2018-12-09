@@ -150,10 +150,6 @@ protected:
   void SetOutputPalette256();
   std::array<u32, 256> m_output_palette;
 
-  // Common character info
-  u8 m_character_width = 8;
-  u8 m_character_height = 8;
-
   // Cursor state for text modes
   u8 m_cursor_counter = 0;
   bool m_cursor_state = false;

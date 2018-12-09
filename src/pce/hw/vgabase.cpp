@@ -99,11 +99,10 @@ bool VGABase::LoadState(BinaryReader& reader)
   reader.SafeReadUInt8(&m_dac_color_index);
   reader.SafeReadUInt32(&m_latch);
   reader.SafeReadBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
-  reader.SafeReadUInt8(&m_character_width);
   reader.SafeReadUInt8(&m_cursor_counter);
   reader.SafeReadBool(&m_cursor_state);
 
-  m_crtc_timing_changed = true;
+  CRTCTimingChanged();
 
   return !reader.GetErrorState();
 }
@@ -126,7 +125,6 @@ bool VGABase::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(m_dac_color_index);
   writer.WriteUInt32(m_latch);
   writer.WriteBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
-  writer.WriteUInt8(m_character_width);
   writer.WriteUInt8(m_cursor_counter);
   writer.WriteBool(m_cursor_state);
 
@@ -753,11 +751,16 @@ void VGABase::UpdateDisplayTiming()
   if (!m_display_timing.IsValid())
     return;
 
+  Log_DevPrintf("VGA: %ux%u @ %.2f hz (%.2f KHz)", render_width, render_height, m_display_timing.GetVerticalFrequency(),
+                m_display_timing.GetHorizontalFrequency() / 1000.0);
+
   m_display_timing.SetClockEnable(true);
   m_display_timing.ResetClock(m_system->GetTimingManager()->GetTotalEmulatedTime());
   m_display->UpdateFramebuffer(render_width, render_height, m_display->GetFramebufferFormat(),
                                static_cast<float>(m_display_timing.GetVerticalFrequency()));
   m_display->ResizeDisplay();
+
+  m_display_event->SetFrequency(static_cast<float>(m_display_timing.GetVerticalFrequency()));
 }
 
 void VGABase::GetDisplayTiming(DisplayTiming& timing, u32* render_width, u32* render_height)
@@ -767,14 +770,23 @@ void VGABase::GetDisplayTiming(DisplayTiming& timing, u32* render_width, u32* re
 
   // Pixels clocks. 0 - 25MHz, 1 - 28Mhz, 2/3 - undefined
   static constexpr std::array<u32, 4> pixel_clocks = {{25175000, 28322000, 25175000, 25175000}};
-  timing.SetPixelClock(pixel_clocks[m_misc_output_register.clock_select] >> (dot_clock_div2 ? 1 : 0));
+  timing.SetPixelClock(pixel_clocks[m_misc_output_register.clock_select]);
 
   u32 horizontal_visible = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_DISPLAY_END]) + 1u;
   u32 horizontal_total = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_TOTAL]) + 5u;
   u32 horizontal_sync_start = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_SYNC_START]);
-  u32 horizontal_sync_length = ZeroExtend32(((m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_SYNC_END] & 0x1F) -
-                                             (m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_SYNC_START] & 0x1F)) &
-                                            0x1F);
+  u32 horizontal_sync_end = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_SYNC_END] & 0x1F);
+
+  // No idea if this is correct, but it seems to be the only way to get a correct sync length in 40x25 modes..
+  if (dot_clock_div2)
+  {
+    horizontal_visible *= 2;
+    horizontal_total *= 2;
+    horizontal_sync_start *= 2;
+    horizontal_sync_end *= 2;
+  }
+
+  u32 horizontal_sync_length = ((horizontal_sync_end - (horizontal_sync_start & 0x1F)) & 0x1F);
 
   u32 character_width =
     SEQUENCER_REGISTER_CLOCKING_MODE_DOT8(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]) ? 8 : 9;
@@ -803,27 +815,23 @@ void VGABase::GetDisplayTiming(DisplayTiming& timing, u32* render_width, u32* re
   *render_width = horizontal_visible * character_width;
   *render_height = vertical_visible;
 
+  if (dot_clock_div2)
+    *render_width /= 2;
+
   // the actual dimensions we render don't include double-scanning.
   if (m_crtc_registers_ptr[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x80)
     *render_height /= 2;
-
-  timing.LogFrequencies("VGA");
 }
 
 void VGABase::LatchStartAddress()
 {
-  m_render_latch.start_address = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_START_ADDRESS_HIGH]) << 16) |
+  m_render_latch.start_address = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_START_ADDRESS_HIGH]) << 8) |
                                  (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_START_ADDRESS_LOW]));
   m_render_latch.start_address += ZeroExtend32((m_crtc_registers_ptr[CRTC_REGISTER_PRESET_ROW_SCAN] >> 5) & 0x03);
 
   m_render_latch.character_width =
     SEQUENCER_REGISTER_CLOCKING_MODE_DOT8(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]) ? 8 : 9;
   m_render_latch.character_height = (m_crtc_registers_ptr[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x1F) + 1;
-
-  // Scan doubling increases the number of scanlines per row, used in graphics mode for CGA compatibility.
-  // TODO: This should actually cause the row scan counter to increment at half the rate, but does it matter?
-  if (m_crtc_registers_ptr[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x80)
-    m_render_latch.character_height *= 2;
 
   m_render_latch.pitch = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_OFFSET]) * 2;
   m_render_latch.line_compare = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_LINE_COMPARE])) |
@@ -925,14 +933,15 @@ void VGABase::Render()
     UpdateDisplayTiming();
   }
 
-  if (!m_display->IsActive())
-    return;
-
   if (!m_display_timing.IsValid())
   {
+    m_display_event->Deactivate();
     m_display->ClearFramebuffer();
     return;
   }
+
+  if (!m_display->IsActive())
+    return;
 
   LatchStartAddress();
 
@@ -1112,8 +1121,8 @@ void VGABase::DrawTextGlyph16(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32
 
 void VGABase::RenderGraphicsMode()
 {
-  const bool shift_256 = GRAPHICS_REGISTER_MODE_SHIFT_256(m_graphics_registers_ptr[GRAPHICS_REGISTER_MISCELLANEOUS]);
-  const bool shift_reg = GRAPHICS_REGISTER_MODE_SHIFT_REG(m_graphics_registers_ptr[GRAPHICS_REGISTER_MISCELLANEOUS]);
+  const bool shift_256 = GRAPHICS_REGISTER_MODE_SHIFT_256(m_graphics_registers_ptr[GRAPHICS_REGISTER_MODE]);
+  const bool shift_reg = GRAPHICS_REGISTER_MODE_SHIFT_REG(m_graphics_registers_ptr[GRAPHICS_REGISTER_MODE]);
   const u32 screen_width = m_display->GetFramebufferWidth();
   const u32 screen_height = m_display->GetFramebufferHeight();
   const u32 scanlines_per_row = m_render_latch.character_height;
