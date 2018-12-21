@@ -61,7 +61,7 @@ public:
   void ClearFramebuffer();
   void ResizeFramebuffer(u32 width, u32 height);
   void ChangeFramebufferFormat(FramebufferFormat new_format);
-  void UpdateFramebuffer(u32 width, u32 height, FramebufferFormat format, float refresh_rate);
+  void UpdateFramebuffer(u32 width, u32 height, FramebufferFormat format, bool resize_display = true);
   void SwapFramebuffer();
 
   static constexpr u32 PackRGBX(u8 r, u8 g, u8 b)

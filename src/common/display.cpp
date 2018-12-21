@@ -179,7 +179,7 @@ void Display::ChangeFramebufferFormat(FramebufferFormat new_format)
   AllocateFramebuffer(&m_back_buffers[0]);
 }
 
-void Display::UpdateFramebuffer(u32 width, u32 height, FramebufferFormat format, float refresh_rate)
+void Display::UpdateFramebuffer(u32 width, u32 height, FramebufferFormat format, bool resize_display /* = true */)
 {
   if (m_framebuffer_width != width || m_framebuffer_height != height || m_framebuffer_format != m_framebuffer_format)
   {
@@ -187,6 +187,9 @@ void Display::UpdateFramebuffer(u32 width, u32 height, FramebufferFormat format,
     m_framebuffer_height = height;
     m_framebuffer_format = format;
     AllocateFramebuffer(&m_back_buffers[0]);
+
+    if (resize_display)
+      ResizeDisplay();
   }
 }
 

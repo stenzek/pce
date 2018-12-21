@@ -37,7 +37,7 @@ public:
 
 protected:
   virtual void ConnectIOPorts();
-  virtual void GetDisplayTiming(DisplayTiming& timing, u32* render_width, u32* render_height);
+  virtual void GetDisplayTiming(DisplayTiming& timing) const;
   virtual void LatchStartAddress();
   virtual void RenderTextMode();
   virtual void RenderGraphicsMode();
@@ -157,12 +157,15 @@ protected:
   // Information for rendering the screen, latched after vblank
   struct
   {
+    u32 render_width;
+    u32 render_height;
     u32 start_address;
     u32 cursor_address;
     u32 pitch;
     u32 line_compare;
     u8 character_width;
     u8 character_height; // or scanlines per row in graphics mode
+    u8 horizontal_panning;
     u8 row_scan_counter;
     u8 cursor_start_line;
     u8 cursor_end_line;

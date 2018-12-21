@@ -528,11 +528,16 @@ void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
   }
 
   u8 read_plane;
+  u32 latch_linear_address;
+
   if (SEQUENCER_REGISTER_MEMORY_MODE_CHAIN_4(m_sequencer_register_ptr[SEQUENCER_REGISTER_MEMORY_MODE]))
   {
     // Chain4 mode - access all four planes as a series of linear bytes
     read_plane = Truncate8(offset & 3);
-    std::memcpy(&m_latch, &m_vram_ptr[(segment_base + offset) & ~u32(3)], sizeof(m_latch));
+    latch_linear_address = (segment_base + ((offset & ~uint32(3)) << 2)) & m_vram_mask;
+    std::memcpy(&m_latch, &m_vram_ptr[latch_linear_address], sizeof(m_latch));
+    *value = Truncate8(m_latch >> (8 * read_plane));
+    return;
   }
   else
   {
@@ -552,7 +557,8 @@ void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
     }
 
     // Use the offset to load the latches with all 4 planes.
-    std::memcpy(&m_latch, &m_vram_ptr[latch_planar_address * 4], sizeof(m_latch));
+    latch_linear_address = (segment_base + (latch_planar_address << 2)) & m_vram_mask;
+    std::memcpy(&m_latch, &m_vram_ptr[latch_linear_address], sizeof(m_latch));
   }
 
   // Compare value/mask mode?
@@ -604,18 +610,35 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
     return;
   }
 
+  offset += segment_base;
+
   if (SEQUENCER_REGISTER_MEMORY_MODE_CHAIN_4(m_sequencer_register_ptr[SEQUENCER_REGISTER_MEMORY_MODE]))
   {
-    // ET4000 differs from other SVGA hardware - chained write addresses go direct to memory addresses.
     u8 plane = Truncate8(offset & 3);
     if (m_sequencer_register_ptr[SEQUENCER_REGISTER_PLANE_MASK] & (1 << plane))
-      m_vram_ptr[segment_base + offset] = value;
+    {
+      // Offset | Plane | Byte within plane | VRAM Address
+      // -------------------------------------------------
+      //      0 |     0 |                 0 |            0
+      //      1 |     1 |                 0 |            1
+      //      2 |     2 |                 0 |            2
+      //      3 |     3 |                 0 |            3
+      //      4 |     0 |                 4 |           16
+      //      5 |     1 |                 4 |           17
+      //      6 |     2 |                 4 |           18
+      //      7 |     3 |                 4 |           19
+      const u32 linear_address = (((offset & ~u32(3)) << 2) | ZeroExtend32(plane)) & m_vram_mask;
+      m_vram_ptr[linear_address] = value;
+    }
   }
   else if (!SEQUENCER_REGISTER_MEMORY_MODE_HOST_ODD_EVEN(m_sequencer_register_ptr[SEQUENCER_REGISTER_MEMORY_MODE]))
   {
     u8 plane = Truncate8(offset & 1);
     if (m_sequencer_register_ptr[SEQUENCER_REGISTER_PLANE_MASK] & (1 << plane))
-      m_vram_ptr[((segment_base + (offset & ~u32(1))) * 4) | plane] = value;
+    {
+      const u32 linear_address = (((offset & ~u32(1)) << 2) | ZeroExtend32(plane)) & m_vram_mask;
+      m_vram_ptr[linear_address] = value;
+    }
   }
   else
   {
@@ -701,11 +724,12 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
     }
 
     // Finally, only the bit planes enabled by the Memory Plane Write Enable field are written to memory.
+    const u32 linear_address = (offset << 2) & m_vram_mask;
     u32 write_mask = mask16[m_sequencer_register_ptr[SEQUENCER_REGISTER_PLANE_MASK] & 0xF];
     u32 current_value;
-    std::memcpy(&current_value, &m_vram_ptr[(segment_base + offset) * 4], sizeof(current_value));
+    std::memcpy(&current_value, &m_vram_ptr[linear_address], sizeof(current_value));
     all_planes_value = (all_planes_value & write_mask) | (current_value & ~write_mask);
-    std::memcpy(&m_vram_ptr[(segment_base + offset) * 4], &all_planes_value, sizeof(current_value));
+    std::memcpy(&m_vram_ptr[linear_address], &all_planes_value, sizeof(current_value));
   }
 }
 
@@ -735,42 +759,14 @@ void VGABase::SetOutputPalette256()
   }
 }
 
-void VGABase::UpdateDisplayTiming()
-{
-  DisplayTiming new_timing;
-  u32 render_width, render_height;
-  GetDisplayTiming(new_timing, &render_width, &render_height);
-
-  if (m_display_timing.FrequenciesMatch(new_timing) && m_display->GetFramebufferWidth() == render_width &&
-      m_display->GetFramebufferHeight() == render_height)
-  {
-    return;
-  }
-
-  m_display_timing = new_timing;
-  if (!m_display_timing.IsValid())
-    return;
-
-  Log_DevPrintf("VGA: %ux%u @ %.2f hz (%.2f KHz)", render_width, render_height, m_display_timing.GetVerticalFrequency(),
-                m_display_timing.GetHorizontalFrequency() / 1000.0);
-
-  m_display_timing.SetClockEnable(true);
-  m_display_timing.ResetClock(m_system->GetTimingManager()->GetTotalEmulatedTime());
-  m_display->UpdateFramebuffer(render_width, render_height, m_display->GetFramebufferFormat(),
-                               static_cast<float>(m_display_timing.GetVerticalFrequency()));
-  m_display->ResizeDisplay();
-
-  m_display_event->SetFrequency(static_cast<float>(m_display_timing.GetVerticalFrequency()));
-}
-
-void VGABase::GetDisplayTiming(DisplayTiming& timing, u32* render_width, u32* render_height)
+void VGABase::GetDisplayTiming(DisplayTiming& timing) const
 {
   const bool dot_clock_div2 =
     SEQUENCER_REGISTER_CLOCKING_MODE_DOT_CLOCK_DIV2(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]);
 
   // Pixels clocks. 0 - 25MHz, 1 - 28Mhz, 2/3 - undefined
   static constexpr std::array<u32, 4> pixel_clocks = {{25175000, 28322000, 25175000, 25175000}};
-  timing.SetPixelClock(pixel_clocks[m_misc_output_register.clock_select]);
+  timing.SetPixelClock(static_cast<double>(pixel_clocks[m_misc_output_register.clock_select]));
 
   u32 horizontal_visible = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_DISPLAY_END]) + 1u;
   u32 horizontal_total = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_TOTAL]) + 5u;
@@ -786,14 +782,27 @@ void VGABase::GetDisplayTiming(DisplayTiming& timing, u32* render_width, u32* re
     horizontal_sync_end *= 2;
   }
 
-  u32 horizontal_sync_length = ((horizontal_sync_end - (horizontal_sync_start & 0x1F)) & 0x1F);
+  const u32 horizontal_sync_length = ((horizontal_sync_end - (horizontal_sync_start & 0x1F)) & 0x1F);
 
-  u32 character_width =
+  const u32 character_width =
     SEQUENCER_REGISTER_CLOCKING_MODE_DOT8(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]) ? 8 : 9;
 
-  timing.SetHorizontalVisible(horizontal_visible * character_width);
-  timing.SetHorizontalSyncLength(horizontal_sync_start * character_width, horizontal_sync_length * character_width);
-  timing.SetHorizontalTotal(horizontal_total * character_width);
+  u32 horizontal_visible_pixels = horizontal_visible * character_width;
+  u32 horizontal_sync_start_pixels = horizontal_sync_start * character_width;
+  u32 horizontal_sync_length_pixels = horizontal_sync_length * character_width;
+  u32 horizontal_total_pixels = horizontal_total * character_width;
+
+  //   if (dot_clock_div2)
+  //   {
+  //     horizontal_visible_pixels /= 2;
+  //     horizontal_total_pixels /= 2;
+  //     horizontal_sync_start_pixels /= 2;
+  //     horizontal_sync_length_pixels /= 2;
+  //   }
+
+  timing.SetHorizontalVisible(horizontal_visible_pixels);
+  timing.SetHorizontalSyncLength(horizontal_sync_start_pixels, horizontal_sync_length_pixels);
+  timing.SetHorizontalTotal(horizontal_total_pixels);
 
   const u32 overflow = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_OVERFLOW]);
   const u32 vertical_visible = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_VERTICAL_DISPLAY_END]) |
@@ -811,28 +820,36 @@ void VGABase::GetDisplayTiming(DisplayTiming& timing, u32* render_width, u32* re
   timing.SetVerticalVisible(vertical_visible);
   timing.SetVerticalSyncLength(vertical_sync_start, vertical_sync_length);
   timing.SetVerticalTotal(vertical_total);
+}
 
-  *render_width = horizontal_visible * character_width;
-  *render_height = vertical_visible;
+void VGABase::UpdateDisplayTiming()
+{
+  // Work out frequency.
+  DisplayTiming timing;
+  GetDisplayTiming(timing);
+  if (m_display_timing.FrequenciesMatch(timing) || !timing.IsValid())
+    return;
 
-  if (dot_clock_div2)
-    *render_width /= 2;
+  Log_DevPrintf("VGA: %ux%u @ %.2f hz (%.2f KHz)", timing.GetHorizontalVisible(), timing.GetVerticalVisible(),
+                timing.GetVerticalFrequency(), timing.GetHorizontalFrequency() / 1000.0);
 
-  // the actual dimensions we render don't include double-scanning.
-  if (m_crtc_registers_ptr[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x80)
-    *render_height /= 2;
+  // TODO: Offset clock based on time since last vblank.
+  m_display_timing = timing;
+  m_display_timing.SetClockEnable(true);
+  m_display_timing.ResetClock(m_system->GetTimingManager()->GetTotalEmulatedTime());
+  m_display_event->SetActive(false);
+  m_display_event->SetFrequency(static_cast<float>(m_display_timing.GetVerticalFrequency()));
+  m_display_event->Activate();
 }
 
 void VGABase::LatchStartAddress()
 {
-  m_render_latch.start_address = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_START_ADDRESS_HIGH]) << 8) |
-                                 (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_START_ADDRESS_LOW]));
-  m_render_latch.start_address += ZeroExtend32((m_crtc_registers_ptr[CRTC_REGISTER_PRESET_ROW_SCAN] >> 5) & 0x03);
-
   m_render_latch.character_width =
     SEQUENCER_REGISTER_CLOCKING_MODE_DOT8(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]) ? 8 : 9;
   m_render_latch.character_height = (m_crtc_registers_ptr[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x1F) + 1;
-
+  m_render_latch.start_address = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_START_ADDRESS_HIGH]) << 8) |
+                                 (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_START_ADDRESS_LOW]));
+  m_render_latch.start_address += ZeroExtend32((m_crtc_registers_ptr[CRTC_REGISTER_PRESET_ROW_SCAN] >> 5) & 0x03);
   m_render_latch.pitch = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_OFFSET]) * 2;
   m_render_latch.line_compare = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_LINE_COMPARE])) |
                                 (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_OVERFLOW] & 0x10) << 4) |
@@ -849,6 +866,73 @@ void VGABase::LatchStartAddress()
   // If the cursor is disabled, set the address to something that will never be equal
   if (m_crtc_registers_ptr[CRTC_REGISTER_TEXT_CURSOR_START] & (1 << 5) || !m_cursor_state)
     m_render_latch.cursor_address = m_vram_size;
+
+  m_render_latch.horizontal_panning = m_attribute_register_ptr[ATTRIBUTE_REGISTER_PIXEL_PANNING] & 0x07;
+
+  m_render_latch.render_width = m_display_timing.GetHorizontalVisible();
+  m_render_latch.render_height = m_display_timing.GetVerticalVisible();
+
+  // Dividing the dot clock by two halves the effective resolution.
+  if (SEQUENCER_REGISTER_CLOCKING_MODE_DOT_CLOCK_DIV2(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]))
+    m_render_latch.render_width /= 2;
+
+  // The actual dimensions we render don't include double-scanning.
+  if (m_crtc_registers_ptr[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x80)
+  {
+    m_render_latch.render_height /= 2;
+    m_render_latch.line_compare /= 2; // TODO: Correct?
+  }
+
+  // 200-line EGA/VGA modes set scanlines_per_row to 2, creating an effective 400 lines.
+  // We can speed things up by only rendering one of these lines, if the only muxes which
+  // use the scanline counter are enabled (alternative LA13/14).
+  if (GRAPHICS_REGISTER_MISCELLANEOUS_GRAPHICS_MODE(m_graphics_registers_ptr[GRAPHICS_REGISTER_MISCELLANEOUS]) &&
+      m_render_latch.character_height == 2 && m_render_latch.row_scan_counter == 0 &&
+      (m_render_latch.line_compare > m_render_latch.render_height || (m_render_latch.line_compare & 1) == 0) &&
+      !(m_crtc_registers_ptr[CRTC_REGISTER_MODE_CONTROL] &
+        (CRTC_REGISTER_MODE_CONTROL_ALTERNATE_LA13 | CRTC_REGISTER_MODE_CONTROL_ALTERNATE_LA14)))
+  {
+    m_render_latch.character_height = 1;
+    m_render_latch.render_height /= 2;
+    m_render_latch.line_compare /= 2;
+  }
+}
+
+void VGABase::Render()
+{
+  // On the standard VGA, the blink rate is dependent on the vertical frame rate. The on/off state of the cursor
+  // changes every 16 vertical frames, which amounts to 1.875 blinks per second at 60 vertical frames per second. The
+  // cursor blink rate is thus fixed and cannot be software controlled on the standard VGA. Some SVGA chipsets
+  // provide non-standard means for changing the blink rate of the text-mode cursor.
+  // TODO: Should this tick in only text mode, and only when the cursor is enabled?
+  if ((++m_cursor_counter) == 16)
+  {
+    m_cursor_counter = 0;
+    m_cursor_state ^= true;
+  }
+
+  if (m_crtc_timing_changed)
+  {
+    m_crtc_timing_changed = false;
+    UpdateDisplayTiming();
+  }
+
+  if (!m_display_timing.IsValid())
+  {
+    m_display_event->Deactivate();
+    m_display->ClearFramebuffer();
+    return;
+  }
+
+  if (!m_display->IsActive())
+    return;
+
+  LatchStartAddress();
+
+  if (GRAPHICS_REGISTER_MISCELLANEOUS_GRAPHICS_MODE(m_graphics_registers_ptr[GRAPHICS_REGISTER_MISCELLANEOUS]))
+    RenderGraphicsMode();
+  else
+    RenderTextMode();
 }
 
 u32 VGABase::ReadVRAMPlanes(u32 base_address, u32 address_counter, u32 row_scan_counter) const
@@ -914,47 +998,13 @@ u32 VGABase::CRTCWrapAddress(u32 base_address, u32 address_counter, u32 row_scan
   return address;
 }
 
-void VGABase::Render()
-{
-  // On the standard VGA, the blink rate is dependent on the vertical frame rate. The on/off state of the cursor
-  // changes every 16 vertical frames, which amounts to 1.875 blinks per second at 60 vertical frames per second. The
-  // cursor blink rate is thus fixed and cannot be software controlled on the standard VGA. Some SVGA chipsets
-  // provide non-standard means for changing the blink rate of the text-mode cursor.
-  // TODO: Should this tick in only text mode, and only when the cursor is enabled?
-  if ((++m_cursor_counter) == 16)
-  {
-    m_cursor_counter = 0;
-    m_cursor_state ^= true;
-  }
-
-  if (m_crtc_timing_changed)
-  {
-    m_crtc_timing_changed = false;
-    UpdateDisplayTiming();
-  }
-
-  if (!m_display_timing.IsValid())
-  {
-    m_display_event->Deactivate();
-    m_display->ClearFramebuffer();
-    return;
-  }
-
-  if (!m_display->IsActive())
-    return;
-
-  LatchStartAddress();
-
-  if (GRAPHICS_REGISTER_MISCELLANEOUS_GRAPHICS_MODE(m_graphics_registers_ptr[GRAPHICS_REGISTER_MISCELLANEOUS]))
-    RenderGraphicsMode();
-  else
-    RenderTextMode();
-}
-
 void VGABase::RenderTextMode()
 {
-  const u32 character_columns = m_display->GetFramebufferWidth() / m_render_latch.character_width;
-  const u32 character_rows = m_display->GetFramebufferHeight() / m_render_latch.character_height;
+  const u32 character_columns = m_render_latch.render_width / m_render_latch.character_width;
+  const u32 character_rows = m_render_latch.render_height / m_render_latch.character_height;
+
+  m_display->UpdateFramebuffer(m_render_latch.render_width, m_render_latch.render_height,
+                               Display::FramebufferFormat::RGBX8);
 
   // Determine base address of the fonts
   u32 font_base_address[2];
@@ -998,6 +1048,7 @@ void VGABase::RenderTextMode()
   // Get text palette colors
   SetOutputPalette16();
 
+  // TODO: This is wrong, it should support smooth scrolling of text!!
   u32 row_scan_counter = m_render_latch.row_scan_counter;
   u32 fb_x = 0, fb_y = 0;
 
@@ -1009,6 +1060,7 @@ void VGABase::RenderTextMode()
     for (u32 col = 0; col < character_columns; col++)
     {
       // Read as dwords, with each byte representing one plane
+      // TODO: Move count by 2 into here.
       u32 current_address = address_counter++;
       u32 all_planes = ReadVRAMPlanes(m_render_latch.start_address, current_address, row_scan_counter);
 
@@ -1123,13 +1175,13 @@ void VGABase::RenderGraphicsMode()
 {
   const bool shift_256 = GRAPHICS_REGISTER_MODE_SHIFT_256(m_graphics_registers_ptr[GRAPHICS_REGISTER_MODE]);
   const bool shift_reg = GRAPHICS_REGISTER_MODE_SHIFT_REG(m_graphics_registers_ptr[GRAPHICS_REGISTER_MODE]);
-  const u32 screen_width = m_display->GetFramebufferWidth();
-  const u32 screen_height = m_display->GetFramebufferHeight();
   const u32 scanlines_per_row = m_render_latch.character_height;
   const u32 line_compare = m_render_latch.line_compare;
   const u32 pitch = m_render_latch.pitch;
+  u32 render_width = m_render_latch.render_width;
+  u32 render_height = m_render_latch.render_height;
   u32 start_address = m_render_latch.start_address;
-  u32 horizontal_pan = m_attribute_register_ptr[ATTRIBUTE_REGISTER_PIXEL_PANNING] & 0x07;
+  u8 horizontal_pan = m_render_latch.horizontal_panning;
 
   // 4 or 16 color mode?
   if (!shift_256)
@@ -1141,14 +1193,20 @@ void VGABase::RenderGraphicsMode()
   {
     // Initialize all palette colours beforehand.
     SetOutputPalette256();
+
+    // 256-color modes result in the sequencer operating at half the speed, effectively halving the dot clock.
+    render_width /= 2;
+    horizontal_pan /= 2;
   }
+
+  m_display->UpdateFramebuffer(render_width, render_height, Display::FramebufferFormat::RGBX8);
 
   // preset_row_scan[4:0] contains the starting row scan number, cleared when it hits max.
   u32 row_counter = 0;
   u32 row_scan_counter = m_render_latch.row_scan_counter;
 
   // Draw lines
-  for (u32 scanline = 0; scanline < screen_height; scanline++)
+  for (u32 scanline = 0; scanline < render_height; scanline++)
   {
     if (scanline == line_compare)
     {
@@ -1167,7 +1225,7 @@ void VGABase::RenderGraphicsMode()
       if (shift_reg)
       {
         // CGA mode - Shift register in interleaved mode, odd bits from odd maps and even bits from even maps
-        for (u32 col = 0; col < screen_width;)
+        for (u32 col = 0; col < render_width;)
         {
           u32 all_planes = ReadVRAMPlanes(start_address, address_counter, row_scan_counter);
           address_counter++;
@@ -1202,7 +1260,7 @@ void VGABase::RenderGraphicsMode()
       {
         // 16 color mode.
         // Output 8 pixels for one dword
-        for (int32 col = -(int32)horizontal_pan; col < (int32)screen_width;)
+        for (int32 col = -(int32)horizontal_pan; col < (int32)render_width;)
         {
           u32 all_planes = ReadVRAMPlanes(start_address, address_counter, row_scan_counter);
           address_counter++;
@@ -1222,9 +1280,9 @@ void VGABase::RenderGraphicsMode()
             u8(((pl0 >> 1) & 1u) | (((pl1 >> 1) & 1u) << 1) | (((pl2 >> 1) & 1u) << 2) | (((pl3 >> 1) & 1u) << 3)),
             u8(((pl0 >> 0) & 1u) | (((pl1 >> 0) & 1u) << 1) | (((pl2 >> 0) & 1u) << 2) | (((pl3 >> 0) & 1u) << 3))};
 
-          for (u32 subindex = 0; col < (int32)screen_width && subindex < 8;)
+          for (u32 subindex = 0; col < (int32)render_width && subindex < 8;)
           {
-            if (col >= 0 && col < (int32)screen_width)
+            if (col >= 0 && col < (int32)render_width)
               m_display->SetPixel(col, scanline, m_output_palette[indices[subindex]]);
 
             col++;
@@ -1235,10 +1293,8 @@ void VGABase::RenderGraphicsMode()
     }
     else
     {
-      u32 pan_pixels = (horizontal_pan & 7) / 2;
-
       // Slow loop with panning part
-      s32 col = -s32(pan_pixels * 2);
+      s32 col = -s32(horizontal_pan);
       while (col < 0)
       {
         u32 indices = ReadVRAMPlanes(start_address, address_counter, row_scan_counter);
@@ -1258,7 +1314,7 @@ void VGABase::RenderGraphicsMode()
       }
 
       // Fast loop without partial panning
-      while ((col + 4) <= static_cast<s32>(screen_width))
+      while ((col + 4) <= static_cast<s32>(render_width))
       {
         // Load 4 pixels, one from each plane
         // Duplicate horizontally twice, this is the shift_256 stuff
@@ -1272,7 +1328,7 @@ void VGABase::RenderGraphicsMode()
       }
 
       // Slow loop to handle misaligned buffer when panning
-      while (col < static_cast<s32>(screen_width))
+      while (col < static_cast<s32>(render_width))
       {
         u32 indices = ReadVRAMPlanes(start_address, address_counter, row_scan_counter);
         address_counter++;
@@ -1283,7 +1339,7 @@ void VGABase::RenderGraphicsMode()
           u32 color = m_output_palette[index];
           indices >>= 8;
 
-          if (col < static_cast<s32>(screen_width))
+          if (col < static_cast<s32>(render_width))
             m_display->SetPixel(col, scanline, color);
           else
             break;
