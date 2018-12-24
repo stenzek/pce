@@ -55,14 +55,32 @@ bool VGABase::Initialize(System* system, Bus* bus)
 
 void VGABase::Reset()
 {
+  // Reset masks, since these can be affected by save states.
   for (u32 i = 0; i < MAX_VGA_CRTC_REGISTER; i++)
-    m_crtc_registers_ptr[i] = 0;
+    m_crtc_register_mask[i] = 0xFF;
+
+  static const u8 gr_mask[] = {0x0f, 0x0f, 0x0f, 0x1f, 0x03, 0x7b, 0x0f, 0x0f, 0xff};
+  for (size_t i = 0; i < countof(gr_mask); i++)
+    m_graphics_register_mask[i] = gr_mask[i];
+
+  static const u8 sr_mask[] = {0x03, 0x3d, 0x0f, 0x3f, 0x0e};
+  for (size_t i = 0; i < countof(sr_mask); i++)
+    m_sequencer_register_mask[i] = sr_mask[i];
+
+  for (u32 i = ATTRIBUTE_REGISTER_PALETTE; i < 16; i++)
+    m_attribute_register_mask[i] = 0x3F;
+  for (u32 i = 16; i < MAX_VGA_ATTRIBUTE_REGISTER; i++)
+    m_attribute_register_mask[i] = 0xFF;
+
+  // Zero all registers. Should they have default values?
+  for (u32 i = 0; i < MAX_VGA_CRTC_REGISTER; i++)
+    m_crtc_registers[i] = 0;
   for (u32 i = 0; i < MAX_VGA_GRAPHICS_REGISTER; i++)
-    m_graphics_registers_ptr[i] = 0;
+    m_graphics_registers[i] = 0;
   for (u32 i = 0; i < MAX_VGA_SEQUENCER_REGISTER; i++)
-    m_sequencer_register_ptr[i] = 0;
+    m_sequencer_registers[i] = 0;
   for (u32 i = 0; i < MAX_VGA_ATTRIBUTE_REGISTER; i++)
-    m_attribute_register_ptr[i] = 0;
+    m_attribute_registers[i] = 0;
 
   m_attribute_register_flipflop = false;
 
@@ -93,19 +111,29 @@ bool VGABase::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
+  reader.SafeReadUInt32(&m_latch);
+  reader.SafeReadBytes(m_vram.data(), m_vram_size);
+
+  reader.SafeReadBytes(m_crtc_registers.data(), static_cast<u32>(m_crtc_registers.size()));
+  reader.SafeReadBytes(m_crtc_register_mask.data(), static_cast<u32>(m_crtc_register_mask.size()));
   reader.SafeReadUInt8(&m_crtc_index_register);
-  reader.SafeReadUInt8(&m_graphics_address_register);
+  reader.SafeReadBytes(m_graphics_registers.data(), static_cast<u32>(m_graphics_registers.size()));
+  reader.SafeReadBytes(m_graphics_register_mask.data(), static_cast<u32>(m_graphics_register_mask.size()));
+  reader.SafeReadUInt8(&m_graphics_index_register);
   reader.SafeReadUInt8(&m_misc_output_register.bits);
   reader.SafeReadUInt8(&m_feature_control_register.bits);
-  reader.SafeReadUInt8(&m_attribute_address_register);
+  reader.SafeReadBytes(m_attribute_registers.data(), static_cast<u32>(m_attribute_registers.size()));
+  reader.SafeReadBytes(m_attribute_register_mask.data(), static_cast<u32>(m_attribute_register_mask.size()));
+  reader.SafeReadUInt8(&m_attribute_index_register);
   reader.SafeReadBool(&m_attribute_register_flipflop);
-  reader.SafeReadUInt8(&m_sequencer_address_register);
+  reader.SafeReadBytes(m_sequencer_registers.data(), static_cast<u32>(m_sequencer_registers.size()));
+  reader.SafeReadBytes(m_sequencer_register_mask.data(), static_cast<u32>(m_sequencer_register_mask.size()));
+  reader.SafeReadUInt8(&m_sequencer_index_register);
   reader.SafeReadBytes(m_dac_palette.data(), Truncate32(sizeof(u32) * m_dac_palette.size()));
   reader.SafeReadUInt8(&m_dac_state_register);
   reader.SafeReadUInt8(&m_dac_write_address);
   reader.SafeReadUInt8(&m_dac_read_address);
   reader.SafeReadUInt8(&m_dac_color_index);
-  reader.SafeReadUInt32(&m_latch);
   reader.SafeReadBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   reader.SafeReadUInt8(&m_cursor_counter);
   reader.SafeReadBool(&m_cursor_state);
@@ -119,19 +147,29 @@ bool VGABase::SaveState(BinaryWriter& writer)
 {
   writer.WriteUInt32(SERIALIZATION_ID);
 
+  writer.WriteUInt32(m_latch);
+  writer.WriteBytes(m_vram.data(), m_vram_size);
+
+  writer.WriteBytes(m_crtc_registers.data(), static_cast<u32>(m_crtc_registers.size()));
+  writer.WriteBytes(m_crtc_register_mask.data(), static_cast<u32>(m_crtc_register_mask.size()));
   writer.WriteUInt8(m_crtc_index_register);
-  writer.WriteUInt8(m_graphics_address_register);
+  writer.WriteBytes(m_graphics_registers.data(), static_cast<u32>(m_graphics_registers.size()));
+  writer.WriteBytes(m_graphics_register_mask.data(), static_cast<u32>(m_graphics_register_mask.size()));
+  writer.WriteUInt8(m_graphics_index_register);
   writer.WriteUInt8(m_misc_output_register.bits);
   writer.WriteUInt8(m_feature_control_register.bits);
-  writer.WriteUInt8(m_attribute_address_register);
+  writer.WriteBytes(m_attribute_registers.data(), static_cast<u32>(m_attribute_registers.size()));
+  writer.WriteBytes(m_attribute_register_mask.data(), static_cast<u32>(m_attribute_register_mask.size()));
+  writer.WriteUInt8(m_attribute_index_register);
   writer.WriteBool(m_attribute_register_flipflop);
-  writer.WriteUInt8(m_sequencer_address_register);
+  writer.WriteBytes(m_sequencer_registers.data(), static_cast<u32>(m_sequencer_registers.size()));
+  writer.WriteBytes(m_sequencer_register_mask.data(), static_cast<u32>(m_sequencer_register_mask.size()));
+  writer.WriteUInt8(m_sequencer_index_register);
   writer.WriteBytes(m_dac_palette.data(), Truncate32(sizeof(u32) * m_dac_palette.size()));
   writer.WriteUInt8(m_dac_state_register);
   writer.WriteUInt8(m_dac_write_address);
   writer.WriteUInt8(m_dac_read_address);
   writer.WriteUInt8(m_dac_color_index);
-  writer.WriteUInt32(m_latch);
   writer.WriteBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   writer.WriteUInt8(m_cursor_counter);
   writer.WriteBool(m_cursor_state);
@@ -168,8 +206,8 @@ void VGABase::ConnectIOPorts()
   m_bus->ConnectIOPortRead(0x03C2, this, [this](u16, u8* value) { IOReadStatusRegister0(value); });
   m_bus->ConnectIOPortRead(0x03BA, this, [this](u16, u8* value) { IOReadStatusRegister1(value); });
   m_bus->ConnectIOPortRead(0x03DA, this, [this](u16, u8* value) { IOReadStatusRegister1(value); });
-  m_bus->ConnectIOPortReadToPointer(0x03CE, this, &m_graphics_address_register);
-  m_bus->ConnectIOPortWriteToPointer(0x03CE, this, &m_graphics_address_register);
+  m_bus->ConnectIOPortReadToPointer(0x03CE, this, &m_graphics_index_register);
+  m_bus->ConnectIOPortWriteToPointer(0x03CE, this, &m_graphics_index_register);
   m_bus->ConnectIOPortRead(0x03CF, this, [this](u16, u8* value) { IOGraphicsRegisterRead(value); });
   m_bus->ConnectIOPortWrite(0x03CF, this, [this](u16, u8 value) { IOGraphicsRegisterWrite(value); });
   m_bus->ConnectIOPortReadToPointer(0x03CC, this, &m_misc_output_register.bits);
@@ -177,11 +215,11 @@ void VGABase::ConnectIOPorts()
   m_bus->ConnectIOPortReadToPointer(0x03CA, this, &m_feature_control_register.bits);
   m_bus->ConnectIOPortWriteToPointer(0x03BA, this, &m_feature_control_register.bits);
   m_bus->ConnectIOPortWriteToPointer(0x03DA, this, &m_feature_control_register.bits);
-  m_bus->ConnectIOPortReadToPointer(0x03C0, this, &m_attribute_address_register);
+  m_bus->ConnectIOPortReadToPointer(0x03C0, this, &m_attribute_index_register);
   m_bus->ConnectIOPortWrite(0x03C0, this, [this](u16, u8 value) { IOAttributeAddressDataWrite(value); });
   m_bus->ConnectIOPortRead(0x03C1, this, [this](u16, u8* value) { IOAttributeDataRead(value); });
-  m_bus->ConnectIOPortReadToPointer(0x03C4, this, &m_sequencer_address_register);
-  m_bus->ConnectIOPortWriteToPointer(0x03C4, this, &m_sequencer_address_register);
+  m_bus->ConnectIOPortReadToPointer(0x03C4, this, &m_sequencer_index_register);
+  m_bus->ConnectIOPortWriteToPointer(0x03C4, this, &m_sequencer_index_register);
   m_bus->ConnectIOPortRead(0x03C5, this, [this](u16, u8* value) { IOSequencerDataRegisterRead(value); });
   m_bus->ConnectIOPortWrite(0x03C5, this, [this](u16, u8 value) { IOSequencerDataRegisterWrite(value); });
   m_bus->ConnectIOPortRead(0x03C7, this, [this](u16, u8* value) { IODACStateRegisterRead(value); });
@@ -194,29 +232,27 @@ void VGABase::ConnectIOPorts()
 
 void VGABase::IOCRTCDataRegisterRead(u8* value)
 {
-  if (m_crtc_index_register > MAX_VGA_CRTC_REGISTER)
+  if (m_crtc_index_register > NUM_CRTC_REGISTERS)
   {
-    //Log_ErrorPrintf("Out-of-range CRTC register read: %u", u32(m_crtc_index_register));
     *value = 0;
     return;
   }
 
-  *value = m_crtc_registers_ptr[m_crtc_index_register];
+  *value = m_crtc_registers[m_crtc_index_register];
   Log_TracePrintf("CRTC register read: %u -> 0x%02X", u32(m_crtc_index_register),
-                  u32(m_crtc_registers_ptr[m_crtc_index_register]));
+                  u32(m_crtc_registers[m_crtc_index_register]));
 }
 
 void VGABase::IOCRTCDataRegisterWrite(u8 value)
 {
-  if (m_crtc_index_register > MAX_VGA_CRTC_REGISTER)
-  {
-    Log_ErrorPrintf("Out-of-range CRTC register write: %u", u32(m_crtc_index_register));
+  if (m_crtc_index_register > NUM_CRTC_REGISTERS)
     return;
-  }
-
-  m_crtc_registers_ptr[m_crtc_index_register] = value;
 
   Log_TracePrintf("CRTC register write: %u <- 0x%02X", u32(m_crtc_index_register), u32(value));
+
+  const u8 mask = m_crtc_register_mask[m_crtc_index_register];
+  value = (value & mask) | (m_crtc_registers[m_crtc_index_register] & ~mask);
+  m_crtc_registers[m_crtc_index_register] = value;
 
   switch (m_crtc_index_register)
   {
@@ -251,42 +287,28 @@ void VGABase::CRTCTimingChanged()
 
 void VGABase::IOGraphicsRegisterRead(u8* value)
 {
-  if (m_graphics_address_register > MAX_VGA_GRAPHICS_REGISTER)
+  if (m_graphics_index_register > NUM_GRAPHICS_REGISTERS)
   {
-    //Log_ErrorPrintf("Out-of-range graphics register read: %u", u32(m_graphics_address_register));
     *value = 0;
     return;
   }
 
-  *value = m_graphics_registers_ptr[m_graphics_address_register];
+  *value = m_graphics_registers[m_graphics_index_register];
 
-  Log_TracePrintf("Graphics register read: %u -> 0x%02X", u32(m_graphics_address_register),
-                  u32(m_graphics_registers_ptr[m_graphics_address_register]));
+  Log_TracePrintf("Graphics register read: %u -> 0x%02X", u32(m_graphics_index_register),
+                  u32(m_graphics_registers[m_graphics_index_register]));
 }
 
 void VGABase::IOGraphicsRegisterWrite(u8 value)
 {
-  static const u8 gr_mask[MAX_VGA_GRAPHICS_REGISTER + 1] = {
-    0x0f, /* 0x00 */
-    0x0f, /* 0x01 */
-    0x0f, /* 0x02 */
-    0x1f, /* 0x03 */
-    0x03, /* 0x04 */
-    0x7b, /* 0x05 */
-    0x0f, /* 0x06 */
-    0x0f, /* 0x07 */
-    0xff, /* 0x08 */
-  };
-
-  if (m_graphics_address_register > MAX_VGA_GRAPHICS_REGISTER)
-  {
-    Log_ErrorPrintf("Out-of-range graphics register write: %u", u32(m_graphics_address_register));
+  if (m_graphics_index_register > NUM_GRAPHICS_REGISTERS)
     return;
-  }
 
-  m_graphics_registers_ptr[m_graphics_address_register] = value & gr_mask[m_graphics_address_register];
+  Log_TracePrintf("Graphics register write: %u <- 0x%02X", u32(m_graphics_index_register), u32(value));
 
-  Log_TracePrintf("Graphics register write: %u <- 0x%02X", u32(m_graphics_address_register), u32(value));
+  const u8 mask = m_graphics_register_mask[m_graphics_index_register];
+  value = (value & mask) | (m_graphics_registers[m_graphics_index_register] & ~mask);
+  m_graphics_registers[m_graphics_index_register] = value;
 }
 
 void VGABase::IOMiscOutputRegisterWrite(u8 value)
@@ -329,23 +351,22 @@ void VGABase::IOReadStatusRegister1(u8* value)
 
 void VGABase::IOAttributeAddressRead(u8* value)
 {
-  *value = m_attribute_address_register;
+  *value = m_attribute_index_register;
 }
 
 void VGABase::IOAttributeDataRead(u8* value)
 {
-  if (m_attribute_address_register > MAX_VGA_ATTRIBUTE_REGISTER)
+  if (m_attribute_index_register > NUM_ATTRIBUTE_REGISTERS)
   {
-    //Log_ErrorPrintf("Out-of-range attribute register read: %u", u32(m_attribute_address_register));
     *value = 0;
     return;
   }
 
-  u8 register_index = m_attribute_address_register;
-  *value = m_attribute_register_ptr[register_index];
+  u8 register_index = m_attribute_index_register;
+  *value = m_attribute_registers[register_index];
 
   Log_TracePrintf("Attribute register read: %u -> 0x%02X", u32(register_index),
-                  u32(m_attribute_register_ptr[register_index]));
+                  u32(m_attribute_registers[register_index]));
 }
 
 void VGABase::IOAttributeAddressDataWrite(u8 value)
@@ -353,7 +374,7 @@ void VGABase::IOAttributeAddressDataWrite(u8 value)
   if (!m_attribute_register_flipflop)
   {
     // This write is the address
-    m_attribute_address_register = (value & 0x1F);
+    m_attribute_index_register = (value & 0x1F);
     m_attribute_register_flipflop = true;
     return;
   }
@@ -361,54 +382,45 @@ void VGABase::IOAttributeAddressDataWrite(u8 value)
   // This write is the data
   m_attribute_register_flipflop = false;
 
-  if (m_attribute_address_register > MAX_VGA_ATTRIBUTE_REGISTER)
-  {
-    Log_ErrorPrintf("Out-of-range attribute register write: %u", u32(m_attribute_address_register));
+  if (m_attribute_index_register > NUM_ATTRIBUTE_REGISTERS)
     return;
-  }
 
-  m_attribute_register_ptr[m_attribute_address_register] = value;
+  Log_TracePrintf("Attribute register write: %u <- 0x%02X", u32(m_attribute_index_register), u32(value));
 
-  Log_TracePrintf("Attribute register write: %u <- 0x%02X", u32(m_attribute_address_register), u32(value));
-
-  // Mask text-mode palette indices to 6 bits
-  if (m_attribute_address_register < 16)
-    m_attribute_register_ptr[m_attribute_address_register] &= 0x3F;
+  const u8 mask = m_attribute_register_mask[m_attribute_index_register];
+  value = (value & mask) | (m_attribute_registers[m_attribute_index_register] & ~mask);
+  m_attribute_registers[m_attribute_index_register] = value;
 }
 
 void VGABase::IOSequencerDataRegisterRead(u8* value)
 {
-  if (m_sequencer_address_register > MAX_VGA_SEQUENCER_REGISTER)
+  if (m_sequencer_index_register > NUM_SEQUENCER_REGISTERS)
   {
-    //Log_ErrorPrintf("Out-of-range sequencer register read: %u", u32(m_sequencer_address_register));
     *value = 0;
     return;
   }
 
-  *value = m_sequencer_register_ptr[m_sequencer_address_register];
+  *value = m_sequencer_registers[m_sequencer_index_register];
 
-  Log_TracePrintf("Sequencer register read: %u -> 0x%02X", u32(m_sequencer_address_register),
-                  u32(m_sequencer_register_ptr[m_sequencer_address_register]));
+  Log_TracePrintf("Sequencer register read: %u -> 0x%02X", u32(m_sequencer_index_register),
+                  u32(m_sequencer_registers[m_sequencer_index_register]));
 }
 
 void VGABase::IOSequencerDataRegisterWrite(u8 value)
 {
-  /* force some bits to zero */
-  const u8 sr_mask[8] = {
-    0x03, 0x3d, 0x0f, 0x3f, 0x0e, 0x00, 0x00, 0xff,
-  };
-
-  if (m_sequencer_address_register > MAX_VGA_SEQUENCER_REGISTER)
+  if (m_sequencer_index_register > NUM_SEQUENCER_REGISTERS)
   {
-    Log_ErrorPrintf("Out-of-range sequencer register write: %u", u32(m_sequencer_address_register));
+    Log_ErrorPrintf("Out-of-range sequencer register write: %u", u32(m_sequencer_index_register));
     return;
   }
 
-  m_sequencer_register_ptr[m_sequencer_address_register] = value & sr_mask[m_sequencer_address_register];
+  const u8 mask = m_sequencer_register_mask[m_sequencer_index_register];
+  value = (value & mask) | (m_sequencer_registers[m_sequencer_index_register] & ~mask);
+  m_sequencer_registers[m_sequencer_index_register] = value;
 
-  Log_TracePrintf("Sequencer register write: %u <- 0x%02X", u32(m_sequencer_address_register), value);
+  Log_TracePrintf("Sequencer register write: %u <- 0x%02X", u32(m_sequencer_index_register), value);
 
-  if (m_sequencer_address_register == SEQUENCER_REGISTER_CLOCKING_MODE)
+  if (m_sequencer_index_register == SEQUENCER_REGISTER_CLOCKING_MODE)
     CRTCTimingChanged();
 }
 
@@ -489,7 +501,7 @@ static constexpr std::array<u32, 16> mask16 = {
 bool VGABase::MapToVGAVRAMOffset(u32* offset_ptr)
 {
   const u32 offset = *offset_ptr;
-  switch (GRAPHICS_REGISTER_MISCELLANEOUS_MEMORY_MAP_SELECT(m_graphics_registers_ptr[GRAPHICS_REGISTER_MISCELLANEOUS]))
+  switch (GRAPHICS_REGISTER_MISCELLANEOUS_MEMORY_MAP_SELECT(m_graphics_registers[GRAPHICS_REGISTER_MISCELLANEOUS]))
   {
     case 0: // A0000-BFFFF (128K)
     {
@@ -538,7 +550,7 @@ void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
   u8 read_plane;
   u32 latch_linear_address;
 
-  if (SEQUENCER_REGISTER_MEMORY_MODE_CHAIN_4(m_sequencer_register_ptr[SEQUENCER_REGISTER_MEMORY_MODE]))
+  if (SEQUENCER_REGISTER_MEMORY_MODE_CHAIN_4(m_sequencer_registers[SEQUENCER_REGISTER_MEMORY_MODE]))
   {
     // Chain4 mode - access all four planes as a series of linear bytes
     read_plane = Truncate8(offset & 3);
@@ -550,17 +562,16 @@ void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
   else
   {
     u32 latch_planar_address;
-    if (!GRAPHICS_REGISTER_MISCELLANEOUS_CHAIN_ODD_EVEN_ENABLE(
-          m_graphics_registers_ptr[GRAPHICS_REGISTER_MISCELLANEOUS]))
+    if (!GRAPHICS_REGISTER_MISCELLANEOUS_CHAIN_ODD_EVEN_ENABLE(m_graphics_registers[GRAPHICS_REGISTER_MISCELLANEOUS]))
     {
       // By default we use the read map select register for the plane to return.
-      read_plane = m_graphics_registers_ptr[GRAPHICS_REGISTER_READ_MAP_SELECT] & GRAPHICS_REGISTER_READ_MAP_SELECT_MASK;
+      read_plane = m_graphics_registers[GRAPHICS_REGISTER_READ_MAP_SELECT] & GRAPHICS_REGISTER_READ_MAP_SELECT_MASK;
       latch_planar_address = segment_base + offset;
     }
     else
     {
       // Except for odd/even addressing, only access planes 0/1.
-      read_plane = (m_graphics_registers_ptr[GRAPHICS_REGISTER_READ_MAP_SELECT] & 0x02) | Truncate8(offset & 0x01);
+      read_plane = (m_graphics_registers[GRAPHICS_REGISTER_READ_MAP_SELECT] & 0x02) | Truncate8(offset & 0x01);
       latch_planar_address = segment_base + (offset & ~u32(1));
     }
 
@@ -570,13 +581,12 @@ void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
   }
 
   // Compare value/mask mode?
-  if (GRAPHICS_REGISTER_MODE_READ_MODE(m_graphics_registers_ptr[GRAPHICS_REGISTER_MODE]) != 0)
+  if (GRAPHICS_REGISTER_MODE_READ_MODE(m_graphics_registers[GRAPHICS_REGISTER_MODE]) != 0)
   {
     // Read mode 1 - compare value/mask
     u32 compare_result =
-      (m_latch ^
-       mask16[m_graphics_registers_ptr[GRAPHICS_REGISTER_COLOR_COMPARE] & GRAPHICS_REGISTER_COLOR_COMPARE_MASK]) &
-      mask16[m_graphics_registers_ptr[GRAPHICS_REGISTER_COLOR_DONT_CARE] & GRAPHICS_REGISTER_COLOR_DONT_CARE_MASK];
+      (m_latch ^ mask16[m_graphics_registers[GRAPHICS_REGISTER_COLOR_COMPARE] & GRAPHICS_REGISTER_COLOR_COMPARE_MASK]) &
+      mask16[m_graphics_registers[GRAPHICS_REGISTER_COLOR_DONT_CARE] & GRAPHICS_REGISTER_COLOR_DONT_CARE_MASK];
     u8 ret = Truncate8(compare_result) | Truncate8(compare_result >> 8) | Truncate8(compare_result >> 16) |
              Truncate8(compare_result >> 24);
     *value = ~ret;
@@ -620,10 +630,10 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
 
   offset += segment_base;
 
-  if (SEQUENCER_REGISTER_MEMORY_MODE_CHAIN_4(m_sequencer_register_ptr[SEQUENCER_REGISTER_MEMORY_MODE]))
+  if (SEQUENCER_REGISTER_MEMORY_MODE_CHAIN_4(m_sequencer_registers[SEQUENCER_REGISTER_MEMORY_MODE]))
   {
     u8 plane = Truncate8(offset & 3);
-    if (m_sequencer_register_ptr[SEQUENCER_REGISTER_PLANE_MASK] & (1 << plane))
+    if (m_sequencer_registers[SEQUENCER_REGISTER_PLANE_MASK] & (1 << plane))
     {
       // Offset | Plane | Byte within plane | VRAM Address
       // -------------------------------------------------
@@ -639,10 +649,10 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
       m_vram[linear_address] = value;
     }
   }
-  else if (!SEQUENCER_REGISTER_MEMORY_MODE_HOST_ODD_EVEN(m_sequencer_register_ptr[SEQUENCER_REGISTER_MEMORY_MODE]))
+  else if (!SEQUENCER_REGISTER_MEMORY_MODE_HOST_ODD_EVEN(m_sequencer_registers[SEQUENCER_REGISTER_MEMORY_MODE]))
   {
     u8 plane = Truncate8(offset & 1);
-    if (m_sequencer_register_ptr[SEQUENCER_REGISTER_PLANE_MASK] & (1 << plane))
+    if (m_sequencer_registers[SEQUENCER_REGISTER_PLANE_MASK] & (1 << plane))
     {
       const u32 linear_address = (((offset & ~u32(1)) << 2) | ZeroExtend32(plane)) & m_vram_mask;
       m_vram[linear_address] = value;
@@ -650,16 +660,15 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
   }
   else
   {
-    const u8 set_reset = m_graphics_registers_ptr[GRAPHICS_REGISTER_SET_RESET] & GRAPHICS_REGISTER_SET_RESET_MASK;
+    const u8 set_reset = m_graphics_registers[GRAPHICS_REGISTER_SET_RESET] & GRAPHICS_REGISTER_SET_RESET_MASK;
     const u8 enable_set_reset =
-      m_graphics_registers_ptr[GRAPHICS_REGISTER_SET_RESET_ENABLE] & GRAPHICS_REGISTER_SET_RESET_ENABLE_MASK;
-    const u8 bit_mask_index = m_graphics_registers_ptr[GRAPHICS_REGISTER_BIT_MASK];
-    const u8 rotate_count =
-      GRAPHICS_REGISTER_DATA_ROTATE_COUNT(m_graphics_registers_ptr[GRAPHICS_REGISTER_DATA_ROTATE]);
-    const u8 logic_op = GRAPHICS_REGISTER_DATA_ROTATE_LOGIC_OP(m_graphics_registers_ptr[GRAPHICS_REGISTER_DATA_ROTATE]);
+      m_graphics_registers[GRAPHICS_REGISTER_SET_RESET_ENABLE] & GRAPHICS_REGISTER_SET_RESET_ENABLE_MASK;
+    const u8 bit_mask_index = m_graphics_registers[GRAPHICS_REGISTER_BIT_MASK];
+    const u8 rotate_count = GRAPHICS_REGISTER_DATA_ROTATE_COUNT(m_graphics_registers[GRAPHICS_REGISTER_DATA_ROTATE]);
+    const u8 logic_op = GRAPHICS_REGISTER_DATA_ROTATE_LOGIC_OP(m_graphics_registers[GRAPHICS_REGISTER_DATA_ROTATE]);
 
     u32 all_planes_value = 0;
-    switch (GRAPHICS_REGISTER_MODE_WRITE_MODE(m_graphics_registers_ptr[GRAPHICS_REGISTER_MODE]))
+    switch (GRAPHICS_REGISTER_MODE_WRITE_MODE(m_graphics_registers[GRAPHICS_REGISTER_MODE]))
     {
       case 0:
       {
@@ -733,7 +742,7 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
 
     // Finally, only the bit planes enabled by the Memory Plane Write Enable field are written to memory.
     const u32 linear_address = (offset << 2) & m_vram_mask;
-    u32 write_mask = mask16[m_sequencer_register_ptr[SEQUENCER_REGISTER_PLANE_MASK] & 0xF];
+    u32 write_mask = mask16[m_sequencer_registers[SEQUENCER_REGISTER_PLANE_MASK] & 0xF];
     u32 current_value;
     std::memcpy(&current_value, &m_vram[linear_address], sizeof(current_value));
     all_planes_value = (all_planes_value & write_mask) | (current_value & ~write_mask);
@@ -743,14 +752,14 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
 
 void VGABase::SetOutputPalette16()
 {
-  const u8 color_select = m_attribute_register_ptr[ATTRIBUTE_REGISTER_COLOR_SELECT];
+  const u8 color_select = m_attribute_registers[ATTRIBUTE_REGISTER_COLOR_SELECT];
 
   for (u32 i = 0; i < 16; i++)
   {
-    u32 index = ZeroExtend32(m_attribute_register_ptr[i]);
+    u32 index = ZeroExtend32(m_attribute_registers[i]);
 
     // Control whether the color select controls the high bits or the palette index.
-    if (m_attribute_register_ptr[ATTRIBUTE_REGISTER_MODE] & ATTRIBUTE_REGISTER_MODE_PALETTE_BITS_5_4)
+    if (m_attribute_registers[ATTRIBUTE_REGISTER_MODE] & ATTRIBUTE_REGISTER_MODE_PALETTE_BITS_5_4)
       index = ((color_select & 0x0F) << 4) | (index & 0x0F);
     else
       index = ((color_select & 0x0C) << 4) | (index & 0x3F);
@@ -770,16 +779,16 @@ void VGABase::SetOutputPalette256()
 void VGABase::GetDisplayTiming(DisplayTiming& timing) const
 {
   const bool dot_clock_div2 =
-    SEQUENCER_REGISTER_CLOCKING_MODE_DOT_CLOCK_DIV2(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]);
+    SEQUENCER_REGISTER_CLOCKING_MODE_DOT_CLOCK_DIV2(m_sequencer_registers[SEQUENCER_REGISTER_CLOCKING_MODE]);
 
   // Pixels clocks. 0 - 25MHz, 1 - 28Mhz, 2/3 - undefined
   static constexpr std::array<u32, 4> pixel_clocks = {{25175000, 28322000, 25175000, 25175000}};
   timing.SetPixelClock(static_cast<double>(pixel_clocks[m_misc_output_register.clock_select]));
 
-  u32 horizontal_visible = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_DISPLAY_END]) + 1u;
-  u32 horizontal_total = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_TOTAL]) + 5u;
-  u32 horizontal_sync_start = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_SYNC_START]);
-  u32 horizontal_sync_end = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_HORIZONTAL_SYNC_END] & 0x1F);
+  u32 horizontal_visible = ZeroExtend32(m_crtc_registers[CRTC_REGISTER_HORIZONTAL_DISPLAY_END]) + 1u;
+  u32 horizontal_total = ZeroExtend32(m_crtc_registers[CRTC_REGISTER_HORIZONTAL_TOTAL]) + 5u;
+  u32 horizontal_sync_start = ZeroExtend32(m_crtc_registers[CRTC_REGISTER_HORIZONTAL_SYNC_START]);
+  u32 horizontal_sync_end = ZeroExtend32(m_crtc_registers[CRTC_REGISTER_HORIZONTAL_SYNC_END] & 0x1F);
 
   // No idea if this is correct, but it seems to be the only way to get a correct sync length in 40x25 modes..
   if (dot_clock_div2)
@@ -793,7 +802,7 @@ void VGABase::GetDisplayTiming(DisplayTiming& timing) const
   const u32 horizontal_sync_length = ((horizontal_sync_end - (horizontal_sync_start & 0x1F)) & 0x1F);
 
   const u32 character_width =
-    SEQUENCER_REGISTER_CLOCKING_MODE_DOT8(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]) ? 8 : 9;
+    SEQUENCER_REGISTER_CLOCKING_MODE_DOT8(m_sequencer_registers[SEQUENCER_REGISTER_CLOCKING_MODE]) ? 8 : 9;
 
   u32 horizontal_visible_pixels = horizontal_visible * character_width;
   u32 horizontal_sync_start_pixels = horizontal_sync_start * character_width;
@@ -812,16 +821,16 @@ void VGABase::GetDisplayTiming(DisplayTiming& timing) const
   timing.SetHorizontalSyncLength(horizontal_sync_start_pixels, horizontal_sync_length_pixels);
   timing.SetHorizontalTotal(horizontal_total_pixels);
 
-  const u32 overflow = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_OVERFLOW]);
-  const u32 vertical_visible = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_VERTICAL_DISPLAY_END]) |
+  const u32 overflow = ZeroExtend32(m_crtc_registers[CRTC_REGISTER_OVERFLOW]);
+  const u32 vertical_visible = (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_VERTICAL_DISPLAY_END]) |
                                 (((overflow >> 6) & 1u) << 9) | (((overflow >> 1u) & 1u) << 8)) +
                                1u;
-  const u32 vertical_sync_start = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_VERTICAL_SYNC_START]) |
+  const u32 vertical_sync_start = (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_VERTICAL_SYNC_START]) |
                                    (((overflow >> 7) & 1u) << 9) | (((overflow >> 2u) & 1u) << 8));
-  const u32 vertical_sync_length = ZeroExtend32(((m_crtc_registers_ptr[CRTC_REGISTER_VERTICAL_SYNC_END] & 0x0F) -
-                                                 (m_crtc_registers_ptr[CRTC_REGISTER_VERTICAL_SYNC_START] & 0x0F)) &
+  const u32 vertical_sync_length = ZeroExtend32(((m_crtc_registers[CRTC_REGISTER_VERTICAL_SYNC_END] & 0x0F) -
+                                                 (m_crtc_registers[CRTC_REGISTER_VERTICAL_SYNC_START] & 0x0F)) &
                                                 0x0F);
-  const u32 vertical_total = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_VERTICAL_TOTAL]) |
+  const u32 vertical_total = (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_VERTICAL_TOTAL]) |
                               (((overflow >> 5) & 1u) << 9) | ((overflow & 1u) << 8)) +
                              2u;
 
@@ -854,39 +863,39 @@ void VGABase::UpdateDisplayTiming()
 void VGABase::LatchStartAddress()
 {
   m_render_latch.character_width =
-    SEQUENCER_REGISTER_CLOCKING_MODE_DOT8(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]) ? 8 : 9;
-  m_render_latch.character_height = (m_crtc_registers_ptr[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x1F) + 1;
-  m_render_latch.start_address = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_START_ADDRESS_HIGH]) << 8) |
-                                 (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_START_ADDRESS_LOW]));
-  m_render_latch.start_address += ZeroExtend32((m_crtc_registers_ptr[CRTC_REGISTER_PRESET_ROW_SCAN] >> 5) & 0x03);
-  m_render_latch.pitch = ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_OFFSET]) * 2;
-  m_render_latch.line_compare = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_LINE_COMPARE])) |
-                                (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_OVERFLOW] & 0x10) << 4) |
-                                (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x40) << 3);
-  m_render_latch.row_scan_counter = (m_crtc_registers_ptr[CRTC_REGISTER_PRESET_ROW_SCAN] & 0x1F);
+    SEQUENCER_REGISTER_CLOCKING_MODE_DOT8(m_sequencer_registers[SEQUENCER_REGISTER_CLOCKING_MODE]) ? 8 : 9;
+  m_render_latch.character_height = (m_crtc_registers[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x1F) + 1;
+  m_render_latch.start_address = (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_START_ADDRESS_HIGH]) << 8) |
+                                 (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_START_ADDRESS_LOW]));
+  m_render_latch.start_address += ZeroExtend32((m_crtc_registers[CRTC_REGISTER_PRESET_ROW_SCAN] >> 5) & 0x03);
+  m_render_latch.pitch = ZeroExtend32(m_crtc_registers[CRTC_REGISTER_OFFSET]) * 2;
+  m_render_latch.line_compare = (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_LINE_COMPARE])) |
+                                (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_OVERFLOW] & 0x10) << 4) |
+                                (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x40) << 3);
+  m_render_latch.row_scan_counter = (m_crtc_registers[CRTC_REGISTER_PRESET_ROW_SCAN] & 0x1F);
 
-  m_render_latch.cursor_address = (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_TEXT_CURSOR_ADDRESS_HIGH]) << 8) |
-                                  (ZeroExtend32(m_crtc_registers_ptr[CRTC_REGISTER_TEXT_CURSOR_ADDRESS_LOW]));
-  m_render_latch.cursor_start_line = std::min(
-    static_cast<u8>(m_crtc_registers_ptr[CRTC_REGISTER_TEXT_CURSOR_START] & 0x1F), m_render_latch.character_height);
+  m_render_latch.cursor_address = (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_TEXT_CURSOR_ADDRESS_HIGH]) << 8) |
+                                  (ZeroExtend32(m_crtc_registers[CRTC_REGISTER_TEXT_CURSOR_ADDRESS_LOW]));
+  m_render_latch.cursor_start_line = std::min(static_cast<u8>(m_crtc_registers[CRTC_REGISTER_TEXT_CURSOR_START] & 0x1F),
+                                              m_render_latch.character_height);
   m_render_latch.cursor_end_line = std::min(
-    static_cast<u8>((m_crtc_registers_ptr[CRTC_REGISTER_TEXT_CURSOR_END] & 0x1F) + 1), m_render_latch.character_height);
+    static_cast<u8>((m_crtc_registers[CRTC_REGISTER_TEXT_CURSOR_END] & 0x1F) + 1), m_render_latch.character_height);
 
   // If the cursor is disabled, set the address to something that will never be equal
-  if (m_crtc_registers_ptr[CRTC_REGISTER_TEXT_CURSOR_START] & (1 << 5) || !m_cursor_state)
+  if (m_crtc_registers[CRTC_REGISTER_TEXT_CURSOR_START] & (1 << 5) || !m_cursor_state)
     m_render_latch.cursor_address = m_vram_size;
 
-  m_render_latch.horizontal_panning = m_attribute_register_ptr[ATTRIBUTE_REGISTER_PIXEL_PANNING] & 0x07;
+  m_render_latch.horizontal_panning = m_attribute_registers[ATTRIBUTE_REGISTER_PIXEL_PANNING] & 0x07;
 
   m_render_latch.render_width = m_display_timing.GetHorizontalVisible();
   m_render_latch.render_height = m_display_timing.GetVerticalVisible();
 
   // Dividing the dot clock by two halves the effective resolution.
-  if (SEQUENCER_REGISTER_CLOCKING_MODE_DOT_CLOCK_DIV2(m_sequencer_register_ptr[SEQUENCER_REGISTER_CLOCKING_MODE]))
+  if (SEQUENCER_REGISTER_CLOCKING_MODE_DOT_CLOCK_DIV2(m_sequencer_registers[SEQUENCER_REGISTER_CLOCKING_MODE]))
     m_render_latch.render_width /= 2;
 
   // The actual dimensions we render don't include double-scanning.
-  if (m_crtc_registers_ptr[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x80)
+  if (m_crtc_registers[CRTC_REGISTER_CHARACTER_CELL_HEIGHT] & 0x80)
   {
     m_render_latch.render_height /= 2;
     m_render_latch.line_compare /= 2; // TODO: Correct?
@@ -895,10 +904,10 @@ void VGABase::LatchStartAddress()
   // 200-line EGA/VGA modes set scanlines_per_row to 2, creating an effective 400 lines.
   // We can speed things up by only rendering one of these lines, if the only muxes which
   // use the scanline counter are enabled (alternative LA13/14).
-  if (GRAPHICS_REGISTER_MISCELLANEOUS_GRAPHICS_MODE(m_graphics_registers_ptr[GRAPHICS_REGISTER_MISCELLANEOUS]) &&
+  if (GRAPHICS_REGISTER_MISCELLANEOUS_GRAPHICS_MODE(m_graphics_registers[GRAPHICS_REGISTER_MISCELLANEOUS]) &&
       m_render_latch.character_height == 2 && m_render_latch.row_scan_counter == 0 &&
       (m_render_latch.line_compare > m_render_latch.render_height || (m_render_latch.line_compare & 1) == 0) &&
-      !(m_crtc_registers_ptr[CRTC_REGISTER_MODE_CONTROL] &
+      !(m_crtc_registers[CRTC_REGISTER_MODE_CONTROL] &
         (CRTC_REGISTER_MODE_CONTROL_ALTERNATE_LA13 | CRTC_REGISTER_MODE_CONTROL_ALTERNATE_LA14)))
   {
     m_render_latch.character_height = 1;
@@ -938,7 +947,7 @@ void VGABase::Render()
 
   LatchStartAddress();
 
-  if (GRAPHICS_REGISTER_MISCELLANEOUS_GRAPHICS_MODE(m_graphics_registers_ptr[GRAPHICS_REGISTER_MISCELLANEOUS]))
+  if (GRAPHICS_REGISTER_MISCELLANEOUS_GRAPHICS_MODE(m_graphics_registers[GRAPHICS_REGISTER_MISCELLANEOUS]))
     RenderGraphicsMode();
   else
     RenderTextMode();
@@ -951,16 +960,16 @@ u32 VGABase::ReadVRAMPlanes(u32 base_address, u32 address_counter, u32 row_scan_
   u32 all_planes;
   std::memcpy(&all_planes, &m_vram[vram_offset], sizeof(all_planes));
 
-  u32 plane_mask = mask16[m_attribute_register_ptr[ATTRIBUTE_REGISTER_COLOR_PLANE_ENABLE] &
-                          ATTRIBUTE_REGISTER_COLOR_PLANE_ENABLE_MASK];
+  u32 plane_mask =
+    mask16[m_attribute_registers[ATTRIBUTE_REGISTER_COLOR_PLANE_ENABLE] & ATTRIBUTE_REGISTER_COLOR_PLANE_ENABLE_MASK];
 
   return all_planes & plane_mask;
 }
 
 u32 VGABase::CRTCWrapAddress(u32 base_address, u32 address_counter, u32 row_scan_counter) const
 {
-  const u8 mode_ctrl = m_crtc_registers_ptr[CRTC_REGISTER_MODE_CONTROL];
-  if (m_crtc_registers_ptr[CRTC_REGISTER_UNDERLINE_ROW_SCANLINE] & 0x20)
+  const u8 mode_ctrl = m_crtc_registers[CRTC_REGISTER_MODE_CONTROL];
+  if (m_crtc_registers[CRTC_REGISTER_UNDERLINE_ROW_SCANLINE] & 0x20)
   {
     // Count by 4
     address_counter /= 4;
@@ -972,7 +981,7 @@ u32 VGABase::CRTCWrapAddress(u32 base_address, u32 address_counter, u32 row_scan
   }
 
   u32 address;
-  if (m_crtc_registers_ptr[CRTC_REGISTER_UNDERLINE_ROW_SCANLINE] & 0x40)
+  if (m_crtc_registers[CRTC_REGISTER_UNDERLINE_ROW_SCANLINE] & 0x40)
   {
     // Double-word mode
     address = (((address_counter << 2) | ((address_counter >> 14) & 0x3)));
@@ -1020,7 +1029,7 @@ void VGABase::RenderTextMode()
   const u8* font_base_pointers[2];
   for (u32 i = 0; i < 2; i++)
   {
-    const u8 cmselect = m_sequencer_register_ptr[SEQUENCER_REGISTER_CHARACTER_MAP_SELECT];
+    const u8 cmselect = m_sequencer_registers[SEQUENCER_REGISTER_CHARACTER_MAP_SELECT];
     const u32 field = (i == 0) ? SEQUENCER_REGISTER_CHARACTER_MAP_SELECT_B(cmselect) :
                                  SEQUENCER_REGISTER_CHARACTER_MAP_SELECT_A(cmselect);
     switch (field)
@@ -1182,8 +1191,8 @@ void VGABase::DrawTextGlyph16(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32
 
 void VGABase::RenderGraphicsMode()
 {
-  const bool shift_256 = GRAPHICS_REGISTER_MODE_SHIFT_256(m_graphics_registers_ptr[GRAPHICS_REGISTER_MODE]);
-  const bool shift_reg = GRAPHICS_REGISTER_MODE_SHIFT_REG(m_graphics_registers_ptr[GRAPHICS_REGISTER_MODE]);
+  const bool shift_256 = GRAPHICS_REGISTER_MODE_SHIFT_256(m_graphics_registers[GRAPHICS_REGISTER_MODE]);
+  const bool shift_reg = GRAPHICS_REGISTER_MODE_SHIFT_REG(m_graphics_registers[GRAPHICS_REGISTER_MODE]);
   const u32 scanlines_per_row = m_render_latch.character_height;
   const u32 line_compare = m_render_latch.line_compare;
   const u32 pitch = m_render_latch.pitch;

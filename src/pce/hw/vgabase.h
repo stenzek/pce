@@ -23,6 +23,14 @@ class VGABase : public Component
 public:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('V', 'G', 'A', 'B');
 
+  enum : u32
+  {
+    NUM_CRTC_REGISTERS = 64,
+    NUM_GRAPHICS_REGISTERS = 16,
+    NUM_ATTRIBUTE_REGISTERS = 32,
+    NUM_SEQUENCER_REGISTERS = 8
+  };
+
 public:
   VGABase(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~VGABase();
@@ -68,8 +76,12 @@ protected:
   u32 m_vram_size = 0;
   u32 m_vram_mask = 0;
 
+  // latch for vram reads
+  u32 m_latch = 0;
+
   // CRTC registers
-  u8* m_crtc_registers_ptr = nullptr;
+  std::array<u8, NUM_CRTC_REGISTERS> m_crtc_registers{};
+  std::array<u8, NUM_CRTC_REGISTERS> m_crtc_register_mask{};
   u8 m_crtc_index_register = 0;
   bool m_crtc_timing_changed = false;
 
@@ -79,8 +91,9 @@ protected:
   void CRTCTimingChanged();
 
   // Graphics Registers
-  u8* m_graphics_registers_ptr = nullptr;
-  u8 m_graphics_address_register = 0;
+  std::array<u8, NUM_GRAPHICS_REGISTERS> m_graphics_registers{};
+  std::array<u8, NUM_GRAPHICS_REGISTERS> m_graphics_register_mask{};
+  u8 m_graphics_index_register = 0;
 
   // 03CE/03CF: VGA Graphics Registers
   virtual void IOGraphicsRegisterRead(u8* value);
@@ -111,16 +124,18 @@ protected:
   } m_feature_control_register;
 
   // 3C0/3C1: Attribute Controller Registers
-  u8* m_attribute_register_ptr = nullptr;
-  u8 m_attribute_address_register = 0;
+  std::array<u8, NUM_ATTRIBUTE_REGISTERS> m_attribute_registers{};
+  std::array<u8, NUM_ATTRIBUTE_REGISTERS> m_attribute_register_mask{};
+  u8 m_attribute_index_register = 0;
   bool m_attribute_register_flipflop = false;
   virtual void IOAttributeAddressRead(u8* value);
   virtual void IOAttributeDataRead(u8* value);
   virtual void IOAttributeAddressDataWrite(u8 value);
 
   // 03C4/03C5: Sequencer Registers (also known as TS)
-  u8* m_sequencer_register_ptr = nullptr;
-  u8 m_sequencer_address_register = 0;
+  std::array<u8, NUM_SEQUENCER_REGISTERS> m_sequencer_registers{};
+  std::array<u8, NUM_SEQUENCER_REGISTERS> m_sequencer_register_mask{};
+  u8 m_sequencer_index_register = 0;
   virtual void IOSequencerDataRegisterRead(u8* value);
   virtual void IOSequencerDataRegisterWrite(u8 value);
 
@@ -141,9 +156,6 @@ protected:
   bool MapToVGAVRAMOffset(u32* offset_ptr);
   void HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value);
   void HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value);
-
-  // latch for vram reads
-  u32 m_latch = 0;
 
   // palette used when rendering
   void SetOutputPalette16();

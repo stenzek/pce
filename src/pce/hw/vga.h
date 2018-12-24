@@ -29,13 +29,7 @@ private:
   bool LoadBIOSROM();
   void RegisterVRAMMMIO();
 
-  std::vector<u8> m_vram;
   MMIO* m_vram_mmio = nullptr;
-
-  std::array<u8, 37> m_crtc_registers{};
-  std::array<u8, 16> m_graphics_registers{};
-  std::array<u8, 21> m_attribute_registers{};
-  std::array<u8, 5> m_sequencer_registers{};
 
   // 46E8/03C3: VGA adapter enable
   union
