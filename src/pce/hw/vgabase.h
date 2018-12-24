@@ -27,8 +27,8 @@ public:
   VGABase(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
   ~VGABase();
 
-  const u8* GetVRAM() const { return m_vram_ptr; }
-  u8* GetVRAM() { return m_vram_ptr; }
+  const u8* GetVRAM() const { return m_vram.data(); }
+  u8* GetVRAM() { return m_vram.data(); }
 
   virtual bool Initialize(System* system, Bus* bus) override;
   virtual void Reset() override;
@@ -64,9 +64,9 @@ protected:
   //            5 |     1 |      1
   //            6 |     2 |      1
   //            7 |     3 |      1
-  u8* m_vram_ptr;
-  u32 m_vram_size;
-  u32 m_vram_mask;
+  std::vector<u8> m_vram;
+  u32 m_vram_size = 0;
+  u32 m_vram_mask = 0;
 
   // CRTC registers
   u8* m_crtc_registers_ptr = nullptr;

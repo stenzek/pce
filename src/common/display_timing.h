@@ -2,6 +2,7 @@
 #include "types.h"
 
 class DisplayRenderer;
+class String;
 
 class DisplayTiming
 {
@@ -83,7 +84,7 @@ public:
   u32 GetCurrentLine(SimulationTime time) const;
 
   // Writes frequency information to the log.
-  void LogFrequencies(const char* what) const;
+  void ToString(String& str) const;
 
   // Tests whether frequencies and dimensions match.
   bool FrequenciesMatch(const DisplayTiming& timing) const;

@@ -1,7 +1,6 @@
 #include "display_timing.h"
-#include "YBaseLib/Log.h"
+#include "YBaseLib/String.h"
 #include "timing.h"
-Log_SetChannel(DisplayTiming);
 
 DisplayTiming::DisplayTiming() = default;
 
@@ -174,10 +173,14 @@ u32 DisplayTiming::GetCurrentLine(SimulationTime time) const
   return static_cast<u32>(time_in_frame / m_horizontal_total_duration);
 }
 
-void DisplayTiming::LogFrequencies(const char* what) const
+void DisplayTiming::ToString(String& str) const
 {
-  Log_InfoPrintf("%s: horizontal frequency %.3f Khz, vertical frequency %.3f hz", what, m_horizontal_frequency / 1000.0,
-                 m_vertical_frequency);
+  const s32 horizontal_sync_start = m_horizontal_visible + m_horizontal_front_porch;
+  const s32 vertical_sync_start = m_vertical_visible + m_vertical_front_porch;
+  str.Format("%dx%d | %.3f KHz, %u Total, %d-%d Sync | %.3fhz, %d Total, %d-%d Sync", m_horizontal_visible,
+             m_vertical_visible, m_horizontal_frequency / 1000.0, m_horizontal_total, horizontal_sync_start,
+             horizontal_sync_start + m_horizontal_sync_length, m_vertical_frequency, m_vertical_total,
+             vertical_sync_start, vertical_sync_start + m_vertical_sync_length);
 }
 
 bool DisplayTiming::FrequenciesMatch(const DisplayTiming& timing) const

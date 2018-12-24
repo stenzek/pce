@@ -31,6 +31,14 @@ bool VGABase::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
+  if (m_vram_size == 0 || !Common::IsPow2(m_vram_size))
+  {
+    Log_ErrorPrintf("VRAM size is not a power of 2, cannot compute mask");
+    return false;
+  }
+  m_vram.resize(m_vram_size);
+  m_vram_mask = m_vram_size - 1;
+
   m_display = system->GetHostInterface()->CreateDisplay(
     SmallString::FromFormat("%s (%s)", m_identifier.GetCharArray(), m_type_info->GetTypeName()),
     Display::Type::Primary);
@@ -188,7 +196,7 @@ void VGABase::IOCRTCDataRegisterRead(u8* value)
 {
   if (m_crtc_index_register > MAX_VGA_CRTC_REGISTER)
   {
-    Log_ErrorPrintf("Out-of-range CRTC register read: %u", u32(m_crtc_index_register));
+    //Log_ErrorPrintf("Out-of-range CRTC register read: %u", u32(m_crtc_index_register));
     *value = 0;
     return;
   }
@@ -245,7 +253,7 @@ void VGABase::IOGraphicsRegisterRead(u8* value)
 {
   if (m_graphics_address_register > MAX_VGA_GRAPHICS_REGISTER)
   {
-    Log_ErrorPrintf("Out-of-range graphics register read: %u", u32(m_graphics_address_register));
+    //Log_ErrorPrintf("Out-of-range graphics register read: %u", u32(m_graphics_address_register));
     *value = 0;
     return;
   }
@@ -328,7 +336,7 @@ void VGABase::IOAttributeDataRead(u8* value)
 {
   if (m_attribute_address_register > MAX_VGA_ATTRIBUTE_REGISTER)
   {
-    Log_ErrorPrintf("Out-of-range attribute register read: %u", u32(m_attribute_address_register));
+    //Log_ErrorPrintf("Out-of-range attribute register read: %u", u32(m_attribute_address_register));
     *value = 0;
     return;
   }
@@ -372,7 +380,7 @@ void VGABase::IOSequencerDataRegisterRead(u8* value)
 {
   if (m_sequencer_address_register > MAX_VGA_SEQUENCER_REGISTER)
   {
-    Log_ErrorPrintf("Out-of-range sequencer register read: %u", u32(m_sequencer_address_register));
+    //Log_ErrorPrintf("Out-of-range sequencer register read: %u", u32(m_sequencer_address_register));
     *value = 0;
     return;
   }
@@ -535,7 +543,7 @@ void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
     // Chain4 mode - access all four planes as a series of linear bytes
     read_plane = Truncate8(offset & 3);
     latch_linear_address = (segment_base + ((offset & ~uint32(3)) << 2)) & m_vram_mask;
-    std::memcpy(&m_latch, &m_vram_ptr[latch_linear_address], sizeof(m_latch));
+    std::memcpy(&m_latch, &m_vram[latch_linear_address], sizeof(m_latch));
     *value = Truncate8(m_latch >> (8 * read_plane));
     return;
   }
@@ -558,7 +566,7 @@ void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
 
     // Use the offset to load the latches with all 4 planes.
     latch_linear_address = (segment_base + (latch_planar_address << 2)) & m_vram_mask;
-    std::memcpy(&m_latch, &m_vram_ptr[latch_linear_address], sizeof(m_latch));
+    std::memcpy(&m_latch, &m_vram[latch_linear_address], sizeof(m_latch));
   }
 
   // Compare value/mask mode?
@@ -628,7 +636,7 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
       //      6 |     2 |                 4 |           18
       //      7 |     3 |                 4 |           19
       const u32 linear_address = (((offset & ~u32(3)) << 2) | ZeroExtend32(plane)) & m_vram_mask;
-      m_vram_ptr[linear_address] = value;
+      m_vram[linear_address] = value;
     }
   }
   else if (!SEQUENCER_REGISTER_MEMORY_MODE_HOST_ODD_EVEN(m_sequencer_register_ptr[SEQUENCER_REGISTER_MEMORY_MODE]))
@@ -637,7 +645,7 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
     if (m_sequencer_register_ptr[SEQUENCER_REGISTER_PLANE_MASK] & (1 << plane))
     {
       const u32 linear_address = (((offset & ~u32(1)) << 2) | ZeroExtend32(plane)) & m_vram_mask;
-      m_vram_ptr[linear_address] = value;
+      m_vram[linear_address] = value;
     }
   }
   else
@@ -727,9 +735,9 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
     const u32 linear_address = (offset << 2) & m_vram_mask;
     u32 write_mask = mask16[m_sequencer_register_ptr[SEQUENCER_REGISTER_PLANE_MASK] & 0xF];
     u32 current_value;
-    std::memcpy(&current_value, &m_vram_ptr[linear_address], sizeof(current_value));
+    std::memcpy(&current_value, &m_vram[linear_address], sizeof(current_value));
     all_planes_value = (all_planes_value & write_mask) | (current_value & ~write_mask);
-    std::memcpy(&m_vram_ptr[linear_address], &all_planes_value, sizeof(current_value));
+    std::memcpy(&m_vram[linear_address], &all_planes_value, sizeof(current_value));
   }
 }
 
@@ -830,8 +838,9 @@ void VGABase::UpdateDisplayTiming()
   if (m_display_timing.FrequenciesMatch(timing) || !timing.IsValid())
     return;
 
-  Log_DevPrintf("VGA: %ux%u @ %.2f hz (%.2f KHz)", timing.GetHorizontalVisible(), timing.GetVerticalVisible(),
-                timing.GetVerticalFrequency(), timing.GetHorizontalFrequency() / 1000.0);
+  SmallString timing_str;
+  timing.ToString(timing_str);
+  Log_InfoPrintf("VGA: %s", timing_str.GetCharArray());
 
   // TODO: Offset clock based on time since last vblank.
   m_display_timing = timing;
@@ -940,7 +949,7 @@ u32 VGABase::ReadVRAMPlanes(u32 base_address, u32 address_counter, u32 row_scan_
   u32 address = CRTCWrapAddress(base_address, address_counter, row_scan_counter);
   u32 vram_offset = (address * 4) & m_vram_mask;
   u32 all_planes;
-  std::memcpy(&all_planes, &m_vram_ptr[vram_offset], sizeof(all_planes));
+  std::memcpy(&all_planes, &m_vram[vram_offset], sizeof(all_planes));
 
   u32 plane_mask = mask16[m_attribute_register_ptr[ATTRIBUTE_REGISTER_COLOR_PLANE_ENABLE] &
                           ATTRIBUTE_REGISTER_COLOR_PLANE_ENABLE_MASK];
@@ -1042,7 +1051,7 @@ void VGABase::RenderTextMode()
         break;
     }
 
-    font_base_pointers[i] = &m_vram_ptr[font_base_address[i] * 4];
+    font_base_pointers[i] = &m_vram[font_base_address[i] * 4];
   }
 
   // Get text palette colors

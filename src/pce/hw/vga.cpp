@@ -18,15 +18,13 @@ PROPERTY_TABLE_MEMBER_STRING("BIOSImage", 0, offsetof(VGA, m_bios_file_path), nu
 END_OBJECT_PROPERTY_MAP()
 
 VGA::VGA(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_vram(VRAM_SIZE), m_bios_file_path("romimages\\VGABIOS-lgpl-latest")
+  : BaseClass(identifier, type_info), m_bios_file_path("romimages\\VGABIOS-lgpl-latest")
 {
+  m_vram_size = VRAM_SIZE;
   m_crtc_registers_ptr = m_crtc_registers.data();
   m_graphics_registers_ptr = m_graphics_registers.data();
   m_attribute_register_ptr = m_attribute_registers.data();
   m_sequencer_register_ptr = m_sequencer_registers.data();
-  m_vram_ptr = m_vram.data();
-  m_vram_size = VRAM_SIZE;
-  m_vram_mask = VRAM_SIZE - 1;
 }
 
 VGA::~VGA()

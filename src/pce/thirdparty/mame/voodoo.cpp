@@ -2665,8 +2665,11 @@ s32 voodoo_device::register_w(voodoo_device* vd, u32 offset, u32 data)
             vd->fbi.vsync_stop_timer->SetActive(false);
             if (vd->m_display_timing.IsValid())
             {
+              SmallString timing_str;
+              dt.ToString(timing_str);
+              Log_InfoPrintf("Voodoo: %s", timing_str.GetCharArray());
+
               dt.ResetClock(vd->m_timing_manager->GetTotalEmulatedTime());
-              dt.LogFrequencies("Voodoo");
               vd->fbi.vsync_start_timer->Queue(dt.GetVerticalSyncStartTime());
             }
           }
