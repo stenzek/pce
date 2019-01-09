@@ -62,7 +62,7 @@
     <ProjectGuid>{639797DE-5C26-40E2-9149-81CDFE65C282}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>pce-tests</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
     <ProjectName>pce-tests</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
