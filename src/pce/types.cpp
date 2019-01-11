@@ -20,9 +20,11 @@
 #include "pce/hw/pci_device.h"
 #include "pce/hw/pci_ide.h"
 #include "pce/hw/pcspeaker.h"
+#include "pce/hw/pvga1a.h"
 #include "pce/hw/serial.h"
 #include "pce/hw/serial_mouse.h"
 #include "pce/hw/soundblaster.h"
+#include "pce/hw/t8900d.h"
 #include "pce/hw/vga.h"
 #include "pce/hw/voodoo.h"
 #include "pce/hw/xt_ide.h"
@@ -75,9 +77,11 @@ void RegisterAllTypes()
   REGISTER_HW_TYPE(i8259_PIC);
   REGISTER_HW_TYPE(PCIIDE);
   REGISTER_HW_TYPE(PCSpeaker);
+  REGISTER_HW_TYPE(PVGA1A);
   REGISTER_HW_TYPE(Serial);
   REGISTER_HW_TYPE(SerialMouse);
   REGISTER_HW_TYPE(SoundBlaster);
+  REGISTER_HW_TYPE(T8900D);
   REGISTER_HW_TYPE(VGA);
 #ifdef ENABLE_VOODOO
   REGISTER_HW_TYPE(Voodoo);

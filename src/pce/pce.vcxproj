@@ -56,6 +56,8 @@
     <ClCompile Include="hw\pci_bus.cpp" />
     <ClCompile Include="hw\pci_device.cpp" />
     <ClCompile Include="hw\pci_ide.cpp" />
+    <ClCompile Include="hw\pvga1a.cpp" />
+    <ClCompile Include="hw\t8900d.cpp" />
     <ClCompile Include="hw\vgabase.cpp" />
     <ClCompile Include="hw\voodoo.cpp" />
     <ClCompile Include="hw\xt_ide.cpp" />
@@ -133,6 +135,8 @@
     <ClInclude Include="hw\pci_bus.h" />
     <ClInclude Include="hw\pci_device.h" />
     <ClInclude Include="hw\pci_ide.h" />
+    <ClInclude Include="hw\pvga1a.h" />
+    <ClInclude Include="hw\t8900d.h" />
     <ClInclude Include="hw\vgabase.h" />
     <ClInclude Include="hw\vgahelpers.h" />
     <ClInclude Include="hw\voodoo.h" />

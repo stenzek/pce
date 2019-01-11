@@ -45,6 +45,7 @@ public:
 
 protected:
   virtual void ConnectIOPorts();
+  virtual void DisconnectIOPorts();
   virtual void GetDisplayTiming(DisplayTiming& timing) const;
   virtual void LatchStartAddress();
   virtual void RenderTextMode();
@@ -153,9 +154,19 @@ protected:
   virtual void IODACDataRegisterRead(u8* value);
   virtual void IODACDataRegisterWrite(u8 value);
 
+  // 46E8/03C3: VGA adapter enable
+  union
+  {
+    uint8 bits = 0;
+
+    BitField<uint8, bool, 3, 1> enable_io;
+  } m_vga_adapter_enable;
+  virtual void IOVGAAdapterEnableWrite(u8 value);
+
   bool MapToVGAVRAMOffset(u32* offset_ptr);
   void HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value);
   void HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value);
+  virtual void UpdateVGAMemoryMapping();
 
   // palette used when rendering
   void SetOutputPalette16();

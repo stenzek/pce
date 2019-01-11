@@ -191,6 +191,12 @@
     <ClCompile Include="hw\vgabase.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="hw\t8900d.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\pvga1a.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -419,6 +425,12 @@
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="hw\vgahelpers.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\t8900d.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\pvga1a.h">
       <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>

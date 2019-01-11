@@ -47,6 +47,7 @@ bool VGABase::Initialize(System* system, Bus* bus)
   m_display->SetDisplayAspectRatio(4, 3);
 
   ConnectIOPorts();
+  UpdateVGAMemoryMapping();
 
   m_display_event =
     m_system->GetTimingManager()->CreateFrequencyEvent("VGA Render", 60.0f, std::bind(&VGABase::Render, this), true);
@@ -228,27 +229,33 @@ void VGABase::ConnectIOPorts()
   m_bus->ConnectIOPortWrite(0x03C8, this, [this](u16, u8 value) { IODACWriteAddressWrite(value); });
   m_bus->ConnectIOPortRead(0x03C9, this, [this](u16, u8* value) { IODACDataRegisterRead(value); });
   m_bus->ConnectIOPortWrite(0x03C9, this, [this](u16, u8 value) { IODACDataRegisterWrite(value); });
+  m_bus->ConnectIOPortReadToPointer(0x46E8, this, &m_vga_adapter_enable.bits);
+  m_bus->ConnectIOPortWrite(0x46E8, this, [this](u16, u8 value) { IOVGAAdapterEnableWrite(value); });
+  m_bus->ConnectIOPortReadToPointer(0x03C3, this, &m_vga_adapter_enable.bits);
+  m_bus->ConnectIOPortWrite(0x03C3, this, [this](u16, u8 value) { IOVGAAdapterEnableWrite(value); });
+}
+
+void VGABase::DisconnectIOPorts()
+{
+  m_bus->DisconnectIOPorts(this);
 }
 
 void VGABase::IOCRTCDataRegisterRead(u8* value)
 {
-  if (m_crtc_index_register > NUM_CRTC_REGISTERS)
+  if (m_crtc_index_register >= NUM_CRTC_REGISTERS)
   {
     *value = 0;
     return;
   }
 
   *value = m_crtc_registers[m_crtc_index_register];
-  Log_TracePrintf("CRTC register read: %u -> 0x%02X", u32(m_crtc_index_register),
-                  u32(m_crtc_registers[m_crtc_index_register]));
 }
 
 void VGABase::IOCRTCDataRegisterWrite(u8 value)
 {
-  if (m_crtc_index_register > NUM_CRTC_REGISTERS)
+  Log_DebugPrintf("CRTC register write: %u <- 0x%02X", u32(m_crtc_index_register), u32(value));
+  if (m_crtc_index_register >= NUM_CRTC_REGISTERS)
     return;
-
-  Log_TracePrintf("CRTC register write: %u <- 0x%02X", u32(m_crtc_index_register), u32(value));
 
   const u8 mask = m_crtc_register_mask[m_crtc_index_register];
   value = (value & mask) | (m_crtc_registers[m_crtc_index_register] & ~mask);
@@ -287,33 +294,33 @@ void VGABase::CRTCTimingChanged()
 
 void VGABase::IOGraphicsRegisterRead(u8* value)
 {
-  if (m_graphics_index_register > NUM_GRAPHICS_REGISTERS)
+  if (m_graphics_index_register >= NUM_GRAPHICS_REGISTERS)
   {
     *value = 0;
     return;
   }
 
   *value = m_graphics_registers[m_graphics_index_register];
-
-  Log_TracePrintf("Graphics register read: %u -> 0x%02X", u32(m_graphics_index_register),
-                  u32(m_graphics_registers[m_graphics_index_register]));
 }
 
 void VGABase::IOGraphicsRegisterWrite(u8 value)
 {
-  if (m_graphics_index_register > NUM_GRAPHICS_REGISTERS)
+  Log_DebugPrintf("Graphics register write: %u <- 0x%02X", u32(m_graphics_index_register), u32(value));
+  if (m_graphics_index_register >= NUM_GRAPHICS_REGISTERS)
     return;
 
-  Log_TracePrintf("Graphics register write: %u <- 0x%02X", u32(m_graphics_index_register), u32(value));
-
   const u8 mask = m_graphics_register_mask[m_graphics_index_register];
-  value = (value & mask) | (m_graphics_registers[m_graphics_index_register] & ~mask);
+  const u8 new_value = (value & mask) | (m_graphics_registers[m_graphics_index_register] & ~mask);
+  const u8 changed_bits = m_graphics_registers[m_graphics_index_register] ^ new_value;
   m_graphics_registers[m_graphics_index_register] = value;
+
+  if (GRAPHICS_REGISTER_MISCELLANEOUS_MEMORY_MAP_SELECT(changed_bits) != 0)
+    UpdateVGAMemoryMapping();
 }
 
 void VGABase::IOMiscOutputRegisterWrite(u8 value)
 {
-  Log_TracePrintf("Misc output register write: 0x%02X", u32(value));
+  Log_DebugPrintf("Misc output register write: 0x%02X", u32(value));
   m_misc_output_register.bits = value;
   CRTCTimingChanged();
 }
@@ -356,7 +363,7 @@ void VGABase::IOAttributeAddressRead(u8* value)
 
 void VGABase::IOAttributeDataRead(u8* value)
 {
-  if (m_attribute_index_register > NUM_ATTRIBUTE_REGISTERS)
+  if (m_attribute_index_register >= NUM_ATTRIBUTE_REGISTERS)
   {
     *value = 0;
     return;
@@ -364,9 +371,6 @@ void VGABase::IOAttributeDataRead(u8* value)
 
   u8 register_index = m_attribute_index_register;
   *value = m_attribute_registers[register_index];
-
-  Log_TracePrintf("Attribute register read: %u -> 0x%02X", u32(register_index),
-                  u32(m_attribute_registers[register_index]));
 }
 
 void VGABase::IOAttributeAddressDataWrite(u8 value)
@@ -382,10 +386,9 @@ void VGABase::IOAttributeAddressDataWrite(u8 value)
   // This write is the data
   m_attribute_register_flipflop = false;
 
-  if (m_attribute_index_register > NUM_ATTRIBUTE_REGISTERS)
+  Log_DebugPrintf("Attribute register write: %u <- 0x%02X", u32(m_attribute_index_register), u32(value));
+  if (m_attribute_index_register >= NUM_ATTRIBUTE_REGISTERS)
     return;
-
-  Log_TracePrintf("Attribute register write: %u <- 0x%02X", u32(m_attribute_index_register), u32(value));
 
   const u8 mask = m_attribute_register_mask[m_attribute_index_register];
   value = (value & mask) | (m_attribute_registers[m_attribute_index_register] & ~mask);
@@ -394,31 +397,24 @@ void VGABase::IOAttributeAddressDataWrite(u8 value)
 
 void VGABase::IOSequencerDataRegisterRead(u8* value)
 {
-  if (m_sequencer_index_register > NUM_SEQUENCER_REGISTERS)
+  if (m_sequencer_index_register >= NUM_SEQUENCER_REGISTERS)
   {
     *value = 0;
     return;
   }
 
   *value = m_sequencer_registers[m_sequencer_index_register];
-
-  Log_TracePrintf("Sequencer register read: %u -> 0x%02X", u32(m_sequencer_index_register),
-                  u32(m_sequencer_registers[m_sequencer_index_register]));
 }
 
 void VGABase::IOSequencerDataRegisterWrite(u8 value)
 {
-  if (m_sequencer_index_register > NUM_SEQUENCER_REGISTERS)
-  {
-    Log_ErrorPrintf("Out-of-range sequencer register write: %u", u32(m_sequencer_index_register));
+  Log_DebugPrintf("Sequencer register write: %u <- 0x%02X", u32(m_sequencer_index_register), value);
+  if (m_sequencer_index_register >= NUM_SEQUENCER_REGISTERS)
     return;
-  }
 
   const u8 mask = m_sequencer_register_mask[m_sequencer_index_register];
   value = (value & mask) | (m_sequencer_registers[m_sequencer_index_register] & ~mask);
   m_sequencer_registers[m_sequencer_index_register] = value;
-
-  Log_TracePrintf("Sequencer register write: %u <- 0x%02X", u32(m_sequencer_index_register), value);
 
   if (m_sequencer_index_register == SEQUENCER_REGISTER_CLOCKING_MODE)
     CRTCTimingChanged();
@@ -432,7 +428,7 @@ void VGABase::IODACStateRegisterRead(u8* value) // 3c7
 
 void VGABase::IODACReadAddressWrite(u8 value) // 3c7
 {
-  Log_TracePrintf("DAC read address write: %u", value);
+  Log_DebugPrintf("DAC read address write: %u", value);
   m_dac_read_address = value;
   m_dac_state_register &= 0b00;
 }
@@ -445,7 +441,7 @@ void VGABase::IODACWriteAddressRead(u8* value) // 3c8
 
 void VGABase::IODACWriteAddressWrite(u8 value) // 3c8
 {
-  Log_TracePrintf("DAC write address write: %u", value);
+  Log_DebugPrintf("DAC write address write: %u", value);
   m_dac_write_address = value;
   m_dac_color_index = 0;
   m_dac_state_register |= 0b11;
@@ -456,8 +452,6 @@ void VGABase::IODACDataRegisterRead(u8* value) // 3c9
   u32 color_value = m_dac_palette[m_dac_read_address];
   u8 shift = m_dac_color_index * 8;
   *value = u8((color_value >> shift) & 0xFF);
-
-  Log_TracePrintf("DAC palette read %u/%u: %u", u32(m_dac_read_address), u32(m_dac_color_index), u32(*value));
 
   m_dac_color_index++;
   if (m_dac_color_index >= 3)
@@ -490,6 +484,13 @@ void VGABase::IODACDataRegisterWrite(u8 value) // 3c9
   }
 
   m_dac_state_register = 0;
+}
+
+void VGABase::IOVGAAdapterEnableWrite(u8 value)
+{
+  // TODO: Disconnect I/O ports.
+  Log_TracePrintf("VGA adapter enable write: 0x%02X", value);
+  m_vga_adapter_enable.enable_io = value;
 }
 
 // Values of 4-bit registers containing the plane mask expanded to 8 bits per plane.
@@ -540,13 +541,6 @@ bool VGABase::MapToVGAVRAMOffset(u32* offset_ptr)
 
 void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
 {
-  if (!MapToVGAVRAMOffset(&offset))
-  {
-    // Out-of-range for the current mapping mode
-    *value = 0xFF;
-    return;
-  }
-
   u8 read_plane;
   u32 latch_linear_address;
 
@@ -622,14 +616,6 @@ constexpr u32 VGAExpandMask(u8 mask)
 
 void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
 {
-  if (!MapToVGAVRAMOffset(&offset))
-  {
-    // Out-of-range for the current mapping mode
-    return;
-  }
-
-  offset += segment_base;
-
   if (SEQUENCER_REGISTER_MEMORY_MODE_CHAIN_4(m_sequencer_registers[SEQUENCER_REGISTER_MEMORY_MODE]))
   {
     u8 plane = Truncate8(offset & 3);
@@ -645,7 +631,7 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
       //      5 |     1 |                 4 |           17
       //      6 |     2 |                 4 |           18
       //      7 |     3 |                 4 |           19
-      const u32 linear_address = (((offset & ~u32(3)) << 2) | ZeroExtend32(plane)) & m_vram_mask;
+      const u32 linear_address = (segment_base + ((((offset & ~u32(3)) << 2) | ZeroExtend32(plane)))) & m_vram_mask;
       m_vram[linear_address] = value;
     }
   }
@@ -654,7 +640,7 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
     u8 plane = Truncate8(offset & 1);
     if (m_sequencer_registers[SEQUENCER_REGISTER_PLANE_MASK] & (1 << plane))
     {
-      const u32 linear_address = (((offset & ~u32(1)) << 2) | ZeroExtend32(plane)) & m_vram_mask;
+      const u32 linear_address = (segment_base + ((((offset & ~u32(1)) << 2) | ZeroExtend32(plane)))) & m_vram_mask;
       m_vram[linear_address] = value;
     }
   }
@@ -741,7 +727,7 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
     }
 
     // Finally, only the bit planes enabled by the Memory Plane Write Enable field are written to memory.
-    const u32 linear_address = (offset << 2) & m_vram_mask;
+    const u32 linear_address = (segment_base + (offset << 2)) & m_vram_mask;
     u32 write_mask = mask16[m_sequencer_registers[SEQUENCER_REGISTER_PLANE_MASK] & 0xF];
     u32 current_value;
     std::memcpy(&current_value, &m_vram[linear_address], sizeof(current_value));
@@ -749,6 +735,8 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
     std::memcpy(&m_vram[linear_address], &all_planes_value, sizeof(current_value));
   }
 }
+
+void VGABase::UpdateVGAMemoryMapping() {}
 
 void VGABase::SetOutputPalette16()
 {

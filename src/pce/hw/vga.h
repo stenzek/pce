@@ -25,19 +25,10 @@ public:
   bool SaveState(BinaryWriter& writer) override;
 
 private:
-  void ConnectIOPorts() override;
   bool LoadBIOSROM();
   void RegisterVRAMMMIO();
 
   MMIO* m_vram_mmio = nullptr;
-
-  // 46E8/03C3: VGA adapter enable
-  union
-  {
-    uint8 bits = 0;
-
-    BitField<uint8, bool, 3, 1> enable_io;
-  } m_vga_adapter_enable;
 
   String m_bios_file_path;
 };
