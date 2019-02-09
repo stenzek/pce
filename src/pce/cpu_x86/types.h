@@ -674,6 +674,7 @@ struct InstructionData
   bool HasSIBIndex() const { return (GetSIBIndexRegister() != Reg32_ESP); }
   uint8 GetSIBScaling() const { return ((sib >> 6) & 0x03); }
   uint32 GetAddressMask() const { return (address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF; }
+  uint32 GetOperandSizeMask() const { return (operand_size == OperandSize_16) ? 0xFFFF : 0xFFFFFFFF; }
   bool Is32Bit() const { return (operand_size == OperandSize_32); }
 };
 

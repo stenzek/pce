@@ -392,18 +392,7 @@ VirtualMemoryAddress Interpreter::CalculateJumpTarget(CPU* cpu)
 
   if constexpr (dst_mode == OperandMode_Relative)
   {
-    if (cpu->idata.operand_size == OperandSize_16)
-    {
-      // TODO: Should this be extended to addressing mode?
-      uint16 address = Truncate16(Truncate16(cpu->m_registers.EIP) + cpu->idata.disp16);
-      // address &= cpu->m_EIP_mask;
-      return ZeroExtend32(address);
-    }
-    else
-    {
-      uint32 address = cpu->m_registers.EIP + cpu->idata.disp32;
-      return address;
-    }
+    return (cpu->m_registers.EIP + cpu->idata.disp32) & cpu->idata.GetOperandSizeMask();
   }
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
   {
