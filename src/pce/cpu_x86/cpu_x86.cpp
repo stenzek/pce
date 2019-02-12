@@ -1151,7 +1151,7 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
 
 #ifdef ENABLE_TLB_EMULATION
     const size_t tlb_index = GetTLBEntryIndex(linear_address);
-    const u8 tlb_user_bit = BoolToUInt8(HasAccessFlagBit(flags, AccessFlags::UseSupervisorPrivileges));
+    const u8 tlb_user_bit = BoolToUInt8(user_mode);
     const u8 tlb_type = static_cast<u8>(GetAccessTypeFromFlags(flags));
     TLBEntry& tlb_entry = m_tlb_entries[tlb_user_bit][tlb_type][tlb_index];
     tlb_entry.linear_address = (linear_address & PAGE_MASK) | m_tlb_counter_bits;
