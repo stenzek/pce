@@ -102,8 +102,8 @@ public:
   void InjectKeyEvent(GenScanCode sc, bool down);
 
   // Mouse
-  using MousePositionChangeCallback = std::function<void(int32 dx, int32 dy)>;
-  using MouseButtonChangeCallback = std::function<void(uint32 button, bool state)>;
+  using MousePositionChangeCallback = std::function<void(s32 dx, s32 dy)>;
+  using MouseButtonChangeCallback = std::function<void(u32 button, bool state)>;
   void AddMousePositionChangeCallback(const void* owner, MousePositionChangeCallback callback);
   void AddMouseButtonChangeCallback(const void* owner, MouseButtonChangeCallback callback);
 
@@ -152,8 +152,8 @@ protected:
   virtual void YieldToUI();
 
   void ExecuteKeyboardCallbacks(GenScanCode scancode, bool key_down);
-  void ExecuteMousePositionChangeCallbacks(int32 dx, int32 dy);
-  void ExecuteMouseButtonChangeCallbacks(uint32 button, bool state);
+  void ExecuteMousePositionChangeCallbacks(s32 dx, s32 dy);
+  void ExecuteMouseButtonChangeCallbacks(u32 button, bool state);
 
   // Simulation thread entry point.
   void SimulationThreadRoutine();

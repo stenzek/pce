@@ -20,9 +20,9 @@ public:
   virtual ~Component();
 
   // Creates a serialization ID for identifying components in save states
-  static constexpr uint32 MakeSerializationID(uint8 a = 0, uint8 b = 0, uint8 c = 0, uint8 d = 0)
+  static constexpr u32 MakeSerializationID(u8 a = 0, u8 b = 0, u8 c = 0, u8 d = 0)
   {
-    return uint32(d) | (uint32(c) << 8) | (uint32(b) << 16) | (uint32(a) << 24);
+    return u32(d) | (u32(c) << 8) | (u32(b) << 16) | (u32(a) << 24);
   }
 
   // Generates a random component ID.

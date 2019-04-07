@@ -126,8 +126,8 @@ bool YMF262::LoadChipState(size_t chip_index, BinaryReader& reader)
     {
       DBOPL::Operator* op = &chan->op[op_index];
 
-      uint8 state = 0;
-      uint8 regE0 = 0;
+      u8 state = 0;
+      u8 regE0 = 0;
       reader.SafeReadUInt8(&state);
       reader.SafeReadUInt8(&regE0);
 
@@ -191,7 +191,7 @@ bool YMF262::LoadChipState(size_t chip_index, BinaryReader& reader)
   for (size_t chan_idx = 0; chan_idx < countof(chip->dbopl->chan); chan_idx++)
   {
     DBOPL::Channel* chan = &chip->dbopl->chan[chan_idx];
-    uint8 regC0 = chan->regC0;
+    u8 regC0 = chan->regC0;
     chan->regC0 = 0;
     chan->WriteC0(chip->dbopl.get(), regC0);
   }
@@ -299,8 +299,8 @@ bool YMF262::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
-  uint32 mode_uint;
-  if (!reader.SafeReadUInt32(&mode_uint) || mode_uint != static_cast<uint32>(m_mode))
+  u32 mode_uint;
+  if (!reader.SafeReadUInt32(&mode_uint) || mode_uint != static_cast<u32>(m_mode))
     return false;
 
   for (size_t i = 0; i < m_num_chips; i++)
@@ -317,7 +317,7 @@ bool YMF262::SaveState(BinaryWriter& writer) const
   FlushWorkerThread();
 
   writer.WriteUInt32(SERIALIZATION_ID);
-  writer.WriteUInt32(static_cast<uint32>(m_mode));
+  writer.WriteUInt32(static_cast<u32>(m_mode));
 
   for (size_t i = 0; i < m_num_chips; i++)
   {
@@ -328,7 +328,7 @@ bool YMF262::SaveState(BinaryWriter& writer) const
   return !writer.InErrorState();
 }
 
-uint8 YMF262::ReadAddressPort(size_t chip_index)
+u8 YMF262::ReadAddressPort(size_t chip_index)
 {
   ChipState& chip = m_chips[chip_index];
   DebugAssert(chip_index < m_num_chips);
@@ -337,7 +337,7 @@ uint8 YMF262::ReadAddressPort(size_t chip_index)
     timer.event->InvokeEarly();
 
   // Report timer state.
-  uint8 out_value = 0;
+  u8 out_value = 0;
   if (chip.timers[0].expired & !chip.timers[0].masked)
     out_value |= 0x40 | 0x80;
   if (chip.timers[1].expired & !chip.timers[1].masked)
@@ -346,7 +346,7 @@ uint8 YMF262::ReadAddressPort(size_t chip_index)
   return out_value;
 }
 
-uint8 YMF262::ReadDataPort(size_t chip_index)
+u8 YMF262::ReadDataPort(size_t chip_index)
 {
   // ChipState& chip = m_chips[chip_index];
   // DebugAssert(chip_index < m_num_chips);
@@ -354,7 +354,7 @@ uint8 YMF262::ReadDataPort(size_t chip_index)
   return 0xFF;
 }
 
-void YMF262::WriteAddressPort(size_t chip_index, uint8 value)
+void YMF262::WriteAddressPort(size_t chip_index, u8 value)
 {
   ChipState& chip = m_chips[chip_index];
   DebugAssert(chip_index < m_num_chips);
@@ -362,14 +362,14 @@ void YMF262::WriteAddressPort(size_t chip_index, uint8 value)
   chip.address_register = chip.dbopl->WriteAddr(0, value);
 }
 
-void YMF262::WriteDataPort(size_t chip_index, uint8 value)
+void YMF262::WriteDataPort(size_t chip_index, u8 value)
 {
   ChipState& chip = m_chips[chip_index];
   DebugAssert(chip_index < m_num_chips);
 
   m_render_sample_event->InvokeEarly();
 
-  const uint32 address_register = chip.address_register;
+  const u32 address_register = chip.address_register;
 #ifdef YMF262_USE_THREAD
   m_worker_thread.QueueLambdaTask(
     [this, chip_index, address_register, value]() { m_chips[chip_index].dbopl->WriteReg(address_register, value); });
@@ -433,13 +433,13 @@ void YMF262::WriteDataPort(size_t chip_index, uint8 value)
   }
 }
 
-void YMF262::DualWriteAddressPort(uint8 value)
+void YMF262::DualWriteAddressPort(u8 value)
 {
   WriteAddressPort(0, value);
   WriteAddressPort(1, value);
 }
 
-void YMF262::DualWriteDataPort(uint8 value)
+void YMF262::DualWriteDataPort(u8 value)
 {
   WriteDataPort(0, value);
   WriteDataPort(1, value);
@@ -459,7 +459,7 @@ void YMF262::SetVolume(size_t chip_index, float volume)
 
 void YMF262::RenderSampleEvent(CycleCount cycles)
 {
-  uint32 num_samples = uint32(cycles);
+  u32 num_samples = u32(cycles);
 
 #ifdef YMF262_USE_THREAD
   m_worker_thread.QueueLambdaTask([this, num_samples]() { RenderSamples(num_samples); });
@@ -468,15 +468,15 @@ void YMF262::RenderSampleEvent(CycleCount cycles)
 #endif
 }
 
-inline int16 ConvertSample(int32 in_sample, float factor)
+inline s16 ConvertSample(s32 in_sample, float factor)
 {
   // TODO: Beware of clipping here.
   // return static_cast<int16>(in_sample);
   // return static_cast<int16>(std::max(INT32_C(-32768), std::min(INT32_C(32767), in_sample * 8)));
-  return static_cast<int16>(std::max(INT32_C(-32768), std::min(INT32_C(32767), int32(float(in_sample) * factor))));
+  return static_cast<s16>(std::max(INT32_C(-32768), std::min(INT32_C(32767), s32(float(in_sample) * factor))));
 }
 
-void YMF262::RenderSamples(uint32 num_samples)
+void YMF262::RenderSamples(u32 num_samples)
 {
   float gain_factor = float(std::pow(10.0f, (GAIN / 10.0f)));
 
@@ -490,7 +490,7 @@ void YMF262::RenderSamples(uint32 num_samples)
 
       chip.dbopl->GenerateBlock2(Truncate32(num_samples), chip.temp_buffer.data());
 
-      int16* output_samples = reinterpret_cast<int16*>(m_output_channel->ReserveInputSamples(num_samples));
+      s16* output_samples = reinterpret_cast<s16*>(m_output_channel->ReserveInputSamples(num_samples));
       float factor = gain_factor * m_chips[0].volume;
 
       for (size_t i = 0; i < num_samples; i++)
@@ -510,7 +510,7 @@ void YMF262::RenderSamples(uint32 num_samples)
         chip.dbopl->GenerateBlock2(Truncate32(num_samples), chip.temp_buffer.data());
       }
 
-      int16* output_samples = reinterpret_cast<int16*>(m_output_channel->ReserveInputSamples(num_samples));
+      s16* output_samples = reinterpret_cast<s16*>(m_output_channel->ReserveInputSamples(num_samples));
       float factor0 = gain_factor * m_chips[0].volume;
       float factor1 = gain_factor * m_chips[1].volume;
 
@@ -530,7 +530,7 @@ void YMF262::RenderSamples(uint32 num_samples)
       if ((num_samples * 2) > chip.temp_buffer.size())
         chip.temp_buffer.resize(num_samples * 2);
 
-      int16* output_samples = reinterpret_cast<int16*>(m_output_channel->ReserveInputSamples(num_samples));
+      s16* output_samples = reinterpret_cast<s16*>(m_output_channel->ReserveInputSamples(num_samples));
       float factor = gain_factor * m_chips[0].volume;
 
       if (chip.dbopl->opl3Active != 0)
@@ -566,7 +566,7 @@ void YMF262::TimerExpiredEvent(size_t chip_index, size_t timer_index, CycleCount
   }
 
   // Still has time remaining.
-  timer.value -= uint8(cycles);
+  timer.value -= u8(cycles);
   timer.event->Reschedule(CycleCount(timer.value));
 }
 

@@ -84,7 +84,7 @@ bool HDC::SaveState(BinaryWriter& writer)
 
   for (u32 i = 0; i < m_num_channels; i++)
   {
-    for (uint32 j = 0; j < DEVICES_PER_CHANNEL; j++)
+    for (u32 j = 0; j < DEVICES_PER_CHANNEL; j++)
       writer.WriteBool(IsDevicePresent(i, j));
 
     writer.WriteUInt8(m_channels[i].control_register.bits);

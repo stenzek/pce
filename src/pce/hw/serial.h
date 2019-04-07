@@ -26,15 +26,15 @@ public:
   static constexpr size_t ExternalBufferSize = 128 * 1024;
 
   // Serial IC types
-  enum Model : uint32
+  enum Model : u32
   {
     Model_8250,
     Model_16550,
     Model_16750
   };
 
-  Serial(const String& identifier, Model model = Model_8250, uint32 base_io_address = 0x03F8, uint32 irq_number = 4,
-         int32 base_rate = 1843200, const ObjectTypeInfo* type_info = &s_type_info);
+  Serial(const String& identifier, Model model = Model_8250, u32 base_io_address = 0x03F8, u32 irq_number = 4,
+         s32 base_rate = 1843200, const ObjectTypeInfo* type_info = &s_type_info);
   ~Serial();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -75,14 +75,14 @@ public:
   void SetClearToSend(bool enabled);
 
 private:
-  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '0');
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '0');
   static constexpr CycleCount CLOCK_FREQUENCY = 115200;
   static constexpr size_t MAX_FIFO_SIZE = 64;
 
-  static constexpr uint8 INTERRUPT_ENABLE_REGISTER_MASK = 0x0F;
-  static constexpr uint8 INTERRUPT_IDENTIFICATION_REGISTER_MASK = 0xFF;
+  static constexpr u8 INTERRUPT_ENABLE_REGISTER_MASK = 0x0F;
+  static constexpr u8 INTERRUPT_IDENTIFICATION_REGISTER_MASK = 0xFF;
 
-  enum InterruptBits : uint8
+  enum InterruptBits : u8
   {
     InterruptBits_ModemStatusChange = 0,
     InterruptBits_TransmitterDataEmpty = 1,
@@ -100,8 +100,8 @@ private:
   {
     return IsFifoEnabled() ? (m_interrupt_identification_register.fifo64_enabled ? 64 : 16) : 0;
   }
-  bool ReadFromFifo(std::array<byte, MAX_FIFO_SIZE>& fifo_data, size_t& fifo_size, uint8* value);
-  bool WriteToFifo(std::array<byte, MAX_FIFO_SIZE>& fifo_data, size_t& fifo_size, uint8 value);
+  bool ReadFromFifo(std::array<byte, MAX_FIFO_SIZE>& fifo_data, size_t& fifo_size, u8* value);
+  bool WriteToFifo(std::array<byte, MAX_FIFO_SIZE>& fifo_data, size_t& fifo_size, u8 value);
 
   CycleCount CalculateCyclesPerByte() const;
 
@@ -115,8 +115,8 @@ private:
   Clock m_clock;
   Model m_model;
 
-  uint32 m_base_io_address;
-  uint32 m_irq_number;
+  u32 m_base_io_address;
+  u32 m_irq_number;
 
   // Read/write fifos
   std::array<byte, MAX_FIFO_SIZE> m_input_fifo;
@@ -142,102 +142,102 @@ private:
   TimingEvent::Pointer m_transfer_event;
 
   // Clock divider
-  uint16 m_clock_divider = 1; // BAR+0/1 with DLAB=1
+  u16 m_clock_divider = 1; // BAR+0/1 with DLAB=1
 
   // Registers
   union
   {
-    uint8 bits = 0;
+    u8 bits = 0;
 
-    BitField<uint8, bool, 0, 1> data_available;
-    BitField<uint8, bool, 1, 1> transmitter_empty;
-    BitField<uint8, bool, 2, 1> break_or_error;
-    BitField<uint8, bool, 3, 1> status_change;
-    BitField<uint8, bool, 4, 1> sleep_mode;     // 16750+
-    BitField<uint8, bool, 5, 1> low_power_mode; // 16750+
-  } m_interrupt_enable_register;                // BAR+1
+    BitField<u8, bool, 0, 1> data_available;
+    BitField<u8, bool, 1, 1> transmitter_empty;
+    BitField<u8, bool, 2, 1> break_or_error;
+    BitField<u8, bool, 3, 1> status_change;
+    BitField<u8, bool, 4, 1> sleep_mode;     // 16750+
+    BitField<u8, bool, 5, 1> low_power_mode; // 16750+
+  } m_interrupt_enable_register;             // BAR+1
 
   union
   {
-    uint8 bits = 0;
+    u8 bits = 0;
 
-    BitField<uint8, bool, 0, 1> pending; // active low
-    BitField<uint8, InterruptBits, 1, 3> type;
-    BitField<uint8, bool, 5, 1> fifo64_enabled;
-    BitField<uint8, bool, 6, 1> fifo_usable; // unusable if fifo_enabled=1 and this=0
-    BitField<uint8, bool, 7, 1> fifo_enabled;
+    BitField<u8, bool, 0, 1> pending; // active low
+    BitField<u8, InterruptBits, 1, 3> type;
+    BitField<u8, bool, 5, 1> fifo64_enabled;
+    BitField<u8, bool, 6, 1> fifo_usable; // unusable if fifo_enabled=1 and this=0
+    BitField<u8, bool, 7, 1> fifo_enabled;
   } m_interrupt_identification_register; // BAR+2
 
   union
   {
-    uint8 bits = 0;
+    u8 bits = 0;
 
-    BitField<uint8, uint8, 0, 2> data_bits;
-    BitField<uint8, uint8, 2, 1> stop_bits;
-    BitField<uint8, uint8, 3, 3> parity;
-    BitField<uint8, bool, 6, 1> break_enable;
-    BitField<uint8, bool, 7, 1> divisor_access_latch;
+    BitField<u8, u8, 0, 2> data_bits;
+    BitField<u8, u8, 2, 1> stop_bits;
+    BitField<u8, u8, 3, 3> parity;
+    BitField<u8, bool, 6, 1> break_enable;
+    BitField<u8, bool, 7, 1> divisor_access_latch;
 
     // Helper methods
-    uint8 NumDataBits() const { return data_bits + 3; }
+    u8 NumDataBits() const { return data_bits + 3; }
 
   } m_line_control_register; // BAR+3
 
   union
   {
-    uint8 bits = 0;
+    u8 bits = 0;
 
-    BitField<uint8, bool, 0, 1> data_terminal_ready;
-    BitField<uint8, bool, 1, 1> request_to_send;
-    BitField<uint8, bool, 2, 1> aux_output_1;
-    BitField<uint8, bool, 3, 1> aux_output_2;
-    BitField<uint8, bool, 4, 1> loopback_mode;
-    BitField<uint8, bool, 5, 1> autoflow_control_enabled;
+    BitField<u8, bool, 0, 1> data_terminal_ready;
+    BitField<u8, bool, 1, 1> request_to_send;
+    BitField<u8, bool, 2, 1> aux_output_1;
+    BitField<u8, bool, 3, 1> aux_output_2;
+    BitField<u8, bool, 4, 1> loopback_mode;
+    BitField<u8, bool, 5, 1> autoflow_control_enabled;
   } m_modem_control_register;
 
   union
   {
-    uint8 bits = 0;
+    u8 bits = 0;
 
-    BitField<uint8, bool, 0, 1> delta_clear_to_send;
-    BitField<uint8, bool, 1, 1> delta_data_set_ready;
-    BitField<uint8, bool, 2, 1> trailing_edge_ring_indicator;
-    BitField<uint8, bool, 3, 1> delta_data_carrier_detect;
-    BitField<uint8, bool, 4, 1> clear_to_send;
-    BitField<uint8, bool, 5, 1> data_set_ready;
-    BitField<uint8, bool, 6, 1> ring_indicator;
-    BitField<uint8, bool, 7, 1> carrier_detect;
+    BitField<u8, bool, 0, 1> delta_clear_to_send;
+    BitField<u8, bool, 1, 1> delta_data_set_ready;
+    BitField<u8, bool, 2, 1> trailing_edge_ring_indicator;
+    BitField<u8, bool, 3, 1> delta_data_carrier_detect;
+    BitField<u8, bool, 4, 1> clear_to_send;
+    BitField<u8, bool, 5, 1> data_set_ready;
+    BitField<u8, bool, 6, 1> ring_indicator;
+    BitField<u8, bool, 7, 1> carrier_detect;
   } m_modem_status_register; // BAR+4
 
   union
   {
-    uint8 bits = 0;
+    u8 bits = 0;
 
-    BitField<uint8, bool, 7, 1> fifo_error;
-    BitField<uint8, bool, 6, 1> empty_receive_register;
-    BitField<uint8, bool, 5, 1> empty_transmit_register;
-    BitField<uint8, bool, 4, 1> break_interrupt;
-    BitField<uint8, bool, 3, 1> framing_error;
-    BitField<uint8, bool, 2, 1> parity_error;
-    BitField<uint8, bool, 1, 1> overrun_error;
-    BitField<uint8, bool, 0, 1> data_ready;
+    BitField<u8, bool, 7, 1> fifo_error;
+    BitField<u8, bool, 6, 1> empty_receive_register;
+    BitField<u8, bool, 5, 1> empty_transmit_register;
+    BitField<u8, bool, 4, 1> break_interrupt;
+    BitField<u8, bool, 3, 1> framing_error;
+    BitField<u8, bool, 2, 1> parity_error;
+    BitField<u8, bool, 1, 1> overrun_error;
+    BitField<u8, bool, 0, 1> data_ready;
   } m_line_status_register; // BAR+5
 
-  uint8 m_scratch_register = 0; // BAR+7
+  u8 m_scratch_register = 0; // BAR+7
 
   // Internal interrupt types
-  enum InterruptState : uint8
+  enum InterruptState : u8
   {
     InterruptState_LineStatus = (1 << 0),
     InterruptState_ReceivedDataAvailable = (1 << 1),
     InterruptState_TransmitDataEmpty = (1 << 2),
     InterruptState_ModemStatusChange = (1 << 3),
   };
-  uint8 m_interrupt_state = 0;
+  u8 m_interrupt_state = 0;
 
   // TODO: Use fifos instead here
-  uint8 m_data_send_buffer = 0;
-  uint8 m_data_receive_buffer = 0;
+  u8 m_data_send_buffer = 0;
+  u8 m_data_receive_buffer = 0;
 };
 
 } // namespace HW

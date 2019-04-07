@@ -33,14 +33,14 @@ public:
   /// Adds any pending time to the clock registers.
   void UpdateClock();
 
-  uint8 GetConfigVariable(uint8 index) const { return m_data[index]; }
-  void SetConfigVariable(uint8 index, uint8 value) { m_data[index] = value; }
+  u8 GetConfigVariable(u8 index) const { return m_data[index]; }
+  void SetConfigVariable(u8 index, u8 value) { m_data[index] = value; }
 
-  uint16 GetConfigWordVariable(uint8 base_index) const;
-  void SetConfigWordVariable(uint8 base_index, uint16 value);
+  u16 GetConfigWordVariable(u8 base_index) const;
+  void SetConfigWordVariable(u8 base_index, u16 value);
 
-  void SetConfigFloppyType(uint32 index, uint32 type);
-  void SetConfigFloppyCount(uint32 count);
+  void SetConfigFloppyType(u32 index, u32 type);
+  void SetConfigFloppyCount(u32 count);
 
 protected:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('D', 'S', '1', '7');
@@ -98,8 +98,8 @@ protected:
   };
 
   void ConnectIOPorts(Bus* bus);
-  void IOReadDataPort(uint8* value);
-  void IOWriteDataPort(uint8 value);
+  void IOReadDataPort(u8* value);
+  void IOWriteDataPort(u8 value);
 
   void UpdateRTCFrequency();
   void RTCInterruptEvent();

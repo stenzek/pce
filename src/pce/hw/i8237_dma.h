@@ -38,25 +38,25 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
-  bool ConnectDMAChannel(uint32 channel_index, DMAReadCallback&& read_callback,
+  bool ConnectDMAChannel(u32 channel_index, DMAReadCallback&& read_callback,
                          DMAWriteCallback&& write_callback) override;
-  bool GetDMAState(uint32 channel_index) override;
-  void SetDMAState(uint32 channel_index, bool request) override;
+  bool GetDMAState(u32 channel_index) override;
+  void SetDMAState(u32 channel_index, bool request) override;
 
 private:
-  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '3', '7');
-  static constexpr uint32 NUM_CHANNELS = 8;
-  static constexpr uint32 NUM_CHANNELS_PER_CONTROLLER = 4;
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('8', '2', '3', '7');
+  static constexpr u32 NUM_CHANNELS = 8;
+  static constexpr u32 NUM_CHANNELS_PER_CONTROLLER = 4;
 
   struct Channel
   {
     // count refers to the number of bytes in the transfer
     // bytes_remaining is the count that is written to the io port
-    uint16 start_address = 0;
-    uint16 bytes_remaining = 0;
-    uint16 address = 0;
-    uint16 count = 0;
-    uint8 page_address = 0;
+    u16 start_address = 0;
+    u16 bytes_remaining = 0;
+    u16 address = 0;
+    u16 count = 0;
+    u8 page_address = 0;
     DMATransferType transfer_type = DMATransferType_Verify;
     DMAMode mode = DMAMode_Single;
     bool decrement = false;
@@ -86,29 +86,29 @@ private:
 
   void RescheduleTickEvent();
 
-  void Transfer(uint32 channel_index, size_t count);
+  void Transfer(u32 channel_index, size_t count);
 
-  void IOReadStartAddress(uint32 channel_index, uint8* value);
-  void IOWriteStartAddress(uint32 channel_index, uint8 value);
-  void IOReadCount(uint32 channel_index, uint8* value);
-  void IOWriteCount(uint32 channel_index, uint8 value);
-  void IOReadPageAddress(uint32 channel_index, uint8* value);
-  void IOWritePageAddress(uint32 channel_index, uint8 value);
-  void IOReadStatus(uint32 base_channel, uint8* value);
-  void IOWriteMode(uint32 base_channel, uint8 value);
-  void IOWriteSingleMask(uint32 base_channel, uint8 value);
-  void IOReadMultiMask(uint32 base_channel, uint8* value);
-  void IOWriteMultiMask(uint32 base_channel, uint8 value);
-  void IOWriteFlipFlopReset(uint32 base_channel, uint8 value);
-  void IOWriteMasterReset(uint32 base_channel, uint8 value);
-  void IOWriteMaskReset(uint32 base_channel, uint8 value);
+  void IOReadStartAddress(u32 channel_index, u8* value);
+  void IOWriteStartAddress(u32 channel_index, u8 value);
+  void IOReadCount(u32 channel_index, u8* value);
+  void IOWriteCount(u32 channel_index, u8 value);
+  void IOReadPageAddress(u32 channel_index, u8* value);
+  void IOWritePageAddress(u32 channel_index, u8 value);
+  void IOReadStatus(u32 base_channel, u8* value);
+  void IOWriteMode(u32 base_channel, u8 value);
+  void IOWriteSingleMask(u32 base_channel, u8 value);
+  void IOReadMultiMask(u32 base_channel, u8* value);
+  void IOWriteMultiMask(u32 base_channel, u8 value);
+  void IOWriteFlipFlopReset(u32 base_channel, u8 value);
+  void IOWriteMasterReset(u32 base_channel, u8 value);
+  void IOWriteMaskReset(u32 base_channel, u8 value);
 
   Clock m_clock;
 
   Channel m_channels[NUM_CHANNELS];
   bool m_flipflops[2] = {};
 
-  uint8 m_unused_page_registers[9] = {};
+  u8 m_unused_page_registers[9] = {};
 
   TimingEvent::Pointer m_tick_event;
   bool m_tick_in_progress = false;

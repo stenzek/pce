@@ -11,14 +11,14 @@ size_t GetBytesPerSample(SampleFormat format)
   {
     case SampleFormat::Signed8:
     case SampleFormat::Unsigned8:
-      return sizeof(uint8);
+      return sizeof(u8);
 
     case SampleFormat::Signed16:
     case SampleFormat::Unsigned16:
-      return sizeof(uint16);
+      return sizeof(u16);
 
     case SampleFormat::Signed32:
-      return sizeof(int32);
+      return sizeof(s32);
 
     case SampleFormat::Float32:
       return sizeof(float);
@@ -155,10 +155,9 @@ Channel::Channel(const char* name, float output_sample_rate, float input_sample_
   : m_name(name), m_input_sample_rate(input_sample_rate), m_output_sample_rate(output_sample_rate), m_format(format),
     m_channels(channels), m_enabled(true), m_input_sample_size(GetBytesPerSample(format)),
     m_input_frame_size(GetBytesPerSample(format) * channels), m_output_frame_size(sizeof(float) * channels),
-    m_input_buffer(uint32(float(InputBufferLengthInSeconds* input_sample_rate)) * channels * m_input_sample_size),
-    m_output_buffer(uint32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels *
-                    sizeof(OutputFormatType)),
-    m_resample_buffer(uint32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels),
+    m_input_buffer(u32(float(InputBufferLengthInSeconds* input_sample_rate)) * channels * m_input_sample_size),
+    m_output_buffer(u32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels * sizeof(OutputFormatType)),
+    m_resample_buffer(u32(float(InputBufferLengthInSeconds* output_sample_rate)) * channels),
     m_resample_ratio(double(output_sample_rate) / double(input_sample_rate)),
     m_resampler_state(src_new(SRC_SINC_FASTEST, int(channels), nullptr))
 {
@@ -294,7 +293,7 @@ bool Channel::ResampleInput(size_t num_output_samples)
   {
     case SampleFormat::Signed8:
     {
-      const int8* in_samples_typed = reinterpret_cast<const int8*>(in_buf);
+      const s8* in_samples_typed = reinterpret_cast<const s8*>(in_buf);
       for (size_t i = 0; i < in_num_samples; i++)
         m_resample_buffer[i] = float(in_samples_typed[i]) / float(0x80);
 
@@ -304,7 +303,7 @@ bool Channel::ResampleInput(size_t num_output_samples)
     break;
     case SampleFormat::Unsigned8:
     {
-      const int8* in_samples_typed = reinterpret_cast<const int8*>(in_buf);
+      const s8* in_samples_typed = reinterpret_cast<const s8*>(in_buf);
       for (size_t i = 0; i < in_num_samples; i++)
         m_resample_buffer[i] = float(int(in_samples_typed[i]) - 128) / float(0x80);
 
@@ -320,7 +319,7 @@ bool Channel::ResampleInput(size_t num_output_samples)
 
     case SampleFormat::Unsigned16:
     {
-      const uint16* in_samples_typed = reinterpret_cast<const uint16*>(in_buf);
+      const u16* in_samples_typed = reinterpret_cast<const u16*>(in_buf);
       for (size_t i = 0; i < in_num_samples; i++)
         m_resample_buffer[i] = float(int(in_samples_typed[i]) - 32768) / float(0x8000);
 

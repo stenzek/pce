@@ -39,22 +39,22 @@ public:
   void SetSpeakerOutputCallback(GetBoolCallback callback) { m_speaker_output_callback = std::move(callback); }
 
   // HLE access to keyboard buffer
-  const uint8* GetKeyboardBuffer() const { return m_output_buffer; }
-  uint32 GetKeyboardBufferSize() const { return m_output_buffer_pos; }
-  void RemoveKeyboardBufferBytes(uint32 count);
+  const u8* GetKeyboardBuffer() const { return m_output_buffer; }
+  u32 GetKeyboardBufferSize() const { return m_output_buffer_pos; }
+  void RemoveKeyboardBufferBytes(u32 count);
 
 private:
-  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '5');
-  static constexpr uint32 KEYBOARD_IRQ = 1;
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '5');
+  static constexpr u32 KEYBOARD_IRQ = 1;
   static constexpr size_t SWITCH_COUNT = 8;
 
   void AddScanCode(GenScanCode scancode, bool key_down);
-  bool AppendToOutputBuffer(const void* data, uint32 length);
-  bool AppendToOutputBuffer(uint8 data);
+  bool AppendToOutputBuffer(const void* data, u32 length);
+  bool AppendToOutputBuffer(u8 data);
   void ConnectIOPorts(Bus* bus);
 
-  void IORead(uint32 port, uint8* value);
-  void IOWrite(uint32 port, uint8 value);
+  void IORead(u32 port, u8* value);
+  void IOWrite(u32 port, u8 value);
 
   InterruptController* m_interrupt_controller;
 
@@ -68,57 +68,57 @@ private:
 
   union
   {
-    uint8 bits = 0;
+    u8 bits = 0;
 
-    BitField<uint8, bool, 7, 1> mode_set_active;
-    BitField<uint8, bool, 5, 2> port_a_mode;
-    BitField<uint8, bool, 4, 1> port_a_input;
-    BitField<uint8, bool, 3, 1> port_c_upper_input;
-    BitField<uint8, bool, 2, 1> port_b_mode;
-    BitField<uint8, bool, 1, 1> port_b_input;
-    BitField<uint8, bool, 0, 1> port_c_lower_input;
+    BitField<u8, bool, 7, 1> mode_set_active;
+    BitField<u8, bool, 5, 2> port_a_mode;
+    BitField<u8, bool, 4, 1> port_a_input;
+    BitField<u8, bool, 3, 1> port_c_upper_input;
+    BitField<u8, bool, 2, 1> port_b_mode;
+    BitField<u8, bool, 1, 1> port_b_input;
+    BitField<u8, bool, 0, 1> port_c_lower_input;
   } m_control_register;
 
   // Port A value when it's not connected to keyboard.
-  uint8 m_port_a = 0;
+  u8 m_port_a = 0;
 
   // Port B when it is configured as an output (from the CPU's point of view).
   union
   {
-    uint8 bits = 0;
+    u8 bits = 0;
 
-    BitField<uint8, bool, 7, 1> clear_keyboard;
-    BitField<uint8, bool, 6, 1> keyboard_disable;
-    BitField<uint8, bool, 5, 1> disable_io_check;
-    BitField<uint8, bool, 4, 1> disable_parity_check;
-    BitField<uint8, bool, 3, 1> enable_high_switches;   // Cassette motor on PC
-    BitField<uint8, bool, 2, 1> enable_high_switches_2; // Unused on XT
-    BitField<uint8, bool, 1, 1> speaker_enable;
-    BitField<uint8, bool, 0, 1> speaker_gate;
+    BitField<u8, bool, 7, 1> clear_keyboard;
+    BitField<u8, bool, 6, 1> keyboard_disable;
+    BitField<u8, bool, 5, 1> disable_io_check;
+    BitField<u8, bool, 4, 1> disable_parity_check;
+    BitField<u8, bool, 3, 1> enable_high_switches;   // Cassette motor on PC
+    BitField<u8, bool, 2, 1> enable_high_switches_2; // Unused on XT
+    BitField<u8, bool, 1, 1> speaker_enable;
+    BitField<u8, bool, 0, 1> speaker_gate;
   } m_port_b;
 
   // Port C values.
   union PortCValue
   {
-    uint8 bits = 0;
-    BitField<uint8, bool, 7, 1> parity_error_occurred;
-    BitField<uint8, bool, 6, 1> io_error_occurred;
-    BitField<uint8, bool, 5, 1> speaker_output;
-    BitField<uint8, uint8, 4, 1> cassette_data_in;
-    BitField<uint8, bool, 3, 1> switch_4;
-    BitField<uint8, bool, 2, 1> switch_3;
-    BitField<uint8, bool, 1, 1> switch_2;
-    BitField<uint8, bool, 0, 1> switch_1;
+    u8 bits = 0;
+    BitField<u8, bool, 7, 1> parity_error_occurred;
+    BitField<u8, bool, 6, 1> io_error_occurred;
+    BitField<u8, bool, 5, 1> speaker_output;
+    BitField<u8, u8, 4, 1> cassette_data_in;
+    BitField<u8, bool, 3, 1> switch_4;
+    BitField<u8, bool, 2, 1> switch_3;
+    BitField<u8, bool, 1, 1> switch_2;
+    BitField<u8, bool, 0, 1> switch_1;
   };
 
-  static constexpr uint32 KEYBOARD_BUFFER_SIZE = 32;
-  uint8 m_output_buffer[KEYBOARD_BUFFER_SIZE] = {};
-  uint32 m_output_buffer_pos = 0;
+  static constexpr u32 KEYBOARD_BUFFER_SIZE = 32;
+  u8 m_output_buffer[KEYBOARD_BUFFER_SIZE] = {};
+  u32 m_output_buffer_pos = 0;
 
-  uint8 m_pending_command = 0;
-  uint8 m_input_buffer = 0;
+  u8 m_pending_command = 0;
+  u8 m_input_buffer = 0;
 
-  uint8 m_pending_keyboard_command = 0;
+  u8 m_pending_keyboard_command = 0;
 };
 
 } // namespace HW

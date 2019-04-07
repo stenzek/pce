@@ -53,7 +53,7 @@ bool ObjectTypeInfo::IsDerived(const ObjectTypeInfo* pTypeInfo) const
 
 const PROPERTY_DECLARATION* ObjectTypeInfo::GetPropertyDeclarationByName(const char* PropertyName) const
 {
-  for (uint32 i = 0; i < m_num_property_declarations; i++)
+  for (u32 i = 0; i < m_num_property_declarations; i++)
   {
     if (!Y_stricmp(m_property_declarations[i]->Name, PropertyName))
       return m_property_declarations[i];

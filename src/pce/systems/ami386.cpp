@@ -14,7 +14,7 @@ BEGIN_OBJECT_PROPERTY_MAP(AMI386)
 END_OBJECT_PROPERTY_MAP()
 
 AMI386::AMI386(CPU_X86::Model model /* = CPU_X86::MODEL_386 */, float cpu_frequency /* = 4000000.0f */,
-               uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+               u32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(type_info), m_bios_file_path("romimages/ami386.bin")
 {
   m_cpu = new CPU_X86::CPU("CPU", model, cpu_frequency);
@@ -85,21 +85,21 @@ void AMI386::ConnectSystemIOPorts()
   m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&AMI386::IOWriteSystemControlPortB, this, std::placeholders::_2));
 
   // Connect the keyboard controller output port to the lower 2 bits of system control port A.
-  m_keyboard_controller->SetOutputPortWrittenCallback([this](uint8 value, uint8 old_value, bool pulse) {
+  m_keyboard_controller->SetOutputPortWrittenCallback([this](u8 value, u8 old_value, bool pulse) {
     // We're doing something wrong here, the BIOS resets the CPU almost immediately after booting?
-    value &= ~uint8(0x01);
+    value &= ~u8(0x01);
     IOWriteSystemControlPortA(value & 0x03);
     IOReadSystemControlPortA(&value);
     m_keyboard_controller->SetOutputPort(value);
   });
 }
 
-void AMI386::IOReadSystemControlPortA(uint8* value)
+void AMI386::IOReadSystemControlPortA(u8* value)
 {
   *value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
 }
 
-void AMI386::IOWriteSystemControlPortA(uint8 value)
+void AMI386::IOWriteSystemControlPortA(u8 value)
 {
   Log_DevPrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
 
@@ -134,7 +134,7 @@ void AMI386::IOWriteSystemControlPortA(uint8 value)
   }
 }
 
-void AMI386::IOReadSystemControlPortB(uint8* value)
+void AMI386::IOReadSystemControlPortB(u8* value)
 {
   *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
            (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
@@ -148,7 +148,7 @@ void AMI386::IOReadSystemControlPortB(uint8* value)
   m_refresh_bit ^= true;
 }
 
-void AMI386::IOWriteSystemControlPortB(uint8 value)
+void AMI386::IOWriteSystemControlPortB(u8 value)
 {
   Log_DevPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
 
@@ -158,8 +158,8 @@ void AMI386::IOWriteSystemControlPortB(uint8 value)
 
 void AMI386::UpdateKeyboardControllerOutputPort()
 {
-  uint8 value = m_keyboard_controller->GetOutputPort();
-  value &= ~uint8(0x03);
+  u8 value = m_keyboard_controller->GetOutputPort();
+  value &= ~u8(0x03);
   value |= (BoolToUInt8(GetA20State()) << 1);
   m_keyboard_controller->SetOutputPort(value);
 }
@@ -186,7 +186,7 @@ void AMI386::AddComponents()
 
 void AMI386::SetCMOSVariables()
 {
-  static const uint8 cmos_defaults[][2] = {
+  static const u8 cmos_defaults[][2] = {
     {0x0E, 0x00}, {0x0F, 0x00}, {0x10, 0x24}, {0x11, 0x3B}, {0x12, 0xF0}, {0x13, 0x30}, {0x14, 0x4D}, {0x15, 0x80},
     {0x16, 0x02}, {0x17, 0x80}, {0x18, 0x0D}, {0x19, 0x2F}, {0x1A, 0x00}, {0x1B, 0x7B}, {0x1C, 0x00}, {0x1D, 0x2D},
     {0x1E, 0x06}, {0x1F, 0x00}, {0x20, 0x08}, {0x21, 0x07}, {0x22, 0x00}, {0x23, 0x08}, {0x24, 0x00}, {0x25, 0x00},
@@ -213,14 +213,14 @@ void AMI386::SetCMOSVariables()
   Log_DebugPrintf("Extended memory in KB: %u", Truncate32(extended_memory_in_k));
 
   m_cmos->SetConfigFloppyCount(m_fdd_controller->GetDriveCount());
-  for (uint32 i = 0; i < HW::FDC::MAX_DRIVES; i++)
+  for (u32 i = 0; i < HW::FDC::MAX_DRIVES; i++)
   {
     if (m_fdd_controller->IsDrivePresent(i))
       m_cmos->SetConfigFloppyType(i, m_fdd_controller->GetDriveType_(i));
   }
 
   // Equipment byte
-  uint8 equipment_byte = 0;
+  u8 equipment_byte = 0;
   // equipment_byte |= (1 << 1);     // coprocessor installed
   if (m_fdd_controller->GetDriveCount() > 0)
   {
@@ -264,8 +264,8 @@ void AMI386::SetCMOSVariables()
   }
 
   // Adjust CMOS checksum over 10-2D
-  uint16 checksum = 0;
-  for (uint8 i = 0x10; i <= 0x2D; i++)
+  u16 checksum = 0;
+  for (u8 i = 0x10; i <= 0x2D; i++)
     checksum += ZeroExtend16(m_cmos->GetConfigVariable(i));
   m_cmos->SetConfigVariable(0x2E, Truncate8(checksum >> 8));
   m_cmos->SetConfigVariable(0x2F, Truncate8(checksum));

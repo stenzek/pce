@@ -28,7 +28,7 @@ class System : public Object
   friend HostInterface;
 
 public:
-  enum class State : uint32
+  enum class State : u32
   {
     Initializing,
     Paused,
@@ -73,8 +73,7 @@ public:
 
   // Helper for reading a file to a buffer.
   // TODO: Find a better place for this.. result is pair<ptr, size>.
-  static std::pair<std::unique_ptr<byte[]>, uint32> ReadFileToBuffer(const char* filename, u32 offset,
-                                                                     u32 expected_size);
+  static std::pair<std::unique_ptr<byte[]>, u32> ReadFileToBuffer(const char* filename, u32 offset, u32 expected_size);
 
   // Execute the system. Returns the time actually executed.
   SimulationTime ExecuteSlice(SimulationTime time);
@@ -111,7 +110,7 @@ protected:
   TimingManager m_timing_manager;
 
 private:
-  static constexpr uint32 SERIALIZATION_ID = Component::MakeSerializationID('S', 'Y', 'S');
+  static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('S', 'Y', 'S');
 
   PODArray<Component*> m_components;
   State m_state = State::Initializing;

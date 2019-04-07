@@ -19,7 +19,7 @@ Log_SetChannel(Bus);
 
 DEFINE_OBJECT_TYPE_INFO(Bus);
 
-Bus::Bus(uint32 memory_address_bits, const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass(type_info)
+Bus::Bus(u32 memory_address_bits, const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass(type_info)
 {
   AllocateMemoryPages(memory_address_bits);
   m_ioport_handlers = new IOPortConnection*[NUM_IOPORTS];
@@ -42,7 +42,7 @@ Bus::~Bus()
     }
   }
 
-  for (uint32 i = 0; i < m_num_physical_memory_pages; i++)
+  for (u32 i = 0; i < m_num_physical_memory_pages; i++)
   {
     if (m_physical_memory_pages[i].mmio_handler)
       m_physical_memory_pages[i].mmio_handler->Release();
@@ -70,7 +70,7 @@ bool Bus::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
-  uint32 physical_page_count = reader.ReadUInt32();
+  u32 physical_page_count = reader.ReadUInt32();
   if (physical_page_count != m_num_physical_memory_pages)
   {
     Log_ErrorPrintf("Incorrect number of physical memory pages");
@@ -79,7 +79,7 @@ bool Bus::LoadState(BinaryReader& reader)
 
   m_physical_memory_address_mask = reader.ReadUInt32();
 
-  uint32 ram_size = reader.ReadUInt32();
+  u32 ram_size = reader.ReadUInt32();
   if (ram_size != m_ram_size)
   {
     Log_ErrorPrintf("Incorrect RAM size");
@@ -101,7 +101,7 @@ bool Bus::SaveState(BinaryWriter& writer)
   return true;
 }
 
-void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write, uint32 value)
+void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, u32 size, bool is_write, u32 value)
 {
 #if 0
   static const uint32 check_addresses[] = {0xC0000, 16};
@@ -333,7 +333,7 @@ void Bus::ReadIOPortDWord(u16 port, u32* value)
   const IOPortConnection* conn = m_ioport_handlers[port];
   if (!conn || !conn->read_dword_handler)
   {
-    uint16 b0, b1;
+    u16 b0, b1;
     ReadIOPortWord(port + 0, &b0);
     ReadIOPortWord(port + 2, &b1);
     *value = ZeroExtend32(b0) | (ZeroExtend32(b1) << 16);
@@ -431,19 +431,19 @@ void Bus::ConnectIOPortWriteToPointer(u16 port, const void* owner, u8* var)
   ConnectIOPortWrite(port, owner, std::move(write_handler));
 }
 
-void Bus::ReadMemoryBlock(PhysicalMemoryAddress address, uint32 length, void* destination)
+void Bus::ReadMemoryBlock(PhysicalMemoryAddress address, u32 length, void* destination)
 {
   byte* destination_ptr = reinterpret_cast<byte*>(destination);
 
   while (length > 0)
   {
-    uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
-    uint32 page_offset = (address & m_physical_memory_address_mask) % MEMORY_PAGE_SIZE;
+    u32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+    u32 page_offset = (address & m_physical_memory_address_mask) % MEMORY_PAGE_SIZE;
     DebugAssert(page_number < m_num_physical_memory_pages);
 
     // Fast path?
     const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
-    const uint32 size_in_page = std::min(length, MEMORY_PAGE_SIZE);
+    const u32 size_in_page = std::min(length, MEMORY_PAGE_SIZE);
     if (page.type & PhysicalMemoryPage::kReadableRAM)
     {
       std::memcpy(destination_ptr, page.ram_ptr + page_offset, size_in_page);
@@ -457,9 +457,9 @@ void Bus::ReadMemoryBlock(PhysicalMemoryAddress address, uint32 length, void* de
     {
       // Slow path for MMIO.
       MMIO* const handler = page.mmio_handler;
-      const uint32 page_base_address = page_number * MEMORY_PAGE_SIZE;
-      const uint32 start_address = handler->GetStartAddress();
-      const uint32 end_address = handler->GetEndAddress();
+      const u32 page_base_address = page_number * MEMORY_PAGE_SIZE;
+      const u32 start_address = handler->GetStartAddress();
+      const u32 end_address = handler->GetEndAddress();
       if (address >= start_address && (address + size_in_page) <= end_address)
       {
         handler->ReadBlock(address, size_in_page, destination_ptr);
@@ -470,11 +470,11 @@ void Bus::ReadMemoryBlock(PhysicalMemoryAddress address, uint32 length, void* de
       }
 
       // Super slow path - when the MMIO doesn't cover the entire page.
-      const uint32 mmio_size_in_page = end_address - page_base_address;
-      const uint32 mmio_usable_size = mmio_size_in_page - page_offset;
-      const uint32 padding_before = (start_address >= address) ? (start_address - address) : 0;
-      const uint32 padding_after = (mmio_usable_size < size_in_page) ? (size_in_page - mmio_usable_size) : 0;
-      const uint32 copy_size = std::min(mmio_usable_size, size_in_page);
+      const u32 mmio_size_in_page = end_address - page_base_address;
+      const u32 mmio_usable_size = mmio_size_in_page - page_offset;
+      const u32 padding_before = (start_address >= address) ? (start_address - address) : 0;
+      const u32 padding_after = (mmio_usable_size < size_in_page) ? (size_in_page - mmio_usable_size) : 0;
+      const u32 copy_size = std::min(mmio_usable_size, size_in_page);
       if (padding_before > 0)
       {
         std::memset(destination_ptr, 0xFF, padding_before);
@@ -508,19 +508,19 @@ void Bus::ReadMemoryBlock(PhysicalMemoryAddress address, uint32 length, void* de
   }
 }
 
-void Bus::WriteMemoryBlock(PhysicalMemoryAddress address, uint32 length, const void* source)
+void Bus::WriteMemoryBlock(PhysicalMemoryAddress address, u32 length, const void* source)
 {
   const byte* source_ptr = reinterpret_cast<const byte*>(source);
 
   while (length > 0)
   {
-    uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
-    uint32 page_offset = (address & m_physical_memory_address_mask) % MEMORY_PAGE_SIZE;
+    u32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+    u32 page_offset = (address & m_physical_memory_address_mask) % MEMORY_PAGE_SIZE;
     DebugAssert(page_number < m_num_physical_memory_pages);
 
     // Fast path?
     const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
-    const uint32 size_in_page = std::min(length, MEMORY_PAGE_SIZE);
+    const u32 size_in_page = std::min(length, MEMORY_PAGE_SIZE);
     if (page.type & PhysicalMemoryPage::kWritableRAM)
     {
       std::memcpy(page.ram_ptr + page_offset, source_ptr, size_in_page);
@@ -534,9 +534,9 @@ void Bus::WriteMemoryBlock(PhysicalMemoryAddress address, uint32 length, const v
     {
       // Slow path for MMIO.
       MMIO* const handler = page.mmio_handler;
-      const uint32 page_base_address = page_number * MEMORY_PAGE_SIZE;
-      const uint32 start_address = handler->GetStartAddress();
-      const uint32 end_address = handler->GetEndAddress();
+      const u32 page_base_address = page_number * MEMORY_PAGE_SIZE;
+      const u32 start_address = handler->GetStartAddress();
+      const u32 end_address = handler->GetEndAddress();
       if (address >= start_address && (address + size_in_page) <= end_address)
       {
         handler->WriteBlock(address, size_in_page, source_ptr);
@@ -547,11 +547,11 @@ void Bus::WriteMemoryBlock(PhysicalMemoryAddress address, uint32 length, const v
       }
 
       // Super slow path - when the MMIO doesn't cover the entire page.
-      const uint32 mmio_size_in_page = end_address - page_base_address;
-      const uint32 mmio_usable_size = mmio_size_in_page - page_offset;
-      const uint32 padding_before = (start_address >= address) ? (start_address - address) : 0;
-      const uint32 padding_after = (mmio_usable_size < size_in_page) ? (size_in_page - mmio_usable_size) : 0;
-      const uint32 copy_size = std::min(mmio_usable_size, size_in_page);
+      const u32 mmio_size_in_page = end_address - page_base_address;
+      const u32 mmio_usable_size = mmio_size_in_page - page_offset;
+      const u32 padding_before = (start_address >= address) ? (start_address - address) : 0;
+      const u32 padding_after = (mmio_usable_size < size_in_page) ? (size_in_page - mmio_usable_size) : 0;
+      const u32 copy_size = std::min(mmio_usable_size, size_in_page);
       if (padding_before > 0)
       {
         source_ptr += padding_before;
@@ -584,28 +584,28 @@ void Bus::WriteMemoryBlock(PhysicalMemoryAddress address, uint32 length, const v
 
 byte* Bus::GetRAMPointer(PhysicalMemoryAddress address)
 {
-  const uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+  const u32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
   const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
   return (page.type & PhysicalMemoryPage::kReadableRAM) ? (page.ram_ptr + (address & MEMORY_PAGE_OFFSET_MASK)) :
                                                           nullptr;
 }
 
-void Bus::AllocateMemoryPages(uint32 memory_address_bits)
+void Bus::AllocateMemoryPages(u32 memory_address_bits)
 {
-  uint32 num_pages = uint32((uint64(1) << memory_address_bits) / uint64(MEMORY_PAGE_SIZE));
+  u32 num_pages = u32((u64(1) << memory_address_bits) / u64(MEMORY_PAGE_SIZE));
 
   // Allocate physical pages
   DebugAssert(num_pages > 0);
   m_physical_memory_pages = new PhysicalMemoryPage[num_pages];
   std::memset(m_physical_memory_pages, 0, sizeof(PhysicalMemoryPage) * num_pages);
-  m_physical_memory_address_mask = uint32((uint64(1) << memory_address_bits) - 1);
+  m_physical_memory_address_mask = u32((u64(1) << memory_address_bits) - 1);
   m_num_physical_memory_pages = num_pages;
 }
 
-PhysicalMemoryAddress Bus::GetTotalRAMInPageRange(uint32 start_page, uint32 end_page) const
+PhysicalMemoryAddress Bus::GetTotalRAMInPageRange(u32 start_page, u32 end_page) const
 {
   PhysicalMemoryAddress size = 0;
-  for (uint32 i = start_page; i < end_page; i++)
+  for (u32 i = start_page; i < end_page; i++)
   {
     const PhysicalMemoryPage& page = m_physical_memory_pages[i];
     if (page.ram_ptr && !(page.type & PhysicalMemoryPage::kMirror))
@@ -615,7 +615,7 @@ PhysicalMemoryAddress Bus::GetTotalRAMInPageRange(uint32 start_page, uint32 end_
   return size;
 }
 
-void Bus::AllocateRAM(uint32 size)
+void Bus::AllocateRAM(u32 size)
 {
   DebugAssert(size > 0 && !m_ram_ptr);
   Assert((size % MEMORY_PAGE_SIZE) == 0);
@@ -625,15 +625,15 @@ void Bus::AllocateRAM(uint32 size)
   std::memset(m_ram_ptr, 0x00, m_ram_size);
 }
 
-uint32 Bus::CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end)
+u32 Bus::CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end)
 {
-  Assert((start % MEMORY_PAGE_SIZE) == 0 && (uint64(end + 1) % MEMORY_PAGE_SIZE) == 0);
+  Assert((start % MEMORY_PAGE_SIZE) == 0 && (u64(end + 1) % MEMORY_PAGE_SIZE) == 0);
 
-  uint32 allocated_ram = 0;
-  uint32 remaining_ram = GetUnassignedRAMSize();
-  uint32 start_page = start / MEMORY_PAGE_SIZE;
-  uint32 end_page = Truncate32((uint64(end) + 1) / MEMORY_PAGE_SIZE);
-  for (uint32 current_page = start_page; current_page < end_page && remaining_ram > 0; current_page++)
+  u32 allocated_ram = 0;
+  u32 remaining_ram = GetUnassignedRAMSize();
+  u32 start_page = start / MEMORY_PAGE_SIZE;
+  u32 end_page = Truncate32((u64(end) + 1) / MEMORY_PAGE_SIZE);
+  for (u32 current_page = start_page; current_page < end_page && remaining_ram > 0; current_page++)
   {
     PhysicalMemoryPage* page = &m_physical_memory_pages[current_page];
     Assert(!page->ram_ptr && remaining_ram >= MEMORY_PAGE_SIZE);
@@ -648,7 +648,7 @@ uint32 Bus::CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress e
 }
 
 bool Bus::CreateROMRegionFromFile(const char* filename, u32 file_offset, PhysicalMemoryAddress address,
-                                  uint32 expected_size /* = 0 */)
+                                  u32 expected_size /* = 0 */)
 {
   auto data = System::ReadFileToBuffer(filename, file_offset, expected_size);
   if (!data.first)
@@ -664,7 +664,7 @@ bool Bus::CreateROMRegionFromFile(const char* filename, u32 file_offset, Physica
   return true;
 }
 
-bool Bus::CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address)
+bool Bus::CreateROMRegionFromBuffer(const void* buffer, u32 size, PhysicalMemoryAddress address)
 {
   ROMRegion rr;
   rr.data = std::make_unique<byte[]>(size);
@@ -679,13 +679,13 @@ bool Bus::CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMem
   return true;
 }
 
-void Bus::MirrorRegion(PhysicalMemoryAddress start, uint32 size, PhysicalMemoryAddress mirror_start)
+void Bus::MirrorRegion(PhysicalMemoryAddress start, u32 size, PhysicalMemoryAddress mirror_start)
 {
-  uint32 start_page = start / MEMORY_PAGE_SIZE;
-  uint32 end_page = Truncate32((uint64(start) + uint64(size) + uint64(1)) / MEMORY_PAGE_SIZE);
-  uint32 mirror_start_page = mirror_start / MEMORY_PAGE_SIZE;
+  u32 start_page = start / MEMORY_PAGE_SIZE;
+  u32 end_page = Truncate32((u64(start) + u64(size) + u64(1)) / MEMORY_PAGE_SIZE);
+  u32 mirror_start_page = mirror_start / MEMORY_PAGE_SIZE;
 
-  for (uint32 current_src_page = start_page, current_dst_page = mirror_start_page; current_src_page < end_page;
+  for (u32 current_src_page = start_page, current_dst_page = mirror_start_page; current_src_page < end_page;
        current_src_page++, current_dst_page++)
   {
     PhysicalMemoryPage* src_page = &m_physical_memory_pages[current_src_page];
@@ -735,10 +735,10 @@ void Bus::EnumeratePagesForRange(PhysicalMemoryAddress start_address, PhysicalMe
 {
   DebugAssert(end_address > start_address);
 
-  uint32 first_page = start_address / MEMORY_PAGE_SIZE;
-  uint32 last_page = end_address / MEMORY_PAGE_SIZE;
+  u32 first_page = start_address / MEMORY_PAGE_SIZE;
+  u32 last_page = end_address / MEMORY_PAGE_SIZE;
 
-  for (uint32 i = first_page; i <= last_page; i++)
+  for (u32 i = first_page; i <= last_page; i++)
   {
     if (i < m_num_physical_memory_pages)
       callback(i, &m_physical_memory_pages[i]);
@@ -748,9 +748,9 @@ void Bus::EnumeratePagesForRange(PhysicalMemoryAddress start_address, PhysicalMe
 void Bus::ConnectMMIO(MMIO* mmio)
 {
   // MMIO size should be 4 byte aligned, that way we don't have to split reads/writes.
-  Assert((mmio->GetSize() & uint32(sizeof(uint32) - 1)) == 0);
+  Assert((mmio->GetSize() & u32(sizeof(u32) - 1)) == 0);
 
-  auto callback = [this, mmio](uint32 page_number, PhysicalMemoryPage* page) {
+  auto callback = [this, mmio](u32 page_number, PhysicalMemoryPage* page) {
     if (page->mmio_handler)
     {
       Log_WarningPrintf("Duplicate MMIO handlers for page %08X, most recent will take precedence",
@@ -768,7 +768,7 @@ void Bus::ConnectMMIO(MMIO* mmio)
 
 void Bus::DisconnectMMIO(MMIO* mmio)
 {
-  auto callback = [this, mmio](uint32 page_number, PhysicalMemoryPage* page) {
+  auto callback = [this, mmio](u32 page_number, PhysicalMemoryPage* page) {
     if (page->mmio_handler != mmio)
       return;
 
@@ -792,7 +792,7 @@ bool Bus::IsCachablePage(const PhysicalMemoryPage& page)
 
 bool Bus::IsCachablePage(PhysicalMemoryAddress address) const
 {
-  uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+  u32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
   return IsCachablePage(m_physical_memory_pages[page_number]);
 }
@@ -807,28 +807,28 @@ bool Bus::IsWritablePage(const PhysicalMemoryPage& page)
 
 bool Bus::IsWritablePage(PhysicalMemoryAddress address) const
 {
-  uint32 page_number = address / MEMORY_PAGE_SIZE;
+  u32 page_number = address / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
   return IsWritablePage(m_physical_memory_pages[page_number]);
 }
 
 void Bus::MarkPageAsCode(PhysicalMemoryAddress address)
 {
-  uint32 page_number = address / MEMORY_PAGE_SIZE;
+  u32 page_number = address / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
   m_physical_memory_pages[page_number].type |= PhysicalMemoryPage::kCachedCode;
 }
 
 void Bus::UnmarkPageAsCode(PhysicalMemoryAddress address)
 {
-  uint32 page_number = address / MEMORY_PAGE_SIZE;
+  u32 page_number = address / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
   m_physical_memory_pages[page_number].type &= ~PhysicalMemoryPage::kCachedCode;
 }
 
 void Bus::ClearPageCodeFlags()
 {
-  for (uint32 i = 0; i < m_num_physical_memory_pages; i++)
+  for (u32 i = 0; i < m_num_physical_memory_pages; i++)
     m_physical_memory_pages[i].type &= ~PhysicalMemoryPage::kCachedCode;
 }
 
@@ -866,13 +866,13 @@ void Bus::SetPageRAMState(PhysicalMemoryAddress page_address, bool readable_memo
     page.type &= ~PhysicalMemoryPage::kWritableRAM;
 }
 
-void Bus::SetPagesRAMState(PhysicalMemoryAddress start_address, uint32 size, bool readable_memory, bool writable_memory)
+void Bus::SetPagesRAMState(PhysicalMemoryAddress start_address, u32 size, bool readable_memory, bool writable_memory)
 {
-  const uint32 num_pages = (size + (MEMORY_PAGE_SIZE - 1)) / MEMORY_PAGE_SIZE;
+  const u32 num_pages = (size + (MEMORY_PAGE_SIZE - 1)) / MEMORY_PAGE_SIZE;
   DebugAssert((start_address % MEMORY_PAGE_SIZE) == 0);
 
-  uint32 current_page = start_address & MEMORY_PAGE_MASK;
-  for (uint32 i = 0; i < num_pages; i++, current_page += MEMORY_PAGE_SIZE)
+  u32 current_page = start_address & MEMORY_PAGE_MASK;
+  for (u32 i = 0; i < num_pages; i++, current_page += MEMORY_PAGE_SIZE)
     SetPageRAMState(current_page, readable_memory, writable_memory);
 }
 
@@ -882,7 +882,7 @@ void Bus::Stall(SimulationTime time)
   m_system->GetCPU()->StallExecution(time);
 }
 
-Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)
+Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, u32 length)
 {
   XXH64_state_t state;
   XXH64_reset(&state, 0x42);
@@ -890,13 +890,13 @@ Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)
   std::array<byte, MEMORY_PAGE_SIZE> buf;
   while (length > 0)
   {
-    uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
-    uint32 page_offset = (address & m_physical_memory_address_mask) % MEMORY_PAGE_SIZE;
+    u32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+    u32 page_offset = (address & m_physical_memory_address_mask) % MEMORY_PAGE_SIZE;
     DebugAssert(page_number < m_num_physical_memory_pages);
 
     // Fast path?
     const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
-    const uint32 hash_size = std::min(length, MEMORY_PAGE_SIZE);
+    const u32 hash_size = std::min(length, MEMORY_PAGE_SIZE);
     if (page.type & PhysicalMemoryPage::kReadableRAM)
     {
       XXH64_update(&state, page.ram_ptr + page_offset, hash_size);
@@ -909,9 +909,9 @@ Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)
     {
       // Slow path for MMIO.
       MMIO* const handler = page.mmio_handler;
-      const uint32 page_base_address = page_number * MEMORY_PAGE_SIZE;
-      const uint32 start_address = handler->GetStartAddress();
-      const uint32 end_address = handler->GetEndAddress();
+      const u32 page_base_address = page_number * MEMORY_PAGE_SIZE;
+      const u32 start_address = handler->GetStartAddress();
+      const u32 end_address = handler->GetEndAddress();
       if (address >= start_address && (address + hash_size) <= end_address)
       {
         handler->ReadBlock(address, hash_size, buf.data());
@@ -922,11 +922,11 @@ Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)
       }
 
       // Super slow path - when the MMIO doesn't cover the entire page.
-      const uint32 mmio_size_in_page = end_address - page_base_address;
-      const uint32 mmio_usable_size = mmio_size_in_page - page_offset;
-      const uint32 padding_before = (start_address >= address) ? (start_address - address) : 0;
-      const uint32 padding_after = (mmio_usable_size < hash_size) ? (hash_size - mmio_usable_size) : 0;
-      const uint32 copy_size = std::min(mmio_usable_size, hash_size);
+      const u32 mmio_size_in_page = end_address - page_base_address;
+      const u32 mmio_usable_size = mmio_size_in_page - page_offset;
+      const u32 padding_before = (start_address >= address) ? (start_address - address) : 0;
+      const u32 padding_after = (mmio_usable_size < hash_size) ? (hash_size - mmio_usable_size) : 0;
+      const u32 copy_size = std::min(mmio_usable_size, hash_size);
       if (padding_before > 0)
       {
         std::memset(buf.data(), 0xFF, padding_before);
@@ -960,9 +960,9 @@ Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, uint32 length)
   return XXH64_digest(&state);
 }
 
-bool Bus::IsReadableAddress(PhysicalMemoryAddress address, uint32 size) const
+bool Bus::IsReadableAddress(PhysicalMemoryAddress address, u32 size) const
 {
-  const uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+  const u32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
 
   const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
@@ -978,9 +978,9 @@ bool Bus::IsReadableAddress(PhysicalMemoryAddress address, uint32 size) const
   return false;
 }
 
-bool Bus::IsWritableAddress(PhysicalMemoryAddress address, uint32 size) const
+bool Bus::IsWritableAddress(PhysicalMemoryAddress address, u32 size) const
 {
-  const uint32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
+  const u32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
 
   const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
@@ -996,7 +996,7 @@ bool Bus::IsWritableAddress(PhysicalMemoryAddress address, uint32 size) const
   return false;
 }
 
-bool Bus::CheckedReadMemoryByte(PhysicalMemoryAddress address, uint8* value)
+bool Bus::CheckedReadMemoryByte(PhysicalMemoryAddress address, u8* value)
 {
   if (!IsReadableAddress(address, sizeof(*value)))
   {
@@ -1008,7 +1008,7 @@ bool Bus::CheckedReadMemoryByte(PhysicalMemoryAddress address, uint8* value)
   return true;
 }
 
-bool Bus::CheckedWriteMemoryByte(PhysicalMemoryAddress address, uint8 value)
+bool Bus::CheckedWriteMemoryByte(PhysicalMemoryAddress address, u8 value)
 {
   if (!IsWritableAddress(address, sizeof(value)))
     return false;
@@ -1017,11 +1017,11 @@ bool Bus::CheckedWriteMemoryByte(PhysicalMemoryAddress address, uint8 value)
   return true;
 }
 
-bool Bus::CheckedReadMemoryWord(PhysicalMemoryAddress address, uint16* value)
+bool Bus::CheckedReadMemoryWord(PhysicalMemoryAddress address, u16* value)
 {
   if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(*value) - 1)) & MEMORY_PAGE_MASK))
   {
-    uint8 b0, b1;
+    u8 b0, b1;
     bool result = CheckedReadMemoryByte(address, &b0) & CheckedReadMemoryByte(address + 1, &b1);
     *value = (ZeroExtend16(b1) << 8) | (ZeroExtend16(b0));
     return result;
@@ -1037,7 +1037,7 @@ bool Bus::CheckedReadMemoryWord(PhysicalMemoryAddress address, uint16* value)
   return true;
 }
 
-bool Bus::CheckedWriteMemoryWord(PhysicalMemoryAddress address, uint16 value)
+bool Bus::CheckedWriteMemoryWord(PhysicalMemoryAddress address, u16 value)
 {
   if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(value) - 1)) & MEMORY_PAGE_MASK))
   {
@@ -1052,11 +1052,11 @@ bool Bus::CheckedWriteMemoryWord(PhysicalMemoryAddress address, uint16 value)
   return true;
 }
 
-bool Bus::CheckedReadMemoryDWord(PhysicalMemoryAddress address, uint32* value)
+bool Bus::CheckedReadMemoryDWord(PhysicalMemoryAddress address, u32* value)
 {
   if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(*value) - 1)) & MEMORY_PAGE_MASK))
   {
-    uint16 d0, d1;
+    u16 d0, d1;
     bool result = CheckedReadMemoryWord(address, &d0) & CheckedReadMemoryWord(address + 2, &d1);
     *value = (ZeroExtend32(d1) << 16) | (ZeroExtend32(d0));
     return result;
@@ -1072,7 +1072,7 @@ bool Bus::CheckedReadMemoryDWord(PhysicalMemoryAddress address, uint32* value)
   return true;
 }
 
-bool Bus::CheckedWriteMemoryDWord(PhysicalMemoryAddress address, uint32 value)
+bool Bus::CheckedWriteMemoryDWord(PhysicalMemoryAddress address, u32 value)
 {
   if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(value) - 1)) & MEMORY_PAGE_MASK))
   {
@@ -1087,11 +1087,11 @@ bool Bus::CheckedWriteMemoryDWord(PhysicalMemoryAddress address, uint32 value)
   return true;
 }
 
-bool Bus::CheckedReadMemoryQWord(PhysicalMemoryAddress address, uint64* value)
+bool Bus::CheckedReadMemoryQWord(PhysicalMemoryAddress address, u64* value)
 {
   if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(*value) - 1)) & MEMORY_PAGE_MASK))
   {
-    uint32 d0, d1;
+    u32 d0, d1;
     bool result = CheckedReadMemoryDWord(address, &d0) & CheckedReadMemoryDWord(address + 4, &d1);
     *value = (ZeroExtend64(d1) << 32) | (ZeroExtend32(d0));
     return result;
@@ -1107,7 +1107,7 @@ bool Bus::CheckedReadMemoryQWord(PhysicalMemoryAddress address, uint64* value)
   return true;
 }
 
-bool Bus::CheckedWriteMemoryQWord(PhysicalMemoryAddress address, uint64 value)
+bool Bus::CheckedWriteMemoryQWord(PhysicalMemoryAddress address, u64 value)
 {
   if ((address & MEMORY_PAGE_MASK) != ((address + (sizeof(value) - 1)) & MEMORY_PAGE_MASK))
   {

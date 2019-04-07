@@ -8,9 +8,9 @@ bool Decoder::DecodeInstruction(Instruction* instruction, AddressSize address_si
                                 VirtualMemoryAddress eip_addr, ByteStream* stream)
 {
   BinaryReader reader(stream, ENDIAN_TYPE_LITTLE);
-  auto readb = [&reader](uint8* val) { return reader.SafeReadUInt8(val); };
-  auto readw = [&reader](uint16* val) { return reader.SafeReadUInt16(val); };
-  auto readd = [&reader](uint32* val) { return reader.SafeReadUInt32(val); };
+  auto readb = [&reader](u8* val) { return reader.SafeReadUInt8(val); };
+  auto readw = [&reader](u16* val) { return reader.SafeReadUInt16(val); };
+  auto readd = [&reader](u32* val) { return reader.SafeReadUInt32(val); };
   return DecodeInstruction(instruction, address_size, operand_size, eip_addr, readb, readw, readd) &&
          !reader.GetErrorState();
 }
@@ -332,7 +332,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
   }
 
   // print the operation suffix. this is things like jump conditions, segment names, etc.
-  uint32 operand_index = 0;
+  u32 operand_index = 0;
   if (instruction->operands[0].mode == OperandMode_JumpCondition)
   {
     out_string->AppendString(jump_condition_names[instruction->operands[0].jump_condition]);
@@ -457,7 +457,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
       break;
       case OperandMode_ModRM_Reg:
       {
-        uint8 index = instruction->GetModRM_Reg();
+        u8 index = instruction->GetModRM_Reg();
         if (size == OperandSize_8)
           out_string->AppendString(reg8_names[index]);
         else if (size == OperandSize_16)
@@ -496,16 +496,16 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
               break;
             case ModRMAddressingMode::Indexed:
             {
-              int32 disp =
-                int32((asize == AddressSize_16) ? SignExtend32(instruction->data.disp16) : instruction->data.disp32);
+              s32 disp =
+                s32((asize == AddressSize_16) ? SignExtend32(instruction->data.disp16) : instruction->data.disp32);
               out_string->AppendFormattedString("%s %s%xh", reg_names[m->base_register], (disp < 0) ? "- " : "+ ",
                                                 (disp < 0) ? -disp : disp);
             }
             break;
             case ModRMAddressingMode::BasedIndexedDisplacement:
             {
-              int32 disp =
-                int32((asize == AddressSize_16) ? SignExtend32(instruction->data.disp16) : instruction->data.disp32);
+              s32 disp =
+                s32((asize == AddressSize_16) ? SignExtend32(instruction->data.disp16) : instruction->data.disp32);
               out_string->AppendFormattedString("%s + %s %s%xh", reg_names[m->base_register],
                                                 reg_names[m->index_register], (disp < 0) ? "- " : "+ ",
                                                 (disp < 0) ? -disp : disp);
@@ -531,7 +531,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
 
               if (instruction->data.disp32 != 0)
               {
-                int32 disp = int32(instruction->data.disp32);
+                s32 disp = s32(instruction->data.disp32);
                 out_string->AppendFormattedString("%s%xh", first ? "" : (disp < 0 ? " - " : " + "),
                                                   (disp < 0) ? -disp : disp);
               }
@@ -546,7 +546,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
       break;
       case OperandMode_ModRM_SegmentReg:
       {
-        uint8 index = instruction->GetModRM_Reg();
+        u8 index = instruction->GetModRM_Reg();
         out_string->AppendString((index > Segment_Count) ? "<invalid>" : segment_names[index]);
       }
       break;
@@ -568,7 +568,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
   }
 }
 
-const Decoder::ModRMAddress* Decoder::DecodeModRMAddress(AddressSize address_size, uint8 modrm)
+const Decoder::ModRMAddress* Decoder::DecodeModRMAddress(AddressSize address_size, u8 modrm)
 {
   // This could probably be implemented procedurally
   // http://www.sandpile.org/x86/opc_rm16.htm
@@ -644,7 +644,7 @@ const Decoder::ModRMAddress* Decoder::DecodeModRMAddress(AddressSize address_siz
     /* 11 111 - BH/DI/EDI         */ {ModRMAddressingMode::Register, Reg32_EDI, 0, 0, Segment_DS},
   };
 
-  uint8 index = ((modrm & 0b11000000) >> 3) | (modrm & 0b00000111);
+  u8 index = ((modrm & 0b11000000) >> 3) | (modrm & 0b00000111);
   return (address_size == AddressSize_16) ? &modrm_table_16[index] : &modrm_table_32[index];
 }
 

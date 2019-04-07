@@ -61,7 +61,7 @@ void i8253_PIT::RescheduleTimerEvent()
 
 void i8253_PIT::Reset()
 {
-  for (uint32 i = 0; i < NUM_CHANNELS; i++)
+  for (u32 i = 0; i < NUM_CHANNELS; i++)
   {
     Channel* channel = &m_channels[i];
     channel->count = 0;
@@ -94,7 +94,7 @@ bool i8253_PIT::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
-  for (uint32 i = 0; i < NUM_CHANNELS; i++)
+  for (u32 i = 0; i < NUM_CHANNELS; i++)
   {
     Channel* channel = &m_channels[i];
     reader.SafeReadInt64(&channel->count);
@@ -102,7 +102,7 @@ bool i8253_PIT::LoadState(BinaryReader& reader)
     reader.SafeReadInt64(&channel->downcount);
     reader.SafeReadUInt16(&channel->reload_value);
 
-    uint8 operating_mode = 0, read_mode = 0, write_mode = 0;
+    u8 operating_mode = 0, read_mode = 0, write_mode = 0;
     reader.SafeReadUInt8(&operating_mode);
     reader.SafeReadUInt8(&read_mode);
     reader.SafeReadUInt8(&write_mode);
@@ -133,16 +133,16 @@ bool i8253_PIT::SaveState(BinaryWriter& writer)
 {
   writer.WriteUInt32(SERIALIZATION_ID);
 
-  for (uint32 i = 0; i < NUM_CHANNELS; i++)
+  for (u32 i = 0; i < NUM_CHANNELS; i++)
   {
     Channel* channel = &m_channels[i];
     writer.WriteInt64(channel->count);
     writer.WriteInt64(channel->monitor_count);
     writer.WriteInt64(channel->downcount);
     writer.WriteUInt16(channel->reload_value);
-    writer.WriteUInt8(static_cast<uint8>(channel->operating_mode));
-    writer.WriteUInt8(static_cast<uint8>(channel->read_mode));
-    writer.WriteUInt8(static_cast<uint8>(channel->write_mode));
+    writer.WriteUInt8(static_cast<u8>(channel->operating_mode));
+    writer.WriteUInt8(static_cast<u8>(channel->read_mode));
+    writer.WriteUInt8(static_cast<u8>(channel->write_mode));
     writer.WriteBool(channel->bcd_mode);
 
     writer.WriteUInt16(channel->read_latch_value);
@@ -229,7 +229,7 @@ CycleCount i8253_PIT::GetFrequencyFromReloadValue(Channel* channel) const
     return channel->reload_value;
 }
 
-void i8253_PIT::ReadDataPort(uint32 channel_index, uint8* value)
+void i8253_PIT::ReadDataPort(u32 channel_index, u8* value)
 {
   Channel* channel = &m_channels[channel_index];
   DebugAssert(channel_index < NUM_CHANNELS);
@@ -265,7 +265,7 @@ void i8253_PIT::ReadDataPort(uint32 channel_index, uint8* value)
   }
 }
 
-void i8253_PIT::WriteDataPort(uint32 channel_index, uint8 value)
+void i8253_PIT::WriteDataPort(u32 channel_index, u8 value)
 {
   Channel* channel = &m_channels[channel_index];
   DebugAssert(channel_index < NUM_CHANNELS);
@@ -305,9 +305,9 @@ void i8253_PIT::WriteDataPort(uint32 channel_index, uint8 value)
   UpdateAllChannelsDowncount();
 }
 
-void i8253_PIT::WriteCommandRegister(uint8 value)
+void i8253_PIT::WriteCommandRegister(u8 value)
 {
-  uint8 channel_index = (value >> 6) & 0b11;
+  u8 channel_index = (value >> 6) & 0b11;
   ChannelAccessMode access_mode = ChannelAccessMode((value >> 4) & 0b11);
   ChannelOperatingMode operating_mode = ChannelOperatingMode((value >> 1) & 0b111);
   bool bcd_mode = !!(value & 0b1);
@@ -319,15 +319,15 @@ void i8253_PIT::WriteCommandRegister(uint8 value)
   {
     // TODO: Read-back mode
     Log_ErrorPrintf("PIT readback mode not fully implemented");
-    for (uint32 i = 0; i < NUM_CHANNELS; i++)
+    for (u32 i = 0; i < NUM_CHANNELS; i++)
     {
       Channel* channel = &m_channels[i];
       channel->read_latch_value = 0;
-      channel->read_latch_value |= (uint8(channel->bcd_mode ? 1 : 0) << 0);
-      channel->read_latch_value |= (uint8(channel->operating_mode) << 1);
-      channel->read_latch_value |= (uint8(channel->write_mode) << 4);
-      channel->read_latch_value |= (uint8(channel->waiting_for_reload ? 1 : 0) << 6);
-      channel->read_latch_value |= (uint8(0) << 7); // Current output pin state
+      channel->read_latch_value |= (u8(channel->bcd_mode ? 1 : 0) << 0);
+      channel->read_latch_value |= (u8(channel->operating_mode) << 1);
+      channel->read_latch_value |= (u8(channel->write_mode) << 4);
+      channel->read_latch_value |= (u8(channel->waiting_for_reload ? 1 : 0) << 6);
+      channel->read_latch_value |= (u8(0) << 7); // Current output pin state
     }
 
     return;
@@ -437,7 +437,7 @@ void i8253_PIT::SetChannelMode(size_t channel_index, ChannelOperatingMode mode)
   UpdateAllChannelsDowncount();
 }
 
-void i8253_PIT::SetChannelReloadRegister(size_t channel_index, uint16 reload_value)
+void i8253_PIT::SetChannelReloadRegister(size_t channel_index, u16 reload_value)
 {
   Channel* channel = &m_channels[channel_index];
   Log_DebugPrintf("Set PIC channel %u reload register: %u", Truncate32(channel_index), ZeroExtend32(reload_value));

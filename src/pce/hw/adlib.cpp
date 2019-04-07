@@ -27,7 +27,7 @@ bool AdLib::Initialize(System* system, Bus* bus)
     return false;
 
   // IO port connections
-  for (uint32 i = 0; i < 18; i++)
+  for (u32 i = 0; i < 18; i++)
   {
     bus->ConnectIOPortRead(Truncate16(m_io_base + i), this,
                            std::bind(&AdLib::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));

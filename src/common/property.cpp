@@ -31,11 +31,11 @@ bool GetPropertyValueAsString(const void* object, const PROPERTY_DECLARATION* pr
         break;
 
       case PROPERTY_TYPE_UINT:
-        StringConverter::UInt32ToString(value, reinterpret_cast<const uint32&>(TempValue));
+        StringConverter::UInt32ToString(value, reinterpret_cast<const u32&>(TempValue));
         break;
 
       case PROPERTY_TYPE_INT:
-        StringConverter::Int32ToString(value, reinterpret_cast<const int32&>(TempValue));
+        StringConverter::Int32ToString(value, reinterpret_cast<const s32&>(TempValue));
         break;
 
       case PROPERTY_TYPE_FLOAT:
@@ -77,11 +77,11 @@ bool SetPropertyValueFromString(void* object, const PROPERTY_DECLARATION* proper
         break;
 
       case PROPERTY_TYPE_UINT:
-        reinterpret_cast<uint32&>(TempValue) = StringConverter::StringToUInt32(value);
+        reinterpret_cast<u32&>(TempValue) = StringConverter::StringToUInt32(value);
         break;
 
       case PROPERTY_TYPE_INT:
-        reinterpret_cast<int32&>(TempValue) = StringConverter::StringToInt32(value);
+        reinterpret_cast<s32&>(TempValue) = StringConverter::StringToInt32(value);
         break;
 
       case PROPERTY_TYPE_FLOAT:
@@ -141,12 +141,12 @@ bool WritePropertyValueToBuffer(const void* object, const PROPERTY_DECLARATION* 
 
       case PROPERTY_TYPE_UINT:
         writer.WriteUInt32(4);
-        writer.WriteUInt32(reinterpret_cast<const uint32&>(TempValue));
+        writer.WriteUInt32(reinterpret_cast<const u32&>(TempValue));
         break;
 
       case PROPERTY_TYPE_INT:
         writer.WriteUInt32(4);
-        writer.WriteInt32(reinterpret_cast<const int32&>(TempValue));
+        writer.WriteInt32(reinterpret_cast<const s32&>(TempValue));
         break;
 
       case PROPERTY_TYPE_FLOAT:
@@ -171,7 +171,7 @@ bool ReadPropertyValueFromBuffer(void* object, const PROPERTY_DECLARATION* prope
   // Strings handled seperately.
   if (property->Type == PROPERTY_TYPE_STRING)
   {
-    uint32 stringLength = reader.ReadUInt32();
+    u32 stringLength = reader.ReadUInt32();
 
     SmallString stringValue;
     reader.ReadCString(stringValue);
@@ -200,7 +200,7 @@ bool ReadPropertyValueFromBuffer(void* object, const PROPERTY_DECLARATION* prope
         {
           return false;
         }
-        reinterpret_cast<uint32&>(temp_value) = reader.ReadUInt32();
+        reinterpret_cast<u32&>(temp_value) = reader.ReadUInt32();
         break;
 
       case PROPERTY_TYPE_INT:
@@ -208,7 +208,7 @@ bool ReadPropertyValueFromBuffer(void* object, const PROPERTY_DECLARATION* prope
         {
           return false;
         }
-        reinterpret_cast<int32&>(temp_value) = reader.ReadInt32();
+        reinterpret_cast<s32&>(temp_value) = reader.ReadInt32();
         break;
 
       case PROPERTY_TYPE_FLOAT:
@@ -293,27 +293,27 @@ bool DefaultPropertyTableCallbacks::SetBool(void* pObjectPtr, const void* pUserD
   return true;
 }
 
-bool DefaultPropertyTableCallbacks::GetUInt(const void* pObjectPtr, const void* pUserData, uint32* pValuePtr)
+bool DefaultPropertyTableCallbacks::GetUInt(const void* pObjectPtr, const void* pUserData, u32* pValuePtr)
 {
-  *pValuePtr = *((const uint32*)((((const byte*)pObjectPtr) + (*(uint32*)&pUserData))));
+  *pValuePtr = *((const u32*)((((const byte*)pObjectPtr) + (*(u32*)&pUserData))));
   return true;
 }
 
-bool DefaultPropertyTableCallbacks::SetUInt(void* pObjectPtr, const void* pUserData, const uint32* pValuePtr)
+bool DefaultPropertyTableCallbacks::SetUInt(void* pObjectPtr, const void* pUserData, const u32* pValuePtr)
 {
-  *((uint32*)((((byte*)pObjectPtr) + (*(uint32*)&pUserData)))) = *pValuePtr;
+  *((u32*)((((byte*)pObjectPtr) + (*(u32*)&pUserData)))) = *pValuePtr;
   return true;
 }
 
-bool DefaultPropertyTableCallbacks::GetInt(const void* pObjectPtr, const void* pUserData, int32* pValuePtr)
+bool DefaultPropertyTableCallbacks::GetInt(const void* pObjectPtr, const void* pUserData, s32* pValuePtr)
 {
-  *pValuePtr = *((const int32*)((((const byte*)pObjectPtr) + (*(int32*)&pUserData))));
+  *pValuePtr = *((const s32*)((((const byte*)pObjectPtr) + (*(s32*)&pUserData))));
   return true;
 }
 
-bool DefaultPropertyTableCallbacks::SetInt(void* pObjectPtr, const void* pUserData, const int32* pValuePtr)
+bool DefaultPropertyTableCallbacks::SetInt(void* pObjectPtr, const void* pUserData, const s32* pValuePtr)
 {
-  *((int32*)((((byte*)pObjectPtr) + (*(int32*)&pUserData)))) = *pValuePtr;
+  *((s32*)((((byte*)pObjectPtr) + (*(s32*)&pUserData)))) = *pValuePtr;
   return true;
 }
 

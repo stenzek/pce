@@ -28,8 +28,8 @@ inline std::size_t GetFifoSize(Serial::Model model)
   }
 }
 
-Serial::Serial(const String& identifier, Model model /* = Model_8250 */, uint32 base_io_address /* = 0x03F8 */,
-               uint32 irq_number /* = 4 */, int32 base_rate /* = 1843200 */,
+Serial::Serial(const String& identifier, Model model /* = Model_8250 */, u32 base_io_address /* = 0x03F8 */,
+               u32 irq_number /* = 4 */, s32 base_rate /* = 1843200 */,
                const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(identifier, type_info), m_clock("Serial Controller", float(std::max(base_rate / 16, 1))), m_model(model),
     m_base_io_address(base_io_address), m_irq_number(irq_number), m_fifo_capacity(GetFifoSize(model)),
@@ -99,19 +99,19 @@ void Serial::Reset()
 
 bool Serial::LoadState(BinaryReader& reader)
 {
-  uint32 serialization_id;
+  u32 serialization_id;
   if (!reader.SafeReadUInt32(&serialization_id) || serialization_id != SERIALIZATION_ID)
     return false;
 
-  uint32 model;
-  if (!reader.SafeReadUInt32(&model) || model != uint32(m_model))
+  u32 model;
+  if (!reader.SafeReadUInt32(&model) || model != u32(m_model))
     return false;
 
-  uint32 fifo_size;
+  u32 fifo_size;
   if (!reader.SafeReadUInt32(&fifo_size) || fifo_size != Truncate32(m_fifo_capacity))
     return false;
 
-  uint32 fifo_trigger_size, input_fifo_size, output_fifo_size;
+  u32 fifo_trigger_size, input_fifo_size, output_fifo_size;
   if (!reader.SafeReadUInt32(&fifo_trigger_size) || !reader.SafeReadUInt32(&input_fifo_size) ||
       !reader.SafeReadUInt32(&output_fifo_size) || input_fifo_size > fifo_size || output_fifo_size > fifo_size)
   {
@@ -126,13 +126,13 @@ bool Serial::LoadState(BinaryReader& reader)
     reader.SafeReadBytes(m_output_fifo.data(), Truncate32(m_fifo_capacity));
   }
 
-  uint32 input_buffer_size = 0;
+  u32 input_buffer_size = 0;
   reader.SafeReadUInt32(&input_buffer_size);
   m_input_buffer_size = input_buffer_size;
   if (input_buffer_size > 0)
     reader.SafeReadBytes(m_input_buffer.data(), input_buffer_size);
 
-  uint32 output_buffer_size = 0;
+  u32 output_buffer_size = 0;
   reader.SafeReadUInt32(&output_buffer_size);
   m_output_buffer_size = output_buffer_size;
   if (output_buffer_size > 0)
@@ -161,7 +161,7 @@ bool Serial::LoadState(BinaryReader& reader)
 bool Serial::SaveState(BinaryWriter& writer)
 {
   writer.WriteUInt32(SERIALIZATION_ID);
-  writer.WriteUInt32(uint32(m_model));
+  writer.WriteUInt32(u32(m_model));
   writer.WriteUInt32(Truncate32(m_fifo_capacity));
   writer.WriteUInt32(Truncate32(m_fifo_interrupt_size));
   writer.WriteUInt32(Truncate32(m_input_fifo_size));
@@ -465,7 +465,7 @@ void Serial::HandleIOWrite(u16 address, u8 value)
       bool clear_transmit_fifo = !!(value & 0x04);
       // bool dma_mode_select = !!(value & 0x08);
       bool enable_fifo64 = !!(value & 0x20);
-      uint8 fifo_trigger_bits = value >> 6;
+      u8 fifo_trigger_bits = value >> 6;
       if (fifo_enable != m_interrupt_identification_register.fifo_enabled)
       {
         // FIFO enable changed. We need to clear the input/output fifos.
@@ -567,7 +567,7 @@ void Serial::HandleIOWrite(u16 address, u8 value)
   }
 }
 
-bool Serial::ReadFromFifo(std::array<byte, MAX_FIFO_SIZE>& fifo_data, size_t& fifo_size, uint8* value)
+bool Serial::ReadFromFifo(std::array<byte, MAX_FIFO_SIZE>& fifo_data, size_t& fifo_size, u8* value)
 {
   if (fifo_size == 0)
     return false;
@@ -580,7 +580,7 @@ bool Serial::ReadFromFifo(std::array<byte, MAX_FIFO_SIZE>& fifo_data, size_t& fi
   return true;
 }
 
-bool Serial::WriteToFifo(std::array<byte, MAX_FIFO_SIZE>& fifo_data, size_t& fifo_size, uint8 value)
+bool Serial::WriteToFifo(std::array<byte, MAX_FIFO_SIZE>& fifo_data, size_t& fifo_size, u8 value)
 {
   if ((fifo_size + 1) >= GetEffectiveFifoSize())
     return false;
@@ -598,15 +598,15 @@ CycleCount Serial::CalculateCyclesPerByte() const
 void Serial::HandleTransferEvent(CycleCount cycles)
 {
   bool fire_callback = false;
-  uint32 num_bytes = std::max(uint32(cycles / CalculateCyclesPerByte()), UINT32_C(1));
-  Log_DebugPrintf("Serial execute cycles %u bytes %u", uint32(cycles), num_bytes);
+  u32 num_bytes = std::max(u32(cycles / CalculateCyclesPerByte()), UINT32_C(1));
+  Log_DebugPrintf("Serial execute cycles %u bytes %u", u32(cycles), num_bytes);
 
   while ((num_bytes--) > 0)
   {
     // Do we have data to transmit?
     if (!m_line_status_register.empty_transmit_register)
     {
-      uint8 data;
+      u8 data;
       size_t remaining_size;
       if (IsFifoEnabled())
       {
@@ -657,7 +657,7 @@ void Serial::HandleTransferEvent(CycleCount cycles)
     // Do we have data to receive?
     if (m_input_buffer_size > 0)
     {
-      uint8 data = m_input_buffer[0];
+      u8 data = m_input_buffer[0];
       m_input_buffer_size--;
       if (m_input_buffer_size > 0)
         std::memmove(m_input_buffer.data(), m_input_buffer.data() + 1, m_input_buffer_size);

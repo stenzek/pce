@@ -230,12 +230,12 @@ bool TimingManager::LoadState(BinaryReader& reader)
 
   // Load timestamps for the clock events.
   // Any oneshot events should be recreated by the load state method, so we can fix up their times here.
-  uint32 event_count;
+  u32 event_count;
   if (!reader.SafeReadUInt32(&event_count))
     return false;
 
   SmallString event_name;
-  for (uint32 i = 0; i < event_count; i++)
+  for (u32 i = 0; i < event_count; i++)
   {
     if (!reader.SafeReadCString(&event_name))
       return false;
@@ -275,11 +275,11 @@ bool TimingManager::SaveState(BinaryWriter& writer)
   }
 
   // Event count placeholder.
-  uint64 count_offset = writer.GetStreamPosition();
+  u64 count_offset = writer.GetStreamPosition();
   if (!writer.SafeWriteUInt32(0))
     return false;
 
-  uint32 event_count = 0;
+  u32 event_count = 0;
   for (const TimingEvent* evt : m_events)
   {
     if (!writer.SafeWriteCString(evt->GetName()))
@@ -291,7 +291,7 @@ bool TimingManager::SaveState(BinaryWriter& writer)
     event_count++;
   }
 
-  uint64 end_offset = writer.GetStreamPosition();
+  u64 end_offset = writer.GetStreamPosition();
   if (!writer.SafeSeekAbsolute(count_offset) || !writer.SafeWriteUInt32(event_count) ||
       !writer.SafeSeekAbsolute(end_offset))
     return false;
@@ -409,7 +409,7 @@ void TimingEvent::Deactivate()
   m_manager->RemoveActiveEvent(this);
 }
 
-void TimingEvent::SetFrequency(float new_frequency, uint32 interval /* = 1 */)
+void TimingEvent::SetFrequency(float new_frequency, u32 interval /* = 1 */)
 {
   SimulationTime new_cycle_period = SimulationTime(double(1000000000.0) / double(new_frequency));
 

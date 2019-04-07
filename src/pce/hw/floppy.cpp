@@ -15,21 +15,21 @@ namespace HW {
 #pragma pack(push, 1)
 struct FAT_HEADER
 {
-  uint8 bootstrap_jump[3];
+  u8 bootstrap_jump[3];
   char oem_name[8];
-  uint16 bytes_per_sector;
-  uint8 sectors_per_cluster;
-  uint16 num_reserved_sectors;
-  uint8 num_fat_copies;
-  uint16 num_root_directory_entries;
-  uint16 num_sectors;
-  uint8 media_descriptor_type;
-  uint16 num_sectors_per_fat;
-  uint16 num_sectors_per_track;
-  uint16 num_heads;
-  uint16 num_hidden_sectors;
-  uint8 bootloader_code[480];
-  uint16 signature;
+  u16 bytes_per_sector;
+  u8 sectors_per_cluster;
+  u16 num_reserved_sectors;
+  u8 num_fat_copies;
+  u16 num_root_directory_entries;
+  u16 num_sectors;
+  u8 media_descriptor_type;
+  u16 num_sectors_per_fat;
+  u16 num_sectors_per_track;
+  u16 num_heads;
+  u16 num_hidden_sectors;
+  u8 bootloader_code[480];
+  u16 signature;
 };
 static_assert(sizeof(FAT_HEADER) == 512, "FAT header is 512 bytes");
 #pragma pack(pop)
@@ -37,11 +37,11 @@ static_assert(sizeof(FAT_HEADER) == 512, "FAT header is 512 bytes");
 struct DiskTypeInfo
 {
   Floppy::DriveType drive_type;
-  uint32 size;
-  uint32 num_tracks;
-  uint32 num_heads;
-  uint32 num_sectors_per_track;
-  uint8 media_descriptor_byte;
+  u32 size;
+  u32 num_tracks;
+  u32 num_heads;
+  u32 num_sectors_per_track;
+  u8 media_descriptor_byte;
 };
 static const DiskTypeInfo disk_types[Floppy::DiskType_Count] = {
   {Floppy::DriveType_None, 0, 0, 0, 0, 0x00},         // DiskType_None
@@ -91,7 +91,7 @@ Floppy::DiskType Floppy::DetectDiskType(ByteStream* stream, Error* error)
   const u64 old_position = stream->GetPosition();
 
   // Get file size
-  uint32 file_size = static_cast<uint32>(stream->GetSize());
+  u32 file_size = static_cast<u32>(stream->GetSize());
   Log_DevPrintf("Disk size: %u bytes", file_size);
 
   // Check for FAT header

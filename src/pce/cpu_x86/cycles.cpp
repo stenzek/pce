@@ -3,7 +3,7 @@ namespace CPU_X86 {
 
 // Most numbers from MAME: https://github.com/mamedev/mame/blob/master/src/devices/cpu/i386/cycles.h#L625 (BSD 3 Clause)
 
-const uint32 g_cycle_group_timings[NUM_CYCLE_GROUPS][3] = {
+const u32 g_cycle_group_timings[NUM_CYCLE_GROUPS][3] = {
   // 386 486 Pentium
   {2, 1, 1},       // CYCLES_MOV_RM_MEM_REG
   {2, 1, 1},       // CYCLES_MOV_RM_REG_REG

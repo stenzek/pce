@@ -26,12 +26,12 @@ public:
   struct ModRMAddress
   {
     ModRMAddressingMode addressing_mode;
-    uint8 base_register;
-    uint8 index_register;
-    uint8 displacement_size;
+    u8 base_register;
+    u8 index_register;
+    u8 displacement_size;
     Segment default_segment;
   };
-  static const ModRMAddress* DecodeModRMAddress(AddressSize address_size, uint8 modrm);
+  static const ModRMAddress* DecodeModRMAddress(AddressSize address_size, u8 modrm);
 
   // Helpers
   static const char* GetOperationName(Operation op);

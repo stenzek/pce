@@ -30,7 +30,7 @@ static bool RunTest(const char* code_file, const char* expected_ouput_file)
 
   // Read back results
   actual_buffer.Resize(expected_buffer.GetSize());
-  for (uint32 i = 0; i < expected_buffer.GetSize(); i++)
+  for (u32 i = 0; i < expected_buffer.GetSize(); i++)
   {
     if (!system->GetBus()->CheckedReadMemoryByte(i, &actual_buffer[i]))
     {
@@ -40,10 +40,10 @@ static bool RunTest(const char* code_file, const char* expected_ouput_file)
   }
 
   bool result = true;
-  for (uint32 i = 0; i < expected_buffer.GetSize(); i++)
+  for (u32 i = 0; i < expected_buffer.GetSize(); i++)
   {
-    uint8 val1 = expected_buffer[i];
-    uint8 val2 = actual_buffer[i];
+    u8 val1 = expected_buffer[i];
+    u8 val2 = actual_buffer[i];
     EXPECT_EQ(val1, val2) << StringFromFormat("Difference at offset 0x%04X (%u): expected %02X got %02X", i, i, val1,
                                               val2);
     if (val1 != val2)
@@ -53,19 +53,19 @@ static bool RunTest(const char* code_file, const char* expected_ouput_file)
   if (!result)
   {
     Log_DevPrintf("Expected results: ");
-    for (uint32 i = 0; i < expected_buffer.GetSize(); i += 16)
+    for (u32 i = 0; i < expected_buffer.GetSize(); i += 16)
     {
       SmallString hex_string;
-      for (uint32 j = 0; j < 16 && (i + j) < expected_buffer.GetSize(); j++)
+      for (u32 j = 0; j < 16 && (i + j) < expected_buffer.GetSize(); j++)
         hex_string.AppendFormattedString("%02X ", expected_buffer[i + j]);
       Log_DevPrintf("%04X: %s", i, hex_string.GetCharArray());
     }
 
     Log_DevPrintf("Actual results: ");
-    for (uint32 i = 0; i < expected_buffer.GetSize(); i += 16)
+    for (u32 i = 0; i < expected_buffer.GetSize(); i += 16)
     {
       SmallString hex_string;
-      for (uint32 j = 0; j < 16 && (i + j) < expected_buffer.GetSize(); j++)
+      for (u32 j = 0; j < 16 && (i + j) < expected_buffer.GetSize(); j++)
         hex_string.AppendFormattedString("%02X ", actual_buffer[i + j]);
       Log_DevPrintf("%04X: %s", i, hex_string.GetCharArray());
     }

@@ -72,7 +72,7 @@ public:
     BitField<u8, bool, 2, 1> corrected_data;
     BitField<u8, bool, 1, 1> index;
     BitField<u8, bool, 0, 1> error;
-    uint8 bits;
+    u8 bits;
 
     // TODO: We can optimize these to manipulate bits directly.
 
@@ -244,7 +244,7 @@ public:
 protected:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('A', 'T', 'A', 'D');
 
-  static void PutIdentifyString(char* buffer, uint32 buffer_size, const char* str);
+  static void PutIdentifyString(char* buffer, u32 buffer_size, const char* str);
 
   void RaiseInterrupt();
 

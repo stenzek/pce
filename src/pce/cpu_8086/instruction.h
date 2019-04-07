@@ -12,13 +12,13 @@ struct Instruction
     OperandMode mode;
     union
     {
-      uint32 data;
+      u32 data;
 
       Reg8 reg8;
       Reg16 reg16;
       Segment segreg;
       JumpCondition jump_condition;
-      uint32 constant;
+      u32 constant;
     };
   };
 
@@ -29,8 +29,8 @@ struct Instruction
   u8 length;
 
   // Helper methods here.
-  uint8 GetModRMByte() const { return data.modrm; }
-  uint8 GetModRM_Reg() const { return data.GetModRM_Reg(); }
+  u8 GetModRMByte() const { return data.modrm; }
+  u8 GetModRM_Reg() const { return data.GetModRM_Reg(); }
   bool ModRM_RM_IsReg() const { return data.ModRM_RM_IsReg(); }
   Segment GetMemorySegment() const { return data.segment; }
   bool IsRegisterOperand(size_t index) const

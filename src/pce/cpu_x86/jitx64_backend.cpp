@@ -16,7 +16,7 @@ Log_SetChannel(CPUX86::Interpreter);
 namespace CPU_X86 {
 
 extern bool TRACE_EXECUTION;
-extern uint32 TRACE_EXECUTION_LAST_EIP;
+extern u32 TRACE_EXECUTION_LAST_EIP;
 
 JitX64Backend::JitX64Backend(CPU* cpu) : CodeCacheBackend(cpu), m_code_space(std::make_unique<JitX64Code>()) {}
 
@@ -60,9 +60,9 @@ void JitX64Backend::AbortCurrentInstruction()
   fastjmp_jmp(&m_jmp_buf);
 }
 
-void JitX64Backend::BranchTo(uint32 new_EIP) {}
+void JitX64Backend::BranchTo(u32 new_EIP) {}
 
-void JitX64Backend::BranchFromException(uint32 new_EIP) {}
+void JitX64Backend::BranchFromException(u32 new_EIP) {}
 
 void JitX64Backend::FlushCodeCache()
 {

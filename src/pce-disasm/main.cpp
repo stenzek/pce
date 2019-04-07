@@ -21,7 +21,7 @@ static bool ReadFileToArray(PODArray<byte>* dest_array, const char* filename)
     return false;
   }
 
-  dest_array->Resize(static_cast<uint32>(stream->GetSize()));
+  dest_array->Resize(static_cast<u32>(stream->GetSize()));
   if (!stream->Read2(dest_array->GetBasePointer(), dest_array->GetSize()))
   {
     Log_ErrorPrintf("Failed to read code file %s", filename);
@@ -38,7 +38,7 @@ String input_file_name;
 PODArray<byte> input_code;
 CPU_X86::AddressSize address_size = CPU_X86::AddressSize_16;
 CPU_X86::OperandSize operand_size = CPU_X86::OperandSize_16;
-uint32 origin_address = 0;
+u32 origin_address = 0;
 
 static bool ParseArguments(int argc, char* argv[])
 {
@@ -49,7 +49,7 @@ static bool ParseArguments(int argc, char* argv[])
   {
     if (CHECK_ARG_PARAM("-b"))
     {
-      uint32 bit_width = StringConverter::StringToUInt32(argv[++i]);
+      u32 bit_width = StringConverter::StringToUInt32(argv[++i]);
       if (bit_width == 16)
       {
         address_size = CPU_X86::AddressSize_16;
@@ -77,7 +77,7 @@ static bool ParseArguments(int argc, char* argv[])
     else if (CHECK_ARG_PARAM("-hex"))
     {
       const char* data = argv[++i];
-      uint32 length = Truncate32(std::strlen(data));
+      u32 length = Truncate32(std::strlen(data));
       input_code.Resize(length / 2 + 1);
       length = StringConverter::HexStringToBytes(input_code.GetBasePointer(), input_code.GetSize(), data);
       input_code.Resize(length);
@@ -106,15 +106,15 @@ static bool ParseArguments(int argc, char* argv[])
   return true;
 }
 
-static void PrintInstruction(const uint32 offset, const CPU_X86::Instruction* instruction)
+static void PrintInstruction(const u32 offset, const CPU_X86::Instruction* instruction)
 {
   SmallString hex_string;
   SmallString instr_string;
 
-  uint32 instruction_length = (instruction) ? instruction->length : 16;
-  for (uint32 i = 0; i < instruction_length && (offset + i) < input_code.GetSize(); i++)
+  u32 instruction_length = (instruction) ? instruction->length : 16;
+  for (u32 i = 0; i < instruction_length && (offset + i) < input_code.GetSize(); i++)
     hex_string.AppendFormattedString("%02X ", ZeroExtend32(input_code[offset + i]));
-  for (uint32 i = instruction_length; i < 6; i++)
+  for (u32 i = instruction_length; i < 6; i++)
     hex_string.AppendString("   ");
 
   if (instruction)
@@ -148,7 +148,7 @@ static bool RunDisassembler()
 
   while (memory_stream->GetPosition() < memory_stream->GetSize() && !memory_stream->InErrorState())
   {
-    uint64 instruction_offset = memory_stream->GetPosition();
+    u64 instruction_offset = memory_stream->GetPosition();
 
     CPU_X86::Instruction instruction;
     if (CPU_X86::Decoder::DecodeInstruction(&instruction, address_size, operand_size,

@@ -23,8 +23,8 @@ public:
   virtual ~ObjectTypeInfo();
 
   // accessors
-  const uint32 GetTypeIndex() const { return m_type_index; }
-  const uint32 GetInheritanceDepth() const { return m_inheritance_depth; }
+  const u32 GetTypeIndex() const { return m_type_index; }
+  const u32 GetInheritanceDepth() const { return m_inheritance_depth; }
   const char* GetTypeName() const { return m_type_name; }
   const ObjectTypeInfo* GetParentType() const { return m_parent_type; }
   ObjectFactory* GetFactory() const { return m_factory; }
@@ -40,20 +40,20 @@ public:
 
   // properties
   const PROPERTY_DECLARATION* GetPropertyDeclarationByName(const char* name) const;
-  const PROPERTY_DECLARATION* GetPropertyDeclarationByIndex(uint32 index) const
+  const PROPERTY_DECLARATION* GetPropertyDeclarationByIndex(u32 index) const
   {
     DebugAssert(index < m_num_property_declarations);
     return m_property_declarations[index];
   }
-  uint32 GetPropertyCount() const { return m_num_property_declarations; }
+  u32 GetPropertyCount() const { return m_num_property_declarations; }
 
   // only called once.
   virtual void RegisterType();
   virtual void UnregisterType();
 
 protected:
-  uint32 m_type_index;
-  uint32 m_inheritance_depth;
+  u32 m_type_index;
+  u32 m_inheritance_depth;
   const char* m_type_name;
   const ObjectTypeInfo* m_parent_type;
   ObjectFactory* m_factory;
@@ -61,7 +61,7 @@ protected:
   // properties
   const PROPERTY_DECLARATION* m_source_property_declarations;
   const PROPERTY_DECLARATION** m_property_declarations;
-  uint32 m_num_property_declarations;
+  u32 m_num_property_declarations;
 
   // TYPE REGISTRY
 public:

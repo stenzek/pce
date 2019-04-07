@@ -1,8 +1,8 @@
 #pragma once
-#include "YBaseLib/Common.h"
+#include "common/types.h"
 
 // Generic scan code system
-enum GenScanCode : uint8
+enum GenScanCode : u8
 {
   GenScanCode_None,
 

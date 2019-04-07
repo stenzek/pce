@@ -35,7 +35,7 @@ constexpr float OutputBufferLengthInSeconds = 1.0f;
 // Audio render frequency. We render the elapsed simulated time worth of audio at this interval.
 // Currently it is every 50ms, or 20hz. For audio channels, it's recommended to render at twice this
 // frequency in order to ensure that there is always data ready. This could also be mitigated by buffering.
-constexpr uint32 MixFrequency = 20;
+constexpr u32 MixFrequency = 20;
 constexpr SimulationTime MixInterval = SimulationTime(1000000000) / SimulationTime(MixFrequency);
 
 // We buffer 10ms of input before rendering any samples, that way we don't get buffer underruns.

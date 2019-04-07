@@ -14,7 +14,7 @@ BEGIN_OBJECT_PROPERTY_MAP(Bochs)
 END_OBJECT_PROPERTY_MAP()
 
 Bochs::Bochs(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_frequency /* = 75000000.0f */,
-             uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+             u32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(model, cpu_frequency, memory_size, type_info)
 {
   m_bios_file_path = "romimages/BIOS-bochs-latest";
@@ -61,7 +61,7 @@ void Bochs::ConnectSystemIOPorts()
   // Debug ports.
   static const char* debug_port_names[5] = {"panic", "panic2", "info", "debug", "unknown"};
   static const u16 debug_port_numbers[5] = {0x0400, 0x0401, 0x0402, 0x0403, 0x0500};
-  for (uint32 i = 0; i < countof(debug_port_names); i++)
+  for (u32 i = 0; i < countof(debug_port_names); i++)
   {
     const char* port_name = debug_port_names[i];
     std::shared_ptr<std::string> str = std::make_shared<std::string>();
@@ -129,14 +129,14 @@ void Bochs::SetCMOSVariables()
   Log_DevPrintf("Extended memory above 16MB in KB: %u", Truncate32(extended_memory_in_64k * 64));
 
   m_cmos->SetConfigFloppyCount(m_fdd_controller->GetDriveCount());
-  for (uint32 i = 0; i < HW::FDC::MAX_DRIVES; i++)
+  for (u32 i = 0; i < HW::FDC::MAX_DRIVES; i++)
   {
     if (m_fdd_controller->IsDrivePresent(i))
       m_cmos->SetConfigFloppyType(i, m_fdd_controller->GetDriveType_(i));
   }
 
   // Equipment byte
-  uint8 equipment_byte = 0;
+  u8 equipment_byte = 0;
   equipment_byte |= (1 << 1); // coprocessor installed
   equipment_byte |= (1 << 2); // ps/2 device/mouse installed
   if (m_fdd_controller->GetDriveCount() > 0)

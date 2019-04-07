@@ -36,31 +36,31 @@ class CPU : public ::CPU
   friend class JitX64CodeGenerator;
 
 public:
-  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
-  static constexpr uint32 PAGE_SIZE = 4096;
-  static constexpr uint32 PAGE_OFFSET_MASK = (PAGE_SIZE - 1);
-  static constexpr uint32 PAGE_MASK = ~PAGE_OFFSET_MASK;
-  static constexpr uint32 PAGE_SHIFT = 12;
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
+  static constexpr u32 PAGE_SIZE = 4096;
+  static constexpr u32 PAGE_OFFSET_MASK = (PAGE_SIZE - 1);
+  static constexpr u32 PAGE_MASK = ~PAGE_OFFSET_MASK;
+  static constexpr u32 PAGE_SHIFT = 12;
   static constexpr size_t TLB_ENTRY_COUNT = 8192;
 
 #pragma pack(push, 1)
   // Needed because the 8-bit register indices are all low bits -> all high bits
   struct Reg8Access
   {
-    const uint8& operator[](size_t index) const { return data[index % 4][index / 4]; }
-    uint8& operator[](size_t index) { return data[index % 4][index / 4]; }
+    const u8& operator[](size_t index) const { return data[index % 4][index / 4]; }
+    u8& operator[](size_t index) { return data[index % 4][index / 4]; }
 
-    uint8 data[Reg32_Count][4];
+    u8 data[Reg32_Count][4];
   };
   struct Reg16Access
   {
-    const uint16& operator[](size_t index) const { return data[index][0]; }
-    uint16& operator[](size_t index) { return data[index][0]; }
+    const u16& operator[](size_t index) const { return data[index][0]; }
+    u16& operator[](size_t index) { return data[index][0]; }
 
-    uint16 data[Reg32_Count][2];
+    u16 data[Reg32_Count][2];
   };
 
-  template<uint32 mask>
+  template<u32 mask>
   struct FlagAccess
   {
     inline bool IsSet() const { return !!(data & mask); }
@@ -76,7 +76,7 @@ public:
       return *this;
     }
 
-    uint32 data;
+    u32 data;
   };
 #pragma pack(pop)
 
@@ -85,60 +85,60 @@ public:
     struct
     {
       // Little-endian, so LSB first
-      uint8 AL;
-      uint8 AH;
-      uint8 __reserved8_0;
-      uint8 __reserved8_1;
-      uint8 CL;
-      uint8 CH;
-      uint8 __reserved8_2;
-      uint8 __reserved8_3;
-      uint8 DL;
-      uint8 DH;
-      uint8 __reserved8_4;
-      uint8 __reserved8_5;
-      uint8 BL;
-      uint8 BH;
-      uint8 __reserved8_6;
-      uint8 __reserved8_7;
+      u8 AL;
+      u8 AH;
+      u8 __reserved8_0;
+      u8 __reserved8_1;
+      u8 CL;
+      u8 CH;
+      u8 __reserved8_2;
+      u8 __reserved8_3;
+      u8 DL;
+      u8 DH;
+      u8 __reserved8_4;
+      u8 __reserved8_5;
+      u8 BL;
+      u8 BH;
+      u8 __reserved8_6;
+      u8 __reserved8_7;
     };
 
     struct
     {
-      uint16 AX;
-      uint16 __reserved16_0;
-      uint16 CX;
-      uint16 __reserved16_1;
-      uint16 DX;
-      uint16 __reserved16_2;
-      uint16 BX;
-      uint16 __reserved16_3;
-      uint16 SP;
-      uint16 __reserved16_4;
-      uint16 BP;
-      uint16 __reserved16_5;
-      uint16 SI;
-      uint16 __reserved16_6;
-      uint16 DI;
-      uint16 __reserved16_7;
-      uint16 IP;
-      uint16 __reserved16_8;
-      uint16 FLAGS;
-      uint16 __reserved16_9;
+      u16 AX;
+      u16 __reserved16_0;
+      u16 CX;
+      u16 __reserved16_1;
+      u16 DX;
+      u16 __reserved16_2;
+      u16 BX;
+      u16 __reserved16_3;
+      u16 SP;
+      u16 __reserved16_4;
+      u16 BP;
+      u16 __reserved16_5;
+      u16 SI;
+      u16 __reserved16_6;
+      u16 DI;
+      u16 __reserved16_7;
+      u16 IP;
+      u16 __reserved16_8;
+      u16 FLAGS;
+      u16 __reserved16_9;
     };
 
     struct
     {
-      uint32 EAX;
-      uint32 ECX;
-      uint32 EDX;
-      uint32 EBX;
-      uint32 ESP;
-      uint32 EBP;
-      uint32 ESI;
-      uint32 EDI;
+      u32 EAX;
+      u32 ECX;
+      u32 EDX;
+      u32 EBX;
+      u32 ESP;
+      u32 EBP;
+      u32 ESI;
+      u32 EDI;
 
-      uint32 EIP;
+      u32 EIP;
 
       union
       {
@@ -157,60 +157,60 @@ public:
         FlagAccess<Flag_AC> AC;
         FlagAccess<Flag_VIF> VIF;
         FlagAccess<Flag_VIP> VIP;
-        uint32 bits;
+        u32 bits;
       } EFLAGS;
 
-      uint32 CR0;
-      uint32 CR1;
-      uint32 CR2;
-      uint32 CR3;
+      u32 CR0;
+      u32 CR1;
+      u32 CR2;
+      u32 CR3;
       union
       {
-        uint32 bits;
-        BitField<uint32, bool, 0, 1> VME;
-        BitField<uint32, bool, 1, 1> PVI;
-        BitField<uint32, bool, 2, 1> TSD;
-        BitField<uint32, bool, 3, 1> DE;
+        u32 bits;
+        BitField<u32, bool, 0, 1> VME;
+        BitField<u32, bool, 1, 1> PVI;
+        BitField<u32, bool, 2, 1> TSD;
+        BitField<u32, bool, 3, 1> DE;
       } CR4;
 
-      uint32 DR0;
-      uint32 DR1;
-      uint32 DR2;
-      uint32 DR3;
-      uint32 DR4;
-      uint32 DR5;
-      uint32 DR6;
-      uint32 DR7;
+      u32 DR0;
+      u32 DR1;
+      u32 DR2;
+      u32 DR3;
+      u32 DR4;
+      u32 DR5;
+      u32 DR6;
+      u32 DR7;
 
-      uint32 TR3;
-      uint32 TR4;
-      uint32 TR5;
-      uint32 TR6;
-      uint32 TR7;
+      u32 TR3;
+      u32 TR4;
+      u32 TR5;
+      u32 TR6;
+      u32 TR7;
 
       union
       {
         struct
         {
-          uint16 ES;
-          uint16 CS;
-          uint16 SS;
-          uint16 DS;
-          uint16 FS;
-          uint16 GS;
+          u16 ES;
+          u16 CS;
+          u16 SS;
+          u16 DS;
+          u16 FS;
+          u16 GS;
         };
-        uint16 segment_selectors[Segment_Count];
+        u16 segment_selectors[Segment_Count];
       };
 
       // uint48 GDTR;
       // uint48 IDTR;
-      uint16 LDTR;
-      uint16 TR;
+      u16 LDTR;
+      u16 TR;
     };
 
     Reg8Access reg8;
     Reg16Access reg16;
-    uint32 reg32[Reg32_Count];
+    u32 reg32[Reg32_Count];
   };
 
   struct FPURegisters
@@ -247,32 +247,32 @@ public:
   struct TemporaryStack
   {
     CPU* cpu;
-    uint32 ESP;
-    uint32 base_address;
-    uint32 limit_low;
-    uint32 limit_high;
+    u32 ESP;
+    u32 base_address;
+    u32 limit_low;
+    u32 limit_high;
     AddressSize address_size;
-    uint16 SS;
+    u16 SS;
 
-    TemporaryStack(CPU* cpu_, uint32 ESP_, uint16 SS_, uint32 base_address_, uint32 limit_low_, uint32 limit_high_,
+    TemporaryStack(CPU* cpu_, u32 ESP_, u16 SS_, u32 base_address_, u32 limit_low_, u32 limit_high_,
                    AddressSize address_size_);
-    TemporaryStack(CPU* cpu_, uint32 ESP_, uint16 SS_, const DESCRIPTOR_ENTRY& dentry);
-    TemporaryStack(CPU* cpu_, uint32 ESP_, uint16 SS_);
+    TemporaryStack(CPU* cpu_, u32 ESP_, u16 SS_, const DESCRIPTOR_ENTRY& dentry);
+    TemporaryStack(CPU* cpu_, u32 ESP_, u16 SS_);
 
-    bool CanPushBytes(uint32 num_bytes) const;
-    bool CanPushWords(uint32 num_words) const;
-    bool CanPushDWords(uint32 num_dwords) const;
+    bool CanPushBytes(u32 num_bytes) const;
+    bool CanPushWords(u32 num_words) const;
+    bool CanPushDWords(u32 num_dwords) const;
 
-    void PushWord(uint16 value);
-    void PushDWord(uint32 value);
-    uint16 PopWord();
-    uint32 PopDWord();
+    void PushWord(u16 value);
+    void PushDWord(u32 value);
+    u16 PopWord();
+    u32 PopDWord();
 
     void SwitchTo();
   };
 
   // Interrupt hook callback
-  using InterruptHookCallback = std::function<bool(uint32 interrupt, Registers* registers)>;
+  using InterruptHookCallback = std::function<bool(u32 interrupt, Registers* registers)>;
 
   CPU(const String& identifier, Model model, float frequency, BackendType backend_type = BackendType::Interpreter,
       const ObjectTypeInfo* type_info = &s_type_info);
@@ -299,9 +299,7 @@ public:
 
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
-  void AddMemoryCycle()
-  { /*m_pending_cycles++;*/
-  }
+  void AddMemoryCycle() { /*m_pending_cycles++;*/}
   void AddCycles(CYCLE_GROUP group) { m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group]); }
   void AddCyclesPMode(CYCLE_GROUP group)
   {
@@ -323,35 +321,35 @@ public:
                               AccessFlags flags);
 
   // Checks if a given offset is valid into the specified segment.
-  template<uint32 size, AccessType access>
+  template<u32 size, AccessType access>
   bool CheckSegmentAccess(Segment segment, VirtualMemoryAddress offset, bool raise_gp_fault);
 
   // Linear memory reads/writes
   // These should only be used within instruction handlers, or jit code, as they raise exceptions.
-  uint8 ReadMemoryByte(LinearMemoryAddress address);
-  uint16 ReadMemoryWord(LinearMemoryAddress address);
-  uint32 ReadMemoryDWord(LinearMemoryAddress address);
-  void WriteMemoryByte(LinearMemoryAddress address, uint8 value);
-  void WriteMemoryWord(LinearMemoryAddress address, uint16 value);
-  void WriteMemoryDWord(LinearMemoryAddress address, uint32 value);
+  u8 ReadMemoryByte(LinearMemoryAddress address);
+  u16 ReadMemoryWord(LinearMemoryAddress address);
+  u32 ReadMemoryDWord(LinearMemoryAddress address);
+  void WriteMemoryByte(LinearMemoryAddress address, u8 value);
+  void WriteMemoryWord(LinearMemoryAddress address, u16 value);
+  void WriteMemoryDWord(LinearMemoryAddress address, u32 value);
 
   // Reads/writes memory based on the specified segment and offset.
   // These should only be used within instruction handlers, or jit code, as they raise exceptions.
-  uint8 ReadMemoryByte(Segment segment, VirtualMemoryAddress address);
-  uint16 ReadMemoryWord(Segment segment, VirtualMemoryAddress address);
-  uint32 ReadMemoryDWord(Segment segment, VirtualMemoryAddress address);
-  void WriteMemoryByte(Segment segment, VirtualMemoryAddress address, uint8 value);
-  void WriteMemoryWord(Segment segment, VirtualMemoryAddress address, uint16 value);
-  void WriteMemoryDWord(Segment segment, VirtualMemoryAddress address, uint32 value);
+  u8 ReadMemoryByte(Segment segment, VirtualMemoryAddress address);
+  u16 ReadMemoryWord(Segment segment, VirtualMemoryAddress address);
+  u32 ReadMemoryDWord(Segment segment, VirtualMemoryAddress address);
+  void WriteMemoryByte(Segment segment, VirtualMemoryAddress address, u8 value);
+  void WriteMemoryWord(Segment segment, VirtualMemoryAddress address, u16 value);
+  void WriteMemoryDWord(Segment segment, VirtualMemoryAddress address, u32 value);
 
   // Unchecked memory reads/writes (don't perform access checks, or raise exceptions).
   // Safe to use outside instruction handlers.
-  bool SafeReadMemoryByte(LinearMemoryAddress address, uint8* value, AccessFlags access_flags);
-  bool SafeReadMemoryWord(LinearMemoryAddress address, uint16* value, AccessFlags access_flags);
-  bool SafeReadMemoryDWord(LinearMemoryAddress address, uint32* value, AccessFlags access_flags);
-  bool SafeWriteMemoryByte(VirtualMemoryAddress address, uint8 value, AccessFlags access_flags);
-  bool SafeWriteMemoryWord(VirtualMemoryAddress address, uint16 value, AccessFlags access_flags);
-  bool SafeWriteMemoryDWord(VirtualMemoryAddress address, uint32 value, AccessFlags access_flags);
+  bool SafeReadMemoryByte(LinearMemoryAddress address, u8* value, AccessFlags access_flags);
+  bool SafeReadMemoryWord(LinearMemoryAddress address, u16* value, AccessFlags access_flags);
+  bool SafeReadMemoryDWord(LinearMemoryAddress address, u32* value, AccessFlags access_flags);
+  bool SafeWriteMemoryByte(VirtualMemoryAddress address, u8 value, AccessFlags access_flags);
+  bool SafeWriteMemoryWord(VirtualMemoryAddress address, u16 value, AccessFlags access_flags);
+  bool SafeWriteMemoryDWord(VirtualMemoryAddress address, u32 value, AccessFlags access_flags);
 
   // Prints the current state and instruction the CPU is sitting at.
   void PrintCurrentStateAndInstruction(const char* prefix_message = nullptr);
@@ -380,7 +378,7 @@ protected:
   void CreateBackend();
 
   // Reads privilege level
-  uint8 GetCPL() const;
+  u8 GetCPL() const;
 
   // Checks for supervisor/user mode
   bool InSupervisorMode() const;
@@ -388,7 +386,7 @@ protected:
   bool IsPagingEnabled() const;
 
   // Reads i/o privilege level from flags
-  uint16 GetIOPL() const;
+  u16 GetIOPL() const;
 
   // Helper to check for real mode
   // Returns false for V8086 mode
@@ -405,65 +403,65 @@ protected:
                        AccessFlags flags);
 
   // Instruction fetching
-  uint8 FetchInstructionByte();
-  uint16 FetchInstructionWord();
-  uint32 FetchInstructionDWord();
+  u8 FetchInstructionByte();
+  u16 FetchInstructionWord();
+  u32 FetchInstructionDWord();
 
   // Direct instruction fetching (bypass the prefetch queue)
-  uint8 FetchDirectInstructionByte(u32 address);
-  uint16 FetchDirectInstructionWord(u32 address);
-  uint32 FetchDirectInstructionDWord(u32 address);
+  u8 FetchDirectInstructionByte(u32 address);
+  u16 FetchDirectInstructionWord(u32 address);
+  u32 FetchDirectInstructionDWord(u32 address);
 
   // Push/pop from stack
   // This can cause both a page fault, as well as a stack fault, in which case
   // these functions will never return.
-  void PushWord(uint16 value);
-  void PushDWord(uint32 value);
-  uint16 PopWord();
-  uint32 PopDWord();
+  void PushWord(u16 value);
+  void PushDWord(u32 value);
+  u16 PopWord();
+  u32 PopDWord();
 
   // Sets flags from a value, masking away bits that can't be changed
-  void SetFlags(uint32 value);
+  void SetFlags(u32 value);
   void SetHalted(bool halt);
   void UpdateAlignmentCheckMask();
-  void SetCPL(uint8 cpl);
+  void SetCPL(u8 cpl);
 
   // Loads 80386+ control/debug/test registers
-  void LoadSpecialRegister(Reg32 reg, uint32 value);
+  void LoadSpecialRegister(Reg32 reg, u32 value);
 
   // Reads a segment descriptor from memory, given a selector
-  bool ReadDescriptorEntry(DESCRIPTOR_ENTRY* entry, const DescriptorTablePointer& table, uint32 index);
+  bool ReadDescriptorEntry(DESCRIPTOR_ENTRY* entry, const DescriptorTablePointer& table, u32 index);
   bool ReadDescriptorEntry(DESCRIPTOR_ENTRY* entry, const SEGMENT_SELECTOR_VALUE& selector);
 
   // Updates a segment descriptor
-  bool WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const DescriptorTablePointer& table, uint32 index);
+  bool WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const DescriptorTablePointer& table, u32 index);
   bool WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const SEGMENT_SELECTOR_VALUE& selector);
 
   // Updates the accessed bit in a descriptor.
-  void SetDescriptorAccessedBit(DESCRIPTOR_ENTRY& entry, const DescriptorTablePointer& table, uint32 index);
+  void SetDescriptorAccessedBit(DESCRIPTOR_ENTRY& entry, const DescriptorTablePointer& table, u32 index);
   void SetDescriptorAccessedBit(DESCRIPTOR_ENTRY& entry, const SEGMENT_SELECTOR_VALUE& selector);
 
   // Checks code segment is valid for far jump/call/iret.
-  bool CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 check_cpl, bool raise_exceptions);
+  bool CheckTargetCodeSegment(u16 raw_selector, u8 check_rpl, u8 check_cpl, bool raise_exceptions);
 
   // Load descriptor tables.
-  void LoadGlobalDescriptorTable(LinearMemoryAddress table_base_address, uint32 table_limit);
-  void LoadInterruptDescriptorTable(LinearMemoryAddress table_base_address, uint32 table_limit);
+  void LoadGlobalDescriptorTable(LinearMemoryAddress table_base_address, u32 table_limit);
+  void LoadInterruptDescriptorTable(LinearMemoryAddress table_base_address, u32 table_limit);
 
   // Loads the visible portion of a segment register, updating the cached information
-  void LoadSegmentRegister(Segment segment, uint16 value);
-  void LoadLocalDescriptorTable(uint16 value);
-  void LoadTaskSegment(uint16 value);
+  void LoadSegmentRegister(Segment segment, u16 value);
+  void LoadLocalDescriptorTable(u16 value);
+  void LoadTaskSegment(u16 value);
 
   // Clears inaccessible segment selectors, based on the current privilege level.
   void ClearInaccessibleSegmentSelectors();
 
   // Throws an exception, leaving IP containing the address of the current instruction
-  void RaiseException(uint32 interrupt, uint32 error_code = 0);
+  void RaiseException(u32 interrupt, u32 error_code = 0);
 
   // Raises a software interrupt (INT3, INTO, BOUND). Does not abort the current instruction.
   // EIP is set to the next instruction, not the excepting instruction. ESP is not reset.
-  void RaiseSoftwareException(uint32 interrupt);
+  void RaiseSoftwareException(u32 interrupt);
 
   // Debugger exceptions, whether from the INT1 instruction, or from debug exceptions should
   // not be classed as software exceptions for the purpose of the EXT bit, or descriptor checks.
@@ -481,24 +479,23 @@ protected:
   void DispatchExternalInterrupt();
 
   // Jump instructions
-  void BranchTo(uint32 new_EIP);
-  void BranchFromException(uint32 new_EIP);
+  void BranchTo(u32 new_EIP);
+  void BranchFromException(u32 new_EIP);
   void AbortCurrentInstruction();
   void RestartCurrentInstruction();
 
   // Handle far calls/jumps
-  void FarJump(uint16 segment_selector, uint32 offset, OperandSize operand_size);
-  void FarCall(uint16 segment_selector, uint32 offset, OperandSize operand_size);
-  void FarReturn(OperandSize operand_size, uint32 pop_byte_count);
+  void FarJump(u16 segment_selector, u32 offset, OperandSize operand_size);
+  void FarCall(u16 segment_selector, u32 offset, OperandSize operand_size);
+  void FarReturn(OperandSize operand_size, u32 pop_byte_count);
   void InterruptReturn(OperandSize operand_size);
 
   // Change processor state to execute interrupt handler
-  void SetupInterruptCall(uint32 interrupt, bool software_interrupt, bool push_error_code, uint32 error_code,
-                          uint32 return_EIP);
-  void SetupRealModeInterruptCall(uint32 interrupt, uint32 return_EIP);
+  void SetupInterruptCall(u32 interrupt, bool software_interrupt, bool push_error_code, u32 error_code, u32 return_EIP);
+  void SetupRealModeInterruptCall(u32 interrupt, u32 return_EIP);
   void SetupV86ModeInterruptCall(u8 interrupt, u32 return_EIP);
-  void SetupProtectedModeInterruptCall(uint32 interrupt, bool software_interrupt, bool push_error_code,
-                                       uint32 error_code, uint32 return_EIP);
+  void SetupProtectedModeInterruptCall(u32 interrupt, bool software_interrupt, bool push_error_code, u32 error_code,
+                                       u32 return_EIP);
 
   // Check pending exceptions (WAIT instruction).
   void CheckFloatingPointException();
@@ -518,23 +515,23 @@ protected:
   // Switches to the task segment selected by the parameter.
   // Optionally sets nested task flag and backlink field.
   // This assumes that new_task is a valid descriptor and is not busy.
-  void SwitchToTask(uint16 new_task, bool nested_task, bool from_iret, bool push_error_code, uint32 error_code);
+  void SwitchToTask(u16 new_task, bool nested_task, bool from_iret, bool push_error_code, u32 error_code);
 
   // Checks permissions for the specified IO port against the IO permission bitmap
-  bool HasIOPermissions(uint32 port_number, uint32 port_count, bool raise_exceptions);
+  bool HasIOPermissions(u32 port_number, u32 port_count, bool raise_exceptions);
 
   // Checks permissions for the specified interrupt against the interrupt bitmap in enhanced V8086 mode.
   bool IsVMEInterruptBitSet(u8 port_number);
 
   // Temporary: TODO move to debugger interface
   void DumpPageTable();
-  void DumpMemory(LinearMemoryAddress start_address, uint32 size);
+  void DumpMemory(LinearMemoryAddress start_address, u32 size);
   void DumpStack();
 
   // TLB emulation
-  size_t GetTLBEntryIndex(uint32 linear_address);
+  size_t GetTLBEntryIndex(u32 linear_address);
   void InvalidateAllTLBEntries(bool force_clear = false);
-  void InvalidateTLBEntry(uint32 linear_address);
+  void InvalidateTLBEntry(u32 linear_address);
 
   // Prefetch queue emulation
   void FlushPrefetchQueue();
@@ -557,11 +554,11 @@ protected:
   // instruction to be executed, and m_current_IP contains the address of the instruction
   // currently being executed. These are kept at the beginning of the class because the
   // jit addresses these, and this way the offset can be stored in a signed byte.
-  uint32 m_current_EIP = 0;
+  u32 m_current_EIP = 0;
 
   // Stores the value of ESP before the current instruction was executed.
   // Used to recover from half-executed instructions when exceptions are thrown.
-  uint32 m_current_ESP = 0;
+  u32 m_current_ESP = 0;
 
   // All guest-visible registers
   Registers m_registers = {};
@@ -575,7 +572,7 @@ protected:
   AddressSize m_stack_address_size = AddressSize_16;
 
   // EIP mask - 0xFFFF for 16-bit code, 0xFFFFFFFF for 32-bit code.
-  uint32 m_EIP_mask = 0xFFFF;
+  u32 m_EIP_mask = 0xFFFF;
 
   // Locations of descriptor tables
   DescriptorTablePointer m_idt_location;
@@ -587,10 +584,10 @@ protected:
   SegmentCache m_segment_cache[Segment_Count];
 
   // Current privilege level of executing code.
-  uint8 m_cpl = 0;
+  u8 m_cpl = 0;
 
   // Used to speed up TLB lookups, 0 - supervisor, 1 - user
-  uint8 m_tlb_user_bit = 0;
+  u8 m_tlb_user_bit = 0;
 
   // Whether alignment checking is enabled (AM bit of CR0 and AC bit of EFLAGS).
   bool m_alignment_check_enabled = false;
@@ -608,10 +605,10 @@ protected:
   bool m_trap_after_instruction = false;
 
   // Exception currently being thrown. Interrupt_Count at all other times. Not saved to state.
-  uint32 m_current_exception = Interrupt_Count;
+  u32 m_current_exception = Interrupt_Count;
 
   // Timing data.
-  uint16 m_cycle_group_timings[NUM_CYCLE_GROUPS] = {};
+  u16 m_cycle_group_timings[NUM_CYCLE_GROUPS] = {};
 
 #ifdef ENABLE_TLB_EMULATION
   // We use the lower 12 bits to represent a "counter" which is incremented each
@@ -628,13 +625,13 @@ protected:
 
   // Indexed by [user_supervisor][write_read]
   TLBEntry m_tlb_entries[2][3][TLB_ENTRY_COUNT] = {};
-  uint32 m_tlb_counter_bits = 0;
+  u32 m_tlb_counter_bits = 0;
 #endif
 
 #ifdef ENABLE_PREFETCH_EMULATION
   byte m_prefetch_queue[PREFETCH_QUEUE_SIZE] = {};
-  uint32 m_prefetch_queue_position = 0;
-  uint32 m_prefetch_queue_size = 0;
+  u32 m_prefetch_queue_position = 0;
+  u32 m_prefetch_queue_size = 0;
 #endif
 
   // Current execution state.
@@ -657,8 +654,7 @@ bool CPU_X86::CPU::CheckSegmentAccess(Segment segment, VirtualMemoryAddress offs
   // First we check if we have read/write/execute access.
   // Then check against the segment limit (can be expand up or down, but calculated at load time).
   // This computation can overflow (e.g. address FFFFFFFF + size 4), so use 64-bit for the upper bounds.
-  if (((segcache->access_mask & static_cast<AccessTypeMask>(1 << static_cast<uint8>(access))) ==
-       AccessTypeMask::None) ||
+  if (((segcache->access_mask & static_cast<AccessTypeMask>(1 << static_cast<u8>(access))) == AccessTypeMask::None) ||
       (offset < segcache->limit_low) ||
       ((static_cast<u64>(offset) + static_cast<u64>(size - 1)) > static_cast<u64>(segcache->limit_high)))
   {

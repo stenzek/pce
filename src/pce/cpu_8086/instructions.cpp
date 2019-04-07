@@ -1310,10 +1310,10 @@ public:
       u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
       if (shift_amount > 0)
       {
-        u8 new_value = u8(int8(value) >> shift_amount);
+        u8 new_value = u8(s8(value) >> shift_amount);
         WriteByteOperand<val_mode, val_constant>(cpu, new_value);
 
-        SET_FLAG(&cpu->m_registers, CF, ((int8(value) >> (shift_amount - 1) & 1) != 0));
+        SET_FLAG(&cpu->m_registers, CF, ((s8(value) >> (shift_amount - 1) & 1) != 0));
         SET_FLAG(&cpu->m_registers, OF, false);
         SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
         SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
@@ -1326,10 +1326,10 @@ public:
       u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
       if (shift_amount > 0)
       {
-        u16 new_value = u16(int16(value) >> shift_amount);
+        u16 new_value = u16(s16(value) >> shift_amount);
         WriteWordOperand<val_mode, val_constant>(cpu, new_value);
 
-        SET_FLAG(&cpu->m_registers, CF, ((int16(value) >> (shift_amount - 1) & 1) != 0));
+        SET_FLAG(&cpu->m_registers, CF, ((s16(value) >> (shift_amount - 1) & 1) != 0));
         SET_FLAG(&cpu->m_registers, OF, false);
         SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
         SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
@@ -1700,7 +1700,7 @@ public:
     if constexpr (val_size == OperandSize_8)
     {
       u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-      u8 new_value = u8(-int8(value));
+      u8 new_value = u8(-s8(value));
       WriteByteOperand<val_mode, val_constant>(cpu, new_value);
 
       ALUOp_Sub8(&cpu->m_registers, 0, value);
@@ -1709,7 +1709,7 @@ public:
     else if constexpr (val_size == OperandSize_16)
     {
       u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-      u16 new_value = u16(-int16(value));
+      u16 new_value = u16(-s16(value));
       WriteWordOperand<val_mode, val_constant>(cpu, new_value);
 
       ALUOp_Sub16(&cpu->m_registers, 0, value);
@@ -1760,7 +1760,7 @@ public:
     }
   }
 
-  template<OperandSize op1_size, OperandMode op1_mode, uint32 op1_constant>
+  template<OperandSize op1_size, OperandMode op1_mode, u32 op1_constant>
   static inline void Execute_Operation_IMUL(CPU* cpu)
   {
     CalculateEffectiveAddress<op1_mode>(cpu);
@@ -1859,19 +1859,19 @@ public:
     if constexpr (val_size == OperandSize_8)
     {
       // Eight-bit divides use AX as a source
-      int8 divisor = int8(ReadByteOperand<val_mode, val_constant>(cpu));
+      s8 divisor = s8(ReadByteOperand<val_mode, val_constant>(cpu));
       if (divisor == 0)
       {
         cpu->RaiseException(Interrupt_DivideError);
         return;
       }
 
-      int16 source = int16(cpu->m_registers.AX);
-      int16 quotient = source / divisor;
-      int16 remainder = source % divisor;
+      s16 source = s16(cpu->m_registers.AX);
+      s16 quotient = source / divisor;
+      s16 remainder = source % divisor;
       u8 truncated_quotient = u8(u16(quotient) & 0xFFFF);
       u8 truncated_remainder = u8(u16(remainder) & 0xFFFF);
-      if (int8(truncated_quotient) != quotient)
+      if (s8(truncated_quotient) != quotient)
       {
         cpu->RaiseException(Interrupt_DivideError);
         return;
@@ -1884,19 +1884,19 @@ public:
     else if constexpr (val_size == OperandSize_16)
     {
       // 16-bit divides use DX:AX as a source
-      int16 divisor = int16(ReadWordOperand<val_mode, val_constant>(cpu));
+      s16 divisor = s16(ReadWordOperand<val_mode, val_constant>(cpu));
       if (divisor == 0)
       {
         cpu->RaiseException(Interrupt_DivideError);
         return;
       }
 
-      int32 source = int32((u32(cpu->m_registers.DX) << 16) | u32(cpu->m_registers.AX));
-      int32 quotient = source / divisor;
-      int32 remainder = source % divisor;
+      s32 source = s32((u32(cpu->m_registers.DX) << 16) | u32(cpu->m_registers.AX));
+      s32 quotient = source / divisor;
+      s32 remainder = source % divisor;
       u16 truncated_quotient = u16(u32(quotient) & 0xFFFF);
       u16 truncated_remainder = u16(u32(remainder) & 0xFFFF);
-      if (int16(truncated_quotient) != quotient)
+      if (s16(truncated_quotient) != quotient)
       {
         cpu->RaiseException(Interrupt_DivideError);
         return;

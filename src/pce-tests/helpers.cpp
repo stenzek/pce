@@ -31,7 +31,7 @@ bool ReadFileToArray(PODArray<byte>* dest_array, const char* filename)
     return false;
   }
 
-  dest_array->Resize(static_cast<uint32>(stream->GetSize()));
+  dest_array->Resize(static_cast<u32>(stream->GetSize()));
   if (!stream->Read2(dest_array->GetBasePointer(), dest_array->GetSize()))
   {
     Log_ErrorPrintf("Failed to read code file %s", filename);
@@ -49,7 +49,7 @@ bool LoadFileToRam(System* system, const char* filename, PhysicalMemoryAddress b
   if (!ReadFileToArray(&data, filename))
     return false;
 
-  for (uint32 i = 0; i < data.GetSize(); i++)
+  for (u32 i = 0; i < data.GetSize(); i++)
     system->GetBus()->WriteMemoryByte(base_address + i, data[i]);
 
   return true;
@@ -63,7 +63,7 @@ bool MapFileToRam(System* system, const char* filename, PhysicalMemoryAddress ba
 
   // TODO: Fix memory leak here.. somehow
   byte* data_ptr;
-  uint32 length;
+  u32 length;
   data.DetachArray(&data_ptr, &length);
 
   MMIO* mmio = MMIO::CreateDirect(base_address, length, data_ptr, true, false);

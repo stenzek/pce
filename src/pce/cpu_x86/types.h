@@ -8,9 +8,9 @@ namespace CPU_X86 {
 
 // We use 32-bit virtual memory addresses
 // When operating in the lower modes these are zero-extended.
-using VirtualMemoryAddress = uint32;
+using VirtualMemoryAddress = u32;
 
-enum Model : uint8
+enum Model : u8
 {
   MODEL_386,
   MODEL_486,
@@ -18,7 +18,7 @@ enum Model : uint8
   NUM_MODELS
 };
 
-enum Reg8 : uint8
+enum Reg8 : u8
 {
   Reg8_AL,
   Reg8_CL,
@@ -32,7 +32,7 @@ enum Reg8 : uint8
   Reg8_Count
 };
 
-enum Reg16 : uint8
+enum Reg16 : u8
 {
   // General-purpose registers
   Reg16_AX,
@@ -54,7 +54,7 @@ enum Reg16 : uint8
   Reg16_Count
 };
 
-enum Reg32 : uint8
+enum Reg32 : u8
 {
   // General-purpose registers
   Reg32_EAX,
@@ -102,7 +102,7 @@ enum Reg32 : uint8
   Reg32_Count
 };
 
-enum Flags : uint32
+enum Flags : u32
 {
   Flag_CF = (1u << 0),
   Flag_Reserved = (1u << 1),
@@ -124,7 +124,7 @@ enum Flags : uint32
   Flag_ID = (1u << 21)
 };
 
-enum CR0Bit : uint32
+enum CR0Bit : u32
 {
   CR0Bit_PE = (1u << 0),  // Protection Enable
   CR0Bit_MP = (1u << 1),  // Monitor Coprocessor
@@ -139,7 +139,7 @@ enum CR0Bit : uint32
   CR0Bit_PG = (1u << 31)  // Paging Enable
 };
 
-enum CR4Bit : uint32
+enum CR4Bit : u32
 {
   CR4Bit_VME = (1u << 0),         // VIF in V8086 Mode
   CR4Bit_PVI = (1u << 1),         // VIF in Protected Mode
@@ -164,13 +164,13 @@ enum CR4Bit : uint32
   CR4Bit_PKE = (1u << 22)         // Protection Key Enable
 };
 
-enum class AccessType : uint8
+enum class AccessType : u8
 {
   Read = 0,
   Write = 1,
   Execute = 2
 };
-enum class AccessTypeMask : uint8
+enum class AccessTypeMask : u8
 {
   Read = (1 << 0),
   Write = (1 << 1),
@@ -180,7 +180,7 @@ enum class AccessTypeMask : uint8
   None = 0,
 };
 IMPLEMENT_ENUM_CLASS_BITWISE_OPERATORS(AccessTypeMask);
-enum class AccessFlags : uint8
+enum class AccessFlags : u8
 {
   AccessMask = 3,
 
@@ -210,16 +210,16 @@ inline constexpr bool HasAccessFlagBit(AccessFlags flag, AccessFlags check_for)
 // this should match the struct in softfloat
 struct float80
 {
-  uint64 low;
-  uint16 high;
+  u64 low;
+  u16 high;
 };
-enum FPUPrecision : uint8
+enum FPUPrecision : u8
 {
   FPUPrecision_24 = 0,
   FPUPrecision_53 = 2,
   FPUPrecision_64 = 3
 };
-enum FPURoundingControl : uint8
+enum FPURoundingControl : u8
 {
   FPURoundingControl_Nearest = 0,  // To nearest/even
   FPURoundingControl_Down = 1,     // Towards -Infinity
@@ -228,52 +228,52 @@ enum FPURoundingControl : uint8
 };
 union FPUControlWord
 {
-  static constexpr uint16 ReservedBits = uint16(0xE0C0);
-  static constexpr uint16 FixedBits = uint16(0x0040);
+  static constexpr u16 ReservedBits = u16(0xE0C0);
+  static constexpr u16 FixedBits = u16(0x0040);
 
-  BitField<uint16, bool, 0, 1> IM;                // Invalid Operation Mask
-  BitField<uint16, bool, 1, 1> DM;                // Denormalized Operand Mask
-  BitField<uint16, bool, 2, 1> ZM;                // Zero Divide Mask
-  BitField<uint16, bool, 3, 1> OM;                // Overflow Mask
-  BitField<uint16, bool, 4, 1> UM;                // Underflow Mask
-  BitField<uint16, bool, 5, 1> PM;                // Precision Mask
-  BitField<uint16, bool, 7, 1> IEM;               // Interrupt Enable Mask
-  BitField<uint16, FPUPrecision, 8, 2> PC;        // Precision Control
-  BitField<uint16, FPURoundingControl, 10, 2> RC; // Rounding Control
+  BitField<u16, bool, 0, 1> IM;                // Invalid Operation Mask
+  BitField<u16, bool, 1, 1> DM;                // Denormalized Operand Mask
+  BitField<u16, bool, 2, 1> ZM;                // Zero Divide Mask
+  BitField<u16, bool, 3, 1> OM;                // Overflow Mask
+  BitField<u16, bool, 4, 1> UM;                // Underflow Mask
+  BitField<u16, bool, 5, 1> PM;                // Precision Mask
+  BitField<u16, bool, 7, 1> IEM;               // Interrupt Enable Mask
+  BitField<u16, FPUPrecision, 8, 2> PC;        // Precision Control
+  BitField<u16, FPURoundingControl, 10, 2> RC; // Rounding Control
   // BitField<uint16, bool, 12, 1> IM;    // Rounding Control
-  uint16 bits;
+  u16 bits;
 };
 union FPUStatusWord
 {
-  BitField<uint16, bool, 0, 1> I;
-  BitField<uint16, bool, 1, 1> D;
-  BitField<uint16, bool, 2, 1> Z;
-  BitField<uint16, bool, 3, 1> O;
-  BitField<uint16, bool, 4, 1> U;
-  BitField<uint16, bool, 5, 1> P;
-  BitField<uint16, bool, 6, 1> SF;
-  BitField<uint16, bool, 7, 1> IR;
-  BitField<uint16, uint8, 8, 1> C0;
-  BitField<uint16, uint8, 9, 1> C1;
-  BitField<uint16, uint8, 10, 1> C2;
-  BitField<uint16, uint8, 11, 3> TOP;
-  BitField<uint16, uint8, 14, 1> C3;
-  BitField<uint16, bool, 15, 1> B;
-  uint16 bits;
+  BitField<u16, bool, 0, 1> I;
+  BitField<u16, bool, 1, 1> D;
+  BitField<u16, bool, 2, 1> Z;
+  BitField<u16, bool, 3, 1> O;
+  BitField<u16, bool, 4, 1> U;
+  BitField<u16, bool, 5, 1> P;
+  BitField<u16, bool, 6, 1> SF;
+  BitField<u16, bool, 7, 1> IR;
+  BitField<u16, u8, 8, 1> C0;
+  BitField<u16, u8, 9, 1> C1;
+  BitField<u16, u8, 10, 1> C2;
+  BitField<u16, u8, 11, 3> TOP;
+  BitField<u16, u8, 14, 1> C3;
+  BitField<u16, bool, 15, 1> B;
+  u16 bits;
 };
 union FPUTagWord
 {
-  uint8 Get(uint8 index) const { return Truncate8((bits >> (index * 2)) & 0x03); }
-  void Set(uint8 index, uint8 value) { bits = (bits & ~(0x03 << (index * 2))) | ((value & 0x03) << (index * 2)); }
-  void SetNonZero(uint8 index) { bits = (bits & ~(0x03 << (index * 2))); }
-  void SetZero(uint8 index) { bits = (bits & ~(0x02 << (index * 2))) | (0x01 << (index * 2)); }
-  void SetSpecial(uint8 index) { bits = (bits & ~(0x01 << (index * 2))) | (0x02 << (index * 2)); }
-  void SetEmpty(uint8 index) { bits |= (0x03 << (index * 2)); }
-  bool IsEmpty(uint8 index) { return ((bits >> (index * 2)) & 0x03) == 0x03; }
-  uint16 bits;
+  u8 Get(u8 index) const { return Truncate8((bits >> (index * 2)) & 0x03); }
+  void Set(u8 index, u8 value) { bits = (bits & ~(0x03 << (index * 2))) | ((value & 0x03) << (index * 2)); }
+  void SetNonZero(u8 index) { bits = (bits & ~(0x03 << (index * 2))); }
+  void SetZero(u8 index) { bits = (bits & ~(0x02 << (index * 2))) | (0x01 << (index * 2)); }
+  void SetSpecial(u8 index) { bits = (bits & ~(0x01 << (index * 2))) | (0x02 << (index * 2)); }
+  void SetEmpty(u8 index) { bits |= (0x03 << (index * 2)); }
+  bool IsEmpty(u8 index) { return ((bits >> (index * 2)) & 0x03) == 0x03; }
+  u16 bits;
 };
 
-enum Operation : uint8
+enum Operation : u8
 {
   Operation_Invalid,
   Operation_Extension,
@@ -513,7 +513,7 @@ enum Operation : uint8
   Operation_Count
 };
 
-enum Segment : uint8
+enum Segment : u8
 {
   Segment_ES,
   Segment_CS,
@@ -525,7 +525,7 @@ enum Segment : uint8
   Segment_Count
 };
 
-enum AddressSize : uint8
+enum AddressSize : u8
 {
   AddressSize_16,
   AddressSize_32,
@@ -533,7 +533,7 @@ enum AddressSize : uint8
   AddressSize_Count
 };
 
-enum OperandSize : uint8
+enum OperandSize : u8
 {
   OperandSize_8,  // byte
   OperandSize_16, // word
@@ -545,7 +545,7 @@ enum OperandSize : uint8
   OperandSize_Count // TODO: Rename to "inherit"
 };
 
-enum OperandMode : uint8
+enum OperandMode : u8
 {
   OperandMode_None,
   OperandMode_Constant,
@@ -567,20 +567,20 @@ enum OperandMode : uint8
   OperandMode_JumpCondition,
 };
 
-inline constexpr bool OperandMode_NeedsModRM(OperandSize op_size, OperandMode op_mode, uint32 op_idx)
+inline constexpr bool OperandMode_NeedsModRM(OperandSize op_size, OperandMode op_mode, u32 op_idx)
 {
   return op_mode == OperandMode_ModRM_Reg || op_mode == OperandMode_ModRM_RM ||
          op_mode == OperandMode_ModRM_ControlRegister || op_mode == OperandMode_ModRM_DebugRegister ||
          op_mode == OperandMode_ModRM_TestRegister;
 }
 
-inline constexpr bool OperandMode_NeedsImmediate(OperandSize op_size, OperandMode op_mode, uint32 op_idx)
+inline constexpr bool OperandMode_NeedsImmediate(OperandSize op_size, OperandMode op_mode, u32 op_idx)
 {
   return op_mode == OperandMode_Immediate || op_mode == OperandMode_Immediate2 || op_mode == OperandMode_Relative ||
          op_mode == OperandMode_Memory || op_mode == OperandMode_ModRM_RM || op_mode == OperandMode_FarAddress;
 }
 
-enum InstructionFlags : uint8
+enum InstructionFlags : u8
 {
   InstructionFlag_Lock = (1 << 0),
   InstructionFlag_Rep = (1 << 1),
@@ -588,7 +588,7 @@ enum InstructionFlags : uint8
   InstructionFlag_RepNotEqual = (1 << 3)
 };
 
-enum JumpCondition : uint8
+enum JumpCondition : u8
 {
   JumpCondition_Always,
 
@@ -617,18 +617,18 @@ struct InstructionData
 {
   union // +0
   {
-    uint32 imm32;
-    uint16 imm16;
-    uint8 imm8;
+    u32 imm32;
+    u16 imm16;
+    u8 imm8;
   };
   union // +4
   {
-    uint32 disp32;
-    uint16 disp16;
-    uint8 disp8;
-    uint32 imm2_32;
-    uint16 imm2_16;
-    uint8 imm2_8;
+    u32 disp32;
+    u16 disp16;
+    u8 disp8;
+    u32 imm2_32;
+    u16 imm2_16;
+    u8 imm2_8;
   };
 
   OperandSize operand_size; // +8
@@ -636,49 +636,49 @@ struct InstructionData
   Segment segment;          // +10
   union                     // +11
   {
-    BitField<uint8, uint8, 0, 3> modrm_rm;
-    BitField<uint8, uint8, 3, 3> modrm_reg;
-    BitField<uint8, uint8, 6, 2> modrm_mod;
-    uint8 modrm;
+    BitField<u8, u8, 0, 3> modrm_rm;
+    BitField<u8, u8, 3, 3> modrm_reg;
+    BitField<u8, u8, 6, 2> modrm_mod;
+    u8 modrm;
   };
   union // +12
   {
-    BitField<uint8, Reg32, 0, 3> sib_base_reg;
-    BitField<uint8, Reg32, 3, 3> sib_index_reg;
-    BitField<uint8, uint8, 6, 2> sib_scaling_factor;
-    uint8 sib;
+    BitField<u8, Reg32, 0, 3> sib_base_reg;
+    BitField<u8, Reg32, 3, 3> sib_index_reg;
+    BitField<u8, u8, 6, 2> sib_scaling_factor;
+    u8 sib;
   };
   union // +13
   {
     struct
     {
-      uint8 modrm_rm_register : 1;
-      uint8 has_segment_override : 1;
-      uint8 has_rep : 1;
-      uint8 has_repne : 1;
-      uint8 has_lock : 1;
-      uint8 : 3;
+      u8 modrm_rm_register : 1;
+      u8 has_segment_override : 1;
+      u8 has_rep : 1;
+      u8 has_repne : 1;
+      u8 has_lock : 1;
+      u8 : 3;
     };
-    uint8 flags;
+    u8 flags;
   };
 
   // total size: 16 bytes (2 padding)
 
-  uint8 GetModRM_Reg() const { return ((modrm >> 3) & 7); }
-  uint8 GetModRM_RM() { return (modrm & 7); }
+  u8 GetModRM_Reg() const { return ((modrm >> 3) & 7); }
+  u8 GetModRM_RM() { return (modrm & 7); }
   bool ModRM_RM_IsReg() const { return (modrm_mod == 0b11); }
   bool HasSIB() const { return (modrm_mod != 0b11 && modrm_rm == 0b100); }
   Reg32 GetSIBBaseRegister() const { return static_cast<Reg32>(sib & 0x07); }
   Reg32 GetSIBIndexRegister() const { return static_cast<Reg32>((sib >> 3) & 0x07); }
   bool HasSIBBase() const { return (GetSIBBaseRegister() != Reg32_EBP || modrm_mod != 0b00); }
   bool HasSIBIndex() const { return (GetSIBIndexRegister() != Reg32_ESP); }
-  uint8 GetSIBScaling() const { return ((sib >> 6) & 0x03); }
-  uint32 GetAddressMask() const { return (address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF; }
-  uint32 GetOperandSizeMask() const { return (operand_size == OperandSize_16) ? 0xFFFF : 0xFFFFFFFF; }
+  u8 GetSIBScaling() const { return ((sib >> 6) & 0x03); }
+  u32 GetAddressMask() const { return (address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF; }
+  u32 GetOperandSizeMask() const { return (operand_size == OperandSize_16) ? 0xFFFF : 0xFFFFFFFF; }
   bool Is32Bit() const { return (operand_size == OperandSize_32); }
 };
 
-enum class ModRMAddressingMode : uint8
+enum class ModRMAddressingMode : u8
 {
   Register,                 // register contains value
   Direct,                   // operand contains address of value
@@ -690,7 +690,7 @@ enum class ModRMAddressingMode : uint8
 };
 
 // Processor interrupts
-enum Interrupt : uint32
+enum Interrupt : u32
 {
   Interrupt_DivideError = 0x00,
   Interrupt_Debugger = 0x01,
@@ -730,7 +730,7 @@ enum SEGMENT_DESCRIPTOR_ACCESS_FLAG
   SEGMENT_DESCRIPTOR_ACCESS_FLAG_PRESENT = 0x80
 };
 
-enum DESCRIPTOR_TYPE : uint8
+enum DESCRIPTOR_TYPE : u8
 {
   DESCRIPTOR_TYPE_INVALID = 0x00,
   DESCRIPTOR_TYPE_AVAILABLE_TASK_SEGMENT_16 = 0x01,
@@ -752,76 +752,73 @@ enum DESCRIPTOR_TYPE : uint8
 
 union SEGMENT_DESCRIPTOR_ACCESS_BITS
 {
-  uint8 bits;
+  u8 bits;
 
-  BitField<uint8, bool, 0, 1> accessed;
-  BitField<uint32, bool, 3, 1> is_code;
-  BitField<uint32, bool, 1, 1> code_readable;
-  BitField<uint32, bool, 2, 1> code_confirming;
-  BitField<uint32, bool, 1, 1> data_expand_down;
-  BitField<uint32, bool, 2, 1> data_writable;
-  BitField<uint32, uint8, 5, 2> dpl;
-  BitField<uint32, bool, 7, 1> present;
+  BitField<u8, bool, 0, 1> accessed;
+  BitField<u32, bool, 3, 1> is_code;
+  BitField<u32, bool, 1, 1> code_readable;
+  BitField<u32, bool, 2, 1> code_confirming;
+  BitField<u32, bool, 1, 1> data_expand_down;
+  BitField<u32, bool, 2, 1> data_writable;
+  BitField<u32, u8, 5, 2> dpl;
+  BitField<u32, bool, 7, 1> present;
 };
 
 union DESCRIPTOR_ENTRY
 {
   struct
   {
-    uint32 bits0;
-    uint32 bits1;
+    u32 bits0;
+    u32 bits1;
   };
-  uint64 bits;
+  u64 bits;
 
-  BitField<uint64, uint8, 40, 4> type; // only valid if memory_descriptor = 1
-  BitField<uint64, bool, 44, 1> is_memory_descriptor;
-  BitField<uint64, uint8, 45, 2> dpl;
-  BitField<uint64, bool, 47, 1> present;
+  BitField<u64, u8, 40, 4> type; // only valid if memory_descriptor = 1
+  BitField<u64, bool, 44, 1> is_memory_descriptor;
+  BitField<u64, u8, 45, 2> dpl;
+  BitField<u64, bool, 47, 1> present;
 
   // Memory (code/data) segments
   struct
   {
     union
     {
-      BitField<uint64, uint32, 0, 16> limit_0_15;
-      BitField<uint64, uint32, 16, 16> base_0_15;
-      BitField<uint64, uint32, 32, 8> base_16_23;
-      BitField<uint64, uint8, 40, 8> access_bits;
-      BitField<uint64, uint32, 48, 4> limit_16_19;
-      BitField<uint64, uint8, 52, 4> flags_raw;
-      BitField<uint64, uint32, 56, 8> base_24_31;
+      BitField<u64, u32, 0, 16> limit_0_15;
+      BitField<u64, u32, 16, 16> base_0_15;
+      BitField<u64, u32, 32, 8> base_16_23;
+      BitField<u64, u8, 40, 8> access_bits;
+      BitField<u64, u32, 48, 4> limit_16_19;
+      BitField<u64, u8, 52, 4> flags_raw;
+      BitField<u64, u32, 56, 8> base_24_31;
 
       union
       {
-        BitField<uint64, bool, 40, 1> accessed;
-        BitField<uint64, bool, 43, 1> is_code;
-        BitField<uint64, bool, 41, 1> code_readable;
-        BitField<uint64, bool, 42, 1> code_conforming;
-        BitField<uint64, bool, 41, 1> data_writable;
-        BitField<uint64, bool, 42, 1> data_expand_down;
+        BitField<u64, bool, 40, 1> accessed;
+        BitField<u64, bool, 43, 1> is_code;
+        BitField<u64, bool, 41, 1> code_readable;
+        BitField<u64, bool, 42, 1> code_conforming;
+        BitField<u64, bool, 41, 1> data_writable;
+        BitField<u64, bool, 42, 1> data_expand_down;
       } access;
 
       union
       {
-        BitField<uint64, bool, 54, 1> size;        // on = 32-bit mode
-        BitField<uint64, bool, 55, 1> granularity; // on = 4kb limit, 0 = 1 byte limit
+        BitField<u64, bool, 54, 1> size;        // on = 32-bit mode
+        BitField<u64, bool, 55, 1> granularity; // on = 4kb limit, 0 = 1 byte limit
       } flags;
     };
 
-    uint32 GetBase() const
-    {
-      return base_0_15.GetValue() | (base_16_23.GetValue() << 16) | (base_24_31.GetValue() << 24);
-    }
+    u32 GetBase() const { return base_0_15.GetValue() | (base_16_23.GetValue() << 16) | (base_24_31.GetValue() << 24); }
 
-    uint32 GetLimit() const
+    u32 GetLimit() const
     {
-      uint32 limit = limit_0_15.GetValue() | (limit_16_19.GetValue() << 16);
+      u32 limit = limit_0_15.GetValue() | (limit_16_19.GetValue() << 16);
       if (flags.granularity)
         limit = (limit << 12) | 0xFFF;
       return limit;
     }
 
-    uint32 GetLimitLow() const
+    u32 GetLimitLow() const
     {
       // if (!access.is_code && access.data_expand_down)
       if ((access_bits & 0b1100) == 0b0100)
@@ -836,7 +833,7 @@ union DESCRIPTOR_ENTRY
       }
     }
 
-    uint32 GetLimitHigh() const
+    u32 GetLimitHigh() const
     {
       if ((access_bits & 0b1100) == 0b0100)
         return flags.size ? UINT32_C(0xFFFFFFFF) : UINT32_C(0xFFFF);
@@ -857,18 +854,18 @@ union DESCRIPTOR_ENTRY
   {
     union
     {
-      BitField<uint64, uint32, 0, 16> limit_0_15;
-      BitField<uint64, uint32, 16, 24> base_0_24;
-      BitField<uint64, uint32, 48, 4> limit_16_19;
-      BitField<uint64, uint32, 56, 8> base_24_31;
-      BitField<uint64, bool, 55, 1> granularity; // on = 4kb limit, 0 = 1 byte limit
+      BitField<u64, u32, 0, 16> limit_0_15;
+      BitField<u64, u32, 16, 24> base_0_24;
+      BitField<u64, u32, 48, 4> limit_16_19;
+      BitField<u64, u32, 56, 8> base_24_31;
+      BitField<u64, bool, 55, 1> granularity; // on = 4kb limit, 0 = 1 byte limit
     };
 
-    uint32 GetBase() const { return base_0_24.GetValue() | (base_24_31.GetValue() << 24); }
+    u32 GetBase() const { return base_0_24.GetValue() | (base_24_31.GetValue() << 24); }
 
-    uint32 GetLimit() const
+    u32 GetLimit() const
     {
-      uint32 limit = (limit_0_15.GetValue() | (limit_16_19.GetValue() << 16));
+      u32 limit = (limit_0_15.GetValue() | (limit_16_19.GetValue() << 16));
       if (granularity)
         limit = (limit << 12) | 0xFFF;
       return limit;
@@ -879,32 +876,32 @@ union DESCRIPTOR_ENTRY
   {
     union
     {
-      BitField<uint64, uint32, 0, 16> offset_0_15;
-      BitField<uint64, uint16, 16, 16> selector;
-      BitField<uint64, uint32, 48, 16> offset_16_31;
+      BitField<u64, u32, 0, 16> offset_0_15;
+      BitField<u64, u16, 16, 16> selector;
+      BitField<u64, u32, 48, 16> offset_16_31;
     };
 
-    uint32 GetOffset() const { return offset_0_15.GetValue() | (offset_16_31.GetValue() << 16); }
+    u32 GetOffset() const { return offset_0_15.GetValue() | (offset_16_31.GetValue() << 16); }
   } interrupt_gate;
 
   struct
   {
     union
     {
-      BitField<uint64, uint32, 0, 16> offset_0_15;
-      BitField<uint64, uint16, 16, 16> selector;
-      BitField<uint64, uint8, 32, 4> parameter_count;
-      BitField<uint64, uint32, 48, 16> offset_16_31;
+      BitField<u64, u32, 0, 16> offset_0_15;
+      BitField<u64, u16, 16, 16> selector;
+      BitField<u64, u8, 32, 4> parameter_count;
+      BitField<u64, u32, 48, 16> offset_16_31;
     };
 
-    uint32 GetOffset() const { return offset_0_15.GetValue() | (offset_16_31.GetValue() << 16); }
+    u32 GetOffset() const { return offset_0_15.GetValue() | (offset_16_31.GetValue() << 16); }
   } call_gate;
 
   struct
   {
     union
     {
-      BitField<uint64, uint16, 16, 16> selector;
+      BitField<u64, u16, 16, 16> selector;
     };
   } task_gate;
 
@@ -940,13 +937,13 @@ union DESCRIPTOR_ENTRY
 // Visible segment register portion in protected mode
 union SEGMENT_SELECTOR_VALUE
 {
-  uint16 bits;
+  u16 bits;
 
-  BitField<uint16, uint8, 0, 2> rpl;     // requested privilege level
-  BitField<uint16, bool, 2, 1> ti;       // use local descriptor table
-  BitField<uint16, uint16, 3, 13> index; // descriptor table index
+  BitField<u16, u8, 0, 2> rpl;     // requested privilege level
+  BitField<u16, bool, 2, 1> ti;    // use local descriptor table
+  BitField<u16, u16, 3, 13> index; // descriptor table index
 
-  uint16 GetExceptionErrorCode(bool ext) const { return ((bits & 0xFFFC) | BoolToUInt16(ext)); }
+  u16 GetExceptionErrorCode(bool ext) const { return ((bits & 0xFFFC) | BoolToUInt16(ext)); }
   bool IsNullSelector() const { return ((bits & 0xFFFC) == 0); }
 };
 
@@ -954,123 +951,123 @@ struct INTERRUPT_DESCRIPTOR_ENTRY
 {
   union
   {
-    uint32 bits0;
+    u32 bits0;
 
-    BitField<uint32, uint32, 0, 16> offset_0_15;
-    BitField<uint32, uint32, 16, 16> selector;
+    BitField<u32, u32, 0, 16> offset_0_15;
+    BitField<u32, u32, 16, 16> selector;
   };
 
   union
   {
-    uint32 bits1;
+    u32 bits1;
 
     // BitField<uint32, uint8, 0, 8> zero;
-    BitField<uint32, uint32, 8, 4> type;
-    BitField<uint32, bool, 12, 1> storage_segment;
-    BitField<uint32, uint32, 13, 2> descriptor_privilege_level;
-    BitField<uint32, bool, 15, 1> present;
-    BitField<uint32, uint32, 16, 16> offset_16_31;
+    BitField<u32, u32, 8, 4> type;
+    BitField<u32, bool, 12, 1> storage_segment;
+    BitField<u32, u32, 13, 2> descriptor_privilege_level;
+    BitField<u32, bool, 15, 1> present;
+    BitField<u32, u32, 16, 16> offset_16_31;
   };
 };
 
 #pragma pack(push, 1)
 struct TASK_STATE_SEGMENT_16
 {
-  uint16 LINK;
+  u16 LINK;
   union
   {
     struct
     {
-      uint16 SP;
-      uint16 SS;
+      u16 SP;
+      u16 SS;
     } stacks[3];
 
     struct
     {
-      uint16 SP0;
-      uint16 SS0;
-      uint16 SP1;
-      uint16 SS1;
-      uint16 SP2;
-      uint16 SS2;
+      u16 SP0;
+      u16 SS0;
+      u16 SP1;
+      u16 SS1;
+      u16 SP2;
+      u16 SS2;
     };
   };
 
-  uint16 IP;
-  uint16 FLAGS;
-  uint16 AX;
-  uint16 CX;
-  uint16 DX;
-  uint16 BX;
-  uint16 SP;
-  uint16 BP;
-  uint16 SI;
-  uint16 DI;
-  uint16 ES;
-  uint16 CS;
-  uint16 SS;
-  uint16 DS;
-  uint16 LDTR;
+  u16 IP;
+  u16 FLAGS;
+  u16 AX;
+  u16 CX;
+  u16 DX;
+  u16 BX;
+  u16 SP;
+  u16 BP;
+  u16 SI;
+  u16 DI;
+  u16 ES;
+  u16 CS;
+  u16 SS;
+  u16 DS;
+  u16 LDTR;
 };
 static_assert(sizeof(TASK_STATE_SEGMENT_16) == 0x2C, "Size of TSS16 is correct");
-static_assert(((sizeof(TASK_STATE_SEGMENT_16) % sizeof(uint16)) == 0), "Size of TSS16 is word-aligned");
+static_assert(((sizeof(TASK_STATE_SEGMENT_16) % sizeof(u16)) == 0), "Size of TSS16 is word-aligned");
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 struct TASK_STATE_SEGMENT_32
 {
-  uint16 LINK;
-  uint16 reserved_02;
+  u16 LINK;
+  u16 reserved_02;
   union
   {
     struct
     {
-      uint32 ESP;
-      uint16 SS;
-      uint16 reserved;
+      u32 ESP;
+      u16 SS;
+      u16 reserved;
     } stacks[3];
 
     struct
     {
-      uint32 ESP0;
-      uint16 SS0;
-      uint16 reserved_08;
-      uint32 ESP1;
-      uint16 SS1;
-      uint16 reserved_10;
-      uint32 ESP2;
-      uint16 SS2;
-      uint16 reserved_18;
+      u32 ESP0;
+      u16 SS0;
+      u16 reserved_08;
+      u32 ESP1;
+      u16 SS1;
+      u16 reserved_10;
+      u32 ESP2;
+      u16 SS2;
+      u16 reserved_18;
     };
   };
-  uint32 CR3;
-  uint32 EIP;
-  uint32 EFLAGS;
-  uint32 EAX;
-  uint32 ECX;
-  uint32 EDX;
-  uint32 EBX;
-  uint32 ESP;
-  uint32 EBP;
-  uint32 ESI;
-  uint32 EDI;
-  uint16 ES;
-  uint16 reserved_4A;
-  uint16 CS;
-  uint16 reserved_4E;
-  uint16 SS;
-  uint16 reserved_52;
-  uint16 DS;
-  uint16 reserved_56;
-  uint16 FS;
-  uint16 reserved_5A;
-  uint16 GS;
-  uint16 reserved_5E;
-  uint16 LDTR;
-  uint16 reserved_62;
-  uint8 T;
-  uint8 reserved_64;
-  uint16 IOPB_offset;
+  u32 CR3;
+  u32 EIP;
+  u32 EFLAGS;
+  u32 EAX;
+  u32 ECX;
+  u32 EDX;
+  u32 EBX;
+  u32 ESP;
+  u32 EBP;
+  u32 ESI;
+  u32 EDI;
+  u16 ES;
+  u16 reserved_4A;
+  u16 CS;
+  u16 reserved_4E;
+  u16 SS;
+  u16 reserved_52;
+  u16 DS;
+  u16 reserved_56;
+  u16 FS;
+  u16 reserved_5A;
+  u16 GS;
+  u16 reserved_5E;
+  u16 LDTR;
+  u16 reserved_62;
+  u8 T;
+  u8 reserved_64;
+  u16 IOPB_offset;
   // uint32 SSP;
   // Optional data
   // Optional interrupt redirection bitmap
@@ -1078,37 +1075,37 @@ struct TASK_STATE_SEGMENT_32
   // 0x7
 };
 static_assert(sizeof(TASK_STATE_SEGMENT_32) == 0x68, "Size of TSS32 is correct");
-static_assert(((sizeof(TASK_STATE_SEGMENT_32) % sizeof(uint32)) == 0), "Size of TSS32 is dword-aligned");
+static_assert(((sizeof(TASK_STATE_SEGMENT_32) % sizeof(u32)) == 0), "Size of TSS32 is dword-aligned");
 #pragma pack(pop)
 
 union PAGE_DIRECTORY_ENTRY
 {
-  uint32 bits;
+  u32 bits;
 
-  BitField<uint32, bool, 0, 1> present;
-  BitField<uint32, bool, 1, 1> read_write;
-  BitField<uint32, bool, 2, 1> user_supervisor;
-  BitField<uint32, bool, 3, 1> write_through;
-  BitField<uint32, bool, 4, 1> cache_disabled;
-  BitField<uint32, bool, 5, 1> accessed;
-  BitField<uint32, bool, 7, 1> page_size;
+  BitField<u32, bool, 0, 1> present;
+  BitField<u32, bool, 1, 1> read_write;
+  BitField<u32, bool, 2, 1> user_supervisor;
+  BitField<u32, bool, 3, 1> write_through;
+  BitField<u32, bool, 4, 1> cache_disabled;
+  BitField<u32, bool, 5, 1> accessed;
+  BitField<u32, bool, 7, 1> page_size;
   // BitField<uint32, bool, 8, 1> ignored;
-  BitField<uint32, uint32, 12, 20> page_table_address;
+  BitField<u32, u32, 12, 20> page_table_address;
 };
 
 union PAGE_TABLE_ENTRY
 {
-  uint32 bits;
+  u32 bits;
 
-  BitField<uint32, bool, 0, 1> present;
-  BitField<uint32, bool, 1, 1> read_write;
-  BitField<uint32, bool, 2, 1> user_supervisor;
-  BitField<uint32, bool, 3, 1> write_through;
-  BitField<uint32, bool, 4, 1> cache_disabled;
-  BitField<uint32, bool, 5, 1> accessed;
-  BitField<uint32, bool, 6, 1> dirty;
-  BitField<uint32, bool, 8, 1> global;
-  BitField<uint32, uint32, 12, 20> physical_address;
+  BitField<u32, bool, 0, 1> present;
+  BitField<u32, bool, 1, 1> read_write;
+  BitField<u32, bool, 2, 1> user_supervisor;
+  BitField<u32, bool, 3, 1> write_through;
+  BitField<u32, bool, 4, 1> cache_disabled;
+  BitField<u32, bool, 5, 1> accessed;
+  BitField<u32, bool, 6, 1> dirty;
+  BitField<u32, bool, 8, 1> global;
+  BitField<u32, u32, 12, 20> physical_address;
 };
 
 } // namespace CPU_X86

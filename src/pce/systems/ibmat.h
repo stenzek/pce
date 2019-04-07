@@ -19,11 +19,11 @@ class IBMAT : public ISAPC
   DECLARE_OBJECT_PROPERTY_MAP(IBMAT);
 
 public:
-  static constexpr uint32 PHYSICAL_MEMORY_BITS = 24;
+  static constexpr u32 PHYSICAL_MEMORY_BITS = 24;
   static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
-  static constexpr uint32 BIOS_ROM_SIZE = 65536;
+  static constexpr u32 BIOS_ROM_SIZE = 65536;
 
-  IBMAT(float cpu_frequency = 2000000.0f, uint32 memory_size = 1024 * 1024,
+  IBMAT(float cpu_frequency = 2000000.0f, u32 memory_size = 1024 * 1024,
         const ObjectTypeInfo* type_info = &s_type_info);
   ~IBMAT();
 
@@ -48,7 +48,7 @@ private:
   void AddComponents();
   void SetCMOSVariables();
 
-  void IOWriteSystemControlPortA(uint8 value);
+  void IOWriteSystemControlPortA(u8 value);
 
   std::string m_low_bios_file_path;
   std::string m_high_bios_file_path;
@@ -64,13 +64,13 @@ private:
 
   union
   {
-    uint8 raw = 0;
+    u8 raw = 0;
 
-    BitField<uint8, bool, 0, 1> system_reset;
-    BitField<uint8, bool, 1, 1> a20_gate;
-    BitField<uint8, bool, 3, 1> cmos_lock;
-    BitField<uint8, bool, 4, 1> watchdog_timeout;
-    BitField<uint8, bool, 6, 2> activity_light;
+    BitField<u8, bool, 0, 1> system_reset;
+    BitField<u8, bool, 1, 1> a20_gate;
+    BitField<u8, bool, 3, 1> cmos_lock;
+    BitField<u8, bool, 4, 1> watchdog_timeout;
+    BitField<u8, bool, 6, 2> activity_light;
   } m_system_control_port_a;
 };
 

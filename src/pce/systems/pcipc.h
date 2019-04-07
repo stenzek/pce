@@ -30,8 +30,8 @@ public:
 
 protected:
   // NOTE: Assumes there is only a single PCI bus, and all devices are attached to it.
-  static constexpr uint8 NUM_PCI_BUSES = 1;
-  static constexpr uint8 NUM_PCI_DEVICES_PER_BUS = 16;
+  static constexpr u8 NUM_PCI_BUSES = 1;
+  static constexpr u8 NUM_PCI_DEVICES_PER_BUS = 16;
 
   virtual bool Initialize() override;
   virtual void Reset() override;
@@ -50,20 +50,20 @@ private:
 
   union PCIConfigType1Address
   {
-    BitField<uint32, uint8, 31, 1> enable;
-    BitField<uint32, uint8, 16, 8> bus;
-    BitField<uint32, uint8, 11, 5> device;
-    BitField<uint32, uint8, 8, 3> function;
-    BitField<uint32, uint8, 2, 6> reg;
-    uint32 bits;
+    BitField<u32, u8, 31, 1> enable;
+    BitField<u32, u8, 16, 8> bus;
+    BitField<u32, u8, 11, 5> device;
+    BitField<u32, u8, 8, 3> function;
+    BitField<u32, u8, 2, 6> reg;
+    u32 bits;
   };
 
   union PCIConfigType2Address
   {
-    BitField<uint8, uint8, 4, 4> key;
-    BitField<uint8, uint8, 1, 3> function;
-    BitField<uint8, bool, 0, 1> special_cycle;
-    uint8 bits;
+    BitField<u8, u8, 4, 4> key;
+    BitField<u8, u8, 1, 3> function;
+    BitField<u8, bool, 0, 1> special_cycle;
+    u8 bits;
   };
 
   PCIConfigSpaceAccessType m_config_access_type;
@@ -71,7 +71,7 @@ private:
   PCIConfigType1Address m_pci_config_type1_address{};
 
   PCIConfigType2Address m_pci_config_type2_address{};
-  uint8 m_pci_config_type2_bus = 0;
+  u8 m_pci_config_type2_bus = 0;
 };
 
 template<typename T, typename... Args>

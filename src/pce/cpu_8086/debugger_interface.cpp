@@ -10,17 +10,17 @@ DebuggerInterface::DebuggerInterface(CPU* cpu, System* system) : m_cpu(cpu), m_s
 
 DebuggerInterface::~DebuggerInterface() {}
 
-uint32 DebuggerInterface::GetRegisterCount() const
+u32 DebuggerInterface::GetRegisterCount() const
 {
   return Reg16_Count + Segment_Count;
 }
 
-DebuggerInterface::RegisterType DebuggerInterface::GetRegisterType(uint32 index) const
+DebuggerInterface::RegisterType DebuggerInterface::GetRegisterType(u32 index) const
 {
   return DebuggerInterface::RegisterType::Word;
 }
 
-const char* DebuggerInterface::GetRegisterName(uint32 index) const
+const char* DebuggerInterface::GetRegisterName(u32 index) const
 {
   static const char* name_table[Reg16_Count + Segment_Count] = {"AX", "CX", "DX",    "BX", "SP", "BP", "SI",
                                                                 "DI", "IP", "FLAGS", "ES", "CS", "SS", "DS"};
@@ -29,7 +29,7 @@ const char* DebuggerInterface::GetRegisterName(uint32 index) const
   return name_table[index];
 }
 
-DebuggerInterface::RegisterValue DebuggerInterface::GetRegisterValue(uint32 index) const
+DebuggerInterface::RegisterValue DebuggerInterface::GetRegisterValue(u32 index) const
 {
   RegisterValue value = {};
   if (index < Reg16_Count)
@@ -40,22 +40,22 @@ DebuggerInterface::RegisterValue DebuggerInterface::GetRegisterValue(uint32 inde
   return value;
 }
 
-void DebuggerInterface::SetRegisterValue(uint32 index, RegisterValue value) const
+void DebuggerInterface::SetRegisterValue(u32 index, RegisterValue value) const
 {
   Panic("Fix me");
 }
 
-bool DebuggerInterface::ReadMemoryByte(LinearMemoryAddress address, uint8* value)
+bool DebuggerInterface::ReadMemoryByte(LinearMemoryAddress address, u8* value)
 {
   return m_cpu->SafeReadMemoryByte(address, value);
 }
 
-bool DebuggerInterface::ReadMemoryWord(LinearMemoryAddress address, uint16* value)
+bool DebuggerInterface::ReadMemoryWord(LinearMemoryAddress address, u16* value)
 {
   return m_cpu->SafeReadMemoryWord(address, value);
 }
 
-bool DebuggerInterface::ReadMemoryDWord(LinearMemoryAddress address, uint32* value)
+bool DebuggerInterface::ReadMemoryDWord(LinearMemoryAddress address, u32* value)
 {
   u16 low, high;
   bool res = m_cpu->SafeReadMemoryWord(address, &low) & m_cpu->SafeReadMemoryWord(address + 2, &high);
@@ -63,48 +63,48 @@ bool DebuggerInterface::ReadMemoryDWord(LinearMemoryAddress address, uint32* val
   return res;
 }
 
-bool DebuggerInterface::WriteMemoryByte(LinearMemoryAddress address, uint8 value)
+bool DebuggerInterface::WriteMemoryByte(LinearMemoryAddress address, u8 value)
 {
   return m_cpu->SafeWriteMemoryByte(address, value);
 }
 
-bool DebuggerInterface::WriteMemoryWord(LinearMemoryAddress address, uint16 value)
+bool DebuggerInterface::WriteMemoryWord(LinearMemoryAddress address, u16 value)
 {
   return m_cpu->SafeWriteMemoryWord(address, value);
 }
 
-bool DebuggerInterface::WriteMemoryDWord(LinearMemoryAddress address, uint32 value)
+bool DebuggerInterface::WriteMemoryDWord(LinearMemoryAddress address, u32 value)
 {
   return m_cpu->SafeWriteMemoryWord(address, Truncate16(value)) &
          m_cpu->SafeWriteMemoryWord(address + 2, Truncate16(value >> 16));
 }
 
-bool DebuggerInterface::ReadPhysicalMemoryByte(PhysicalMemoryAddress address, uint8* value)
+bool DebuggerInterface::ReadPhysicalMemoryByte(PhysicalMemoryAddress address, u8* value)
 {
   return m_cpu->GetBus()->CheckedReadMemoryByte(address, value);
 }
 
-bool DebuggerInterface::ReadPhysicalMemoryWord(PhysicalMemoryAddress address, uint16* value)
+bool DebuggerInterface::ReadPhysicalMemoryWord(PhysicalMemoryAddress address, u16* value)
 {
   return m_cpu->GetBus()->CheckedReadMemoryWord(address, value);
 }
 
-bool DebuggerInterface::ReadPhysicalMemoryDWord(PhysicalMemoryAddress address, uint32* value)
+bool DebuggerInterface::ReadPhysicalMemoryDWord(PhysicalMemoryAddress address, u32* value)
 {
   return m_cpu->GetBus()->CheckedReadMemoryDWord(address, value);
 }
 
-bool DebuggerInterface::WritePhysicalMemoryByte(PhysicalMemoryAddress address, uint8 value)
+bool DebuggerInterface::WritePhysicalMemoryByte(PhysicalMemoryAddress address, u8 value)
 {
   return m_cpu->GetBus()->CheckedWriteMemoryByte(address, value);
 }
 
-bool DebuggerInterface::WritePhysicalMemoryWord(PhysicalMemoryAddress address, uint16 value)
+bool DebuggerInterface::WritePhysicalMemoryWord(PhysicalMemoryAddress address, u16 value)
 {
   return m_cpu->GetBus()->CheckedWriteMemoryWord(address, value);
 }
 
-bool DebuggerInterface::WritePhysicalMemoryDWord(PhysicalMemoryAddress address, uint32 value)
+bool DebuggerInterface::WritePhysicalMemoryDWord(PhysicalMemoryAddress address, u32 value)
 {
   return m_cpu->GetBus()->CheckedWriteMemoryDWord(address, value);
 }
@@ -130,19 +130,19 @@ LinearMemoryAddress DebuggerInterface::GetStackBottom() const
   return UINT32_C(0xFFFF);
 }
 
-bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out_line, uint32* out_size) const
+bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out_line, u32* out_size) const
 {
   u16 fetch_IP = m_cpu->m_registers.IP;
-  auto fetchb = [this, &fetch_IP](uint8* val) {
+  auto fetchb = [this, &fetch_IP](u8* val) {
     if (!m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_IP), val))
       return false;
-    fetch_IP += sizeof(uint8);
+    fetch_IP += sizeof(u8);
     return true;
   };
-  auto fetchw = [this, &fetch_IP](uint16* val) {
+  auto fetchw = [this, &fetch_IP](u16* val) {
     if (!m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_IP), val))
       return false;
-    fetch_IP += sizeof(uint16);
+    fetch_IP += sizeof(u16);
     return true;
   };
 
@@ -163,7 +163,7 @@ bool DebuggerInterface::IsStepping() const
   return m_stepping;
 }
 
-void DebuggerInterface::SetStepping(bool enabled, uint32 instructions_to_execute)
+void DebuggerInterface::SetStepping(bool enabled, u32 instructions_to_execute)
 {
   m_stepping = enabled;
   m_stepping_instructions = instructions_to_execute;
@@ -173,9 +173,9 @@ void DebuggerInterface::SetStepping(bool enabled, uint32 instructions_to_execute
     m_cpu->GetSystem()->SetState(System::State::Paused);
 }
 
-uint32 DebuggerInterface::GetSteppingInstructionCount()
+u32 DebuggerInterface::GetSteppingInstructionCount()
 {
-  uint32 temp = m_stepping_instructions;
+  u32 temp = m_stepping_instructions;
   m_stepping_instructions = 0;
   return temp;
 }

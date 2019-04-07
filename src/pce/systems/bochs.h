@@ -13,7 +13,7 @@ class Bochs : public i430FX
 
 public:
   Bochs(CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 75000000.0f,
-        uint32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
+        u32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
   ~Bochs();
 
   bool Initialize() override;

@@ -14,9 +14,9 @@ public:
   ~CodeCacheBackend();
 
   virtual void Reset() override;
-  virtual void OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) override;
-  virtual void BranchTo(uint32 new_EIP) override;
-  virtual void BranchFromException(uint32 new_EIP) override;
+  virtual void OnControlRegisterLoaded(Reg32 reg, u32 old_value, u32 new_value) override;
+  virtual void BranchTo(u32 new_EIP) override;
+  virtual void BranchFromException(u32 new_EIP) override;
 
   virtual void FlushCodeCache() override;
 
@@ -35,7 +35,7 @@ protected:
         u32 pad : 28;
       };
 
-      uint64 qword;
+      u64 qword;
     };
 
     bool operator==(const BlockKey& key) const
@@ -55,7 +55,7 @@ protected:
   {
     size_t operator()(const BlockKey& key) const
     {
-      return std::hash<uint64>()(key.qword);
+      return std::hash<u64>()(key.qword);
       // return size_t(key.qword);
     }
 

@@ -17,7 +17,7 @@ class CPU_8086_TestSystem : public System
 
 public:
   CPU_8086_TestSystem(CPU_8086::Model cpu_model = CPU_8086::MODEL_8086, float cpu_frequency = 1000000.0f,
-                      uint32 ram_size = 1024 * 1024);
+                      u32 ram_size = 1024 * 1024);
   ~CPU_8086_TestSystem();
 
   CPU_8086::CPU* Get8086CPU() const { return static_cast<CPU_8086::CPU*>(m_cpu); }

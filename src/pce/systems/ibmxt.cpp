@@ -16,7 +16,7 @@ PROPERTY_TABLE_MEMBER_UINT("VideoType", 0, offsetof(IBMXT, m_video_type), nullpt
 PROPERTY_TABLE_MEMBER_STRING("BIOSPath", 0, offsetof(IBMXT, m_bios_file_path), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-IBMXT::IBMXT(float cpu_frequency /* = 4770000.0f */, uint32 memory_size /* = 640 * 1024 */,
+IBMXT::IBMXT(float cpu_frequency /* = 4770000.0f */, u32 memory_size /* = 640 * 1024 */,
              VideoType video_type /* = VideoType::Other */, const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(type_info), m_bios_file_path("romimages/PCXTBIOS.BIN"), m_ram_size(memory_size), m_video_type(video_type)
 {
@@ -113,7 +113,7 @@ void IBMXT::ConnectSystemIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x00A0, this, &m_nmi_mask);
 
   // We need to set up a fake DMA channel for memory refresh.
-  m_dma_controller->ConnectDMAChannel(0, [](IOPortDataSize, uint32*, uint32) {}, [](IOPortDataSize, uint32, uint32) {});
+  m_dma_controller->ConnectDMAChannel(0, [](IOPortDataSize, u32*, u32) {}, [](IOPortDataSize, u32, u32) {});
 
   // Connect channel 1 of the PIT to trigger memory refresh.
   // m_timer->SetChannelOutputChangeCallback(1, [this](bool value) { m_dma_controller->SetDMAState(0, value); });
@@ -125,7 +125,7 @@ void IBMXT::SetSwitches()
   bool boot_loop = false;
   bool numeric_processor_installed = false;
   PhysicalMemoryAddress base_memory = GetBaseMemorySize();
-  uint32 num_disk_drives = m_fdd_controller->GetDriveCount();
+  u32 num_disk_drives = m_fdd_controller->GetDriveCount();
 
   // From http://www.rci.rutgers.edu/~preid/pcxtsw.htm
   m_ppi->SetSwitch(1 - 1, !boot_loop);
@@ -195,7 +195,7 @@ void IBMXT::SetSwitches()
   }
 }
 
-void IBMXT::HandlePortRead(uint32 port, uint8* value)
+void IBMXT::HandlePortRead(u32 port, u8* value)
 {
   switch (port)
   {
@@ -206,7 +206,7 @@ void IBMXT::HandlePortRead(uint32 port, uint8* value)
   }
 }
 
-void IBMXT::HandlePortWrite(uint32 port, uint8 value)
+void IBMXT::HandlePortWrite(u32 port, u8 value)
 {
   switch (port)
   {

@@ -40,8 +40,8 @@ protected:
   void GrabMouse();
   void ReleaseMouse();
   void RenderImGui();
-  void DoLoadState(uint32 index);
-  void DoSaveState(uint32 index);
+  void DoLoadState(u32 index);
+  void DoSaveState(u32 index);
 
   bool HandleSDLEvent(const SDL_Event* event);
   bool PassEventToImGui(const SDL_Event* event);

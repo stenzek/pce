@@ -75,7 +75,7 @@ void ET4000::Reset()
   m_sequencer_registers.bios_rom_address_map_0 = 1;
   m_sequencer_registers.bios_rom_address_map_1 = 1;
 
-  std::fill_n(m_crtc_registers.index, countof(m_crtc_registers.index), uint8(0));
+  std::fill_n(m_crtc_registers.index, countof(m_crtc_registers.index), u8(0));
   m_crtc_registers.mc6845_compatibility_control.vse_register_port = true;
 
   m_dac_ctrl = 0;
@@ -123,7 +123,7 @@ bool ET4000::LoadState(BinaryReader& reader)
   reader.SafeReadBool(&m_atc_palette_access);
   reader.SafeReadBytes(m_sequencer_registers.index, sizeof(m_sequencer_registers.index));
   reader.SafeReadUInt8(&m_sequencer_address_register);
-  reader.SafeReadBytes(m_dac_palette.data(), Truncate32(sizeof(uint32) * m_dac_palette.size()));
+  reader.SafeReadBytes(m_dac_palette.data(), Truncate32(sizeof(u32) * m_dac_palette.size()));
   reader.SafeReadUInt8(&m_dac_ctrl);
   reader.SafeReadUInt8(&m_dac_mask);
   reader.SafeReadUInt8(&m_dac_status_register);
@@ -133,7 +133,7 @@ bool ET4000::LoadState(BinaryReader& reader)
   reader.SafeReadUInt8(&m_dac_color_index);
   reader.SafeReadBytes(m_vram, sizeof(m_vram));
   reader.SafeReadUInt32(&m_latch);
-  reader.SafeReadBytes(m_output_palette.data(), Truncate32(sizeof(uint32) * m_output_palette.size()));
+  reader.SafeReadBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   reader.SafeReadUInt8(&m_cursor_counter);
   reader.SafeReadBool(&m_cursor_state);
 
@@ -161,7 +161,7 @@ bool ET4000::SaveState(BinaryWriter& writer)
   writer.WriteBool(m_atc_palette_access);
   writer.WriteBytes(m_sequencer_registers.index, sizeof(m_sequencer_registers.index));
   writer.WriteUInt8(m_sequencer_address_register);
-  writer.WriteBytes(m_dac_palette.data(), Truncate32(sizeof(uint32) * m_dac_palette.size()));
+  writer.WriteBytes(m_dac_palette.data(), Truncate32(sizeof(u32) * m_dac_palette.size()));
   writer.WriteUInt8(m_dac_ctrl);
   writer.WriteUInt8(m_dac_mask);
   writer.WriteUInt8(m_dac_status_register);
@@ -171,7 +171,7 @@ bool ET4000::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(m_dac_color_index);
   writer.WriteBytes(m_vram, sizeof(m_vram));
   writer.WriteUInt32(m_latch);
-  writer.WriteBytes(m_output_palette.data(), Truncate32(sizeof(uint32) * m_output_palette.size()));
+  writer.WriteBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   writer.WriteUInt8(m_cursor_counter);
   writer.WriteBool(m_cursor_state);
 
@@ -262,7 +262,7 @@ void ET4000::Render()
     RenderTextMode();
 }
 
-void ET4000::IOReadStatusRegister1(uint8* value)
+void ET4000::IOReadStatusRegister1(u8* value)
 {
   ScanoutInfo si = GetScanoutInfo();
 
@@ -277,17 +277,17 @@ void ET4000::IOReadStatusRegister1(uint8* value)
   m_crtc_registers.attribute_register_flipflop = false;
 }
 
-void ET4000::IOCRTCDataRegisterRead(uint8* value)
+void ET4000::IOCRTCDataRegisterRead(u8* value)
 {
   if (m_crtc_index_register >= countof(m_crtc_registers.index))
   {
-    Log_ErrorPrintf("Out-of-range CRTC register read: %u", uint32(m_crtc_index_register));
+    Log_ErrorPrintf("Out-of-range CRTC register read: %u", u32(m_crtc_index_register));
     *value = 0;
     return;
   }
 
   // Always a byte value
-  uint32 register_index = m_crtc_index_register;
+  u32 register_index = m_crtc_index_register;
 
   // Can only read C-F
   // Not true?
@@ -296,44 +296,44 @@ void ET4000::IOCRTCDataRegisterRead(uint8* value)
   // else
   //*value = 0;
 
-  Log_TracePrintf("CRTC register read: %u -> 0x%02X", uint32(register_index),
-                  uint32(m_graphics_registers.index[register_index]));
+  Log_TracePrintf("CRTC register read: %u -> 0x%02X", u32(register_index),
+                  u32(m_graphics_registers.index[register_index]));
 }
 
-void ET4000::IOCRTCDataRegisterWrite(uint8 value)
+void ET4000::IOCRTCDataRegisterWrite(u8 value)
 {
   if (m_crtc_index_register >= countof(m_crtc_registers.index))
   {
-    Log_ErrorPrintf("Out-of-range CRTC register write: %u", uint32(m_crtc_index_register));
+    Log_ErrorPrintf("Out-of-range CRTC register write: %u", u32(m_crtc_index_register));
     return;
   }
 
-  uint32 register_index = m_crtc_index_register;
+  u32 register_index = m_crtc_index_register;
   m_crtc_registers.index[register_index] = value;
 
-  Log_TracePrintf("CRTC register write: %u <- 0x%02X", uint32(register_index), uint32(value));
+  Log_TracePrintf("CRTC register write: %u <- 0x%02X", u32(register_index), u32(value));
 
   if (register_index == 0x00 || register_index == 0x06 || register_index == 0x07)
     RecalculateEventTiming();
 }
 
-void ET4000::IOGraphicsDataRegisterRead(uint8* value)
+void ET4000::IOGraphicsDataRegisterRead(u8* value)
 {
   if (m_graphics_address_register >= countof(m_graphics_registers.index))
   {
-    Log_ErrorPrintf("Out-of-range graphics register read: %u", uint32(m_graphics_address_register));
+    Log_ErrorPrintf("Out-of-range graphics register read: %u", u32(m_graphics_address_register));
     *value = 0;
     return;
   }
 
-  uint8 register_index = m_graphics_address_register;
+  u8 register_index = m_graphics_address_register;
   *value = m_graphics_registers.index[register_index];
 
-  Log_TracePrintf("Graphics register read: %u -> 0x%02X", uint32(register_index),
-                  uint32(m_graphics_registers.index[register_index]));
+  Log_TracePrintf("Graphics register read: %u -> 0x%02X", u32(register_index),
+                  u32(m_graphics_registers.index[register_index]));
 }
 
-void ET4000::IOGraphicsDataRegisterWrite(uint8 value)
+void ET4000::IOGraphicsDataRegisterWrite(u8 value)
 {
   static const uint8_t gr_mask[16] = {
     0x0f, /* 0x00 */
@@ -356,45 +356,45 @@ void ET4000::IOGraphicsDataRegisterWrite(uint8 value)
 
   if (m_graphics_address_register >= countof(m_graphics_registers.index))
   {
-    Log_ErrorPrintf("Out-of-range graphics register write: %u", uint32(m_graphics_address_register));
+    Log_ErrorPrintf("Out-of-range graphics register write: %u", u32(m_graphics_address_register));
     return;
   }
 
-  uint8 register_index = m_graphics_address_register & 0x0F;
+  u8 register_index = m_graphics_address_register & 0x0F;
   m_graphics_registers.index[register_index] = value & gr_mask[register_index];
 
-  Log_TracePrintf("Graphics register write: %u <- 0x%02X", uint32(register_index), uint32(value));
+  Log_TracePrintf("Graphics register write: %u <- 0x%02X", u32(register_index), u32(value));
 }
 
-void ET4000::IOMiscOutputRegisterWrite(uint8 value)
+void ET4000::IOMiscOutputRegisterWrite(u8 value)
 {
-  Log_TracePrintf("Misc output register write: 0x%02X", uint32(value));
+  Log_TracePrintf("Misc output register write: 0x%02X", u32(value));
   m_misc_output_register.bits = value;
   RecalculateEventTiming();
 }
 
-void ET4000::IOAttributeAddressRead(uint8* value)
+void ET4000::IOAttributeAddressRead(u8* value)
 {
   *value = m_attribute_address_register;
 }
 
-void ET4000::IOAttributeDataRead(uint8* value)
+void ET4000::IOAttributeDataRead(u8* value)
 {
   if (m_attribute_address_register >= countof(m_attribute_registers.index))
   {
-    Log_ErrorPrintf("Out-of-range attribute register read: %u", uint32(m_attribute_address_register));
+    Log_ErrorPrintf("Out-of-range attribute register read: %u", u32(m_attribute_address_register));
     *value = 0;
     return;
   }
 
-  uint8 register_index = m_attribute_address_register;
+  u8 register_index = m_attribute_address_register;
   *value = m_attribute_registers.index[register_index];
 
-  Log_TracePrintf("Attribute register read: %u -> 0x%02X", uint32(register_index),
-                  uint32(m_attribute_registers.index[register_index]));
+  Log_TracePrintf("Attribute register read: %u -> 0x%02X", u32(register_index),
+                  u32(m_attribute_registers.index[register_index]));
 }
 
-void ET4000::IOAttributeAddressDataWrite(uint8 value)
+void ET4000::IOAttributeAddressDataWrite(u8 value)
 {
   if (!m_crtc_registers.attribute_register_flipflop)
   {
@@ -417,37 +417,37 @@ void ET4000::IOAttributeAddressDataWrite(uint8 value)
 
   if (m_attribute_address_register >= countof(m_attribute_registers.index))
   {
-    Log_ErrorPrintf("Out-of-range attribute register write: %u", uint32(m_attribute_address_register));
+    Log_ErrorPrintf("Out-of-range attribute register write: %u", u32(m_attribute_address_register));
     return;
   }
 
-  uint8 register_index = m_attribute_address_register;
+  u8 register_index = m_attribute_address_register;
   m_attribute_registers.index[m_attribute_address_register] = value;
 
-  Log_TracePrintf("Attribute register write: %u <- 0x%02X", uint32(register_index), uint32(value));
+  Log_TracePrintf("Attribute register write: %u <- 0x%02X", u32(register_index), u32(value));
 
   // Mask text-mode palette indices to 6 bits
   if (register_index < 16)
     m_attribute_registers.index[register_index] &= 0x3F;
 }
 
-void ET4000::IOSequencerDataRegisterRead(uint8* value)
+void ET4000::IOSequencerDataRegisterRead(u8* value)
 {
   if (m_sequencer_address_register >= countof(m_sequencer_registers.index))
   {
-    Log_ErrorPrintf("Out-of-range sequencer register read: %u", uint32(m_sequencer_address_register));
+    Log_ErrorPrintf("Out-of-range sequencer register read: %u", u32(m_sequencer_address_register));
     *value = 0;
     return;
   }
 
-  uint8 register_index = m_sequencer_address_register;
+  u8 register_index = m_sequencer_address_register;
   *value = m_sequencer_registers.index[register_index];
 
-  Log_TracePrintf("Sequencer register read: %u -> 0x%02X", uint32(register_index),
-                  uint32(m_sequencer_registers.index[register_index]));
+  Log_TracePrintf("Sequencer register read: %u -> 0x%02X", u32(register_index),
+                  u32(m_sequencer_registers.index[register_index]));
 }
 
-void ET4000::IOSequencerDataRegisterWrite(uint8 value)
+void ET4000::IOSequencerDataRegisterWrite(u8 value)
 {
   /* force some bits to zero */
   const uint8_t sr_mask[8] = {
@@ -455,19 +455,19 @@ void ET4000::IOSequencerDataRegisterWrite(uint8 value)
   };
 
   if (m_sequencer_address_register >= countof(m_sequencer_registers.index))
-    Log_ErrorPrintf("Out-of-range sequencer register write: %u", uint32(m_sequencer_address_register));
+    Log_ErrorPrintf("Out-of-range sequencer register write: %u", u32(m_sequencer_address_register));
 
-  uint8 register_index = m_sequencer_address_register % countof(m_sequencer_registers.index);
+  u8 register_index = m_sequencer_address_register % countof(m_sequencer_registers.index);
   m_sequencer_registers.index[register_index] = value & sr_mask[register_index];
 
-  Log_TracePrintf("Sequencer register write: %u <- 0x%02X", uint32(register_index),
-                  uint32(m_sequencer_registers.index[register_index]));
+  Log_TracePrintf("Sequencer register write: %u <- 0x%02X", u32(register_index),
+                  u32(m_sequencer_registers.index[register_index]));
 
   if (register_index == 0x01)
     RecalculateEventTiming();
 }
 
-void ET4000::IODACMaskRead(uint8* value) // 3c6
+void ET4000::IODACMaskRead(u8* value) // 3c6
 {
   if (m_dac_state_register == 4)
   {
@@ -480,7 +480,7 @@ void ET4000::IODACMaskRead(uint8* value) // 3c6
   m_dac_state_register++;
 }
 
-void ET4000::IODACMaskWrite(uint8 value) // 3c6
+void ET4000::IODACMaskWrite(u8 value) // 3c6
 {
   if (m_dac_state_register == 4)
   {
@@ -493,26 +493,26 @@ void ET4000::IODACMaskWrite(uint8 value) // 3c6
   m_dac_state_register = 0;
 }
 
-void ET4000::IODACStateRegisterRead(uint8* value) // 3c7
+void ET4000::IODACStateRegisterRead(u8* value) // 3c7
 {
   *value = m_dac_status_register;
   m_dac_state_register = 0;
 }
 
-void ET4000::IODACReadAddressWrite(uint8 value) // 3c7
+void ET4000::IODACReadAddressWrite(u8 value) // 3c7
 {
   Log_TracePrintf("DAC read address write: %u", value);
   m_dac_read_address = value;
   m_dac_state_register = 0;
 }
 
-void ET4000::IODACWriteAddressRead(uint8* value) // 3c8
+void ET4000::IODACWriteAddressRead(u8* value) // 3c8
 {
   *value = m_dac_write_address;
   m_dac_state_register = 0;
 }
 
-void ET4000::IODACWriteAddressWrite(uint8 value) // 3c8
+void ET4000::IODACWriteAddressWrite(u8 value) // 3c8
 {
   Log_TracePrintf("DAC write address write: %u", value);
   m_dac_write_address = value;
@@ -520,13 +520,13 @@ void ET4000::IODACWriteAddressWrite(uint8 value) // 3c8
   m_dac_state_register = 0;
 }
 
-void ET4000::IODACDataRegisterRead(uint8* value) // 3c9
+void ET4000::IODACDataRegisterRead(u8* value) // 3c9
 {
-  uint32 color_value = m_dac_palette[m_dac_read_address];
-  uint8 shift = m_dac_color_index * 8;
-  *value = uint8((color_value >> shift) & 0xFF);
+  u32 color_value = m_dac_palette[m_dac_read_address];
+  u8 shift = m_dac_color_index * 8;
+  *value = u8((color_value >> shift) & 0xFF);
 
-  Log_TracePrintf("DAC palette read %u/%u: %u", uint32(m_dac_read_address), uint32(m_dac_color_index), uint32(*value));
+  Log_TracePrintf("DAC palette read %u/%u: %u", u32(m_dac_read_address), u32(m_dac_color_index), u32(*value));
 
   m_dac_color_index++;
   if (m_dac_color_index >= 3)
@@ -539,17 +539,17 @@ void ET4000::IODACDataRegisterRead(uint8* value) // 3c9
   m_dac_state_register = 0;
 }
 
-void ET4000::IODACDataRegisterWrite(uint8 value) // 3c9
+void ET4000::IODACDataRegisterWrite(u8 value) // 3c9
 {
-  Log_TracePrintf("DAC palette write %u/%u: %u", uint32(m_dac_write_address), uint32(m_dac_color_index), uint32(value));
+  Log_TracePrintf("DAC palette write %u/%u: %u", u32(m_dac_write_address), u32(m_dac_color_index), u32(value));
 
   // Mask away higher bits
   value &= 0x3F;
 
-  uint32 color_value = m_dac_palette[m_dac_write_address];
-  uint8 shift = m_dac_color_index * 8;
-  color_value &= ~uint32(0xFF << shift);
-  color_value |= (uint32(value) << shift);
+  u32 color_value = m_dac_palette[m_dac_write_address];
+  u8 shift = m_dac_color_index * 8;
+  color_value &= ~u32(0xFF << shift);
+  color_value |= (u32(value) << shift);
   m_dac_palette[m_dac_write_address] = color_value;
 
   m_dac_color_index++;
@@ -563,14 +563,14 @@ void ET4000::IODACDataRegisterWrite(uint8 value) // 3c9
 }
 
 // Values of 4-bit registers containing the plane mask expanded to 8 bits per plane.
-static constexpr std::array<uint32, 16> mask16 = {
+static constexpr std::array<u32, 16> mask16 = {
   0x00000000, 0x000000ff, 0x0000ff00, 0x0000ffff, 0x00ff0000, 0x00ff00ff, 0x00ffff00, 0x00ffffff,
   0xff000000, 0xff0000ff, 0xff00ff00, 0xff00ffff, 0xffff0000, 0xffff00ff, 0xffffff00, 0xffffffff,
 };
 
-bool ET4000::MapToVRAMOffset(uint32* offset)
+bool ET4000::MapToVRAMOffset(u32* offset)
 {
-  uint32 value = *offset;
+  u32 value = *offset;
   switch (m_graphics_registers.misc.memory_map_select)
   {
     case 0: // A0000-BFFFF (128K)
@@ -608,7 +608,7 @@ bool ET4000::MapToVRAMOffset(uint32* offset)
   }
 }
 
-void ET4000::HandleVRAMRead(uint32 offset, uint8* value)
+void ET4000::HandleVRAMRead(u32 offset, u8* value)
 {
   if (!MapToVRAMOffset(&offset))
   {
@@ -618,18 +618,18 @@ void ET4000::HandleVRAMRead(uint32 offset, uint8* value)
   }
 
   // 64K segment/bank select.
-  const uint32 segment = ZeroExtend32(m_segment_select_register.read_segment.GetValue()) * 65536;
-  uint8 read_plane;
+  const u32 segment = ZeroExtend32(m_segment_select_register.read_segment.GetValue()) * 65536;
+  u8 read_plane;
 
   if (m_sequencer_registers.sequencer_memory_mode.chain_4_enable)
   {
     // Chain4 mode - access all four planes as a series of linear bytes
     read_plane = Truncate8(offset & 3);
-    std::memcpy(&m_latch, &m_vram[(segment + offset) & ~uint32(3)], sizeof(m_latch));
+    std::memcpy(&m_latch, &m_vram[(segment + offset) & ~u32(3)], sizeof(m_latch));
   }
   else
   {
-    uint32 latch_planar_address;
+    u32 latch_planar_address;
     if (!m_graphics_registers.mode.host_odd_even)
     {
       // By default we use the read map select register for the plane to return.
@@ -640,7 +640,7 @@ void ET4000::HandleVRAMRead(uint32 offset, uint8* value)
     {
       // Except for odd/even addressing, only access planes 0/1.
       read_plane = (m_graphics_registers.read_map_select & 0x02) | Truncate8(offset & 0x01);
-      latch_planar_address = segment + (offset & ~uint32(1));
+      latch_planar_address = segment + (offset & ~u32(1));
     }
 
     // Use the offset to load the latches with all 4 planes.
@@ -651,10 +651,10 @@ void ET4000::HandleVRAMRead(uint32 offset, uint8* value)
   if (m_graphics_registers.mode.read_mode != 0)
   {
     // Read mode 1 - compare value/mask
-    uint32 compare_result =
+    u32 compare_result =
       (m_latch ^ mask16[m_graphics_registers.color_compare]) & mask16[m_graphics_registers.color_dont_care];
-    uint8 ret = Truncate8(compare_result) | Truncate8(compare_result >> 8) | Truncate8(compare_result >> 16) |
-                Truncate8(compare_result >> 24);
+    u8 ret = Truncate8(compare_result) | Truncate8(compare_result >> 8) | Truncate8(compare_result >> 16) |
+             Truncate8(compare_result >> 24);
     *value = ~ret;
   }
   else
@@ -664,7 +664,7 @@ void ET4000::HandleVRAMRead(uint32 offset, uint8* value)
   }
 }
 
-inline uint32 ET4000LogicOp(uint8 logic_op, uint32 latch, uint32 value)
+inline u32 ET4000LogicOp(u8 logic_op, u32 latch, u32 value)
 {
   switch (logic_op)
   {
@@ -681,12 +681,12 @@ inline uint32 ET4000LogicOp(uint8 logic_op, uint32 latch, uint32 value)
   }
 }
 
-constexpr uint32 ET4000ExpandMask(uint8 mask)
+constexpr u32 ET4000ExpandMask(u8 mask)
 {
   return ZeroExtend32(mask) | (ZeroExtend32(mask) << 8) | (ZeroExtend32(mask) << 16) | (ZeroExtend32(mask) << 24);
 }
 
-void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
+void ET4000::HandleVRAMWrite(u32 offset, u8 value)
 {
   if (!MapToVRAMOffset(&offset))
   {
@@ -695,32 +695,31 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
   }
 
   // 64K segment/bank select.
-  const uint32 segment = ZeroExtend32(m_segment_select_register.write_segment.GetValue()) * 65536;
+  const u32 segment = ZeroExtend32(m_segment_select_register.write_segment.GetValue()) * 65536;
 
   if (m_sequencer_registers.sequencer_memory_mode.chain_4_enable)
   {
     // ET4000 differs from other SVGA hardware - chained write addresses go direct to memory addresses.
-    uint8 plane = Truncate8(offset & 3);
+    u8 plane = Truncate8(offset & 3);
     if (m_sequencer_registers.memory_plane_write_enable & (1 << plane))
       m_vram[segment + offset] = value;
   }
   else if (!m_sequencer_registers.sequencer_memory_mode.odd_even_host_memory)
   {
-    uint8 plane = Truncate8(offset & 1);
+    u8 plane = Truncate8(offset & 1);
     if (m_sequencer_registers.memory_plane_write_enable & (1 << plane))
-      m_vram[((segment + (offset & ~uint32(1))) * 4) | plane] = value;
+      m_vram[((segment + (offset & ~u32(1))) * 4) | plane] = value;
   }
   else
   {
-    uint32 all_planes_value = 0;
+    u32 all_planes_value = 0;
     switch (m_graphics_registers.mode.write_mode)
     {
       case 0:
       {
         // The input byte is rotated right by the amount specified in Rotate Count, with all bits shifted off being
         // fed into bit 7
-        uint8 rotated =
-          (value >> m_graphics_registers.rotate_count) | (value << (8 - m_graphics_registers.rotate_count));
+        u8 rotated = (value >> m_graphics_registers.rotate_count) | (value << (8 - m_graphics_registers.rotate_count));
 
         // The resulting byte is distributed over 4 separate paths, one for each plane of memory
         all_planes_value = ET4000ExpandMask(rotated);
@@ -736,7 +735,7 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
 
         // The Bit Mask Register is checked, for each set bit the corresponding bit from the ALU is forwarded. If the
         // bit is clear the bit is taken directly from the Latch.
-        uint32 bit_mask = ET4000ExpandMask(m_graphics_registers.bit_mask);
+        u32 bit_mask = ET4000ExpandMask(m_graphics_registers.bit_mask);
         all_planes_value = (all_planes_value & bit_mask) | (m_latch & ~bit_mask);
       }
       break;
@@ -759,7 +758,7 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
 
         // Then the Bit Mask field is used to select which bits come from the resulting data and which come from the
         // latch register.
-        uint32 bit_mask = ET4000ExpandMask(m_graphics_registers.bit_mask);
+        u32 bit_mask = ET4000ExpandMask(m_graphics_registers.bit_mask);
         all_planes_value = (all_planes_value & bit_mask) | (m_latch & ~bit_mask);
       }
       break;
@@ -767,13 +766,12 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
       case 3:
       {
         // In this mode, the data in the Set/Reset field is used as if the Enable Set/Reset field were set to 1111b.
-        uint32 set_reset_data = mask16[m_graphics_registers.set_reset];
+        u32 set_reset_data = mask16[m_graphics_registers.set_reset];
 
         // Then the host data is first rotated as per the Rotate Count field, then logical ANDed with the value of the
         // Bit Mask field.
-        uint8 rotated =
-          (value >> m_graphics_registers.rotate_count) | (value << (8 - m_graphics_registers.rotate_count));
-        uint8 temp_bit_mask = m_graphics_registers.bit_mask & rotated;
+        u8 rotated = (value >> m_graphics_registers.rotate_count) | (value << (8 - m_graphics_registers.rotate_count));
+        u8 temp_bit_mask = m_graphics_registers.bit_mask & rotated;
 
         // Apply logical operation.
         all_planes_value = ET4000LogicOp(m_graphics_registers.logic_op, m_latch, set_reset_data);
@@ -781,31 +779,31 @@ void ET4000::HandleVRAMWrite(uint32 offset, uint8 value)
         // The resulting value is used on the data obtained from the Set/Reset field in the same way that the Bit Mask
         // field would ordinarily be used to select which bits come from the expansion of the Set/Reset field and
         // which come from the latch register.
-        uint32 bit_mask = ET4000ExpandMask(temp_bit_mask);
+        u32 bit_mask = ET4000ExpandMask(temp_bit_mask);
         all_planes_value = (all_planes_value & bit_mask) | (m_latch & ~bit_mask);
       }
       break;
     }
 
     // Finally, only the bit planes enabled by the Memory Plane Write Enable field are written to memory.
-    uint32 write_mask = mask16[m_sequencer_registers.memory_plane_write_enable & 0xF];
-    uint32 current_value;
+    u32 write_mask = mask16[m_sequencer_registers.memory_plane_write_enable & 0xF];
+    u32 current_value;
     std::memcpy(&current_value, &m_vram[(segment + offset) * 4], sizeof(current_value));
     all_planes_value = (all_planes_value & write_mask) | (current_value & ~write_mask);
     std::memcpy(&m_vram[(segment + offset) * 4], &all_planes_value, sizeof(current_value));
   }
 }
 
-bool ET4000::IsBIOSAddressMapped(uint32 offset, uint32 size)
+bool ET4000::IsBIOSAddressMapped(u32 offset, u32 size)
 {
-  uint32 last_byte = (offset + size - 1);
+  u32 last_byte = (offset + size - 1);
   if (last_byte >= m_bios_size)
     return false;
 
   // The ET4000 is designed to decode COOOO-CSFFF; C6800-C7FFF (hexl as the EROM address space on power-up, providing
   // 30KB code size for the ET4000 BIOS ROM modules. This address space can be redefined to a full 32KB by programming
   // TS Index Register 7 ITS Auxiliary Registerl bits 5 and 3.
-  const uint8 rmap = m_sequencer_registers.bios_rom_address_map_0 | (m_sequencer_registers.bios_rom_address_map_1 << 1);
+  const u8 rmap = m_sequencer_registers.bios_rom_address_map_0 | (m_sequencer_registers.bios_rom_address_map_1 << 1);
   switch (rmap & 3)
   {
     case 0: // C0000-C3FFF
@@ -837,31 +835,31 @@ bool ET4000::LoadBIOSROM()
 
 void ET4000::RegisterVRAMMMIO()
 {
-  auto read_byte_handler = [this](uint32 base, uint32 offset, uint8* value) { HandleVRAMRead(base + offset, value); };
-  auto read_word_handler = [this](uint32 base, uint32 offset, uint16* value) {
-    uint8 b0, b1;
+  auto read_byte_handler = [this](u32 base, u32 offset, u8* value) { HandleVRAMRead(base + offset, value); };
+  auto read_word_handler = [this](u32 base, u32 offset, u16* value) {
+    u8 b0, b1;
     HandleVRAMRead(base + offset + 0, &b0);
     HandleVRAMRead(base + offset + 1, &b1);
-    *value = (uint16(b1) << 8) | (uint16(b0));
+    *value = (u16(b1) << 8) | (u16(b0));
   };
-  auto read_dword_handler = [this](uint32 base, uint32 offset, uint32* value) {
-    uint8 b0, b1, b2, b3;
+  auto read_dword_handler = [this](u32 base, u32 offset, u32* value) {
+    u8 b0, b1, b2, b3;
     HandleVRAMRead(base + offset + 0, &b0);
     HandleVRAMRead(base + offset + 1, &b1);
     HandleVRAMRead(base + offset + 2, &b2);
     HandleVRAMRead(base + offset + 3, &b3);
-    *value = (uint32(b3) << 24) | (uint32(b2) << 16) | (uint32(b1) << 8) | (uint32(b0));
+    *value = (u32(b3) << 24) | (u32(b2) << 16) | (u32(b1) << 8) | (u32(b0));
   };
-  auto write_byte_handler = [this](uint32 base, uint32 offset, uint8 value) { HandleVRAMWrite(base + offset, value); };
-  auto write_word_handler = [this](uint32 base, uint32 offset, uint16 value) {
-    HandleVRAMWrite(base + offset + 0, uint8(value & 0xFF));
-    HandleVRAMWrite(base + offset + 1, uint8((value >> 8) & 0xFF));
+  auto write_byte_handler = [this](u32 base, u32 offset, u8 value) { HandleVRAMWrite(base + offset, value); };
+  auto write_word_handler = [this](u32 base, u32 offset, u16 value) {
+    HandleVRAMWrite(base + offset + 0, u8(value & 0xFF));
+    HandleVRAMWrite(base + offset + 1, u8((value >> 8) & 0xFF));
   };
-  auto write_dword_handler = [this](uint32 base, uint32 offset, uint32 value) {
-    HandleVRAMWrite(base + offset + 0, uint8(value & 0xFF));
-    HandleVRAMWrite(base + offset + 1, uint8((value >> 8) & 0xFF));
-    HandleVRAMWrite(base + offset + 2, uint8((value >> 16) & 0xFF));
-    HandleVRAMWrite(base + offset + 3, uint8((value >> 24) & 0xFF));
+  auto write_dword_handler = [this](u32 base, u32 offset, u32 value) {
+    HandleVRAMWrite(base + offset + 0, u8(value & 0xFF));
+    HandleVRAMWrite(base + offset + 1, u8((value >> 8) & 0xFF));
+    HandleVRAMWrite(base + offset + 2, u8((value >> 16) & 0xFF));
+    HandleVRAMWrite(base + offset + 3, u8((value >> 24) & 0xFF));
   };
 
   MMIO::Handlers handlers;
@@ -878,16 +876,16 @@ void ET4000::RegisterVRAMMMIO()
 
   // BIOS region
   handlers = {};
-  handlers.read_byte = [this](uint32 offset, uint8* value) {
+  handlers.read_byte = [this](u32 offset, u8* value) {
     *value = IsBIOSAddressMapped(offset, 1) ? m_bios_rom[offset] : 0xFF;
   };
-  handlers.read_word = [this](uint32 offset, uint16* value) {
+  handlers.read_word = [this](u32 offset, u16* value) {
     if (IsBIOSAddressMapped(offset, 2))
     {
       std::memcpy(value, &m_bios_rom[offset], 2);
     }
   };
-  handlers.read_dword = [this](uint32 offset, uint32* value) {
+  handlers.read_dword = [this](u32 offset, u32* value) {
     if (IsBIOSAddressMapped(offset, 4))
     {
       std::memcpy(value, &m_bios_rom[offset], 4);
@@ -898,11 +896,11 @@ void ET4000::RegisterVRAMMMIO()
   m_bus->ConnectMMIO(m_bios_mmio);
 }
 
-inline uint32 Convert6BitColorTo8Bit(uint32 color)
+inline u32 Convert6BitColorTo8Bit(u32 color)
 {
-  uint8 r = Truncate8(color);
-  uint8 g = Truncate8(color >> 8);
-  uint8 b = Truncate8(color >> 16);
+  u8 r = Truncate8(color);
+  u8 g = Truncate8(color >> 8);
+  u8 b = Truncate8(color >> 16);
 
   // Convert 6-bit color to 8-bit color by shifting low bits to high bits (00123456 -> 12345612).
   r = (r << 2) | (r >> 4);
@@ -912,11 +910,11 @@ inline uint32 Convert6BitColorTo8Bit(uint32 color)
   return (color & 0xFF000000) | ZeroExtend32(r) | (ZeroExtend32(g) << 8) | (ZeroExtend32(b) << 16);
 }
 
-inline uint32 ConvertBGR555ToRGB24(uint16 color)
+inline u32 ConvertBGR555ToRGB24(u16 color)
 {
-  uint8 b = Truncate8(color & 31);
-  uint8 g = Truncate8((color >> 5) & 31);
-  uint8 r = Truncate8((color >> 10) & 31);
+  u8 b = Truncate8(color & 31);
+  u8 g = Truncate8((color >> 5) & 31);
+  u8 r = Truncate8((color >> 10) & 31);
 
   // 00012345 -> 1234545
   b = (b << 3) | (b >> 3);
@@ -926,11 +924,11 @@ inline uint32 ConvertBGR555ToRGB24(uint16 color)
   return (color & 0xFF000000) | ZeroExtend32(r) | (ZeroExtend32(g) << 8) | (ZeroExtend32(b) << 16);
 }
 
-inline uint32 ConvertBGR565ToRGB24(uint16 color)
+inline u32 ConvertBGR565ToRGB24(u16 color)
 {
-  uint8 b = Truncate8(color & 31);
-  uint8 g = Truncate8((color >> 5) & 63);
-  uint8 r = Truncate8((color >> 11) & 31);
+  u8 b = Truncate8(color & 31);
+  u8 g = Truncate8((color >> 5) & 63);
+  u8 r = Truncate8((color >> 11) & 31);
 
   // 00012345 -> 1234545 / 00123456 -> 12345656
   b = (b << 3) | (b >> 3);
@@ -942,9 +940,9 @@ inline uint32 ConvertBGR565ToRGB24(uint16 color)
 
 void ET4000::SetOutputPalette16()
 {
-  for (uint32 i = 0; i < 16; i++)
+  for (u32 i = 0; i < 16; i++)
   {
-    uint32 index = ZeroExtend32(m_attribute_registers.palette[i]);
+    u32 index = ZeroExtend32(m_attribute_registers.palette[i]);
 
     // Control whether the color select controls the high bits or the palette index.
     if (m_attribute_registers.attribute_mode_control.palette_bits_5_4_select)
@@ -958,7 +956,7 @@ void ET4000::SetOutputPalette16()
 
 void ET4000::SetOutputPalette256()
 {
-  for (uint32 i = 0; i < 256; i++)
+  for (u32 i = 0; i < 256; i++)
   {
     m_output_palette[i] = Convert6BitColorTo8Bit(m_dac_palette[i]);
   }
@@ -967,22 +965,21 @@ void ET4000::SetOutputPalette256()
 void ET4000::RecalculateEventTiming()
 {
   // Pixels clocks. 0 - 25MHz, 1 - 28Mhz, 2/3 - undefined
-  static constexpr std::array<uint32, 8> pixel_clocks = {
+  static constexpr std::array<u32, 8> pixel_clocks = {
     {25175000, 28322000, 36000000, 40000000, 36000000, 65000000, 36000000, 36000000}};
-  const uint32 clock_select =
+  const u32 clock_select =
     m_misc_output_register.clock_select | (m_crtc_registers.mc6845_compatibility_control.clock_select_2 << 2);
 
   // Dot clock and character width are the only modifications which influences timings.
-  uint32 pixel_clock = pixel_clocks[clock_select];
+  u32 pixel_clock = pixel_clocks[clock_select];
   if (m_sequencer_registers.clocking_mode.dot_clock_rate)
     pixel_clock /= 2;
   if (!m_sequencer_registers.mclk_div2)
     pixel_clock *= 2;
 
-  const uint32 horizontal_total_pixels =
-    m_crtc_registers.GetHorizontalTotal() * m_sequencer_registers.GetCharacterWidth();
+  const u32 horizontal_total_pixels = m_crtc_registers.GetHorizontalTotal() * m_sequencer_registers.GetCharacterWidth();
   const double horizontal_frequency = double(pixel_clock) / double(horizontal_total_pixels);
-  const uint32 vertical_total_lines = m_crtc_registers.GetVerticalTotal();
+  const u32 vertical_total_lines = m_crtc_registers.GetVerticalTotal();
   double vertical_frequency = horizontal_frequency / double(vertical_total_lines);
 
   Log_DevPrintf("ET4000: Horizontal frequency: %.4f kHz, vertical frequency: %.4f hz", horizontal_frequency / 1000.0,
@@ -999,7 +996,7 @@ void ET4000::RecalculateEventTiming()
 
   // The field contains the value of the vertical scanline counter at the beggining of the scanline immediately after
   // the last scanline of active display.
-  uint32 vertical_active_lines = m_crtc_registers.GetVerticalDisplayed();
+  u32 vertical_active_lines = m_crtc_registers.GetVerticalDisplayed();
   double vertical_active_duration = horizontal_total_duration * double(vertical_active_lines);
   double vertical_total_duration = double(1000000000.0) / vertical_frequency;
 
@@ -1045,7 +1042,7 @@ ET4000::ScanoutInfo ET4000::GetScanoutInfo()
   }
 
   SimulationTime time_since_retrace = m_retrace_event->GetTimeSinceLastExecution();
-  si.current_line = uint32(time_since_retrace / m_timing.horizontal_total_duration);
+  si.current_line = u32(time_since_retrace / m_timing.horizontal_total_duration);
 
   // Check if we're in vertical retrace.
   si.in_vertical_blank = (time_since_retrace > m_timing.vertical_active_duration);
@@ -1065,21 +1062,21 @@ ET4000::ScanoutInfo ET4000::GetScanoutInfo()
   return si;
 }
 
-uint32 ET4000::CRTCReadVRAMPlanes(uint32 address_counter, uint32 row_scan_counter) const
+u32 ET4000::CRTCReadVRAMPlanes(u32 address_counter, u32 row_scan_counter) const
 {
-  uint32 address = CRTCWrapAddress(address_counter, row_scan_counter);
-  uint32 vram_offset = (address * 4) & (VRAM_SIZE - 1);
-  uint32 all_planes;
+  u32 address = CRTCWrapAddress(address_counter, row_scan_counter);
+  u32 vram_offset = (address * 4) & (VRAM_SIZE - 1);
+  u32 all_planes;
   std::memcpy(&all_planes, &m_vram[vram_offset], sizeof(all_planes));
 
-  uint32 plane_mask = mask16[m_attribute_registers.color_plane_enable];
+  u32 plane_mask = mask16[m_attribute_registers.color_plane_enable];
 
   return all_planes & plane_mask;
 }
 
-uint32 ET4000::CRTCWrapAddress(uint32 address_counter, uint32 row_scan_counter) const
+u32 ET4000::CRTCWrapAddress(u32 address_counter, u32 row_scan_counter) const
 {
-  uint32 address;
+  u32 address;
   if (m_crtc_registers.underline_location & 0x40)
   {
     // Double-word mode
@@ -1103,23 +1100,23 @@ uint32 ET4000::CRTCWrapAddress(uint32 address_counter, uint32 row_scan_counter) 
   // This bit selects the source of bit 13 of the output multiplexer. When this bit is set to 0, bit 0 of the row scan
   // counter is the source, and when this bit is set to 1, bit 13 of the address counter is the source.
   if (!m_crtc_registers.crtc_mode_control.alternate_la13)
-    address = (address & ~uint32(1 << 13)) | ((row_scan_counter & 1) << 13);
+    address = (address & ~u32(1 << 13)) | ((row_scan_counter & 1) << 13);
 
   // This bit selects the source of bit 14 of the output multiplexer. When this bit is set to 0, bit 1 of the row scan
   // counter is the source, and when this bit is set to 1, bit 13 of the address counter is the source.
   if (!m_crtc_registers.crtc_mode_control.alternate_la14)
-    address = (address & ~uint32(1 << 14)) | ((row_scan_counter & 2) << 13);
+    address = (address & ~u32(1 << 14)) | ((row_scan_counter & 2) << 13);
 
   return address;
 }
 
 void ET4000::RenderTextMode()
 {
-  const uint32 character_height = m_crtc_registers.GetScanlinesPerRow();
-  const uint32 character_width = m_sequencer_registers.GetCharacterWidth();
+  const u32 character_height = m_crtc_registers.GetScanlinesPerRow();
+  const u32 character_width = m_sequencer_registers.GetCharacterWidth();
 
-  uint32 character_columns = m_crtc_registers.GetHorizontalDisplayed();
-  uint32 character_rows = m_crtc_registers.GetVerticalDisplayed();
+  u32 character_columns = m_crtc_registers.GetHorizontalDisplayed();
+  u32 character_rows = m_crtc_registers.GetVerticalDisplayed();
   character_rows = (character_rows + 1) / character_height;
   if (m_crtc_registers.vertical_total == 100)
     character_rows = 100;
@@ -1127,8 +1124,8 @@ void ET4000::RenderTextMode()
   if (character_columns == 0 || character_rows == 0)
     return;
 
-  uint32 screen_width = character_columns * character_width;
-  uint32 screen_height = character_rows * character_height;
+  u32 screen_width = character_columns * character_width;
+  u32 screen_height = character_rows * character_height;
   if (screen_width == 0 || screen_height == 0)
     return;
 
@@ -1145,14 +1142,14 @@ void ET4000::RenderTextMode()
 
   // preset_row_scan[4:0] contains the starting row scan number, cleared when it hits max.
   // uint32 row_counter = 0;
-  uint32 row_scan_counter = ZeroExtend32(m_crtc_registers.preset_row_scan & 0x1F);
+  u32 row_scan_counter = ZeroExtend32(m_crtc_registers.preset_row_scan & 0x1F);
 
   // Determine base address of the fonts
-  uint32 font_base_address[2];
-  const uint8* font_base_pointers[2];
-  for (uint32 i = 0; i < 2; i++)
+  u32 font_base_address[2];
+  const u8* font_base_pointers[2];
+  for (u32 i = 0; i < 2; i++)
   {
-    uint32 field;
+    u32 field;
     if (i == 0)
     {
       field = m_sequencer_registers.character_set_b_select_01 | (m_sequencer_registers.character_set_b_select_2 << 2);
@@ -1197,48 +1194,48 @@ void ET4000::RenderTextMode()
   SetOutputPalette16();
 
   // Determine the starting address in VRAM of the text/attribute data from the CRTC registers
-  uint32 data_base_address =
+  u32 data_base_address =
     (ZeroExtend32(m_crtc_registers.start_address_high) << 8) | (ZeroExtend32(m_crtc_registers.start_address_low));
   //     uint32 line_compare = (ZeroExtend32(m_crtc_registers.line_compare)) |
   //                           (ZeroExtend32(m_crtc_registers.overflow_register & 0x10) << 4) |
   //                           (ZeroExtend32(m_crtc_registers.maximum_scan_lines & 0x40) << 3);
-  uint32 row_pitch = ZeroExtend32(m_crtc_registers.offset) * 2;
+  u32 row_pitch = ZeroExtend32(m_crtc_registers.offset) * 2;
 
   // Cursor setup
-  uint32 cursor_address =
+  u32 cursor_address =
     (ZeroExtend32(m_crtc_registers.cursor_location_high) << 8) | (ZeroExtend32(m_crtc_registers.cursor_location_low));
-  uint32 cursor_start_line = ZeroExtend32(m_crtc_registers.cursor_start & 0x1F);
-  uint32 cursor_end_line = ZeroExtend32(m_crtc_registers.cursor_end & 0x1F) + 1;
+  u32 cursor_start_line = ZeroExtend32(m_crtc_registers.cursor_start & 0x1F);
+  u32 cursor_end_line = ZeroExtend32(m_crtc_registers.cursor_end & 0x1F) + 1;
 
   // If the cursor is disabled, set the address to something that will never be equal
   if (m_crtc_registers.cursor_start & (1 << 5) || !m_cursor_state)
     cursor_address = VRAM_SIZE;
 
   // Draw
-  for (uint32 row = 0; row < character_rows; row++)
+  for (u32 row = 0; row < character_rows; row++)
   {
     // DebugAssert((vram_offset + (character_columns * 2)) <= VRAM_SIZE);
 
-    uint32 address_counter = data_base_address + (row_pitch * row);
-    for (uint32 col = 0; col < character_columns; col++)
+    u32 address_counter = data_base_address + (row_pitch * row);
+    for (u32 col = 0; col < character_columns; col++)
     {
       // Read as dwords, with each byte representing one plane
-      uint32 current_address = address_counter++;
-      uint32 all_planes = CRTCReadVRAMPlanes(current_address, row_scan_counter);
+      u32 current_address = address_counter++;
+      u32 all_planes = CRTCReadVRAMPlanes(current_address, row_scan_counter);
 
-      uint8 character = Truncate8(all_planes >> 0);
-      uint8 attribute = Truncate8(all_planes >> 8);
+      u8 character = Truncate8(all_planes >> 0);
+      u8 attribute = Truncate8(all_planes >> 8);
 
       // Grab foreground and background colours
-      uint32 foreground_color = m_output_palette[(attribute & 0xF)];
-      uint32 background_color = m_output_palette[(attribute >> 4) & 0xF];
+      u32 foreground_color = m_output_palette[(attribute & 0xF)];
+      u32 background_color = m_output_palette[(attribute >> 4) & 0xF];
 
       // Offset into font table to get glyph, bit 4 determines the font to use
       // 32 bytes per character in the font bitmap, 4 bytes per plane, data in plane 2.
-      const uint8* glyph = font_base_pointers[(attribute >> 3) & 0x01] + (character * 32 * 4) + 2;
+      const u8* glyph = font_base_pointers[(attribute >> 3) & 0x01] + (character * 32 * 4) + 2;
 
       // Actually draw the character
-      int32 dup9 = (character >= 0xC0 && character <= 0xDF) ? 1 : 0;
+      s32 dup9 = (character >= 0xC0 && character <= 0xDF) ? 1 : 0;
       switch (character_width)
       {
         default:
@@ -1266,9 +1263,9 @@ void ET4000::RenderTextMode()
         // TODO: How is dup9 handled here?
         cursor_start_line = std::min(cursor_start_line, character_height);
         cursor_end_line = std::min(cursor_end_line, character_height);
-        for (uint32 cursor_line = cursor_start_line; cursor_line < cursor_end_line; cursor_line++)
+        for (u32 cursor_line = cursor_start_line; cursor_line < cursor_end_line; cursor_line++)
         {
-          for (uint32 i = 0; i < character_width; i++)
+          for (u32 i = 0; i < character_width; i++)
             m_display->SetPixel(col * character_width + i, row * character_height + cursor_line, foreground_color);
         }
       }
@@ -1278,14 +1275,13 @@ void ET4000::RenderTextMode()
   m_display->SwapFramebuffer();
 }
 
-void ET4000::DrawTextGlyph8(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32 rows, uint32 fg_color, uint32 bg_color,
-                            int32 dup9)
+void ET4000::DrawTextGlyph8(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color, s32 dup9)
 {
-  const uint32 colors[2] = {bg_color, fg_color};
+  const u32 colors[2] = {bg_color, fg_color};
 
-  for (uint32 row = 0; row < rows; row++)
+  for (u32 row = 0; row < rows; row++)
   {
-    uint8 source_row = *glyph;
+    u8 source_row = *glyph;
     m_display->SetPixel(fb_x + 0, fb_y + row, colors[(source_row >> 7) & 1]);
     m_display->SetPixel(fb_x + 1, fb_y + row, colors[(source_row >> 6) & 1]);
     m_display->SetPixel(fb_x + 2, fb_y + row, colors[(source_row >> 5) & 1]);
@@ -1305,14 +1301,13 @@ void ET4000::DrawTextGlyph8(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32
   }
 }
 
-void ET4000::DrawTextGlyph16(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint32 rows, uint32 fg_color,
-                             uint32 bg_color)
+void ET4000::DrawTextGlyph16(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color)
 {
-  const uint32 colors[2] = {bg_color, fg_color};
+  const u32 colors[2] = {bg_color, fg_color};
 
-  for (uint32 row = 0; row < rows; row++)
+  for (u32 row = 0; row < rows; row++)
   {
-    uint8 source_row = *glyph;
+    u8 source_row = *glyph;
     m_display->SetPixel(fb_x + 0, fb_y + row, colors[(source_row >> 7) & 1]);
     m_display->SetPixel(fb_x + 1, fb_y + row, colors[(source_row >> 7) & 1]);
     m_display->SetPixel(fb_x + 2, fb_y + row, colors[(source_row >> 6) & 1]);
@@ -1337,10 +1332,10 @@ void ET4000::DrawTextGlyph16(uint32 fb_x, uint32 fb_y, const uint8* glyph, uint3
 
 void ET4000::RenderGraphicsMode()
 {
-  uint32 screen_width = m_crtc_registers.GetHorizontalDisplayed() * m_sequencer_registers.GetCharacterWidth();
-  uint32 screen_height = m_crtc_registers.GetVerticalDisplayed();
-  uint32 scanlines_per_row = m_crtc_registers.GetScanlinesPerRow();
-  uint32 line_compare = m_crtc_registers.GetLineCompare();
+  u32 screen_width = m_crtc_registers.GetHorizontalDisplayed() * m_sequencer_registers.GetCharacterWidth();
+  u32 screen_height = m_crtc_registers.GetVerticalDisplayed();
+  u32 scanlines_per_row = m_crtc_registers.GetScanlinesPerRow();
+  u32 line_compare = m_crtc_registers.GetLineCompare();
   if (screen_width == 0 || screen_height == 0)
     return;
 
@@ -1396,22 +1391,22 @@ void ET4000::RenderGraphicsMode()
 
   // Determine the starting address in VRAM of the data from the CRTC registers
   // This should be multiplied by 4 when accessing because we store interleave all planes.
-  uint32 data_base_address = m_crtc_registers.GetStartAddress();
+  u32 data_base_address = m_crtc_registers.GetStartAddress();
   data_base_address += m_crtc_registers.byte_panning;
 
   // Determine the pitch of each line
-  uint32 row_pitch = ZeroExtend32(m_crtc_registers.offset) * 2;
+  u32 row_pitch = ZeroExtend32(m_crtc_registers.offset) * 2;
 
-  uint32 horizontal_pan = m_attribute_registers.horizontal_pixel_panning;
+  u32 horizontal_pan = m_attribute_registers.horizontal_pixel_panning;
   if (horizontal_pan >= 8)
     horizontal_pan = 0;
 
   // preset_row_scan[4:0] contains the starting row scan number, cleared when it hits max.
-  uint32 row_counter = 0;
-  uint32 row_scan_counter = m_crtc_registers.preset_row_scan;
+  u32 row_counter = 0;
+  u32 row_scan_counter = m_crtc_registers.preset_row_scan;
 
   // Draw lines
-  for (uint32 scanline = 0; scanline < screen_height; scanline++)
+  for (u32 scanline = 0; scanline < screen_height; scanline++)
   {
     if (scanline == line_compare)
     {
@@ -1422,18 +1417,18 @@ void ET4000::RenderGraphicsMode()
       horizontal_pan = 0;
     }
 
-    uint32 address_counter = (data_base_address + (row_pitch * row_counter));
+    u32 address_counter = (data_base_address + (row_pitch * row_counter));
 
     // High colour modes
     // This is a hack. The palette should be disabled, and we should read like shift mode?
     if ((m_dac_ctrl & 0xc0) != 0)
     {
       const bool is_16bpp = !!(m_dac_ctrl & 0x40);
-      for (uint32 col = 0; col < screen_width;)
+      for (u32 col = 0; col < screen_width;)
       {
         // Two pixels per dword
-        uint32 all_planes = CRTCReadVRAMPlanes(address_counter++, row_scan_counter);
-        uint32 color1, color2;
+        u32 all_planes = CRTCReadVRAMPlanes(address_counter++, row_scan_counter);
+        u32 color1, color2;
         if (is_16bpp)
         {
           color1 = ConvertBGR565ToRGB24(Truncate16(all_planes));
@@ -1455,16 +1450,16 @@ void ET4000::RenderGraphicsMode()
       if (m_graphics_registers.mode.shift_reg)
       {
         // CGA mode - Shift register in interleaved mode, odd bits from odd maps and even bits from even maps
-        for (uint32 col = 0; col < screen_width;)
+        for (u32 col = 0; col < screen_width;)
         {
-          uint32 all_planes = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
+          u32 all_planes = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
           address_counter++;
 
-          uint8 pl0 = Truncate8((all_planes >> 0) & 0xFF);
-          uint8 pl1 = Truncate8((all_planes >> 8) & 0xFF);
-          uint8 pl2 = Truncate8((all_planes >> 16) & 0xFF);
-          uint8 pl3 = Truncate8((all_planes >> 24) & 0xFF);
-          uint8 index;
+          u8 pl0 = Truncate8((all_planes >> 0) & 0xFF);
+          u8 pl1 = Truncate8((all_planes >> 8) & 0xFF);
+          u8 pl2 = Truncate8((all_planes >> 16) & 0xFF);
+          u8 pl3 = Truncate8((all_planes >> 24) & 0xFF);
+          u8 index;
 
           // One pixel per input pixel
           index = ((pl0 >> 6) & 3) | (((pl2 >> 6) & 3) << 2);
@@ -1490,29 +1485,29 @@ void ET4000::RenderGraphicsMode()
       {
         // 16 color mode.
         // Output 8 pixels for one dword
-        for (int32 col = -(int32)horizontal_pan; col < (int32)screen_width;)
+        for (s32 col = -(s32)horizontal_pan; col < (s32)screen_width;)
         {
-          uint32 all_planes = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
+          u32 all_planes = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
           address_counter++;
 
-          uint8 pl0 = Truncate8((all_planes >> 0) & 0xFF);
-          uint8 pl1 = Truncate8((all_planes >> 8) & 0xFF);
-          uint8 pl2 = Truncate8((all_planes >> 16) & 0xFF);
-          uint8 pl3 = Truncate8((all_planes >> 24) & 0xFF);
+          u8 pl0 = Truncate8((all_planes >> 0) & 0xFF);
+          u8 pl1 = Truncate8((all_planes >> 8) & 0xFF);
+          u8 pl2 = Truncate8((all_planes >> 16) & 0xFF);
+          u8 pl3 = Truncate8((all_planes >> 24) & 0xFF);
 
-          uint8 indices[8] = {
-            uint8(((pl0 >> 7) & 1u) | (((pl1 >> 7) & 1u) << 1) | (((pl2 >> 7) & 1u) << 2) | (((pl3 >> 7) & 1u) << 3)),
-            uint8(((pl0 >> 6) & 1u) | (((pl1 >> 6) & 1u) << 1) | (((pl2 >> 6) & 1u) << 2) | (((pl3 >> 6) & 1u) << 3)),
-            uint8(((pl0 >> 5) & 1u) | (((pl1 >> 5) & 1u) << 1) | (((pl2 >> 5) & 1u) << 2) | (((pl3 >> 5) & 1u) << 3)),
-            uint8(((pl0 >> 4) & 1u) | (((pl1 >> 4) & 1u) << 1) | (((pl2 >> 4) & 1u) << 2) | (((pl3 >> 4) & 1u) << 3)),
-            uint8(((pl0 >> 3) & 1u) | (((pl1 >> 3) & 1u) << 1) | (((pl2 >> 3) & 1u) << 2) | (((pl3 >> 3) & 1u) << 3)),
-            uint8(((pl0 >> 2) & 1u) | (((pl1 >> 2) & 1u) << 1) | (((pl2 >> 2) & 1u) << 2) | (((pl3 >> 2) & 1u) << 3)),
-            uint8(((pl0 >> 1) & 1u) | (((pl1 >> 1) & 1u) << 1) | (((pl2 >> 1) & 1u) << 2) | (((pl3 >> 1) & 1u) << 3)),
-            uint8(((pl0 >> 0) & 1u) | (((pl1 >> 0) & 1u) << 1) | (((pl2 >> 0) & 1u) << 2) | (((pl3 >> 0) & 1u) << 3))};
+          u8 indices[8] = {
+            u8(((pl0 >> 7) & 1u) | (((pl1 >> 7) & 1u) << 1) | (((pl2 >> 7) & 1u) << 2) | (((pl3 >> 7) & 1u) << 3)),
+            u8(((pl0 >> 6) & 1u) | (((pl1 >> 6) & 1u) << 1) | (((pl2 >> 6) & 1u) << 2) | (((pl3 >> 6) & 1u) << 3)),
+            u8(((pl0 >> 5) & 1u) | (((pl1 >> 5) & 1u) << 1) | (((pl2 >> 5) & 1u) << 2) | (((pl3 >> 5) & 1u) << 3)),
+            u8(((pl0 >> 4) & 1u) | (((pl1 >> 4) & 1u) << 1) | (((pl2 >> 4) & 1u) << 2) | (((pl3 >> 4) & 1u) << 3)),
+            u8(((pl0 >> 3) & 1u) | (((pl1 >> 3) & 1u) << 1) | (((pl2 >> 3) & 1u) << 2) | (((pl3 >> 3) & 1u) << 3)),
+            u8(((pl0 >> 2) & 1u) | (((pl1 >> 2) & 1u) << 1) | (((pl2 >> 2) & 1u) << 2) | (((pl3 >> 2) & 1u) << 3)),
+            u8(((pl0 >> 1) & 1u) | (((pl1 >> 1) & 1u) << 1) | (((pl2 >> 1) & 1u) << 2) | (((pl3 >> 1) & 1u) << 3)),
+            u8(((pl0 >> 0) & 1u) | (((pl1 >> 0) & 1u) << 1) | (((pl2 >> 0) & 1u) << 2) | (((pl3 >> 0) & 1u) << 3))};
 
-          for (uint32 subindex = 0; col < (int32)screen_width && subindex < 8;)
+          for (u32 subindex = 0; col < (s32)screen_width && subindex < 8;)
           {
-            if (col >= 0 && col < (int32)screen_width)
+            if (col >= 0 && col < (s32)screen_width)
               m_display->SetPixel(col, scanline, m_output_palette[indices[subindex]]);
 
             col++;
@@ -1523,20 +1518,20 @@ void ET4000::RenderGraphicsMode()
     }
     else
     {
-      uint32 pan_pixels = (horizontal_pan & 7) / 2;
+      u32 pan_pixels = (horizontal_pan & 7) / 2;
 
       // Slow loop with panning part
-      int32 col = -int32(pan_pixels * 2);
-      int32 screen_width_div2 = int32(screen_width);
+      s32 col = -s32(pan_pixels * 2);
+      s32 screen_width_div2 = s32(screen_width);
       while (col < 0)
       {
-        uint32 indices = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
+        u32 indices = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
         address_counter++;
 
-        for (uint32 i = 0; i < 4; i++)
+        for (u32 i = 0; i < 4; i++)
         {
-          uint8 index = Truncate8(indices);
-          uint32 color = m_output_palette[index];
+          u8 index = Truncate8(indices);
+          u32 color = m_output_palette[index];
           indices >>= 8;
 
           if (col >= 0)
@@ -1551,7 +1546,7 @@ void ET4000::RenderGraphicsMode()
       {
         // Load 4 pixels, one from each plane
         // Duplicate horizontally twice, this is the shift_256 stuff
-        uint32 indices = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
+        u32 indices = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
         address_counter++;
 
         m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 0) & 0xFF]);
@@ -1563,13 +1558,13 @@ void ET4000::RenderGraphicsMode()
       // Slow loop to handle misaligned buffer when panning
       while (col < screen_width_div2)
       {
-        uint32 indices = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
+        u32 indices = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
         address_counter++;
 
-        for (uint32 i = 0; i < 4; i++)
+        for (u32 i = 0; i < 4; i++)
         {
-          uint8 index = Truncate8(indices);
-          uint32 color = m_output_palette[index];
+          u8 index = Truncate8(indices);
+          u32 color = m_output_palette[index];
           indices >>= 8;
 
           if (col < screen_width_div2)

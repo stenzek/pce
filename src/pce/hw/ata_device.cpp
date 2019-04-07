@@ -182,7 +182,7 @@ void ATADevice::DoReset(bool is_hardware_reset)
   ResetBuffer();
 }
 
-void ATADevice::PutIdentifyString(char* buffer, uint32 buffer_size, const char* str)
+void ATADevice::PutIdentifyString(char* buffer, u32 buffer_size, const char* str)
 {
   Assert(buffer_size <= 40);
   char temp_buffer[40 + 1];

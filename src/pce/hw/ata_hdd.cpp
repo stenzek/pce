@@ -730,7 +730,7 @@ void ATAHDD::HandleATAIdentify()
   response.user_sectors_per_track = Truncate16(m_current_num_sectors_per_track);
   response.user_total_sectors =
     Truncate32(m_current_num_cylinders * m_current_num_heads * m_current_num_sectors_per_track);
-  response.lba_sectors = Truncate32(std::min(m_lbas, ZeroExtend64(std::numeric_limits<uint32>::max())));
+  response.lba_sectors = Truncate32(std::min(m_lbas, ZeroExtend64(std::numeric_limits<u32>::max())));
   PutIdentifyString(response.model, sizeof(response.model), "Herp derpity derp");
   if (m_ata_controller->SupportsDMA())
   {

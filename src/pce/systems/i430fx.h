@@ -23,7 +23,7 @@ class i430FX : public PCIPC
 
 public:
   i430FX(CPU_X86::Model model = CPU_X86::MODEL_PENTIUM, float cpu_frequency = 75000000.0f,
-         uint32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
+         u32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
   ~i430FX();
 
   virtual bool Initialize() override;
@@ -42,21 +42,21 @@ public:
   auto GetCMOS() const { return m_cmos; }
 
 protected:
-  static constexpr uint32 PHYSICAL_MEMORY_BITS = 32;
+  static constexpr u32 PHYSICAL_MEMORY_BITS = 32;
   static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xE0000;
-  static constexpr uint32 BIOS_ROM_SIZE = 131072;
+  static constexpr u32 BIOS_ROM_SIZE = 131072;
   static constexpr PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFF0000;
-  static constexpr uint32 BIOS_ROM_MIRROR_START = 0x10000;
-  static constexpr uint32 BIOS_ROM_MIRROR_SIZE = 65536;
+  static constexpr u32 BIOS_ROM_MIRROR_START = 0x10000;
+  static constexpr u32 BIOS_ROM_MIRROR_SIZE = 65536;
 
   void ConnectSystemIOPorts();
   void AddComponents();
   void SetCMOSVariables();
 
-  void IOReadSystemControlPortA(uint8* value);
-  void IOWriteSystemControlPortA(uint8 value);
-  void IOReadSystemControlPortB(uint8* value);
-  void IOWriteSystemControlPortB(uint8 value);
+  void IOReadSystemControlPortA(u8* value);
+  void IOWriteSystemControlPortA(u8 value);
+  void IOReadSystemControlPortB(u8* value);
+  void IOWriteSystemControlPortB(u8 value);
   void UpdateKeyboardControllerOutputPort();
 
   String m_bios_file_path;

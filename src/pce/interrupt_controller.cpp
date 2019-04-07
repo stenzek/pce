@@ -9,18 +9,18 @@ InterruptController::InterruptController(const String& identifier, const ObjectT
 
 InterruptController::~InterruptController() = default;
 
-void InterruptController::TriggerInterrupt(uint32 interrupt)
+void InterruptController::TriggerInterrupt(u32 interrupt)
 {
   SetInterruptState(interrupt, true);
   SetInterruptState(interrupt, false);
 }
 
-void InterruptController::RaiseInterrupt(uint32 interrupt)
+void InterruptController::RaiseInterrupt(u32 interrupt)
 {
   SetInterruptState(interrupt, true);
 }
 
-void InterruptController::LowerInterrupt(uint32 interrupt)
+void InterruptController::LowerInterrupt(u32 interrupt)
 {
   SetInterruptState(interrupt, false);
 }

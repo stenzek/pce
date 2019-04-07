@@ -12,7 +12,7 @@ class PCIDevice : public Component
   DECLARE_OBJECT_PROPERTY_MAP(PCIDevice);
 
 public:
-  static constexpr uint32 NUM_CONFIG_REGISTERS = 64;
+  static constexpr u32 NUM_CONFIG_REGISTERS = 64;
 
   PCIDevice(const String& identifier, u8 num_functions = 1, const ObjectTypeInfo* type_info = &s_type_info);
   ~PCIDevice();

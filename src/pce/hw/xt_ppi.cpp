@@ -90,7 +90,7 @@ bool XT_PPI::SaveState(BinaryWriter& writer)
   return true;
 }
 
-void XT_PPI::RemoveKeyboardBufferBytes(uint32 count)
+void XT_PPI::RemoveKeyboardBufferBytes(u32 count)
 {
   DebugAssert(count <= m_output_buffer_pos);
   if (count == m_output_buffer_pos)
@@ -108,12 +108,12 @@ void XT_PPI::RemoveKeyboardBufferBytes(uint32 count)
 
 void XT_PPI::AddScanCode(GenScanCode scancode, bool key_down)
 {
-  uint8 index = key_down ? 0 : 1;
+  u8 index = key_down ? 0 : 1;
   DebugAssert(index < 2);
 
-  const uint8* hw_scancode = KeyboardScanCodes::Set1Mapping[scancode][index];
+  const u8* hw_scancode = KeyboardScanCodes::Set1Mapping[scancode][index];
 
-  uint32 length = 0;
+  u32 length = 0;
   for (; hw_scancode[length] != 0; length++)
     ;
 
@@ -126,7 +126,7 @@ void XT_PPI::AddScanCode(GenScanCode scancode, bool key_down)
   m_interrupt_controller->RaiseInterrupt(KEYBOARD_IRQ);
 }
 
-bool XT_PPI::AppendToOutputBuffer(const void* data, uint32 length)
+bool XT_PPI::AppendToOutputBuffer(const void* data, u32 length)
 {
   if (length == 0)
     return true;
@@ -138,13 +138,13 @@ bool XT_PPI::AppendToOutputBuffer(const void* data, uint32 length)
   m_output_buffer_pos += length;
 
   SmallString buffer_str;
-  for (uint32 i = 0; i < m_output_buffer_pos; i++)
-    buffer_str.AppendFormattedString("%02X ", uint32(m_output_buffer[i]));
+  for (u32 i = 0; i < m_output_buffer_pos; i++)
+    buffer_str.AppendFormattedString("%02X ", u32(m_output_buffer[i]));
   Log_DebugPrintf("Output buffer contents: %s", buffer_str.GetCharArray());
   return true;
 }
 
-bool XT_PPI::AppendToOutputBuffer(uint8 data)
+bool XT_PPI::AppendToOutputBuffer(u8 data)
 {
   return AppendToOutputBuffer(&data, sizeof(data));
 }
@@ -158,7 +158,7 @@ void XT_PPI::ConnectIOPorts(Bus* bus)
   }
 }
 
-void XT_PPI::IORead(uint32 port, uint8* value)
+void XT_PPI::IORead(u32 port, u8* value)
 {
   switch (port)
   {
@@ -173,7 +173,7 @@ void XT_PPI::IORead(uint32 port, uint8* value)
       }
 
       // Keyboard data
-      Log_DebugPrintf("Read data port, size = %u, value = 0x%02X", m_output_buffer_pos, uint32(m_output_buffer[0]));
+      Log_DebugPrintf("Read data port, size = %u, value = 0x%02X", m_output_buffer_pos, u32(m_output_buffer[0]));
 
       if (m_output_buffer_pos == 0)
       {
@@ -233,7 +233,7 @@ void XT_PPI::IORead(uint32 port, uint8* value)
   }
 }
 
-void XT_PPI::IOWrite(uint32 port, uint8 value)
+void XT_PPI::IOWrite(u32 port, u8 value)
 {
   switch (port)
   {

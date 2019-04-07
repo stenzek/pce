@@ -21,15 +21,15 @@ static void RunTest386(CPU::BackendType cpu_backend)
   system->AddROMFile(image_file, 0xf0000u);
 
   // POST Code Port
-  system->GetBus()->ConnectIOPortWrite(
-    0x0190, system, [](uint32 port, uint8 value) { Log_DevPrintf("POST code 0x%02X", uint32(value)); });
+  system->GetBus()->ConnectIOPortWrite(0x0190, system,
+                                       [](u32 port, u8 value) { Log_DevPrintf("POST code 0x%02X", uint32(value)); });
 
   // This is our data buffer that we get back from the guest.
-  std::vector<uint8> data_buffer;
+  std::vector<u8> data_buffer;
 
   // Printing Port
   system->GetBus()->ConnectIOPortWrite(0x0080, system,
-                                       [&data_buffer](uint32 port, uint8 value) { data_buffer.push_back(value); });
+                                       [&data_buffer](u32 port, u8 value) { data_buffer.push_back(value); });
 
   // Initialize the system.
   EXPECT_TRUE(system->Ready()) << "system did not initialize successfully";
@@ -46,7 +46,7 @@ static void RunTest386(CPU::BackendType cpu_backend)
   if (good_output.is_open())
   {
     std::istringstream our_output(std::string(reinterpret_cast<char*>(data_buffer.data()), data_buffer.size()));
-    for (uint32 line_number = 1; good_output.good() || our_output.good(); line_number++)
+    for (u32 line_number = 1; good_output.good() || our_output.good(); line_number++)
     {
       std::string good_line;
       std::string our_line;

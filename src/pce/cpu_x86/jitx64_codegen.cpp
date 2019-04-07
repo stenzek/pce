@@ -190,7 +190,7 @@ bool JitX64CodeGenerator::CompileInstruction(const Instruction* instruction, boo
   return result;
 }
 
-uint32 JitX64CodeGenerator::CalculateRegisterOffset(Reg8 reg)
+u32 JitX64CodeGenerator::CalculateRegisterOffset(Reg8 reg)
 {
   // Ugly but necessary due to the structure layout.
   switch (reg)
@@ -217,7 +217,7 @@ uint32 JitX64CodeGenerator::CalculateRegisterOffset(Reg8 reg)
   }
 }
 
-uint32 JitX64CodeGenerator::CalculateRegisterOffset(Reg16 reg)
+u32 JitX64CodeGenerator::CalculateRegisterOffset(Reg16 reg)
 {
   // Ugly but necessary due to the structure layout.
   switch (reg)
@@ -244,12 +244,12 @@ uint32 JitX64CodeGenerator::CalculateRegisterOffset(Reg16 reg)
   }
 }
 
-uint32 JitX64CodeGenerator::CalculateRegisterOffset(Reg32 reg)
+u32 JitX64CodeGenerator::CalculateRegisterOffset(Reg32 reg)
 {
   return uint32(offsetof(CPU, m_registers.reg32[0]) + (reg * sizeof(uint32)));
 }
 
-uint32 JitX64CodeGenerator::CalculateSegmentRegisterOffset(Segment segment)
+u32 JitX64CodeGenerator::CalculateSegmentRegisterOffset(Segment segment)
 {
   return uint32(offsetof(CPU, m_registers.segment_selectors[0]) + (segment * sizeof(uint16)));
 }
@@ -363,7 +363,7 @@ bool JitX64CodeGenerator::IsConstantOperand(const Instruction* instruction, size
   return (operand->mode == OperandMode_Immediate);
 }
 
-uint32 JitX64CodeGenerator::GetConstantOperand(const Instruction* instruction, size_t index, bool sign_extend)
+u32 JitX64CodeGenerator::GetConstantOperand(const Instruction* instruction, size_t index, bool sign_extend)
 {
   const Instruction::Operand* operand = &instruction->operands[index];
   DebugAssert(operand->mode == OperandMode_Immediate);
@@ -380,32 +380,32 @@ uint32 JitX64CodeGenerator::GetConstantOperand(const Instruction* instruction, s
   }
 }
 
-static uint8 ReadMemoryByteTrampoline(CPU* cpu, uint32 segment, uint32 offset)
+static u8 ReadMemoryByteTrampoline(CPU* cpu, u32 segment, u32 offset)
 {
   return cpu->ReadMemoryByte(static_cast<Segment>(segment), offset);
 }
 
-static uint16 ReadMemoryWordTrampoline(CPU* cpu, uint32 segment, uint32 offset)
+static u16 ReadMemoryWordTrampoline(CPU* cpu, u32 segment, u32 offset)
 {
   return cpu->ReadMemoryWord(static_cast<Segment>(segment), offset);
 }
 
-static uint32 ReadMemoryDWordTrampoline(CPU* cpu, uint32 segment, uint32 offset)
+static u32 ReadMemoryDWordTrampoline(CPU* cpu, u32 segment, u32 offset)
 {
   return cpu->ReadMemoryDWord(static_cast<Segment>(segment), offset);
 }
 
-static void WriteMemoryByteTrampoline(CPU* cpu, uint32 segment, uint32 offset, uint8 value)
+static void WriteMemoryByteTrampoline(CPU* cpu, u32 segment, u32 offset, u8 value)
 {
   cpu->WriteMemoryByte(static_cast<Segment>(segment), offset, value);
 }
 
-static void WriteMemoryWordTrampoline(CPU* cpu, uint32 segment, uint32 offset, uint16 value)
+static void WriteMemoryWordTrampoline(CPU* cpu, u32 segment, u32 offset, u16 value)
 {
   cpu->WriteMemoryWord(static_cast<Segment>(segment), offset, value);
 }
 
-static void WriteMemoryDWordTrampoline(CPU* cpu, uint32 segment, uint32 offset, uint32 value)
+static void WriteMemoryDWordTrampoline(CPU* cpu, u32 segment, u32 offset, u32 value)
 {
   cpu->WriteMemoryDWord(static_cast<Segment>(segment), offset, value);
 }
@@ -860,7 +860,7 @@ inline bool CanInstructionFault(const Instruction* instruction)
     case Operation_TEST:
     case Operation_MOV:
     {
-      for (uint32 i = 0; i < 2; i++)
+      for (u32 i = 0; i < 2; i++)
       {
         if (!instruction->IsRegisterOperand(i) && instruction->operands[i].mode != OperandMode_Immediate)
         {
@@ -1646,12 +1646,12 @@ void JitX64CodeGenerator::PushDWordTrampoline(CPU* cpu, uint32 value)
   cpu->PushDWord(value);
 }
 
-uint16 JitX64CodeGenerator::PopWordTrampoline(CPU* cpu)
+u16 JitX64CodeGenerator::PopWordTrampoline(CPU* cpu)
 {
   return cpu->PopWord();
 }
 
-uint32 JitX64CodeGenerator::PopDWordTrampoline(CPU* cpu)
+u32 JitX64CodeGenerator::PopDWordTrampoline(CPU* cpu)
 {
   return cpu->PopDWord();
 }

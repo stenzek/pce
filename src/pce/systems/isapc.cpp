@@ -31,8 +31,8 @@ bool ISAPC::LoadInterleavedROM(PhysicalMemoryAddress address, const char* low_fi
     return false;
   }
 
-  const uint32 low_length = uint32(low_stream->GetSize());
-  const uint32 high_length = uint32(high_stream->GetSize());
+  const u32 low_length = u32(low_stream->GetSize());
+  const u32 high_length = u32(high_stream->GetSize());
   if (low_length != high_length)
   {
     Log_ErrorPrintf("Invalid BIOS image, differing sizes (%u and %u bytes)", low_length, high_length);
@@ -41,7 +41,7 @@ bool ISAPC::LoadInterleavedROM(PhysicalMemoryAddress address, const char* low_fi
 
   // Interleave even and odd bytes, this compensates for the 8-bit data bus per chip
   std::vector<byte> data(low_length + high_length);
-  for (uint32 i = 0; i < low_length; i++)
+  for (u32 i = 0; i < low_length; i++)
   {
     byte even_byte, odd_byte;
     if (!low_stream->Read(&even_byte, sizeof(even_byte)) || !high_stream->Read(&odd_byte, sizeof(odd_byte)))
@@ -62,16 +62,16 @@ bool ISAPC::LoadInterleavedROM(PhysicalMemoryAddress address, const char* low_fi
 
 PhysicalMemoryAddress ISAPC::GetBaseMemorySize() const
 {
-  uint32 start_page = 0x00000000 / Bus::MEMORY_PAGE_SIZE;
-  uint32 end_page = 0x000A0000 / Bus::MEMORY_PAGE_SIZE;
+  u32 start_page = 0x00000000 / Bus::MEMORY_PAGE_SIZE;
+  u32 end_page = 0x000A0000 / Bus::MEMORY_PAGE_SIZE;
 
   return m_bus->GetTotalRAMInPageRange(start_page, end_page);
 }
 
 PhysicalMemoryAddress ISAPC::GetExtendedMemorySize() const
 {
-  uint32 start_page = 0x00100000 / Bus::MEMORY_PAGE_SIZE;
-  uint32 end_page = m_bus->GetMemoryPageCount();
+  u32 start_page = 0x00100000 / Bus::MEMORY_PAGE_SIZE;
+  u32 end_page = m_bus->GetMemoryPageCount();
 
   return m_bus->GetTotalRAMInPageRange(start_page, end_page);
 }
@@ -81,7 +81,7 @@ PhysicalMemoryAddress ISAPC::GetTotalMemorySize() const
   return m_bus->GetTotalRAMInPageRange(0, m_bus->GetMemoryPageCount());
 }
 
-void ISAPC::AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, bool reserve_uma, bool reserve_rom)
+void ISAPC::AllocatePhysicalMemory(u32 ram_size, bool reserve_isa_memory, bool reserve_uma, bool reserve_rom)
 {
   // Allocate RAM
   DebugAssert(ram_size > 0);

@@ -36,7 +36,7 @@ struct PROPERTY_DECLARATION
 
   const char* Name;
   PROPERTY_TYPE Type;
-  uint32 Flags;
+  u32 Flags;
 
   GET_PROPERTY_CALLBACK GetPropertyCallback;
   const void* pGetPropertyCallbackUserData;
@@ -56,10 +56,10 @@ namespace DefaultPropertyTableCallbacks {
 // builtin functions
 bool GetBool(const void* object, const void* userdata, bool* value_ptr);
 bool SetBool(void* object, const void* userdata, const bool* value_ptr);
-bool GetUInt(const void* object, const void* userdata, uint32* value_ptr);
-bool SetUInt(void* object, const void* userdata, const uint32* value_ptr);
-bool GetInt(const void* object, const void* userdata, int32* value_ptr);
-bool SetInt(void* object, const void* userdata, const int32* value_ptr);
+bool GetUInt(const void* object, const void* userdata, u32* value_ptr);
+bool SetUInt(void* object, const void* userdata, const u32* value_ptr);
+bool GetInt(const void* object, const void* userdata, s32* value_ptr);
+bool SetInt(void* object, const void* userdata, const s32* value_ptr);
 bool GetFloat(const void* object, const void* userdata, float* value_ptr);
 bool SetFloat(void* object, const void* userdata, const float* value_ptr);
 bool GetString(const void* object, const void* userdata, String* value_ptr);

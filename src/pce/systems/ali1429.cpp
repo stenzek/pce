@@ -14,7 +14,7 @@ BEGIN_OBJECT_PROPERTY_MAP(ALi1429)
 END_OBJECT_PROPERTY_MAP()
 
 ALi1429::ALi1429(CPU_X86::Model model /* = CPU_X86::MODEL_486 */, float cpu_frequency /* = 2000000.0f */,
-                 uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+                 u32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(type_info), m_bios_file_path("romimages/4alp001.bin")
 {
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
@@ -49,7 +49,7 @@ void ALi1429::Reset()
   m_cmos_lock = false;
   m_refresh_bit = false;
 
-  std::fill(m_ali1429_registers.begin(), m_ali1429_registers.end(), uint8(0));
+  std::fill(m_ali1429_registers.begin(), m_ali1429_registers.end(), u8(0));
   m_ali1429_index_register = 0;
 
   // Set keyboard controller input port up.
@@ -96,31 +96,31 @@ void ALi1429::ConnectSystemIOPorts()
   m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&ALi1429::IOWriteSystemControlPortB, this, std::placeholders::_2));
 
   // Connect the keyboard controller output port to the lower 2 bits of system control port A.
-  m_keyboard_controller->SetOutputPortWrittenCallback([this](uint8 value, uint8 old_value, bool pulse) {
+  m_keyboard_controller->SetOutputPortWrittenCallback([this](u8 value, u8 old_value, bool pulse) {
     if (!pulse)
-      value &= ~uint8(0x01);
+      value &= ~u8(0x01);
     IOWriteSystemControlPortA(value & 0x03);
     IOReadSystemControlPortA(&value);
     m_keyboard_controller->SetOutputPort(value);
   });
 }
 
-void ALi1429::IOReadALI1429IndexRegister(uint8* value)
+void ALi1429::IOReadALI1429IndexRegister(u8* value)
 {
   *value = m_ali1429_index_register;
 }
 
-void ALi1429::IOWriteALI1429IndexRegister(uint8 value)
+void ALi1429::IOWriteALI1429IndexRegister(u8 value)
 {
   m_ali1429_index_register = value;
 }
 
-void ALi1429::IOReadALI1429DataRegister(uint8* value)
+void ALi1429::IOReadALI1429DataRegister(u8* value)
 {
   *value = m_ali1429_registers[m_ali1429_index_register];
 }
 
-void ALi1429::IOWriteALI1429DataRegister(uint8 value)
+void ALi1429::IOWriteALI1429DataRegister(u8 value)
 {
   m_ali1429_registers[m_ali1429_index_register] = value;
 
@@ -133,13 +133,13 @@ void ALi1429::IOWriteALI1429DataRegister(uint8 value)
 
 void ALi1429::UpdateShadowRAM()
 {
-  for (uint32 i = 0; i < 8; i++)
+  for (u32 i = 0; i < 8; i++)
   {
-    uint32 base = UINT32_C(0xC0000) + (i << 15);
+    u32 base = UINT32_C(0xC0000) + (i << 15);
     if (m_ali1429_registers[0x13] & (1 << i))
     {
       // Shadowing enabled for this region.
-      const uint32 flag = m_ali1429_registers[0x14] & 0x03;
+      const u32 flag = m_ali1429_registers[0x14] & 0x03;
       const bool readable_memory = !!(flag & 1);
       const bool writable_memory = !!(flag & 2);
       Log_DebugPrintf("Shadowing ENABLED for 0x%08X-0x%08X (type %u, readable=%s, writable=%s)", base,
@@ -155,12 +155,12 @@ void ALi1429::UpdateShadowRAM()
   }
 }
 
-void ALi1429::IOReadSystemControlPortA(uint8* value)
+void ALi1429::IOReadSystemControlPortA(u8* value)
 {
   *value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
 }
 
-void ALi1429::IOWriteSystemControlPortA(uint8 value)
+void ALi1429::IOWriteSystemControlPortA(u8 value)
 {
   Log_DebugPrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
 
@@ -195,7 +195,7 @@ void ALi1429::IOWriteSystemControlPortA(uint8 value)
   }
 }
 
-void ALi1429::IOReadSystemControlPortB(uint8* value)
+void ALi1429::IOReadSystemControlPortB(u8* value)
 {
   *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
            (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
@@ -209,7 +209,7 @@ void ALi1429::IOReadSystemControlPortB(uint8* value)
   m_refresh_bit ^= true;
 }
 
-void ALi1429::IOWriteSystemControlPortB(uint8 value)
+void ALi1429::IOWriteSystemControlPortB(u8 value)
 {
   Log_DebugPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
 
@@ -219,8 +219,8 @@ void ALi1429::IOWriteSystemControlPortB(uint8 value)
 
 void ALi1429::UpdateKeyboardControllerOutputPort()
 {
-  uint8 value = m_keyboard_controller->GetOutputPort();
-  value &= ~uint8(0x03);
+  u8 value = m_keyboard_controller->GetOutputPort();
+  value &= ~u8(0x03);
   value |= (BoolToUInt8(GetA20State()) << 1);
   m_keyboard_controller->SetOutputPort(value);
 }

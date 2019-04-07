@@ -22,7 +22,7 @@ class ALi1429 : public ISAPC
 
 public:
   ALi1429(CPU_X86::Model model = CPU_X86::MODEL_486, float cpu_frequency = 2000000.0f,
-          uint32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
+          u32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
   ~ALi1429();
 
   bool Initialize() override;
@@ -38,13 +38,13 @@ public:
   auto GetCMOS() const { return m_cmos; }
 
 private:
-  static constexpr uint32 PHYSICAL_MEMORY_BITS = 32;
+  static constexpr u32 PHYSICAL_MEMORY_BITS = 32;
   static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
   static constexpr PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFF0000;
-  static constexpr uint32 BIOS_ROM_SIZE = 65536;
-  static constexpr uint32 SHADOW_REGION_BASE = 0xC0000;
-  static constexpr uint32 SHADOW_REGION_SIZE = 0x8000;
-  static constexpr uint32 SHADOW_REGION_COUNT = 8;
+  static constexpr u32 BIOS_ROM_SIZE = 65536;
+  static constexpr u32 SHADOW_REGION_BASE = 0xC0000;
+  static constexpr u32 SHADOW_REGION_SIZE = 0x8000;
+  static constexpr u32 SHADOW_REGION_COUNT = 8;
 
   virtual bool LoadSystemState(BinaryReader& reader) override;
   virtual bool SaveSystemState(BinaryWriter& writer) override;
@@ -54,15 +54,15 @@ private:
   void SetCMOSVariables();
   void UpdateShadowRAM();
 
-  void IOReadALI1429IndexRegister(uint8* value);
-  void IOWriteALI1429IndexRegister(uint8 value);
-  void IOReadALI1429DataRegister(uint8* value);
-  void IOWriteALI1429DataRegister(uint8 value);
+  void IOReadALI1429IndexRegister(u8* value);
+  void IOWriteALI1429IndexRegister(u8 value);
+  void IOReadALI1429DataRegister(u8* value);
+  void IOWriteALI1429DataRegister(u8 value);
 
-  void IOReadSystemControlPortA(uint8* value);
-  void IOWriteSystemControlPortA(uint8 value);
-  void IOReadSystemControlPortB(uint8* value);
-  void IOWriteSystemControlPortB(uint8 value);
+  void IOReadSystemControlPortA(u8* value);
+  void IOWriteSystemControlPortA(u8 value);
+  void IOReadSystemControlPortB(u8* value);
+  void IOWriteSystemControlPortB(u8 value);
   void UpdateKeyboardControllerOutputPort();
 
   std::string m_bios_file_path;
@@ -79,8 +79,8 @@ private:
   HW::FDC* m_fdd_controller = nullptr;
   HW::HDC* m_hdd_controller = nullptr;
 
-  std::array<uint8, 256> m_ali1429_registers{};
-  uint8 m_ali1429_index_register = 0;
+  std::array<u8, 256> m_ali1429_registers{};
+  u8 m_ali1429_index_register = 0;
 
   bool m_cmos_lock = false;
   bool m_refresh_bit = false;

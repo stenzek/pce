@@ -13,8 +13,8 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
   address &= m_physical_memory_address_mask;
 
   // Since we allocate the page array based on the address mask, this should never overflow.
-  uint32 page_number = address / MEMORY_PAGE_SIZE;
-  uint32 page_offset = address % MEMORY_PAGE_SIZE;
+  u32 page_number = address / MEMORY_PAGE_SIZE;
+  u32 page_offset = address % MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
 
   // Fast path - page is RAM.
@@ -29,14 +29,14 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
   {
 
     // Pass to MMIO
-    if constexpr (std::is_same<T, uint8>::value)
-      page.mmio_handler->ReadByte(address, reinterpret_cast<uint8*>(&value));
-    else if constexpr (std::is_same<T, uint16>::value)
-      page.mmio_handler->ReadWord(address, reinterpret_cast<uint16*>(&value));
-    else if constexpr (std::is_same<T, uint32>::value)
-      page.mmio_handler->ReadDWord(address, reinterpret_cast<uint32*>(&value));
-    else if constexpr (std::is_same<T, uint64>::value)
-      page.mmio_handler->ReadQWord(address, reinterpret_cast<uint64*>(&value));
+    if constexpr (std::is_same<T, u8>::value)
+      page.mmio_handler->ReadByte(address, reinterpret_cast<u8*>(&value));
+    else if constexpr (std::is_same<T, u16>::value)
+      page.mmio_handler->ReadWord(address, reinterpret_cast<u16*>(&value));
+    else if constexpr (std::is_same<T, u32>::value)
+      page.mmio_handler->ReadDWord(address, reinterpret_cast<u32*>(&value));
+    else if constexpr (std::is_same<T, u64>::value)
+      page.mmio_handler->ReadQWord(address, reinterpret_cast<u64*>(&value));
     else
       value = static_cast<T>(-1);
   }
@@ -46,7 +46,7 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
   }
 
 #if defined(Y_BUILD_CONFIG_DEBUG) || defined(Y_BUILD_CONFIG_DEBUGFAST)
-  CheckForMemoryBreakpoint(address, sizeof(T), false, static_cast<uint32>(value));
+  CheckForMemoryBreakpoint(address, sizeof(T), false, static_cast<u32>(value));
 #endif
 
   return value;
@@ -63,12 +63,12 @@ void Bus::WriteMemoryTyped(PhysicalMemoryAddress address, T value)
   address &= m_physical_memory_address_mask;
 
 #if defined(Y_BUILD_CONFIG_DEBUG) || defined(Y_BUILD_CONFIG_DEBUGFAST)
-  CheckForMemoryBreakpoint(address, sizeof(T), true, static_cast<uint32>(value));
+  CheckForMemoryBreakpoint(address, sizeof(T), true, static_cast<u32>(value));
 #endif
 
   // Since we allocate the page array based on the address mask, this should never overflow.
-  uint32 page_number = address / MEMORY_PAGE_SIZE;
-  uint32 page_offset = address % MEMORY_PAGE_SIZE;
+  u32 page_number = address / MEMORY_PAGE_SIZE;
+  u32 page_offset = address % MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
 
   // Fast path - page is RAM.
@@ -98,14 +98,14 @@ void Bus::WriteMemoryTyped(PhysicalMemoryAddress address, T value)
       (address + sizeof(value) - 1) <= page.mmio_handler->GetEndAddress())
   {
     // Pass to MMIO
-    if constexpr (std::is_same<T, uint8>::value)
-      page.mmio_handler->WriteByte(address, static_cast<uint8>(value));
-    else if constexpr (std::is_same<T, uint16>::value)
-      page.mmio_handler->WriteWord(address, static_cast<uint16>(value));
-    else if constexpr (std::is_same<T, uint32>::value)
-      page.mmio_handler->WriteDWord(address, static_cast<uint32>(value));
-    else if constexpr (std::is_same<T, uint64>::value)
-      page.mmio_handler->WriteQWord(address, static_cast<uint64>(value));
+    if constexpr (std::is_same<T, u8>::value)
+      page.mmio_handler->WriteByte(address, static_cast<u8>(value));
+    else if constexpr (std::is_same<T, u16>::value)
+      page.mmio_handler->WriteWord(address, static_cast<u16>(value));
+    else if constexpr (std::is_same<T, u32>::value)
+      page.mmio_handler->WriteDWord(address, static_cast<u32>(value));
+    else if constexpr (std::is_same<T, u64>::value)
+      page.mmio_handler->WriteQWord(address, static_cast<u64>(value));
 
     return;
   }

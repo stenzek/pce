@@ -66,11 +66,11 @@ void System::Reset()
 template<class Callback>
 static bool LoadComponentStateHelper(BinaryReader& reader, Callback callback)
 {
-  uint32 component_state_size;
+  u32 component_state_size;
   if (!reader.SafeReadUInt32(&component_state_size))
     return false;
 
-  uint64 expected_offset = reader.GetStreamPosition() + component_state_size;
+  u64 expected_offset = reader.GetStreamPosition() + component_state_size;
   if (!callback())
     return false;
 
@@ -89,18 +89,18 @@ static bool LoadComponentStateHelper(BinaryReader& reader, Callback callback)
 template<class Callback>
 static bool SaveComponentStateHelper(BinaryWriter& writer, Callback callback)
 {
-  uint64 size_offset = writer.GetStreamPosition();
+  u64 size_offset = writer.GetStreamPosition();
 
   // Reserve space for component size
   if (!writer.SafeWriteUInt32(0))
     return false;
 
-  uint64 start_offset = writer.GetStreamPosition();
+  u64 start_offset = writer.GetStreamPosition();
   if (!callback())
     return false;
 
-  uint64 end_offset = writer.GetStreamPosition();
-  uint32 component_size = Truncate32(end_offset - start_offset);
+  u64 end_offset = writer.GetStreamPosition();
+  u32 component_size = Truncate32(end_offset - start_offset);
   if (!writer.SafeSeekAbsolute(size_offset) || !writer.SafeWriteUInt32(component_size) ||
       !writer.SafeSeekAbsolute(end_offset))
   {
@@ -112,7 +112,7 @@ static bool SaveComponentStateHelper(BinaryWriter& writer, Callback callback)
 
 bool System::LoadState(BinaryReader& reader)
 {
-  uint32 signature, version;
+  u32 signature, version;
   if (!reader.SafeReadUInt32(&signature) || !reader.SafeReadUInt32(&version))
     return false;
 
@@ -196,14 +196,14 @@ bool System::SaveSystemState(BinaryWriter& writer)
 
 bool System::LoadComponentsState(BinaryReader& reader)
 {
-  uint32 num_components = 0;
+  u32 num_components = 0;
   if (!reader.SafeReadUInt32(&num_components) || num_components != m_components.GetSize())
   {
     Log_ErrorPrintf("Incorrect number of components");
     return false;
   }
 
-  for (uint32 i = 0; i < num_components; i++)
+  for (u32 i = 0; i < num_components; i++)
   {
     Component* component = m_components[i];
     auto callback = [component, &reader]() { return component->LoadState(reader); };
@@ -218,7 +218,7 @@ bool System::SaveComponentsState(BinaryWriter& writer)
 {
   writer.WriteUInt32(Truncate32(m_components.GetSize()));
 
-  for (uint32 i = 0; i < m_components.GetSize(); i++)
+  for (u32 i = 0; i < m_components.GetSize(); i++)
   {
     Component* component = m_components[i];
     auto callback = [component, &writer]() { return component->SaveState(writer); };
@@ -243,7 +243,7 @@ SimulationTime System::ExecuteSlice(SimulationTime time)
   return m_timing_manager.GetEmulatedTimeDifference(start_timestamp);
 }
 
-std::pair<std::unique_ptr<byte[]>, uint32> System::ReadFileToBuffer(const char* filename, u32 offset, u32 expected_size)
+std::pair<std::unique_ptr<byte[]>, u32> System::ReadFileToBuffer(const char* filename, u32 offset, u32 expected_size)
 {
   ByteStream* stream;
   if (!ByteStream_OpenFileStream(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED, &stream))
@@ -252,7 +252,7 @@ std::pair<std::unique_ptr<byte[]>, uint32> System::ReadFileToBuffer(const char* 
     return std::make_pair(std::unique_ptr<byte[]>(), 0);
   }
 
-  const uint32 size = Truncate32(stream->GetSize());
+  const u32 size = Truncate32(stream->GetSize());
   if (expected_size != 0 && (offset >= size || (size - offset) != expected_size))
   {
     Log_ErrorPrintf("ROM file %s mismatch - expected %u bytes, got %u bytes", filename, expected_size, size);

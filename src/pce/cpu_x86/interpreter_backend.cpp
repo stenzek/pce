@@ -4,7 +4,7 @@
 namespace CPU_X86 {
 
 extern bool TRACE_EXECUTION;
-extern uint32 TRACE_EXECUTION_LAST_EIP;
+extern u32 TRACE_EXECUTION_LAST_EIP;
 
 InterpreterBackend::InterpreterBackend(CPU* cpu) : m_cpu(cpu), m_system(cpu->GetSystem()), m_bus(cpu->GetBus()) {}
 
@@ -48,11 +48,11 @@ void InterpreterBackend::AbortCurrentInstruction()
   fastjmp_jmp(&m_jmp_buf);
 }
 
-void InterpreterBackend::BranchTo(uint32 new_EIP) {}
+void InterpreterBackend::BranchTo(u32 new_EIP) {}
 
-void InterpreterBackend::BranchFromException(uint32 new_EIP) {}
+void InterpreterBackend::BranchFromException(u32 new_EIP) {}
 
-void InterpreterBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) {}
+void InterpreterBackend::OnControlRegisterLoaded(Reg32 reg, u32 old_value, u32 new_value) {}
 
 void InterpreterBackend::FlushCodeCache() {}
 

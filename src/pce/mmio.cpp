@@ -1,7 +1,7 @@
 #include "pce/mmio.h"
 #include <cstring>
 
-MMIO::MMIO(PhysicalMemoryAddress start_address, uint32 size, Handlers&& handlers, bool cacheable)
+MMIO::MMIO(PhysicalMemoryAddress start_address, u32 size, Handlers&& handlers, bool cacheable)
   : m_start_address(start_address), m_end_address(start_address + (size - 1)), m_size(size), m_handlers(handlers),
     m_cachable(cacheable)
 {
@@ -9,68 +9,68 @@ MMIO::MMIO(PhysicalMemoryAddress start_address, uint32 size, Handlers&& handlers
 
 MMIO::~MMIO() {}
 
-void MMIO::ReadByte(PhysicalMemoryAddress address, uint8* destination)
+void MMIO::ReadByte(PhysicalMemoryAddress address, u8* destination)
 {
   DebugAssert(address >= GetStartAddress() && (address + 1 - 1) <= GetEndAddress());
   m_handlers.read_byte(address - m_start_address, destination);
 }
 
-void MMIO::ReadWord(PhysicalMemoryAddress address, uint16* destination)
+void MMIO::ReadWord(PhysicalMemoryAddress address, u16* destination)
 {
   DebugAssert(address >= GetStartAddress() && (address + 2 - 1) <= GetEndAddress());
   m_handlers.read_word(address - m_start_address, destination);
 }
 
-void MMIO::ReadDWord(PhysicalMemoryAddress address, uint32* destination)
+void MMIO::ReadDWord(PhysicalMemoryAddress address, u32* destination)
 {
   DebugAssert(address >= GetStartAddress() && (address + 4 - 1) <= GetEndAddress());
   m_handlers.read_dword(address - m_start_address, destination);
 }
 
-void MMIO::ReadQWord(PhysicalMemoryAddress address, uint64* destination)
+void MMIO::ReadQWord(PhysicalMemoryAddress address, u64* destination)
 {
   DebugAssert(address >= GetStartAddress() && (address + 8 - 1) <= GetEndAddress());
   m_handlers.read_qword(address - m_start_address, destination);
 }
 
-void MMIO::ReadBlock(PhysicalMemoryAddress address, uint32 length, void* destination)
+void MMIO::ReadBlock(PhysicalMemoryAddress address, u32 length, void* destination)
 {
   DebugAssert(address >= GetStartAddress() && (address + length - 1) <= GetEndAddress());
   m_handlers.read_block(address - m_start_address, length, destination);
 }
 
-void MMIO::WriteByte(PhysicalMemoryAddress address, uint8 source)
+void MMIO::WriteByte(PhysicalMemoryAddress address, u8 source)
 {
   DebugAssert(address >= GetStartAddress() && (address + 1 - 1) <= GetEndAddress());
   m_handlers.write_byte(address - m_start_address, source);
 }
 
-void MMIO::WriteWord(PhysicalMemoryAddress address, uint16 source)
+void MMIO::WriteWord(PhysicalMemoryAddress address, u16 source)
 {
   DebugAssert(address >= GetStartAddress() && (address + 2 - 1) <= GetEndAddress());
   m_handlers.write_word(address - m_start_address, source);
 }
 
-void MMIO::WriteDWord(PhysicalMemoryAddress address, uint32 source)
+void MMIO::WriteDWord(PhysicalMemoryAddress address, u32 source)
 {
   DebugAssert(address >= GetStartAddress() && (address + 4 - 1) <= GetEndAddress());
   m_handlers.write_dword(address - m_start_address, source);
 }
 
-void MMIO::WriteQWord(PhysicalMemoryAddress address, uint64 source)
+void MMIO::WriteQWord(PhysicalMemoryAddress address, u64 source)
 {
   DebugAssert(address >= GetStartAddress() && (address + 8 - 1) <= GetEndAddress());
   m_handlers.write_qword(address - m_start_address, source);
 }
 
-void MMIO::WriteBlock(PhysicalMemoryAddress address, uint32 length, const void* source)
+void MMIO::WriteBlock(PhysicalMemoryAddress address, u32 length, const void* source)
 {
   DebugAssert(address >= GetStartAddress() && (address + length - 1) <= GetEndAddress());
   m_handlers.write_block(address - m_start_address, length, source);
 }
 
-MMIO* MMIO::CreateDirect(PhysicalMemoryAddress start_address, uint32 size, void* data, bool allow_read,
-                         bool allow_write, bool cacheable)
+MMIO* MMIO::CreateDirect(PhysicalMemoryAddress start_address, u32 size, void* data, bool allow_read, bool allow_write,
+                         bool cacheable)
 {
   char* data_base = reinterpret_cast<char*>(data);
   DebugAssert(size > 0);
@@ -78,19 +78,19 @@ MMIO* MMIO::CreateDirect(PhysicalMemoryAddress start_address, uint32 size, void*
   Handlers handlers;
   if (allow_read)
   {
-    handlers.read_byte = [data_base](uint32 offset_from_base, uint8* value) {
-      std::memcpy(value, data_base + offset_from_base, sizeof(uint8));
+    handlers.read_byte = [data_base](u32 offset_from_base, u8* value) {
+      std::memcpy(value, data_base + offset_from_base, sizeof(u8));
     };
-    handlers.read_word = [data_base](uint32 offset_from_base, uint16* value) {
-      std::memcpy(value, data_base + offset_from_base, sizeof(uint16));
+    handlers.read_word = [data_base](u32 offset_from_base, u16* value) {
+      std::memcpy(value, data_base + offset_from_base, sizeof(u16));
     };
-    handlers.read_dword = [data_base](uint32 offset_from_base, uint32* value) {
-      std::memcpy(value, data_base + offset_from_base, sizeof(uint32));
+    handlers.read_dword = [data_base](u32 offset_from_base, u32* value) {
+      std::memcpy(value, data_base + offset_from_base, sizeof(u32));
     };
-    handlers.read_qword = [data_base](uint32 offset_from_base, uint64* value) {
-      std::memcpy(value, data_base + offset_from_base, sizeof(uint64));
+    handlers.read_qword = [data_base](u32 offset_from_base, u64* value) {
+      std::memcpy(value, data_base + offset_from_base, sizeof(u64));
     };
-    handlers.read_block = [data_base](uint32 offset_from_base, uint32 length, void* destination) {
+    handlers.read_block = [data_base](u32 offset_from_base, u32 length, void* destination) {
       std::memcpy(destination, data_base + offset_from_base, length);
     };
   }
@@ -101,19 +101,19 @@ MMIO* MMIO::CreateDirect(PhysicalMemoryAddress start_address, uint32 size, void*
 
   if (allow_write)
   {
-    handlers.write_byte = [data_base](uint32 offset_from_base, uint8 value) {
-      std::memcpy(data_base + offset_from_base, &value, sizeof(uint8));
+    handlers.write_byte = [data_base](u32 offset_from_base, u8 value) {
+      std::memcpy(data_base + offset_from_base, &value, sizeof(u8));
     };
-    handlers.write_word = [data_base](uint32 offset_from_base, uint16 value) {
-      std::memcpy(data_base + offset_from_base, &value, sizeof(uint16));
+    handlers.write_word = [data_base](u32 offset_from_base, u16 value) {
+      std::memcpy(data_base + offset_from_base, &value, sizeof(u16));
     };
-    handlers.write_dword = [data_base](uint32 offset_from_base, uint32 value) {
-      std::memcpy(data_base + offset_from_base, &value, sizeof(uint32));
+    handlers.write_dword = [data_base](u32 offset_from_base, u32 value) {
+      std::memcpy(data_base + offset_from_base, &value, sizeof(u32));
     };
-    handlers.write_qword = [data_base](uint32 offset_from_base, uint64 value) {
-      std::memcpy(data_base + offset_from_base, &value, sizeof(uint64));
+    handlers.write_qword = [data_base](u32 offset_from_base, u64 value) {
+      std::memcpy(data_base + offset_from_base, &value, sizeof(u64));
     };
-    handlers.write_block = [data_base](uint32 offset_from_base, uint32 length, const void* source) {
+    handlers.write_block = [data_base](u32 offset_from_base, u32 length, const void* source) {
       std::memcpy(data_base + offset_from_base, source, length);
     };
   }
@@ -125,7 +125,7 @@ MMIO* MMIO::CreateDirect(PhysicalMemoryAddress start_address, uint32 size, void*
   return new MMIO(start_address, size, std::move(handlers), cacheable);
 }
 
-MMIO* MMIO::CreateComplex(PhysicalMemoryAddress start_address, uint32 size, Handlers&& handlers, bool cacheable)
+MMIO* MMIO::CreateComplex(PhysicalMemoryAddress start_address, u32 size, Handlers&& handlers, bool cacheable)
 {
   DebugAssert(size > 0);
 
@@ -160,7 +160,7 @@ MMIO* MMIO::CreateComplex(PhysicalMemoryAddress start_address, uint32 size, Hand
   return mmio;
 }
 
-MMIO* MMIO::CreateMirror(PhysicalMemoryAddress start_address, uint32 size, const MMIO* existing_handler)
+MMIO* MMIO::CreateMirror(PhysicalMemoryAddress start_address, u32 size, const MMIO* existing_handler)
 {
   DebugAssert(size <= existing_handler->m_size);
 
@@ -200,66 +200,66 @@ void MMIO::Handlers::IgnoreWrites()
     std::bind(&IgnoreWriteBlockHandler, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 }
 
-void MMIO::IgnoreReadByteHandler(uint32 offset_from_base, uint8* value)
+void MMIO::IgnoreReadByteHandler(u32 offset_from_base, u8* value)
 {
   *value = UINT8_C(0xFF);
 }
 
-void MMIO::IgnoreReadWordHandler(uint32 offset_from_base, uint16* value)
+void MMIO::IgnoreReadWordHandler(u32 offset_from_base, u16* value)
 {
   *value = UINT16_C(0xFFFF);
 }
 
-void MMIO::IgnoreReadDWordHandler(uint32 offset_from_base, uint32* value)
+void MMIO::IgnoreReadDWordHandler(u32 offset_from_base, u32* value)
 {
   *value = UINT32_C(0xFFFFFFFF);
 }
 
-void MMIO::IgnoreReadQWordHandler(uint32 offset_from_base, uint64* value)
+void MMIO::IgnoreReadQWordHandler(u32 offset_from_base, u64* value)
 {
   *value = UINT64_C(0xFFFFFFFFFFFFFFFF);
 }
 
-void MMIO::IgnoreReadBlockHandler(uint32 offset_from_base, uint32 length, void* destination)
+void MMIO::IgnoreReadBlockHandler(u32 offset_from_base, u32 length, void* destination)
 {
   std::memset(destination, 0xFF, length);
 }
 
-void MMIO::IgnoreWriteByteHandler(uint32 offset_from_base, uint8 value) {}
+void MMIO::IgnoreWriteByteHandler(u32 offset_from_base, u8 value) {}
 
-void MMIO::IgnoreWriteWordHandler(uint32 offset_from_base, uint16 value) {}
+void MMIO::IgnoreWriteWordHandler(u32 offset_from_base, u16 value) {}
 
-void MMIO::IgnoreWriteDWordHandler(uint32 offset_from_base, uint32 value) {}
+void MMIO::IgnoreWriteDWordHandler(u32 offset_from_base, u32 value) {}
 
-void MMIO::IgnoreWriteQWordHandler(uint32 offset_from_base, uint64 value) {}
+void MMIO::IgnoreWriteQWordHandler(u32 offset_from_base, u64 value) {}
 
-void MMIO::IgnoreWriteBlockHandler(uint32 offset_from_base, uint32 length, const void* source) {}
+void MMIO::IgnoreWriteBlockHandler(u32 offset_from_base, u32 length, const void* source) {}
 
-void MMIO::DefaultReadWordHandler(uint32 offset_from_base, uint16* value)
+void MMIO::DefaultReadWordHandler(u32 offset_from_base, u16* value)
 {
-  uint8 b0, b1;
+  u8 b0, b1;
   m_handlers.read_byte(offset_from_base + 0, &b0);
   m_handlers.read_byte(offset_from_base + 1, &b1);
   *value = ZeroExtend16(b0) | (ZeroExtend16(b1) << 8);
 }
 
-void MMIO::DefaultReadDWordHandler(uint32 offset_from_base, uint32* value)
+void MMIO::DefaultReadDWordHandler(u32 offset_from_base, u32* value)
 {
-  uint16 w0, w1;
+  u16 w0, w1;
   m_handlers.read_word(offset_from_base + 0, &w0);
   m_handlers.read_word(offset_from_base + 2, &w1);
   *value = ZeroExtend32(w0) | (ZeroExtend32(w1) << 16);
 }
 
-void MMIO::DefaultReadQWordHandler(uint32 offset_from_base, uint64* value)
+void MMIO::DefaultReadQWordHandler(u32 offset_from_base, u64* value)
 {
-  uint32 w0, w1;
+  u32 w0, w1;
   m_handlers.read_dword(offset_from_base + 0, &w0);
   m_handlers.read_dword(offset_from_base + 4, &w1);
   *value = ZeroExtend64(w0) | (ZeroExtend64(w1) << 32);
 }
 
-void MMIO::DefaultReadBlockHandler(uint32 offset_from_base, uint32 length, void* destination)
+void MMIO::DefaultReadBlockHandler(u32 offset_from_base, u32 length, void* destination)
 {
   byte* destination_ptr = reinterpret_cast<byte*>(destination);
 
@@ -273,9 +273,9 @@ void MMIO::DefaultReadBlockHandler(uint32 offset_from_base, uint32 length, void*
   }
 
   // Issue DWORD reads.
-  while (length > sizeof(uint32))
+  while (length > sizeof(u32))
   {
-    uint32 value;
+    u32 value;
     m_handlers.read_dword(offset_from_base, &value);
     std::memcpy(destination_ptr, &value, sizeof(value));
     destination_ptr += sizeof(value);
@@ -293,25 +293,25 @@ void MMIO::DefaultReadBlockHandler(uint32 offset_from_base, uint32 length, void*
   }
 }
 
-void MMIO::DefaultWriteWordHandler(uint32 offset_from_base, uint16 value)
+void MMIO::DefaultWriteWordHandler(u32 offset_from_base, u16 value)
 {
   m_handlers.write_byte(offset_from_base + 0, Truncate8(value));
   m_handlers.write_byte(offset_from_base + 1, Truncate8(value >> 8));
 }
 
-void MMIO::DefaultWriteDWordHandler(uint32 offset_from_base, uint32 value)
+void MMIO::DefaultWriteDWordHandler(u32 offset_from_base, u32 value)
 {
   m_handlers.write_word(offset_from_base + 0, Truncate16(value));
   m_handlers.write_word(offset_from_base + 2, Truncate16(value >> 16));
 }
 
-void MMIO::DefaultWriteQWordHandler(uint32 offset_from_base, uint64 value)
+void MMIO::DefaultWriteQWordHandler(u32 offset_from_base, u64 value)
 {
   m_handlers.write_qword(offset_from_base + 0, Truncate32(value));
   m_handlers.write_qword(offset_from_base + 4, Truncate32(value >> 32));
 }
 
-void MMIO::DefaultWriteBlockHandler(uint32 offset_from_base, uint32 length, const void* source)
+void MMIO::DefaultWriteBlockHandler(u32 offset_from_base, u32 length, const void* source)
 {
   const byte* source_ptr = reinterpret_cast<const byte*>(source);
 
@@ -323,9 +323,9 @@ void MMIO::DefaultWriteBlockHandler(uint32 offset_from_base, uint32 length, cons
   }
 
   // Issue DWORD writes.
-  while (length > sizeof(uint32))
+  while (length > sizeof(u32))
   {
-    uint32 value;
+    u32 value;
     std::memcpy(&value, source_ptr, sizeof(value));
     m_handlers.write_dword(offset_from_base, value);
     source_ptr += sizeof(value);

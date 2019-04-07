@@ -104,8 +104,8 @@ void PCSpeaker::RenderSampleEvent(CycleCount cycles)
   if (num_samples < 2)
     sound_on = false;
 
-  int16* samples = reinterpret_cast<int16*>(m_output_channel->ReserveInputSamples(num_samples));
-  int16 value = sound_on ? (m_level ? HIGH_SAMPLE_VALUE : LOW_SAMPLE_VALUE) : 0;
+  s16* samples = reinterpret_cast<s16*>(m_output_channel->ReserveInputSamples(num_samples));
+  s16 value = sound_on ? (m_level ? HIGH_SAMPLE_VALUE : LOW_SAMPLE_VALUE) : 0;
   for (size_t i = 0; i < num_samples; i++)
     samples[i] = value;
 

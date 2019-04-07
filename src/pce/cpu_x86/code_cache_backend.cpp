@@ -15,7 +15,7 @@ namespace CPU_X86 {
 static_assert(CPU::PAGE_SIZE == Bus::MEMORY_PAGE_SIZE, "CPU page size matches bus memory size");
 
 extern bool TRACE_EXECUTION;
-extern uint32 TRACE_EXECUTION_LAST_EIP;
+extern u32 TRACE_EXECUTION_LAST_EIP;
 
 CodeCacheBackend::CodeCacheBackend(CPU* cpu) : m_cpu(cpu), m_system(cpu->GetSystem()), m_bus(cpu->GetBus())
 {
@@ -35,14 +35,14 @@ void CodeCacheBackend::Reset()
   FlushCodeCache();
 }
 
-void CodeCacheBackend::OnControlRegisterLoaded(Reg32 reg, uint32 old_value, uint32 new_value) {}
+void CodeCacheBackend::OnControlRegisterLoaded(Reg32 reg, u32 old_value, u32 new_value) {}
 
-void CodeCacheBackend::BranchTo(uint32 new_EIP)
+void CodeCacheBackend::BranchTo(u32 new_EIP)
 {
   m_branched = true;
 }
 
-void CodeCacheBackend::BranchFromException(uint32 new_EIP)
+void CodeCacheBackend::BranchFromException(u32 new_EIP)
 {
   m_branched = true;
 }
@@ -392,7 +392,7 @@ bool CodeCacheBackend::IsLinkableExitInstruction(const Instruction* instruction)
 
 bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 {
-  static constexpr uint32 BUFFER_SIZE = 64;
+  static constexpr u32 BUFFER_SIZE = 64;
   DebugAssert(block != nullptr);
 
   struct FetchCallback
@@ -415,13 +415,13 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
       if (EIP < segcache.limit_low || EIP >= segcache.limit_high)
         return;
 
-      uint32 available_size = segcache.limit_high - EIP;
-      uint32 fetch_size = std::min(BUFFER_SIZE - buffer_size, available_size);
+      u32 available_size = segcache.limit_high - EIP;
+      u32 fetch_size = std::min(BUFFER_SIZE - buffer_size, available_size);
       while (fetch_size > 0)
       {
         PhysicalMemoryAddress physical_address;
         LinearMemoryAddress linear_address = segcache.base_address + EIP;
-        uint32 fetch_size_in_page = std::min(CPU::PAGE_SIZE - (linear_address & CPU::PAGE_OFFSET_MASK), fetch_size);
+        u32 fetch_size_in_page = std::min(CPU::PAGE_SIZE - (linear_address & CPU::PAGE_OFFSET_MASK), fetch_size);
         if (!cpu->TranslateLinearAddress(
               &physical_address, linear_address,
               AddAccessTypeToFlags(AccessType::Execute, AccessFlags::Normal | AccessFlags::NoPageFaults)))
@@ -429,7 +429,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
           return;
         }
 
-        uint32 physical_page = (physical_address & cpu->m_bus->GetMemoryAddressMask()) & CPU::PAGE_MASK;
+        u32 physical_page = (physical_address & cpu->m_bus->GetMemoryAddressMask()) & CPU::PAGE_MASK;
         if (first_physical_page == 0xFFFFFFFF)
           first_physical_page = physical_page;
 
@@ -440,7 +440,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
             return;
 
           // Can't span more than two pages.
-          uint32 page_span = (physical_page - first_physical_page) >> 12;
+          u32 page_span = (physical_page - first_physical_page) >> 12;
           if (page_span > 1)
             return;
 
@@ -454,71 +454,71 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
       }
     }
 
-    bool FetchByte(uint8* val)
+    bool FetchByte(u8* val)
     {
-      uint32 buffer_remaining = buffer_size - buffer_pos;
-      if (buffer_remaining < sizeof(uint8))
+      u32 buffer_remaining = buffer_size - buffer_pos;
+      if (buffer_remaining < sizeof(u8))
       {
         FillBuffer();
         buffer_remaining = buffer_size - buffer_pos;
       }
 
-      if (buffer_remaining < sizeof(uint8))
+      if (buffer_remaining < sizeof(u8))
         return false;
 
       *val = buffer[buffer_pos++];
       return true;
     }
 
-    bool FetchWord(uint16* val)
+    bool FetchWord(u16* val)
     {
-      uint32 buffer_remaining = buffer_size - buffer_pos;
-      if (buffer_remaining < sizeof(uint16))
+      u32 buffer_remaining = buffer_size - buffer_pos;
+      if (buffer_remaining < sizeof(u16))
       {
         FillBuffer();
         buffer_remaining = buffer_size - buffer_pos;
       }
 
-      if (buffer_remaining < sizeof(uint16))
+      if (buffer_remaining < sizeof(u16))
         return false;
 
-      std::memcpy(val, &buffer[buffer_pos], sizeof(uint16));
-      buffer_pos += sizeof(uint16);
+      std::memcpy(val, &buffer[buffer_pos], sizeof(u16));
+      buffer_pos += sizeof(u16);
       return true;
     }
 
-    uint32 FetchDWord(uint32* val)
+    u32 FetchDWord(u32* val)
     {
-      uint32 buffer_remaining = buffer_size - buffer_pos;
-      if (buffer_remaining < sizeof(uint32))
+      u32 buffer_remaining = buffer_size - buffer_pos;
+      if (buffer_remaining < sizeof(u32))
       {
         FillBuffer();
         buffer_remaining = buffer_size - buffer_pos;
       }
 
-      if (buffer_remaining < sizeof(uint32))
+      if (buffer_remaining < sizeof(u32))
         return false;
 
-      std::memcpy(val, &buffer[buffer_pos], sizeof(uint32));
-      buffer_pos += sizeof(uint32);
+      std::memcpy(val, &buffer[buffer_pos], sizeof(u32));
+      buffer_pos += sizeof(u32);
       return true;
     }
 
-    FetchCallback(CodeCacheBackend* backend_, CPU* cpu_, uint32 EIP_, uint32 EIP_mask_)
+    FetchCallback(CodeCacheBackend* backend_, CPU* cpu_, u32 EIP_, u32 EIP_mask_)
       : backend(backend_), cpu(cpu_), EIP(EIP_), EIP_mask(EIP_mask_)
     {
     }
 
     CodeCacheBackend* backend;
     CPU* cpu;
-    uint32 EIP;
-    uint32 EIP_mask;
-    uint32 first_physical_page = 0xFFFFFFFF;
-    uint32 last_physical_page = 0xFFFFFFFF;
+    u32 EIP;
+    u32 EIP_mask;
+    u32 first_physical_page = 0xFFFFFFFF;
+    u32 last_physical_page = 0xFFFFFFFF;
 
-    std::array<uint8, BUFFER_SIZE> buffer;
-    uint32 buffer_size = 0;
-    uint32 buffer_pos = 0;
+    std::array<u8, BUFFER_SIZE> buffer;
+    u32 buffer_size = 0;
+    u32 buffer_pos = 0;
   };
 
   FetchCallback callback(this, m_cpu, m_cpu->m_registers.EIP, m_cpu->m_EIP_mask);
@@ -670,20 +670,20 @@ void CodeCacheBackend::InterpretUncachedBlock()
       TRACE_EXECUTION_LAST_EIP = m_cpu->m_current_EIP;
     }
 
-    uint32 fetch_EIP = m_cpu->m_current_EIP;
-    auto fetchb = [this, &fetch_EIP](uint8* val) {
+    u32 fetch_EIP = m_cpu->m_current_EIP;
+    auto fetchb = [this, &fetch_EIP](u8* val) {
       m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
-      fetch_EIP = (fetch_EIP + sizeof(uint8)) & m_cpu->m_EIP_mask;
+      fetch_EIP = (fetch_EIP + sizeof(u8)) & m_cpu->m_EIP_mask;
       return true;
     };
-    auto fetchw = [this, &fetch_EIP](uint16* val) {
+    auto fetchw = [this, &fetch_EIP](u16* val) {
       m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
-      fetch_EIP = (fetch_EIP + sizeof(uint16)) & m_cpu->m_EIP_mask;
+      fetch_EIP = (fetch_EIP + sizeof(u16)) & m_cpu->m_EIP_mask;
       return true;
     };
-    auto fetchd = [this, &fetch_EIP](uint32* val) {
+    auto fetchd = [this, &fetch_EIP](u32* val) {
       m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
-      fetch_EIP = (fetch_EIP + sizeof(uint32)) & m_cpu->m_EIP_mask;
+      fetch_EIP = (fetch_EIP + sizeof(u32)) & m_cpu->m_EIP_mask;
       return true;
     };
 

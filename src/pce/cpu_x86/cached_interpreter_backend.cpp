@@ -10,7 +10,7 @@ Log_SetChannel(CPU_X86::CachedInterpreterBackend);
 namespace CPU_X86 {
 
 extern bool TRACE_EXECUTION;
-extern uint32 TRACE_EXECUTION_LAST_EIP;
+extern u32 TRACE_EXECUTION_LAST_EIP;
 
 CachedInterpreterBackend::CachedInterpreterBackend(CPU* cpu) : CodeCacheBackend(cpu) {}
 
@@ -125,12 +125,12 @@ void CachedInterpreterBackend::AbortCurrentInstruction()
   fastjmp_jmp(&m_jmp_buf);
 }
 
-void CachedInterpreterBackend::BranchTo(uint32 new_EIP)
+void CachedInterpreterBackend::BranchTo(u32 new_EIP)
 {
   CodeCacheBackend::BranchTo(new_EIP);
 }
 
-void CachedInterpreterBackend::BranchFromException(uint32 new_EIP)
+void CachedInterpreterBackend::BranchFromException(u32 new_EIP)
 {
   CodeCacheBackend::BranchFromException(new_EIP);
 }

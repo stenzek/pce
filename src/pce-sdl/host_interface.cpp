@@ -222,7 +222,7 @@ bool SDLHostInterface::IsWindowFullscreen() const
   return ((SDL_GetWindowFlags(m_window) & SDL_WINDOW_FULLSCREEN) != 0);
 }
 
-static inline uint32 SDLButtonToHostButton(uint32 button)
+static inline u32 SDLButtonToHostButton(u32 button)
 {
   // SDL left = 1, middle = 2, right = 3 :/
   switch (button)
@@ -247,7 +247,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* event)
   {
     case SDL_MOUSEBUTTONDOWN:
     {
-      uint32 button = SDLButtonToHostButton(event->button.button);
+      u32 button = SDLButtonToHostButton(event->button.button);
       if (IsMouseGrabbed())
       {
         ExecuteMouseButtonChangeCallbacks(button, true);
@@ -258,7 +258,7 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* event)
 
     case SDL_MOUSEBUTTONUP:
     {
-      uint32 button = SDLButtonToHostButton(event->button.button);
+      u32 button = SDLButtonToHostButton(event->button.button);
       if (IsMouseGrabbed())
       {
         ExecuteMouseButtonChangeCallbacks(button, false);
@@ -278,8 +278,8 @@ bool SDLHostInterface::HandleSDLEvent(const SDL_Event* event)
       if (!IsMouseGrabbed())
         return false;
 
-      int32 dx = event->motion.xrel;
-      int32 dy = event->motion.yrel;
+      s32 dx = event->motion.xrel;
+      s32 dy = event->motion.yrel;
       ExecuteMousePositionChangeCallbacks(dx, dy);
       return true;
     }
@@ -496,7 +496,7 @@ void SDLHostInterface::RenderImGui()
 
       if (ImGui::BeginMenu("Load State"))
       {
-        for (uint32 i = 1; i <= 8; i++)
+        for (u32 i = 1; i <= 8; i++)
         {
           if (ImGui::MenuItem(TinyString::FromFormat("State %u", i).GetCharArray()))
             DoLoadState(i);
@@ -506,7 +506,7 @@ void SDLHostInterface::RenderImGui()
 
       if (ImGui::BeginMenu("Save State"))
       {
-        for (uint32 i = 1; i <= 8; i++)
+        for (u32 i = 1; i <= 8; i++)
         {
           if (ImGui::MenuItem(TinyString::FromFormat("State %u", i).GetCharArray()))
             DoSaveState(i);
@@ -618,7 +618,7 @@ void SDLHostInterface::RenderImGui()
   ImGui::Render();
 }
 
-void SDLHostInterface::DoLoadState(uint32 index)
+void SDLHostInterface::DoLoadState(u32 index)
 {
   Error error;
   if (!LoadSystemState(TinyString::FromFormat("savestate_%u.bin", index), &error))
@@ -628,7 +628,7 @@ void SDLHostInterface::DoLoadState(uint32 index)
   }
 }
 
-void SDLHostInterface::DoSaveState(uint32 index)
+void SDLHostInterface::DoSaveState(u32 index)
 {
   SaveSystemState(TinyString::FromFormat("savestate_%u.bin", index));
 }

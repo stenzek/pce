@@ -28,7 +28,7 @@ class Bus : public Object
   DECLARE_OBJECT_NO_PROPERTIES(Bus);
 
 public:
-  using CodeHashType = uint64;
+  using CodeHashType = u64;
   using CodeInvalidateCallback = std::function<void(PhysicalMemoryAddress)>;
 
   static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('B', 'U', 'S');
@@ -48,27 +48,27 @@ public:
 
   PhysicalMemoryAddress GetMemoryAddressMask() const { return m_physical_memory_address_mask; }
   void SetMemoryAddressMask(PhysicalMemoryAddress mask) { m_physical_memory_address_mask = mask; }
-  uint32 GetMemoryPageCount() const { return m_num_physical_memory_pages; }
-  uint32 GetUnassignedRAMSize() const { return m_ram_size - m_ram_assigned; }
+  u32 GetMemoryPageCount() const { return m_num_physical_memory_pages; }
+  u32 GetUnassignedRAMSize() const { return m_ram_size - m_ram_assigned; }
 
   // Obtained by walking the memory page table. end_page is not included in the count.
-  PhysicalMemoryAddress GetTotalRAMInPageRange(uint32 start_page, uint32 end_page) const;
+  PhysicalMemoryAddress GetTotalRAMInPageRange(u32 start_page, u32 end_page) const;
 
-  void AllocateRAM(uint32 size);
+  void AllocateRAM(u32 size);
 
   // Returns the amount of RAM allocated to this region.
   // Start and end have to be page-aligned.
-  uint32 CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end);
+  u32 CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end);
 
   // Creates a MMIO ROM region from an external file.
   bool CreateROMRegionFromFile(const char* filename, u32 file_offset, PhysicalMemoryAddress address,
-                               uint32 expected_size = 0);
+                               u32 expected_size = 0);
 
   // Creates a MMIO ROM region from a buffer.
-  bool CreateROMRegionFromBuffer(const void* buffer, uint32 size, PhysicalMemoryAddress address);
+  bool CreateROMRegionFromBuffer(const void* buffer, u32 size, PhysicalMemoryAddress address);
 
   // Creates a mirror of RAM/ROM.
-  void MirrorRegion(PhysicalMemoryAddress start, uint32 size, PhysicalMemoryAddress mirror_start);
+  void MirrorRegion(PhysicalMemoryAddress start, u32 size, PhysicalMemoryAddress mirror_start);
 
   // IO port read/write callbacks
   using IOPortReadByteHandler = std::function<void(u16 port, u8* value)>;
@@ -111,40 +111,34 @@ public:
   void WriteMemoryTyped(PhysicalMemoryAddress address, T value);
 
   // Reading/writing page-aligned memory.
-  uint8 ReadMemoryByte(PhysicalMemoryAddress address) { return ReadMemoryTyped<uint8>(address); }
-  void WriteMemoryByte(PhysicalMemoryAddress address, uint8 value) { return WriteMemoryTyped<uint8>(address, value); }
-  uint16 ReadMemoryWord(PhysicalMemoryAddress address) { return ReadMemoryTyped<uint16>(address); }
-  void WriteMemoryWord(PhysicalMemoryAddress address, uint16 value) { return WriteMemoryTyped<uint16>(address, value); }
-  uint32 ReadMemoryDWord(PhysicalMemoryAddress address) { return ReadMemoryTyped<uint32>(address); }
-  void WriteMemoryDWord(PhysicalMemoryAddress address, uint32 value)
-  {
-    return WriteMemoryTyped<uint32>(address, value);
-  }
-  uint64 ReadMemoryQWord(PhysicalMemoryAddress address) { return ReadMemoryTyped<uint64>(address); }
-  void WriteMemoryQWord(PhysicalMemoryAddress address, uint64 value)
-  {
-    return WriteMemoryTyped<uint64>(address, value);
-  }
+  u8 ReadMemoryByte(PhysicalMemoryAddress address) { return ReadMemoryTyped<u8>(address); }
+  void WriteMemoryByte(PhysicalMemoryAddress address, u8 value) { return WriteMemoryTyped<u8>(address, value); }
+  u16 ReadMemoryWord(PhysicalMemoryAddress address) { return ReadMemoryTyped<u16>(address); }
+  void WriteMemoryWord(PhysicalMemoryAddress address, u16 value) { return WriteMemoryTyped<u16>(address, value); }
+  u32 ReadMemoryDWord(PhysicalMemoryAddress address) { return ReadMemoryTyped<u32>(address); }
+  void WriteMemoryDWord(PhysicalMemoryAddress address, u32 value) { return WriteMemoryTyped<u32>(address, value); }
+  u64 ReadMemoryQWord(PhysicalMemoryAddress address) { return ReadMemoryTyped<u64>(address); }
+  void WriteMemoryQWord(PhysicalMemoryAddress address, u64 value) { return WriteMemoryTyped<u64>(address, value); }
 
   // Testing for readable/writable addresses.
-  bool IsReadableAddress(PhysicalMemoryAddress address, uint32 size) const;
-  bool IsWritableAddress(PhysicalMemoryAddress address, uint32 size) const;
+  bool IsReadableAddress(PhysicalMemoryAddress address, u32 size) const;
+  bool IsWritableAddress(PhysicalMemoryAddress address, u32 size) const;
 
   // Unaligned memory access is fine, can crosses a physical page.
   // Checked memory access, where bus errors and such are required.
   // In this case, we need to split it up into multiple words/bytes.
-  bool CheckedReadMemoryByte(PhysicalMemoryAddress address, uint8* value);
-  bool CheckedWriteMemoryByte(PhysicalMemoryAddress address, uint8 value);
-  bool CheckedReadMemoryWord(PhysicalMemoryAddress address, uint16* value);
-  bool CheckedWriteMemoryWord(PhysicalMemoryAddress address, uint16 value);
-  bool CheckedReadMemoryDWord(PhysicalMemoryAddress address, uint32* value);
-  bool CheckedWriteMemoryDWord(PhysicalMemoryAddress address, uint32 value);
-  bool CheckedReadMemoryQWord(PhysicalMemoryAddress address, uint64* value);
-  bool CheckedWriteMemoryQWord(PhysicalMemoryAddress address, uint64 value);
+  bool CheckedReadMemoryByte(PhysicalMemoryAddress address, u8* value);
+  bool CheckedWriteMemoryByte(PhysicalMemoryAddress address, u8 value);
+  bool CheckedReadMemoryWord(PhysicalMemoryAddress address, u16* value);
+  bool CheckedWriteMemoryWord(PhysicalMemoryAddress address, u16 value);
+  bool CheckedReadMemoryDWord(PhysicalMemoryAddress address, u32* value);
+  bool CheckedWriteMemoryDWord(PhysicalMemoryAddress address, u32 value);
+  bool CheckedReadMemoryQWord(PhysicalMemoryAddress address, u64* value);
+  bool CheckedWriteMemoryQWord(PhysicalMemoryAddress address, u64 value);
 
   // Read/write block of memory.
-  void ReadMemoryBlock(PhysicalMemoryAddress address, uint32 length, void* destination);
-  void WriteMemoryBlock(PhysicalMemoryAddress address, uint32 length, const void* source);
+  void ReadMemoryBlock(PhysicalMemoryAddress address, u32 length, void* destination);
+  void WriteMemoryBlock(PhysicalMemoryAddress address, u32 length, const void* source);
 
   // Get pointer to memory. Must lie within the same 64KiB page and be RAM not MMIO.
   byte* GetRAMPointer(PhysicalMemoryAddress address);
@@ -159,7 +153,7 @@ public:
   bool IsWritablePage(PhysicalMemoryAddress address) const;
 
   // Hashes a block of code for use in backend code caches.
-  CodeHashType GetCodeHash(PhysicalMemoryAddress address, uint32 length);
+  CodeHashType GetCodeHash(PhysicalMemoryAddress address, u32 length);
   void MarkPageAsCode(PhysicalMemoryAddress address);
   void UnmarkPageAsCode(PhysicalMemoryAddress address);
   void ClearPageCodeFlags();
@@ -170,7 +164,7 @@ public:
 
   // Change page types.
   void SetPageRAMState(PhysicalMemoryAddress page_address, bool readable_memory, bool writable_memory);
-  void SetPagesRAMState(PhysicalMemoryAddress start_address, uint32 size, bool readable_memory, bool writable_memory);
+  void SetPagesRAMState(PhysicalMemoryAddress start_address, u32 size, bool readable_memory, bool writable_memory);
 
   // Hold the bus, stalling the main CPU for the specified amount of time.
   void Stall(SimulationTime time);
@@ -178,7 +172,7 @@ public:
 protected:
   struct PhysicalMemoryPage
   {
-    enum Type : uint8
+    enum Type : u8
     {
       kReadableRAM = 1,
       kWritableRAM = 2,
@@ -188,7 +182,7 @@ protected:
 
     byte* ram_ptr;
     MMIO* mmio_handler;
-    uint8 type;
+    u8 type;
 
     bool IsReadableRAM() const { return (type & kReadableRAM) != 0; }
     bool IsWritableRAM() const { return (type & kWritableRAM) != 0; }
@@ -211,7 +205,7 @@ protected:
     IOPortWriteDWordHandler write_dword_handler;
   };
 
-  void AllocateMemoryPages(uint32 memory_address_bits);
+  void AllocateMemoryPages(u32 memory_address_bits);
 
   template<typename T>
   void EnumeratePagesForRange(PhysicalMemoryAddress start_address, PhysicalMemoryAddress end_address, T callback);
@@ -225,7 +219,7 @@ protected:
   bool WriteMemoryT(PhysicalMemoryAddress address, T value);
 
   // Memory breakpoints
-  void CheckForMemoryBreakpoint(PhysicalMemoryAddress address, uint32 size, bool is_write, uint32 value);
+  void CheckForMemoryBreakpoint(PhysicalMemoryAddress address, u32 size, bool is_write, u32 value);
 
   // Obtain IO port connection for owner.
   IOPortConnection* GetIOPortConnection(u16 port, const void* owner);
@@ -240,7 +234,7 @@ protected:
 
   // System memory map
   PhysicalMemoryPage* m_physical_memory_pages = nullptr;
-  uint32 m_num_physical_memory_pages = 0;
+  u32 m_num_physical_memory_pages = 0;
 
   // Physical address mask, by default this is set to the maximum address
   PhysicalMemoryAddress m_physical_memory_address_mask = ~0u;
@@ -251,8 +245,8 @@ protected:
   // Amount of RAM allocated overall
   // Do not access this pointer directly
   byte* m_ram_ptr = nullptr;
-  uint32 m_ram_size = 0;
-  uint32 m_ram_assigned = 0;
+  u32 m_ram_size = 0;
+  u32 m_ram_assigned = 0;
 
   // List of ROM regions allocated.
   // This does not include mirrors.
@@ -261,7 +255,7 @@ protected:
     std::unique_ptr<byte[]> data;
     MMIO* mmio_handler;
     PhysicalMemoryAddress mapped_address;
-    uint32 size;
+    u32 size;
   };
   std::vector<ROMRegion> m_rom_regions;
 };

@@ -16,17 +16,17 @@ public:
 
   // Request the index of the highest priority awaiting interrupt.
   // Acknowledges the interrupt has been received.
-  virtual uint32 GetInterruptNumber() = 0;
+  virtual u32 GetInterruptNumber() = 0;
 
   // Request an interrupt with the specified vector number
   // This is a edge-triggered interrupt, it is only executed once
-  virtual void TriggerInterrupt(uint32 interrupt);
+  virtual void TriggerInterrupt(u32 interrupt);
 
   // Sets the interrupt line high/low.
-  virtual void SetInterruptState(uint32 interrupt, bool active) = 0;
+  virtual void SetInterruptState(u32 interrupt, bool active) = 0;
 
   // Raise/lower the interrupt line for the specified vector number
   // This is level-triggered, so can be executed more than once
-  void RaiseInterrupt(uint32 interrupt);
-  void LowerInterrupt(uint32 interrupt);
+  void RaiseInterrupt(u32 interrupt);
+  void LowerInterrupt(u32 interrupt);
 };

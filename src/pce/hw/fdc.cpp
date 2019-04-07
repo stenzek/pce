@@ -11,7 +11,7 @@
 Log_SetChannel(HW::FDC);
 
 // Data rates in kb/s.
-static const uint32 data_rates[4] = {500, 300, 250, 1000};
+static const u32 data_rates[4] = {500, 300, 250, 1000};
 
 namespace HW {
 DEFINE_OBJECT_TYPE_INFO(FDC);
@@ -110,7 +110,7 @@ void FDC::Reset(bool software_reset)
 
   // Hardware resets seek back to zero.
   // Software resets reset head/sector, some BIOSes break without doing this.
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
+  for (u32 i = 0; i < MAX_DRIVES; i++)
   {
     DriveState& drive = m_drives[i];
     if (!drive.floppy)
@@ -137,7 +137,7 @@ bool FDC::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
+  for (u32 i = 0; i < MAX_DRIVES; i++)
   {
     DriveState* drive = &m_drives[i];
     const bool present = reader.ReadBool();
@@ -212,7 +212,7 @@ bool FDC::SaveState(BinaryWriter& writer)
 {
   writer.WriteUInt32(SERIALIZATION_ID);
 
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
+  for (u32 i = 0; i < MAX_DRIVES; i++)
   {
     DriveState* drive = &m_drives[i];
     writer.SafeWriteBool(drive->floppy != nullptr);
@@ -268,26 +268,26 @@ bool FDC::SaveState(BinaryWriter& writer)
   return true;
 }
 
-Floppy::DriveType FDC::GetDriveType_(uint32 drive) const
+Floppy::DriveType FDC::GetDriveType_(u32 drive) const
 {
   return (drive < MAX_DRIVES && m_drives[drive].floppy) ? m_drives[drive].floppy->GetDriveType_() :
                                                           Floppy::DriveType_None;
 }
 
-bool FDC::IsDrivePresent(uint32 drive) const
+bool FDC::IsDrivePresent(u32 drive) const
 {
   return (drive < MAX_DRIVES && m_drives[drive].floppy);
 }
 
-bool FDC::IsDiskPresent(uint32 drive) const
+bool FDC::IsDiskPresent(u32 drive) const
 {
   return (drive < MAX_DRIVES && m_drives[drive].floppy) ? m_drives[drive].floppy->GetDiskType() : Floppy::DiskType_None;
 }
 
-uint32 FDC::GetDriveCount() const
+u32 FDC::GetDriveCount() const
 {
-  uint32 count = 0;
-  for (uint32 i = 0; i < MAX_DRIVES; i++)
+  u32 count = 0;
+  for (u32 i = 0; i < MAX_DRIVES; i++)
   {
     if (IsDrivePresent(i))
       count++;
@@ -295,7 +295,7 @@ uint32 FDC::GetDriveCount() const
   return count;
 }
 
-bool FDC::AttachDrive(uint32 number, Floppy* drive)
+bool FDC::AttachDrive(u32 number, Floppy* drive)
 {
   if (number >= MAX_DRIVES || m_drives[number].floppy)
     return false;
@@ -310,7 +310,7 @@ void FDC::ClearFIFO()
   m_fifo_result_size = 0;
 }
 
-void FDC::WriteToFIFO(uint8 value)
+void FDC::WriteToFIFO(u8 value)
 {
   Assert(m_fifo_result_size < FIFO_SIZE);
   m_fifo[m_fifo_result_size++] = value;
@@ -342,7 +342,7 @@ void FDC::ClearActivity()
   }
 }
 
-bool FDC::SeekDrive(uint32 drive, uint32 cylinder, uint32 head, uint32 sector)
+bool FDC::SeekDrive(u32 drive, u32 cylinder, u32 head, u32 sector)
 {
   DriveState* state = &m_drives[drive];
   Floppy* floppy = state->floppy;
@@ -359,15 +359,15 @@ bool FDC::SeekDrive(uint32 drive, uint32 cylinder, uint32 head, uint32 sector)
   return true;
 }
 
-bool FDC::SeekToNextSector(uint32 drive)
+bool FDC::SeekToNextSector(u32 drive)
 {
   DriveState* state = &m_drives[drive];
   Floppy* floppy = state->floppy;
 
   // CHS addressing
-  uint32 cylinder = state->current_cylinder;
-  uint32 head = state->current_head;
-  uint32 sector = state->current_sector;
+  u32 cylinder = state->current_cylinder;
+  u32 head = state->current_head;
+  u32 sector = state->current_sector;
 
   // move sectors -> heads -> cylinders
   sector++;
@@ -390,27 +390,27 @@ bool FDC::SeekToNextSector(uint32 drive)
   state->current_head = head;
   state->current_sector = sector;
 
-  uint32 old_lba = state->current_lba;
+  u32 old_lba = state->current_lba;
   state->current_lba = (cylinder * floppy->GetNumHeads() + head) * floppy->GetSectorsPerTrack() + (sector - 1);
   DebugAssert((old_lba + 1) == state->current_lba);
   return true;
 }
 
-void FDC::ReadCurrentSector(uint32 drive, void* data)
+void FDC::ReadCurrentSector(u32 drive, void* data)
 {
   DriveState* state = &m_drives[drive];
   Log_DebugPrintf("FDC read lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
   state->floppy->Read(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
-void FDC::WriteCurrentSector(uint32 drive, const void* data)
+void FDC::WriteCurrentSector(u32 drive, const void* data)
 {
   DriveState* state = &m_drives[drive];
   Log_DebugPrintf("FDC write lba %u offset %u", state->current_lba, state->current_lba * SECTOR_SIZE);
   state->floppy->Write(data, state->current_lba * SECTOR_SIZE, SECTOR_SIZE);
 }
 
-uint8 FDC::CurrentCommand::GetExpectedParameterCount() const
+u8 FDC::CurrentCommand::GetExpectedParameterCount() const
 {
   switch (command)
   {
@@ -463,7 +463,7 @@ void FDC::BeginCommand()
 
     case CMD_RECALIBRATE: // Recalibrate
     {
-      const uint8 drive_number = cmd.params[0] & 0x03;
+      const u8 drive_number = cmd.params[0] & 0x03;
       Log_DevPrintf("Recalibrate drive %u", ZeroExtend32(drive_number));
 
       // Calculate seek time.
@@ -479,9 +479,9 @@ void FDC::BeginCommand()
 
     case CMD_SEEK: // Seek
     {
-      const uint8 drive_number = (cmd.params[0] & 0b11);
-      const uint8 head_number = (cmd.params[0] >> 2);
-      const uint8 cylinder_number = (cmd.params[1]);
+      const u8 drive_number = (cmd.params[0] & 0b11);
+      const u8 head_number = (cmd.params[0] >> 2);
+      const u8 cylinder_number = (cmd.params[1]);
       Log_DevPrintf("Floppy seek drive %u head %u cylinder %u", drive_number, head_number, cylinder_number);
 
       // Calculate time to seek.
@@ -500,15 +500,15 @@ void FDC::BeginCommand()
     case CMD_READ_DATA:  // Read Data
     {
       const bool is_write = (cmd.command == CMD_WRITE_DATA);
-      const uint8 drive_number = (cmd.params[0] & 0x03);
-      const uint8 head_number2 = (cmd.params[0] >> 2);
-      const uint8 cylinder_number = (cmd.params[1]);
-      const uint8 head_number = (cmd.params[2]);
-      const uint8 sector_number = (cmd.params[3]);
-      const uint8 sector_type = (cmd.params[4]);
-      const uint8 end_of_track = (cmd.params[5]);
+      const u8 drive_number = (cmd.params[0] & 0x03);
+      const u8 head_number2 = (cmd.params[0] >> 2);
+      const u8 cylinder_number = (cmd.params[1]);
+      const u8 head_number = (cmd.params[2]);
+      const u8 sector_number = (cmd.params[3]);
+      const u8 sector_type = (cmd.params[4]);
+      const u8 end_of_track = (cmd.params[5]);
       // const uint8 gap1_size = (cmd.params[6]);
-      const uint8 sector_type2 = (cmd.params[7]);
+      const u8 sector_type2 = (cmd.params[7]);
 
       if (!IsDiskPresent(drive_number))
       {
@@ -590,7 +590,7 @@ void FDC::BeginCommand()
 
       if (m_reset_sense_interrupt_count > 0)
       {
-        const uint8 drive_number = (4 - m_reset_sense_interrupt_count);
+        const u8 drive_number = (4 - m_reset_sense_interrupt_count);
         WriteToFIFO(GetST0(drive_number, ST0_IC_SC));
         WriteToFIFO(Truncate8(IsDiskPresent(drive_number) ? m_drives[drive_number].current_cylinder : 0));
 
@@ -615,8 +615,8 @@ void FDC::BeginCommand()
 
     case CMD_SENSE_STATUS: // Get Status
     {
-      const uint8 drive_number = cmd.params[0] & 0x03;
-      const uint8 head = (cmd.params[0] >> 2) & 0x01;
+      const u8 drive_number = cmd.params[0] & 0x03;
+      const u8 head = (cmd.params[0] >> 2) & 0x01;
       if (IsDiskPresent(drive_number))
         SeekDrive(drive_number, m_drives[drive_number].current_cylinder, head, m_drives[drive_number].current_sector);
 
@@ -629,8 +629,8 @@ void FDC::BeginCommand()
 
     case CMD_READ_ID: // Read ID
     {
-      const uint8 drive_number = cmd.params[0] & 0x03;
-      const uint8 head = (cmd.params[0] >> 2) & 0x01;
+      const u8 drive_number = cmd.params[0] & 0x03;
+      const u8 head = (cmd.params[0] >> 2) & 0x01;
 
       if (!IsDiskPresent(drive_number) || !m_DOR.IsMotorOn(drive_number))
       {
@@ -677,7 +677,7 @@ void FDC::BeginCommand()
       }
 
       ClearFIFO();
-      for (uint32 i = 0; i < MAX_DRIVES; i++)
+      for (u32 i = 0; i < MAX_DRIVES; i++)
         WriteToFIFO(Truncate8(m_drives[i].current_cylinder));
       WriteToFIFO((m_step_rate_time << 4) | m_head_unload_time);
       WriteToFIFO((m_head_load_time << 1) | (m_MSR.pio_mode ? 1 : 0));
@@ -763,7 +763,7 @@ void FDC::EndCommand()
   {
     case CMD_RECALIBRATE:
     {
-      const uint8 drive_number = cmd.params[0] & 0x03;
+      const u8 drive_number = cmd.params[0] & 0x03;
 
       // Calculate seek status.
       if (!IsDrivePresent(drive_number))
@@ -787,9 +787,9 @@ void FDC::EndCommand()
 
     case CMD_SEEK: // Seek
     {
-      const uint8 drive_number = cmd.params[0] & 0x03;
-      const uint8 head_number = (cmd.params[0] >> 2);
-      const uint8 cylinder_number = (cmd.params[1]);
+      const u8 drive_number = cmd.params[0] & 0x03;
+      const u8 head_number = (cmd.params[0] >> 2);
+      const u8 cylinder_number = (cmd.params[1]);
 
       // Calculate seek status.
       if (!IsDrivePresent(drive_number))
@@ -815,7 +815,7 @@ void FDC::EndCommand()
     case CMD_READ_ID:
     {
       // EndTransfer will cancel the event.
-      const uint8 drive_number = cmd.params[0] & 0x03;
+      const u8 drive_number = cmd.params[0] & 0x03;
       EndTransfer(drive_number, ST0_IC_NT, 0, 0);
     }
     break;
@@ -909,7 +909,7 @@ void FDC::LowerInterrupt()
   m_interrupt_controller->LowerInterrupt(6);
 }
 
-void FDC::IOReadStatusRegisterA(uint8* value)
+void FDC::IOReadStatusRegisterA(u8* value)
 {
   // 0x80 - interrupt pending
   // 0x40 - dma request
@@ -926,7 +926,7 @@ void FDC::IOReadStatusRegisterA(uint8* value)
            (BoolToUInt8(ds->write_protect) << 1) | (BoolToUInt8(ds->direction) << 0);
 }
 
-void FDC::IOReadStatusRegisterB(uint8* value)
+void FDC::IOReadStatusRegisterB(u8* value)
 {
   // 0x80 - no second drive
   // 0x40 - not ds1
@@ -943,9 +943,9 @@ void FDC::IOReadStatusRegisterB(uint8* value)
            (BoolToUInt8(GetCurrentDriveIndex() != 3) << 1) | (BoolToUInt8(GetCurrentDriveIndex() != 2) << 0);
 }
 
-void FDC::IOReadDigitalInputRegister(uint8* value)
+void FDC::IOReadDigitalInputRegister(u8* value)
 {
-  uint8 bits = 0b01111000;
+  u8 bits = 0b01111000;
   bits |= BoolToUInt8(m_disk_change_flag) << 7;
   bits |= (m_data_rate_index & 0x03) << 1;
   if (data_rates[m_data_rate_index] >= 500)
@@ -961,7 +961,7 @@ void FDC::IOReadDigitalInputRegister(uint8* value)
   GetCurrentDrive()->step_latch = false;
 }
 
-void FDC::IOReadDigitalOutputRegister(uint8* value)
+void FDC::IOReadDigitalOutputRegister(u8* value)
 {
   // Bit 7 - Motor on disk 3 enable
   // Bit 6 - Motor on disk 2 enable
@@ -973,9 +973,9 @@ void FDC::IOReadDigitalOutputRegister(uint8* value)
   *value = m_DOR.bits;
 }
 
-void FDC::IOWriteDigitalOutputRegister(uint8 value)
+void FDC::IOWriteDigitalOutputRegister(u8 value)
 {
-  decltype(m_DOR) changed_bits = {uint8(m_DOR.bits ^ value)};
+  decltype(m_DOR) changed_bits = {u8(m_DOR.bits ^ value)};
   m_DOR.bits = value;
 
   if (changed_bits.ndmagate && !m_DOR.ndmagate)
@@ -1011,7 +1011,7 @@ void FDC::IOWriteDigitalOutputRegister(uint8 value)
   m_MSR.data_direction = false;
 }
 
-void FDC::IOWriteDataRateSelectRegister(uint8 value)
+void FDC::IOWriteDataRateSelectRegister(u8 value)
 {
   m_data_rate_index = value & 0x03;
 
@@ -1022,12 +1022,12 @@ void FDC::IOWriteDataRateSelectRegister(uint8 value)
   }
 }
 
-void FDC::IOWriteConfigurationControlRegister(uint8 value)
+void FDC::IOWriteConfigurationControlRegister(u8 value)
 {
   m_data_rate_index = value & 0x03;
 }
 
-void FDC::IOReadFIFO(uint8* value)
+void FDC::IOReadFIFO(u8* value)
 {
   // Are we in a DMA transfer? Ignore if so.
   if (InReset() || IsDMATransferInProgress())
@@ -1063,7 +1063,7 @@ void FDC::IOReadFIFO(uint8* value)
     TransitionToCommandPhase();
 }
 
-void FDC::IOWriteFIFO(uint8 value)
+void FDC::IOWriteFIFO(u8 value)
 {
   // Are we in a DMA transfer? Ignore if so.
   if (InReset() || IsDMATransferInProgress())
@@ -1087,7 +1087,7 @@ void FDC::IOWriteFIFO(uint8 value)
   }
 }
 
-void FDC::EndTransfer(uint32 drive, uint8 st0_bits, uint8 st1_bits, uint8 st2_bits)
+void FDC::EndTransfer(u32 drive, u8 st0_bits, u8 st1_bits, u8 st2_bits)
 {
   m_current_command.Clear();
   if (m_current_transfer.active)
@@ -1142,7 +1142,7 @@ bool FDC::MoveToNextTransferSector()
   }
 }
 
-void FDC::DMAReadCallback(IOPortDataSize size, uint32* value, uint32 remaining_bytes)
+void FDC::DMAReadCallback(IOPortDataSize size, u32* value, u32 remaining_bytes)
 {
   Assert(m_current_transfer.active);
 
@@ -1183,7 +1183,7 @@ void FDC::DMAReadCallback(IOPortDataSize size, uint32* value, uint32 remaining_b
   }
 }
 
-void FDC::DMAWriteCallback(IOPortDataSize size, uint32 value, uint32 remaining_bytes)
+void FDC::DMAWriteCallback(IOPortDataSize size, u32 value, u32 remaining_bytes)
 {
   Assert(m_current_transfer.active);
 
@@ -1230,25 +1230,25 @@ void FDC::DMAWriteCallback(IOPortDataSize size, uint32 value, uint32 remaining_b
   }
 }
 
-uint8 FDC::GetST0(uint32 drive, uint8 bits) const
+u8 FDC::GetST0(u32 drive, u8 bits) const
 {
   return (bits & 0xF8) | (Truncate8(m_drives[drive].current_head & 0x01) << 2) | (Truncate8(drive) << 0);
 }
 
-uint8 FDC::GetST1(uint32 drive, uint8 bits) const
+u8 FDC::GetST1(u32 drive, u8 bits) const
 {
   return bits;
 }
 
-uint8 FDC::GetST2(uint32 drive, uint8 bits) const
+u8 FDC::GetST2(u32 drive, u8 bits) const
 {
   return bits;
 }
 
-uint8 FDC::GetST3(uint32 drive, uint8 bits) const
+u8 FDC::GetST3(u32 drive, u8 bits) const
 {
-  return (BoolToUInt8(m_drives[drive].write_protect) << 6) | uint8(1 << 5) |
-         (BoolToUInt8(m_drives[drive].current_cylinder == 0) << 4) | uint8(1 << 3) |
+  return (BoolToUInt8(m_drives[drive].write_protect) << 6) | u8(1 << 5) |
+         (BoolToUInt8(m_drives[drive].current_cylinder == 0) << 4) | u8(1 << 3) |
          (Truncate8(m_drives[drive].current_head & 0x01) << 2) | (Truncate8(drive) << 0);
 }
 
@@ -1256,7 +1256,7 @@ CycleCount FDC::CalculateHeadSeekTime(u32 drive, u32 destination_track) const
 {
   DebugAssert(IsDrivePresent(drive));
   const u32 current_track = m_drives[drive].current_cylinder;
-  uint32 move_count =
+  u32 move_count =
     (current_track >= destination_track) ? (current_track - destination_track) : (destination_track - current_track);
   CycleCount cycles = CalculateHeadSeekTime(drive) * CycleCount(move_count);
   Log_DebugPrintf("seek time for %u steps = %u usec, %u msec", move_count, cycles, cycles / 1000);

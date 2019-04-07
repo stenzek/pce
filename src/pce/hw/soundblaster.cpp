@@ -22,7 +22,7 @@ PROPERTY_TABLE_MEMBER_UINT("DMA", 0, offsetof(SoundBlaster, m_dma_channel), null
 PROPERTY_TABLE_MEMBER_UINT("Board", 0, offsetof(SoundBlaster, m_type), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
-uint32 SoundBlaster::GetDSPVersion(Type type)
+u32 SoundBlaster::GetDSPVersion(Type type)
 {
   switch (type)
   {
@@ -60,9 +60,9 @@ YMF262::Mode SoundBlaster::GetOPLMode(Type type)
   }
 }
 
-SoundBlaster::SoundBlaster(const String& identifier, Type type /* = Type::SoundBlaster10 */,
-                           uint32 iobase /* = 0x220 */, uint32 irq /* = 7 */, uint32 dma /* = 1 */,
-                           uint32 dma16 /* = 5 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+SoundBlaster::SoundBlaster(const String& identifier, Type type /* = Type::SoundBlaster10 */, u32 iobase /* = 0x220 */,
+                           u32 irq /* = 7 */, u32 dma /* = 1 */, u32 dma16 /* = 5 */,
+                           const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(identifier, type_info), m_clock("Sound Blaster DSP", 44100), m_type(type), m_io_base(iobase), m_irq(irq),
     m_dma_channel(dma), m_dma_channel_16(dma16), m_ymf262(GetOPLMode(type)), m_dsp_version(GetDSPVersion(type))
 {
@@ -301,9 +301,9 @@ void SoundBlaster::LowerInterrupt(bool is_16_bit)
   }
 }
 
-uint8 SoundBlaster::ReadDSPDataPort()
+u8 SoundBlaster::ReadDSPDataPort()
 {
-  uint8 value;
+  u8 value;
 
   if (!m_dsp_output_buffer.empty())
   {
@@ -320,21 +320,21 @@ uint8 SoundBlaster::ReadDSPDataPort()
   return value;
 }
 
-uint8 SoundBlaster::ReadDSPDataWriteStatusPort()
+u8 SoundBlaster::ReadDSPDataWriteStatusPort()
 {
   // DSP write data status, 0xff - not ready to write, 0x7f - ready to write
   return 0x7F;
 }
 
-uint8 SoundBlaster::ReadDSPDataAvailableStatusPort()
+u8 SoundBlaster::ReadDSPDataAvailableStatusPort()
 {
   // DSP data available status, and lower IRQ. 0xff - has data, 0x7f - no data
-  uint8 value = (!m_dsp_output_buffer.empty()) ? 0xFF : 0x7F;
+  u8 value = (!m_dsp_output_buffer.empty()) ? 0xFF : 0x7F;
   LowerInterrupt(false);
   return value;
 }
 
-void SoundBlaster::WriteDSPResetPort(uint8 value)
+void SoundBlaster::WriteDSPResetPort(u8 value)
 {
   UpdateDSPAudioOutput();
 
@@ -346,7 +346,7 @@ void SoundBlaster::WriteDSPResetPort(uint8 value)
     ResetDSP(true);
 }
 
-void SoundBlaster::WriteDSPCommandDataPort(uint8 value)
+void SoundBlaster::WriteDSPCommandDataPort(u8 value)
 {
   Log_DebugPrintf("DSP command/data: 0x%02X", ZeroExtend32(value));
   m_dsp_input_buffer.push_back(value);
@@ -420,12 +420,12 @@ void SoundBlaster::ClearDSPOutputBuffer()
   m_dsp_output_buffer.clear();
 }
 
-void SoundBlaster::WriteDSPOutputBuffer(uint8 value)
+void SoundBlaster::WriteDSPOutputBuffer(u8 value)
 {
   m_dsp_output_buffer.push_back(value);
 }
 
-void SoundBlaster::ClearAndWriteDSPOutputBuffer(uint8 value)
+void SoundBlaster::ClearAndWriteDSPOutputBuffer(u8 value)
 {
   ClearDSPOutputBuffer();
   WriteDSPOutputBuffer(value);
@@ -433,7 +433,7 @@ void SoundBlaster::ClearAndWriteDSPOutputBuffer(uint8 value)
 
 void SoundBlaster::HandleDSPCommand()
 {
-  uint8 command = GetDSPCommand();
+  u8 command = GetDSPCommand();
   bool has_byte_param = (GetDSPInputBufferLength() > 1);
   bool has_word_param = (GetDSPInputBufferLength() > 2);
   if (has_word_param)
@@ -450,7 +450,7 @@ void SoundBlaster::HandleDSPCommand()
       if (!has_byte_param)
         return;
 
-      uint8 param = GetDSPCommandParameterByte();
+      u8 param = GetDSPCommandParameterByte();
       Log_DevPrintf("DAC identify 0x%02X", ZeroExtend32(param));
       ClearAndWriteDSPOutputBuffer(~param);
     }
@@ -493,7 +493,7 @@ void SoundBlaster::HandleDSPCommand()
       if (!has_byte_param)
         return;
 
-      uint8 param = GetDSPCommandParameterByte();
+      u8 param = GetDSPCommandParameterByte();
       float frequency = 1000000.0f / float(256 - ZeroExtend32(param));
       Log_DevPrintf("DAC set frequency 0x%02X -> %.4f hz", ZeroExtend32(param), frequency);
       SetDACSampleRate(frequency);
@@ -505,7 +505,7 @@ void SoundBlaster::HandleDSPCommand()
       if (!has_word_param)
         return;
 
-      uint16 param = GetDSPCommandParameterWord();
+      u16 param = GetDSPCommandParameterWord();
       Log_DevPrintf("DAC set frequency %u hz", ZeroExtend32(param));
       SetDACSampleRate(static_cast<float>(param));
     }
@@ -516,7 +516,7 @@ void SoundBlaster::HandleDSPCommand()
       if (!has_byte_param)
         return;
 
-      uint8 param = GetDSPCommandParameterByte();
+      u8 param = GetDSPCommandParameterByte();
       Log_DevPrintf("DAC direct sample 0x%02X", ZeroExtend32(param));
 
       // Ensure our output is in sync.
@@ -573,7 +573,7 @@ void SoundBlaster::HandleDSPCommand()
           break;
       }
 
-      uint32 length = ZeroExtend32(GetDSPCommandParameterWord()) + 1;
+      u32 length = ZeroExtend32(GetDSPCommandParameterWord()) + 1;
       bool update_reference_byte = (command != DSP_COMMAND_DMA_8_BIT_PCM_OUTPUT) ? ((command & 0x01) != 0) : false;
       Log_DevPrintf("Single cycle 8-bit%s DMA %u bytes", (command != DSP_COMMAND_DMA_8_BIT_PCM_OUTPUT) ? " ADPCM" : "",
                     length);
@@ -628,7 +628,7 @@ void SoundBlaster::HandleDSPCommand()
       if (!has_word_param)
         return;
 
-      uint32 block_size = ZeroExtend32(GetDSPCommandParameterWord()) + 1;
+      u32 block_size = ZeroExtend32(GetDSPCommandParameterWord()) + 1;
       Log_DevPrintf("DAC autoinit DMA block size %u", block_size);
       // UpdateOutput();
 
@@ -672,8 +672,8 @@ void SoundBlaster::HandleDSPCommand()
       if (m_dsp_input_buffer.size() < 4)
         return;
 
-      uint8 mode = m_dsp_input_buffer[1];
-      uint32 length = (ZeroExtend32(m_dsp_input_buffer[2]) | (ZeroExtend32(m_dsp_input_buffer[3]) << 8)) + 1;
+      u8 mode = m_dsp_input_buffer[1];
+      u32 length = (ZeroExtend32(m_dsp_input_buffer[2]) | (ZeroExtend32(m_dsp_input_buffer[3]) << 8)) + 1;
       bool is_adc = !!(command & (1 << 3));
       bool autoinit = !!(command & (1 << 2));
       bool fifo_enable = !!(command & (1 << 1));
@@ -688,7 +688,7 @@ void SoundBlaster::HandleDSPCommand()
         sample_format = is_signed ? DSP_SAMPLE_FORMAT_S8_PCM : DSP_SAMPLE_FORMAT_U8_PCM;
 
       // Length here seems to be divided by 2 for 16-bit modes?
-      uint32 length_in_bytes = length;
+      u32 length_in_bytes = length;
       if (is_dma16)
         length_in_bytes *= 2;
 
@@ -706,7 +706,7 @@ void SoundBlaster::HandleDSPCommand()
       if (!has_word_param)
         return;
 
-      uint32 samples = ZeroExtend32(GetDSPCommandParameterWord()) + 1;
+      u32 samples = ZeroExtend32(GetDSPCommandParameterWord()) + 1;
       Log_DevPrintf("DAC silence for %u samples", samples);
       UpdateDSPAudioOutput();
 
@@ -743,7 +743,7 @@ void SoundBlaster::HandleDSPCommand()
       if (!has_byte_param)
         return;
 
-      uint8 param = GetDSPCommandParameterByte();
+      u8 param = GetDSPCommandParameterByte();
       Log_DevPrintf("DSP write test register 0x%02X", ZeroExtend32(param));
       m_dsp_test_register = param;
     }
@@ -779,14 +779,14 @@ void SoundBlaster::HandleDSPCommand()
 
       // From dosbox sblaster.cpp
       // Some sort of DMA test?
-      static const int32 E2_incr_table[4][9] = {{0x01, -0x02, -0x04, 0x08, -0x10, 0x20, 0x40, -0x80, -106},
-                                                {-0x01, 0x02, -0x04, 0x08, 0x10, -0x20, 0x40, -0x80, 165},
-                                                {-0x01, 0x02, 0x04, -0x08, 0x10, -0x20, -0x40, 0x80, -151},
-                                                {0x01, -0x02, 0x04, -0x08, -0x10, 0x20, -0x40, 0x80, 90}};
+      static const s32 E2_incr_table[4][9] = {{0x01, -0x02, -0x04, 0x08, -0x10, 0x20, 0x40, -0x80, -106},
+                                              {-0x01, 0x02, -0x04, 0x08, 0x10, -0x20, 0x40, -0x80, 165},
+                                              {-0x01, 0x02, 0x04, -0x08, 0x10, -0x20, -0x40, 0x80, -151},
+                                              {0x01, -0x02, 0x04, -0x08, -0x10, 0x20, -0x40, 0x80, 90}};
 
-      uint8 param = GetDSPCommandParameterByte();
+      u8 param = GetDSPCommandParameterByte();
       Log_DevPrintf("DSP E2 command 0x%02X", ZeroExtend32(param));
-      for (uint8 i = 0; i < 8; i++)
+      for (u8 i = 0; i < 8; i++)
       {
         if (param & (1 << i))
           m_adc_state.e2_value += E2_incr_table[m_adc_state.e2_count % countof(E2_incr_table)][i];
@@ -809,7 +809,7 @@ void SoundBlaster::HandleDSPCommand()
       // Apparently the null terminator must be included here.
       static const char copyright_string[] = "COPYRIGHT (C) CREATIVE TECHNOLOGY LTD, 1992.";
       for (size_t i = 0; i < countof(copyright_string); i++)
-        WriteDSPOutputBuffer(uint8(copyright_string[i]));
+        WriteDSPOutputBuffer(u8(copyright_string[i]));
     }
     break;
 
@@ -832,18 +832,18 @@ size_t SoundBlaster::GetBytesPerSample(DSP_SAMPLE_FORMAT format)
     case DSP_SAMPLE_FORMAT_U2_ADPCM:
     case DSP_SAMPLE_FORMAT_U3_ADPCM:
     case DSP_SAMPLE_FORMAT_U4_ADPCM:
-      return sizeof(uint8);
+      return sizeof(u8);
     case DSP_SAMPLE_FORMAT_S8_PCM:
     case DSP_SAMPLE_FORMAT_U8_PCM:
-      return sizeof(uint8);
+      return sizeof(u8);
     case DSP_SAMPLE_FORMAT_S16_PCM:
     case DSP_SAMPLE_FORMAT_U16_PCM:
     default:
-      return sizeof(int16);
+      return sizeof(s16);
   }
 }
 
-uint32 SoundBlaster::GetSamplesPerDMATransfer(DSP_SAMPLE_FORMAT format)
+u32 SoundBlaster::GetSamplesPerDMATransfer(DSP_SAMPLE_FORMAT format)
 {
   switch (format)
   {
@@ -865,7 +865,7 @@ uint32 SoundBlaster::GetSamplesPerDMATransfer(DSP_SAMPLE_FORMAT format)
 void SoundBlaster::DACSampleEvent(CycleCount cycles)
 {
   size_t num_samples = size_t(cycles);
-  int16* obuf = reinterpret_cast<int16*>(m_dac_state.output_channel->ReserveInputSamples(num_samples));
+  s16* obuf = reinterpret_cast<s16*>(m_dac_state.output_channel->ReserveInputSamples(num_samples));
 
   // TODO: Invert loop
   for (size_t sample_index = 0; sample_index < num_samples; sample_index++)
@@ -933,12 +933,12 @@ void SoundBlaster::SetDACSampleRate(float frequency)
   }
 }
 
-int16 SoundBlaster::DecodeDACOutputSample(int16 last_sample)
+s16 SoundBlaster::DecodeDACOutputSample(s16 last_sample)
 {
   // If the fifo is empty, warn, then return the last sample without change.
   size_t required_bytes = GetBytesPerSample(m_dac_state.sample_format);
   if (m_dac_state.adpcm_reference_update_pending)
-    required_bytes += sizeof(uint8);
+    required_bytes += sizeof(u8);
   if (m_dac_state.fifo.size() < required_bytes)
   {
     Log_WarningPrintf("FIFO empty and sample requested");
@@ -955,43 +955,43 @@ int16 SoundBlaster::DecodeDACOutputSample(int16 last_sample)
   }
 
   // Something something depending on format
-  int16 sample;
+  s16 sample;
 
   switch (m_dac_state.sample_format)
   {
       // 8-bit unsigned -> 16-bit unsigned -> 16-bit signed
     case DSP_SAMPLE_FORMAT_U8_PCM:
     {
-      uint8 input_sample = m_dac_state.fifo.front();
+      u8 input_sample = m_dac_state.fifo.front();
       m_dac_state.fifo.pop_front();
-      uint16 to16 = (ZeroExtend16(input_sample) << 8) | ZeroExtend16(input_sample);
-      sample = Truncate16(int32(ZeroExtend32(to16)) - 32768);
+      u16 to16 = (ZeroExtend16(input_sample) << 8) | ZeroExtend16(input_sample);
+      sample = Truncate16(s32(ZeroExtend32(to16)) - 32768);
     }
     break;
 
     case DSP_SAMPLE_FORMAT_S8_PCM:
     {
-      uint8 input_sample = m_dac_state.fifo.front();
+      u8 input_sample = m_dac_state.fifo.front();
       m_dac_state.fifo.pop_front();
-      sample = int16(ZeroExtend16(input_sample) << 8) | ZeroExtend16(input_sample);
+      sample = s16(ZeroExtend16(input_sample) << 8) | ZeroExtend16(input_sample);
     }
     break;
 
     case DSP_SAMPLE_FORMAT_U16_PCM:
     {
-      uint16 input_sample = (ZeroExtend16(m_dac_state.fifo[1]) << 8) | ZeroExtend16(m_dac_state.fifo[0]);
+      u16 input_sample = (ZeroExtend16(m_dac_state.fifo[1]) << 8) | ZeroExtend16(m_dac_state.fifo[0]);
       m_dac_state.fifo.pop_front();
       m_dac_state.fifo.pop_front();
-      sample = Truncate16(int32(ZeroExtend32(input_sample)) - 32768);
+      sample = Truncate16(s32(ZeroExtend32(input_sample)) - 32768);
     }
     break;
 
     case DSP_SAMPLE_FORMAT_S16_PCM:
     {
-      uint16 input_sample = (ZeroExtend16(m_dac_state.fifo[1]) << 8) | ZeroExtend16(m_dac_state.fifo[0]);
+      u16 input_sample = (ZeroExtend16(m_dac_state.fifo[1]) << 8) | ZeroExtend16(m_dac_state.fifo[0]);
       m_dac_state.fifo.pop_front();
       m_dac_state.fifo.pop_front();
-      sample = int16(input_sample);
+      sample = s16(input_sample);
     }
     break;
 
@@ -999,7 +999,7 @@ int16 SoundBlaster::DecodeDACOutputSample(int16 last_sample)
       // TODO: These are only supported for mono, not stereo.
     case DSP_SAMPLE_FORMAT_U2_ADPCM:
     {
-      uint8 input_sample = m_dac_state.fifo.front();
+      u8 input_sample = m_dac_state.fifo.front();
       input_sample = (input_sample >> (6 - (m_dac_state.adpcm_subsample * 2))) & 3;
       sample = DecodeADPCM_2(input_sample, m_dac_state.adpcm_reference, m_dac_state.adpcm_scale);
       m_dac_state.adpcm_subsample = (m_dac_state.adpcm_subsample + 1) % 4;
@@ -1010,7 +1010,7 @@ int16 SoundBlaster::DecodeDACOutputSample(int16 last_sample)
 
     case DSP_SAMPLE_FORMAT_U3_ADPCM:
     {
-      uint8 input_sample = m_dac_state.fifo.front();
+      u8 input_sample = m_dac_state.fifo.front();
       switch (m_dac_state.adpcm_subsample)
       {
         case 0:
@@ -1034,7 +1034,7 @@ int16 SoundBlaster::DecodeDACOutputSample(int16 last_sample)
 
     case DSP_SAMPLE_FORMAT_U4_ADPCM:
     {
-      uint8 input_sample = m_dac_state.fifo.front();
+      u8 input_sample = m_dac_state.fifo.front();
       input_sample = (input_sample >> (4 - (m_dac_state.adpcm_subsample * 4))) & 15;
       sample = DecodeADPCM_4(input_sample, m_dac_state.adpcm_reference, m_dac_state.adpcm_scale);
       m_dac_state.adpcm_subsample = (m_dac_state.adpcm_subsample + 1) % 2;
@@ -1086,7 +1086,7 @@ bool SoundBlaster::IsDACFIFOFull() const
 }
 
 void SoundBlaster::StartDACDMA(bool dma16, DSP_SAMPLE_FORMAT format, bool stereo, bool update_reference_byte,
-                               bool autoinit, bool fifo_enable, uint32 length_in_bytes)
+                               bool autoinit, bool fifo_enable, u32 length_in_bytes)
 {
   if (length_in_bytes == 0)
   {
@@ -1128,7 +1128,7 @@ void SoundBlaster::StopDACDMA()
   m_dac_state.dma_active = false;
 }
 
-void SoundBlaster::StartADCDMA(bool dma16, uint32 length_in_bytes)
+void SoundBlaster::StartADCDMA(bool dma16, u32 length_in_bytes)
 {
   if (length_in_bytes == 0)
   {
@@ -1170,7 +1170,7 @@ bool SoundBlaster::IsDMAActive(bool dma16) const
   return state.active;
 }
 
-void SoundBlaster::StartDMA(bool dma16, bool dma_to_host, bool autoinit, uint32 length, bool request /* = true */)
+void SoundBlaster::StartDMA(bool dma16, bool dma_to_host, bool autoinit, u32 length, bool request /* = true */)
 {
   DebugAssert(!m_dma_state.active);
 
@@ -1220,7 +1220,7 @@ void SoundBlaster::StopDMA(bool dma16)
   }
 }
 
-void SoundBlaster::DMAReadCallback(IOPortDataSize size, uint32* value, uint32 remaining_bytes, bool is_16_bit)
+void SoundBlaster::DMAReadCallback(IOPortDataSize size, u32* value, u32 remaining_bytes, bool is_16_bit)
 {
   DMAState& state = is_16_bit ? m_dma_16_state : m_dma_state;
   if (!state.dma_to_host)
@@ -1230,7 +1230,7 @@ void SoundBlaster::DMAReadCallback(IOPortDataSize size, uint32* value, uint32 re
     return;
   }
 
-  uint32 data_size = is_16_bit ? sizeof(uint16) : sizeof(uint8);
+  u32 data_size = is_16_bit ? sizeof(u16) : sizeof(u8);
   if (m_adc_state.fifo.size() >= data_size)
   {
     *value = ZeroExtend32(m_adc_state.fifo.front());
@@ -1274,7 +1274,7 @@ void SoundBlaster::DMAReadCallback(IOPortDataSize size, uint32* value, uint32 re
     SetDMARequest(is_16_bit, false);
 }
 
-void SoundBlaster::DMAWriteCallback(IOPortDataSize size, uint32 value, uint32 remaining_bytes, bool is_16_bit)
+void SoundBlaster::DMAWriteCallback(IOPortDataSize size, u32 value, u32 remaining_bytes, bool is_16_bit)
 {
   DMAState& state = is_16_bit ? m_dma_16_state : m_dma_state;
   if (state.dma_to_host)
@@ -1289,7 +1289,7 @@ void SoundBlaster::DMAWriteCallback(IOPortDataSize size, uint32 value, uint32 re
     m_dac_state.fifo.push_back(Truncate8(value >> 8));
 
   // End of block?
-  uint32 data_size = is_16_bit ? sizeof(uint16) : sizeof(uint8);
+  u32 data_size = is_16_bit ? sizeof(u16) : sizeof(u8);
   if (data_size >= state.remaining_bytes)
   {
     state.remaining_bytes = 0;
@@ -1319,12 +1319,12 @@ void SoundBlaster::DMAWriteCallback(IOPortDataSize size, uint32 value, uint32 re
   }
 }
 
-uint8 SoundBlaster::ReadMixerIndexPort()
+u8 SoundBlaster::ReadMixerIndexPort()
 {
   return m_mixer_index_register;
 }
 
-uint8 SoundBlaster::ReadMixerDataPort()
+u8 SoundBlaster::ReadMixerDataPort()
 {
   switch (m_type)
   {
@@ -1339,12 +1339,12 @@ uint8 SoundBlaster::ReadMixerDataPort()
   }
 }
 
-void SoundBlaster::WriteMixerIndexPort(uint8 value)
+void SoundBlaster::WriteMixerIndexPort(u8 value)
 {
   m_mixer_index_register = value;
 }
 
-void SoundBlaster::WriteMixerDataPort(uint8 value)
+void SoundBlaster::WriteMixerDataPort(u8 value)
 {
   switch (m_type)
   {
@@ -1362,7 +1362,7 @@ void SoundBlaster::WriteMixerDataPort(uint8 value)
   }
 }
 
-uint8 SoundBlaster::ReadMixerDataPortCT1335()
+u8 SoundBlaster::ReadMixerDataPortCT1335()
 {
   switch (m_mixer_index_register)
   {
@@ -1372,7 +1372,7 @@ uint8 SoundBlaster::ReadMixerDataPortCT1335()
   }
 }
 
-void SoundBlaster::WriteMixerDataPortCT1335(uint8 value)
+void SoundBlaster::WriteMixerDataPortCT1335(u8 value)
 {
   switch (m_mixer_index_register)
   {
@@ -1383,7 +1383,7 @@ void SoundBlaster::WriteMixerDataPortCT1335(uint8 value)
   }
 }
 
-uint8 SoundBlaster::ReadMixerDataPortCT1345()
+u8 SoundBlaster::ReadMixerDataPortCT1345()
 {
   switch (m_mixer_index_register)
   {
@@ -1411,7 +1411,7 @@ uint8 SoundBlaster::ReadMixerDataPortCT1345()
           break;
       }
 
-      return ((uint8(left * 7.0f) << 1) | (uint8(right * 7.0f) << 5));
+      return ((u8(left * 7.0f) << 1) | (u8(right * 7.0f) << 5));
     }
     break;
 
@@ -1421,7 +1421,7 @@ uint8 SoundBlaster::ReadMixerDataPortCT1345()
   }
 }
 
-void SoundBlaster::WriteMixerDataPortCT1345(uint8 value)
+void SoundBlaster::WriteMixerDataPortCT1345(u8 value)
 {
   switch (m_mixer_index_register)
   {
@@ -1460,7 +1460,7 @@ void SoundBlaster::WriteMixerDataPortCT1345(uint8 value)
   }
 }
 
-uint8 SoundBlaster::ReadMixerDataPortCT1745()
+u8 SoundBlaster::ReadMixerDataPortCT1745()
 {
   switch (m_mixer_index_register)
   {
@@ -1484,7 +1484,7 @@ uint8 SoundBlaster::ReadMixerDataPortCT1745()
 
     case 0x81: // DMA select
     {
-      uint8 ret = 0;
+      u8 ret = 0;
       switch (m_dma_channel)
       {
         case 0:
@@ -1515,8 +1515,8 @@ uint8 SoundBlaster::ReadMixerDataPortCT1745()
 
     case 0x82: // IRQ status
     {
-      uint8 val = (BoolToUInt8(m_interrupt_pending)) | (BoolToUInt8(m_interrupt_pending_16) << 1) |
-                  (BoolToUInt8(m_type >= Type::SoundBlaster16) << 5);
+      u8 val = (BoolToUInt8(m_interrupt_pending)) | (BoolToUInt8(m_interrupt_pending_16) << 1) |
+               (BoolToUInt8(m_type >= Type::SoundBlaster16) << 5);
       return val;
     }
     break;
@@ -1527,7 +1527,7 @@ uint8 SoundBlaster::ReadMixerDataPortCT1745()
   }
 }
 
-void SoundBlaster::WriteMixerDataPortCT1745(uint8 value)
+void SoundBlaster::WriteMixerDataPortCT1745(u8 value)
 {
   switch (m_mixer_index_register)
   {

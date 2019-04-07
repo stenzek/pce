@@ -34,7 +34,7 @@ bool i8237_DMA::Initialize(System* system, Bus* bus)
   auto tick_callback = [this](TimingEvent*, CycleCount cycles, CycleCount) {
     m_tick_in_progress = true;
 
-    for (uint32 i = 0; i < NUM_CHANNELS; i++)
+    for (u32 i = 0; i < NUM_CHANNELS; i++)
     {
       Channel* channel = &m_channels[i];
 
@@ -54,7 +54,7 @@ bool i8237_DMA::Initialize(System* system, Bus* bus)
 
 void i8237_DMA::Reset()
 {
-  for (uint32 i = 0; i < NUM_CHANNELS; i++)
+  for (u32 i = 0; i < NUM_CHANNELS; i++)
   {
     Channel* channel = &m_channels[i];
     channel->decrement = false;
@@ -74,7 +74,7 @@ bool i8237_DMA::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
-  for (uint32 i = 0; i < NUM_CHANNELS; i++)
+  for (u32 i = 0; i < NUM_CHANNELS; i++)
   {
     Channel* channel = &m_channels[i];
     reader.SafeReadUInt16(&channel->start_address);
@@ -83,7 +83,7 @@ bool i8237_DMA::LoadState(BinaryReader& reader)
     reader.SafeReadUInt16(&channel->count);
     reader.SafeReadUInt8(&channel->page_address);
 
-    uint8 transfer_type, mode;
+    u8 transfer_type, mode;
     reader.SafeReadUInt8(&transfer_type);
     reader.SafeReadUInt8(&mode);
     channel->transfer_type = static_cast<DMATransferType>(transfer_type);
@@ -106,7 +106,7 @@ bool i8237_DMA::SaveState(BinaryWriter& writer)
 {
   writer.WriteUInt32(SERIALIZATION_ID);
 
-  for (uint32 i = 0; i < NUM_CHANNELS; i++)
+  for (u32 i = 0; i < NUM_CHANNELS; i++)
   {
     Channel* channel = &m_channels[i];
     writer.WriteUInt16(channel->start_address);
@@ -114,8 +114,8 @@ bool i8237_DMA::SaveState(BinaryWriter& writer)
     writer.WriteUInt16(channel->address);
     writer.WriteUInt16(channel->count);
     writer.WriteUInt8(channel->page_address);
-    writer.WriteUInt8(static_cast<uint8>(channel->transfer_type));
-    writer.WriteUInt8(static_cast<uint8>(channel->mode));
+    writer.WriteUInt8(static_cast<u8>(channel->transfer_type));
+    writer.WriteUInt8(static_cast<u8>(channel->mode));
     writer.WriteBool(channel->decrement);
     writer.WriteBool(channel->auto_reset);
     writer.WriteBool(channel->masked);
@@ -128,8 +128,7 @@ bool i8237_DMA::SaveState(BinaryWriter& writer)
   return true;
 }
 
-bool i8237_DMA::ConnectDMAChannel(uint32 channel_index, DMAReadCallback&& read_callback,
-                                  DMAWriteCallback&& write_callback)
+bool i8237_DMA::ConnectDMAChannel(u32 channel_index, DMAReadCallback&& read_callback, DMAWriteCallback&& write_callback)
 {
   if (channel_index >= NUM_CHANNELS || m_channels[channel_index].read_callback)
     return false;
@@ -140,7 +139,7 @@ bool i8237_DMA::ConnectDMAChannel(uint32 channel_index, DMAReadCallback&& read_c
   return true;
 }
 
-bool i8237_DMA::GetDMAState(uint32 channel_index)
+bool i8237_DMA::GetDMAState(u32 channel_index)
 {
   // Prevent recursive calls to update, since we can go tick -> callback -> setstate -> tick.
   if (!m_tick_in_progress)
@@ -155,7 +154,7 @@ bool i8237_DMA::GetDMAState(uint32 channel_index)
   return channel->request;
 }
 
-void i8237_DMA::SetDMAState(uint32 channel_index, bool request)
+void i8237_DMA::SetDMAState(u32 channel_index, bool request)
 {
   // Prevent recursive calls to update, since we can go tick -> callback -> setstate -> tick.
   if (!m_tick_in_progress)
@@ -258,7 +257,7 @@ void i8237_DMA::ConnectIOPorts()
 
 bool i8237_DMA::HasActiveTransfer() const
 {
-  for (uint32 i = 0; i < NUM_CHANNELS; i++)
+  for (u32 i = 0; i < NUM_CHANNELS; i++)
   {
     const Channel* channel = &m_channels[i];
     if (channel->IsActive())
@@ -302,22 +301,22 @@ void i8237_DMA::RescheduleTickEvent()
   }
 }
 
-void i8237_DMA::Transfer(uint32 channel_index, size_t count)
+void i8237_DMA::Transfer(u32 channel_index, size_t count)
 {
   Channel* channel = &m_channels[channel_index];
   bool use_word_transfers = (channel_index >= NUM_CHANNELS_PER_CONTROLLER);
 
   PhysicalMemoryAddress actual_address;
-  uint32 actual_bytes_remaining;
+  u32 actual_bytes_remaining;
   if (use_word_transfers)
   {
     // TODO: Should bytes_remaining be multiplied by two?
-    actual_address = (uint32(channel->page_address) << 16) | uint32(uint16(channel->address << 1));
+    actual_address = (u32(channel->page_address) << 16) | u32(u16(channel->address << 1));
     actual_bytes_remaining = channel->bytes_remaining;
   }
   else
   {
-    actual_address = (uint32(channel->page_address) << 16) | uint32(channel->address);
+    actual_address = (u32(channel->page_address) << 16) | u32(channel->address);
     actual_bytes_remaining = channel->bytes_remaining;
   }
 
@@ -336,18 +335,18 @@ void i8237_DMA::Transfer(uint32 channel_index, size_t count)
     {
       if (channel->transfer_type == DMATransferType_MemoryToDevice)
       {
-        uint32 value = ZeroExtend32(m_bus->ReadMemoryWord(actual_address));
+        u32 value = ZeroExtend32(m_bus->ReadMemoryWord(actual_address));
         channel->write_callback(IOPortDataSize_16, value, actual_bytes_remaining);
       }
       else if (channel->transfer_type == DMATransferType_DeviceToMemory)
       {
-        uint32 value = 0;
+        u32 value = 0;
         channel->read_callback(IOPortDataSize_16, &value, actual_bytes_remaining);
         m_bus->WriteMemoryWord(actual_address, Truncate16(value));
       }
       else if (channel->transfer_type == DMATransferType_Verify)
       {
-        uint32 value = 0;
+        u32 value = 0;
         channel->read_callback(IOPortDataSize_16, &value, actual_bytes_remaining);
       }
     }
@@ -355,18 +354,18 @@ void i8237_DMA::Transfer(uint32 channel_index, size_t count)
     {
       if (channel->transfer_type == DMATransferType_MemoryToDevice)
       {
-        uint8 value = m_bus->ReadMemoryByte(actual_address);
+        u8 value = m_bus->ReadMemoryByte(actual_address);
         channel->write_callback(IOPortDataSize_8, value, actual_bytes_remaining);
       }
       else if (channel->transfer_type == DMATransferType_DeviceToMemory)
       {
-        uint32 value = 0;
+        u32 value = 0;
         channel->read_callback(IOPortDataSize_8, &value, actual_bytes_remaining);
         m_bus->WriteMemoryByte(actual_address, Truncate8(value));
       }
       else if (channel->transfer_type == DMATransferType_Verify)
       {
-        uint32 value = 0;
+        u32 value = 0;
         channel->read_callback(IOPortDataSize_8, &value, actual_bytes_remaining);
       }
     }
@@ -409,10 +408,10 @@ void i8237_DMA::Transfer(uint32 channel_index, size_t count)
   }
 }
 
-void i8237_DMA::IOReadStartAddress(uint32 channel_index, uint8* value)
+void i8237_DMA::IOReadStartAddress(u32 channel_index, u8* value)
 {
   Channel* channel = &m_channels[channel_index];
-  uint32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
+  u32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
 
   if (m_flipflops[controller_index])
     *value = ((channel->address >> 8) & 0xFF);
@@ -422,13 +421,13 @@ void i8237_DMA::IOReadStartAddress(uint32 channel_index, uint8* value)
   m_flipflops[controller_index] ^= true;
 }
 
-void i8237_DMA::IOWriteStartAddress(uint32 channel_index, uint8 value)
+void i8237_DMA::IOWriteStartAddress(u32 channel_index, u8 value)
 {
   Channel* channel = &m_channels[channel_index];
-  uint32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
+  u32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
   m_tick_event->InvokeEarly();
 
-  uint16 bits = uint16(value);
+  u16 bits = u16(value);
   if (m_flipflops[controller_index])
     channel->address = (channel->address & 0x00FF) | (bits << 8);
   else
@@ -440,10 +439,10 @@ void i8237_DMA::IOWriteStartAddress(uint32 channel_index, uint8 value)
   Log_DebugPrintf("DMA channel %u start address = 0x%04X", channel_index, channel->start_address);
 }
 
-void i8237_DMA::IOReadCount(uint32 channel_index, uint8* value)
+void i8237_DMA::IOReadCount(u32 channel_index, u8* value)
 {
   Channel* channel = &m_channels[channel_index];
-  uint32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
+  u32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
 
   if (m_flipflops[controller_index])
     *value = ((channel->bytes_remaining >> 8) & 0xFF);
@@ -453,13 +452,13 @@ void i8237_DMA::IOReadCount(uint32 channel_index, uint8* value)
   m_flipflops[controller_index] ^= true;
 }
 
-void i8237_DMA::IOWriteCount(uint32 channel_index, uint8 value)
+void i8237_DMA::IOWriteCount(u32 channel_index, u8 value)
 {
   Channel* channel = &m_channels[channel_index];
-  uint32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
+  u32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
   m_tick_event->InvokeEarly();
 
-  uint16 bits = uint16(value);
+  u16 bits = u16(value);
   if (m_flipflops[controller_index])
     channel->bytes_remaining = (channel->bytes_remaining & 0x00FF) | (bits << 8);
   else
@@ -472,25 +471,25 @@ void i8237_DMA::IOWriteCount(uint32 channel_index, uint8 value)
   RescheduleTickEvent();
 }
 
-void i8237_DMA::IOReadPageAddress(uint32 channel_index, uint8* value)
+void i8237_DMA::IOReadPageAddress(u32 channel_index, u8* value)
 {
   *value = m_channels[channel_index].page_address;
 }
 
-void i8237_DMA::IOWritePageAddress(uint32 channel_index, uint8 value)
+void i8237_DMA::IOWritePageAddress(u32 channel_index, u8 value)
 {
   Log_DebugPrintf("DMA channel %u page address = %02X", channel_index, value);
   m_tick_event->InvokeEarly();
 
-  m_channels[channel_index].page_address = uint8(value & 0xFF);
+  m_channels[channel_index].page_address = u8(value & 0xFF);
 }
 
-void i8237_DMA::IOReadStatus(uint32 base_channel, uint8* value)
+void i8237_DMA::IOReadStatus(u32 base_channel, u8* value)
 {
   m_tick_event->InvokeEarly();
 
-  uint8 bitmask = 0;
-  for (uint32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
+  u8 bitmask = 0;
+  for (u32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
   {
     if (m_channels[base_channel + i].transfer_complete)
       bitmask |= (1 << i);
@@ -499,11 +498,11 @@ void i8237_DMA::IOReadStatus(uint32 base_channel, uint8* value)
   *value = bitmask;
 }
 
-void i8237_DMA::IOWriteMode(uint32 base_channel, uint8 value)
+void i8237_DMA::IOWriteMode(u32 base_channel, u8 value)
 {
   m_tick_event->InvokeEarly();
 
-  uint32 channel_index = base_channel + ZeroExtend32(value & 0b11);
+  u32 channel_index = base_channel + ZeroExtend32(value & 0b11);
   DMATransferType transfer_type = DMATransferType((value >> 2) & 0b11);
   bool auto_reset = !!((value >> 4) & 0b1);
   bool decrement = !!((value >> 5) & 0b1);
@@ -521,21 +520,21 @@ void i8237_DMA::IOWriteMode(uint32 base_channel, uint8 value)
   //         channel->transfer_type = DMATransferType_SelfTest;
 }
 
-void i8237_DMA::IOWriteSingleMask(uint32 base_channel, uint8 value)
+void i8237_DMA::IOWriteSingleMask(u32 base_channel, u8 value)
 {
   m_tick_event->InvokeEarly();
 
-  uint8 offset = value & 0b11;
+  u8 offset = value & 0b11;
   bool on = ((value & 0b100) != 0);
   m_channels[base_channel + offset].masked = on;
 
   RescheduleTickEvent();
 }
 
-void i8237_DMA::IOReadMultiMask(uint32 base_channel, uint8* value)
+void i8237_DMA::IOReadMultiMask(u32 base_channel, u8* value)
 {
-  uint8 bitmask = 0;
-  for (uint32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
+  u8 bitmask = 0;
+  for (u32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
   {
     if (m_channels[base_channel + i].masked)
       bitmask |= (1 << i);
@@ -544,26 +543,26 @@ void i8237_DMA::IOReadMultiMask(uint32 base_channel, uint8* value)
   *value = bitmask;
 }
 
-void i8237_DMA::IOWriteMultiMask(uint32 base_channel, uint8 value)
+void i8237_DMA::IOWriteMultiMask(u32 base_channel, u8 value)
 {
   m_tick_event->InvokeEarly();
 
-  for (uint32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
+  for (u32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
     m_channels[base_channel + i].masked = ((value & (1 << i)) != 0);
 
   RescheduleTickEvent();
 }
 
-void i8237_DMA::IOWriteFlipFlopReset(uint32 base_channel, uint8 value)
+void i8237_DMA::IOWriteFlipFlopReset(u32 base_channel, u8 value)
 {
   m_flipflops[base_channel / NUM_CHANNELS_PER_CONTROLLER] = false;
 }
 
-void i8237_DMA::IOWriteMasterReset(uint32 base_channel, uint8 value)
+void i8237_DMA::IOWriteMasterReset(u32 base_channel, u8 value)
 {
   m_tick_event->InvokeEarly();
 
-  for (uint32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
+  for (u32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
   {
     Channel* channel = &m_channels[base_channel + i];
     channel->decrement = false;
@@ -577,11 +576,11 @@ void i8237_DMA::IOWriteMasterReset(uint32 base_channel, uint8 value)
   RescheduleTickEvent();
 }
 
-void i8237_DMA::IOWriteMaskReset(uint32 base_channel, uint8 value)
+void i8237_DMA::IOWriteMaskReset(u32 base_channel, u8 value)
 {
   m_tick_event->InvokeEarly();
 
-  for (uint32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
+  for (u32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
   {
     Channel* channel = &m_channels[base_channel + i];
     channel->masked = false;

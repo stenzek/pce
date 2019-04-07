@@ -64,7 +64,7 @@ void i82437FX::Reset()
   // m_config_space[0].bytes[0x74] = 0x0E;
   // m_config_space[0].bytes[0x78] = 0x23;
 
-  for (uint8 i = 0; i < NUM_PAM_REGISTERS; i++)
+  for (u8 i = 0; i < NUM_PAM_REGISTERS; i++)
     UpdatePAMMapping(PAM_BASE_OFFSET + i);
 }
 
@@ -73,7 +73,7 @@ bool i82437FX::LoadState(BinaryReader& reader)
   if (!PCIDevice::LoadState(reader))
     return false;
 
-  for (uint8 i = 0; i < NUM_PAM_REGISTERS; i++)
+  for (u8 i = 0; i < NUM_PAM_REGISTERS; i++)
     UpdatePAMMapping(PAM_BASE_OFFSET + i);
 
   return true;
@@ -117,7 +117,7 @@ void i82437FX::WriteConfigSpace(u8 function, u8 offset, u8 value)
   }
 }
 
-void i82437FX::SetPAMMapping(uint32 base, uint32 size, uint8 flag)
+void i82437FX::SetPAMMapping(u32 base, u32 size, u8 flag)
 {
   const bool readable_memory = !!(flag & 1);
   const bool writable_memory = !!(flag & 2);
@@ -129,9 +129,9 @@ void i82437FX::SetPAMMapping(uint32 base, uint32 size, uint8 flag)
   m_bus->SetPagesRAMState(base, size, readable_memory, writable_memory);
 }
 
-void i82437FX::UpdatePAMMapping(uint8 offset)
+void i82437FX::UpdatePAMMapping(u8 offset)
 {
-  const uint8 value = m_config_space[0].bytes[offset];
+  const u8 value = m_config_space[0].bytes[offset];
 
   switch (offset)
   {

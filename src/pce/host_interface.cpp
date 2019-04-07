@@ -383,7 +383,7 @@ void HostInterface::AddUIFileCallback(const Component* component, const String& 
 
 void HostInterface::ExecuteKeyboardCallbacks(GenScanCode scancode, bool key_down)
 {
-  Log_DevPrintf("Key scancode %u %s", uint32(scancode), key_down ? "down" : "up");
+  Log_DevPrintf("Key scancode %u %s", u32(scancode), key_down ? "down" : "up");
   QueueExternalEvent(
     [this, scancode, key_down]() {
       for (const auto& it : m_keyboard_callbacks)
@@ -392,7 +392,7 @@ void HostInterface::ExecuteKeyboardCallbacks(GenScanCode scancode, bool key_down
     false);
 }
 
-void HostInterface::ExecuteMousePositionChangeCallbacks(int32 dx, int32 dy)
+void HostInterface::ExecuteMousePositionChangeCallbacks(s32 dx, s32 dy)
 {
   Log_DevPrintf("Mouse position change: %d %d", dx, dy);
   QueueExternalEvent(
@@ -403,7 +403,7 @@ void HostInterface::ExecuteMousePositionChangeCallbacks(int32 dx, int32 dy)
     false);
 }
 
-void HostInterface::ExecuteMouseButtonChangeCallbacks(uint32 button, bool state)
+void HostInterface::ExecuteMouseButtonChangeCallbacks(u32 button, bool state)
 {
   Log_DevPrintf("Mouse button change: %u %s", button, state ? "down" : "up");
   QueueExternalEvent(
@@ -590,13 +590,13 @@ void HostInterface::UpdateExecutionSpeed()
     OnSimulationSpeedUpdate(float(fraction * 100.0));
 
 #ifdef Y_BUILD_CONFIG_RELEASE
-    uint64 elapsed_kernel_time_ns = 0;
-    uint64 elapsed_user_time_ns = 0;
+    u64 elapsed_kernel_time_ns = 0;
+    u64 elapsed_user_time_ns = 0;
 
 #ifdef Y_PLATFORM_WINDOWS
     {
       FILETIME creation_time, exit_time, kernel_time, user_time;
-      uint64 kernel_time_100ns, user_time_100ns;
+      u64 kernel_time_100ns, user_time_100ns;
       GetThreadTimes(GetCurrentThread(), &creation_time, &exit_time, &kernel_time, &user_time);
       kernel_time_100ns = ZeroExtend64(kernel_time.dwHighDateTime) << 32 | ZeroExtend64(kernel_time.dwLowDateTime);
       user_time_100ns = ZeroExtend64(user_time.dwHighDateTime) << 32 | ZeroExtend64(user_time.dwLowDateTime);
@@ -607,7 +607,7 @@ void HostInterface::UpdateExecutionSpeed()
     }
 #endif
 
-    uint64 total_cpu_time_ns = elapsed_kernel_time_ns + elapsed_user_time_ns;
+    u64 total_cpu_time_ns = elapsed_kernel_time_ns + elapsed_user_time_ns;
     double busy_cpu_time = double(total_cpu_time_ns) / speed_real_time;
     printf("Main thread CPU usage: %f%%\n", busy_cpu_time * 100.0);
 #endif

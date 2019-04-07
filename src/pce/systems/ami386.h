@@ -21,12 +21,12 @@ class AMI386 : public ISAPC
   DECLARE_OBJECT_PROPERTY_MAP(AMI386);
 
 public:
-  static constexpr uint32 PHYSICAL_MEMORY_BITS = 32;
+  static constexpr u32 PHYSICAL_MEMORY_BITS = 32;
   static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
-  static constexpr uint32 BIOS_ROM_SIZE = 65536;
+  static constexpr u32 BIOS_ROM_SIZE = 65536;
 
   AMI386(CPU_X86::Model model = CPU_X86::MODEL_386, float cpu_frequency = 4000000.0f,
-         uint32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
+         u32 memory_size = 16 * 1024 * 1024, const ObjectTypeInfo* type_info = &s_type_info);
   ~AMI386();
 
   void SetBIOSFilePath(const std::string& path) { m_bios_file_path = path; }
@@ -49,10 +49,10 @@ private:
   void AddComponents();
   void SetCMOSVariables();
 
-  void IOReadSystemControlPortA(uint8* value);
-  void IOWriteSystemControlPortA(uint8 value);
-  void IOReadSystemControlPortB(uint8* value);
-  void IOWriteSystemControlPortB(uint8 value);
+  void IOReadSystemControlPortA(u8* value);
+  void IOWriteSystemControlPortA(u8 value);
+  void IOReadSystemControlPortB(u8* value);
+  void IOWriteSystemControlPortB(u8 value);
   void UpdateKeyboardControllerOutputPort();
 
   std::string m_bios_file_path;

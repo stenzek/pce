@@ -15,7 +15,7 @@ PROPERTY_TABLE_MEMBER_STRING("BIOSPath", 0, offsetof(i430FX, m_bios_file_path), 
 END_OBJECT_PROPERTY_MAP()
 
 i430FX::i430FX(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_frequency /* = 75000000.0f */,
-               uint32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
+               u32 memory_size /* = 16 * 1024 * 1024 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(PCIPC::PCIConfigSpaceAccessType::Type1, type_info), m_bios_file_path("romimages/5ifw001.bin"),
     m_ram_size(memory_size)
 {
@@ -95,25 +95,25 @@ void i430FX::ConnectSystemIOPorts()
   m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&i430FX::IOWriteSystemControlPortB, this, std::placeholders::_2));
 
   // Dummy I/O delay port
-  m_bus->ConnectIOPortRead(0x00EB, this, [](uint32, uint8* value) { *value = 0xFF; });
-  m_bus->ConnectIOPortWrite(0x00EB, this, [](uint32, uint8 value) {});
+  m_bus->ConnectIOPortRead(0x00EB, this, [](u32, u8* value) { *value = 0xFF; });
+  m_bus->ConnectIOPortWrite(0x00EB, this, [](u32, u8 value) {});
 
   // Connect the keyboard controller output port to the lower 2 bits of system control port A.
-  m_keyboard_controller->SetOutputPortWrittenCallback([this](uint8 value, uint8 old_value, bool pulse) {
+  m_keyboard_controller->SetOutputPortWrittenCallback([this](u8 value, u8 old_value, bool pulse) {
     if (!pulse)
-      value &= ~uint8(0x01);
+      value &= ~u8(0x01);
     IOWriteSystemControlPortA(value & 0x03);
     IOReadSystemControlPortA(&value);
     m_keyboard_controller->SetOutputPort(value);
   });
 }
 
-void i430FX::IOReadSystemControlPortA(uint8* value)
+void i430FX::IOReadSystemControlPortA(u8* value)
 {
   *value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
 }
 
-void i430FX::IOWriteSystemControlPortA(uint8 value)
+void i430FX::IOWriteSystemControlPortA(u8 value)
 {
   Log_TracePrintf("Write system control port A: 0x%02X", ZeroExtend32(value));
 
@@ -148,7 +148,7 @@ void i430FX::IOWriteSystemControlPortA(uint8 value)
   }
 }
 
-void i430FX::IOReadSystemControlPortB(uint8* value)
+void i430FX::IOReadSystemControlPortB(u8* value)
 {
   // http://qlibdos32.sourceforge.net/tutor/tutor-port61h.php
   // http://www.ee.hacettepe.edu.tr/~alkar/ELE336/w9-hacettepe[2016].pdf
@@ -162,7 +162,7 @@ void i430FX::IOReadSystemControlPortB(uint8* value)
            (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
 }
 
-void i430FX::IOWriteSystemControlPortB(uint8 value)
+void i430FX::IOWriteSystemControlPortB(u8 value)
 {
   Log_DebugPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
 
@@ -172,8 +172,8 @@ void i430FX::IOWriteSystemControlPortB(uint8 value)
 
 void i430FX::UpdateKeyboardControllerOutputPort()
 {
-  uint8 value = m_keyboard_controller->GetOutputPort();
-  value &= ~uint8(0x03);
+  u8 value = m_keyboard_controller->GetOutputPort();
+  value &= ~u8(0x03);
   value |= (BoolToUInt8(GetA20State()) << 1);
   m_keyboard_controller->SetOutputPort(value);
 }

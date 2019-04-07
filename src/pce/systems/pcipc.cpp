@@ -161,7 +161,7 @@ void PCIPC::IOReadPCIType2ConfigData(u16 port, u8* value)
   const u8 function = m_pci_config_type2_address.function;
   const u8 bus = m_pci_config_type2_bus;
   const u8 device = Truncate8((port >> 8) & 15);
-  const uint8 offset = Truncate8(port);
+  const u8 offset = Truncate8(port);
 
   PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
   if (!dev || function >= dev->GetNumFunctions())
@@ -179,10 +179,10 @@ void PCIPC::IOWritePCIType2ConfigData(u16 port, u8 value)
   if (!m_pci_config_type2_address.key)
     return;
 
-  const uint8 function = m_pci_config_type2_address.function;
-  const uint8 bus = m_pci_config_type2_bus;
-  const uint8 device = Truncate8((port >> 8) & 15);
-  const uint8 offset = Truncate8(port);
+  const u8 function = m_pci_config_type2_address.function;
+  const u8 bus = m_pci_config_type2_bus;
+  const u8 device = Truncate8((port >> 8) & 15);
+  const u8 offset = Truncate8(port);
 
   PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
   if (!dev || function >= dev->GetNumFunctions())

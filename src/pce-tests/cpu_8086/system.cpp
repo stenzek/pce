@@ -7,7 +7,7 @@ Log_SetChannel(CPU_8086_TestSystem);
 DEFINE_OBJECT_TYPE_INFO(CPU_8086_TestSystem);
 
 CPU_8086_TestSystem::CPU_8086_TestSystem(CPU_8086::Model cpu_model /* = CPU_8086::MODEL_8086 */,
-                                         float cpu_frequency /* = 1000000.0f */, uint32 ram_size /* = 1024 * 1024 */)
+                                         float cpu_frequency /* = 1000000.0f */, u32 ram_size /* = 1024 * 1024 */)
   : System()
 {
   m_bus = new Bus(20);

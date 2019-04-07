@@ -30,7 +30,7 @@ bool i8259_PIC::Initialize(System* system, Bus* bus)
 
 void i8259_PIC::Reset()
 {
-  for (uint32 index = 0; index < NUM_PICS; index++)
+  for (u32 index = 0; index < NUM_PICS; index++)
   {
     PICState* pic = &m_state[index];
     pic->in_service_register = 0;
@@ -50,7 +50,7 @@ bool i8259_PIC::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
-  for (uint32 i = 0; i < NUM_PICS; i++)
+  for (u32 i = 0; i < NUM_PICS; i++)
   {
     PICState* pic = &m_state[i];
 
@@ -72,7 +72,7 @@ bool i8259_PIC::SaveState(BinaryWriter& writer)
 {
   writer.SafeWriteUInt32(SERIALIZATION_ID);
 
-  for (uint32 i = 0; i < NUM_PICS; i++)
+  for (u32 i = 0; i < NUM_PICS; i++)
   {
     PICState* pic = &m_state[i];
 
@@ -90,34 +90,34 @@ bool i8259_PIC::SaveState(BinaryWriter& writer)
   return true;
 }
 
-uint8 i8259_PIC::PICState::GetHighestPriorityInterruptRequest() const
+u8 i8259_PIC::PICState::GetHighestPriorityInterruptRequest() const
 {
-  const uint8 pending_mask = request_register & ~mask_register & ~in_service_register;
+  const u8 pending_mask = request_register & ~mask_register & ~in_service_register;
   if (pending_mask == 0)
     return NUM_INTERRUPTS_PER_PIC;
 
-  uint32 bit;
+  u32 bit;
   Y_bitscanforward(pending_mask, &bit);
-  return uint8(bit);
+  return u8(bit);
 }
 
-uint8 i8259_PIC::PICState::GetHighestPriorityInServiceInterrupt() const
+u8 i8259_PIC::PICState::GetHighestPriorityInServiceInterrupt() const
 {
   if (in_service_register == 0)
     return NUM_INTERRUPTS_PER_PIC;
 
-  uint32 bit;
+  u32 bit;
   Y_bitscanforward(in_service_register, &bit);
-  return uint8(bit);
+  return u8(bit);
 }
 
 bool i8259_PIC::PICState::HasInterruptRequest() const
 {
-  const uint8 pending_mask = request_register & ~mask_register & ~in_service_register;
+  const u8 pending_mask = request_register & ~mask_register & ~in_service_register;
   if (pending_mask == 0)
     return false;
 
-  uint32 irq_number, in_service_irq_number;
+  u32 irq_number, in_service_irq_number;
   Y_bitscanforward(pending_mask, &irq_number);
 
   // The interrupt request must have a lower priority than the current in-service interrupt.
@@ -137,12 +137,12 @@ bool i8259_PIC::PICState::IsAutoEOI() const
   return (icw4 & ICW4_AUTO_EOI) != 0;
 }
 
-bool i8259_PIC::PICState::IsLevelTriggered(uint8 irq) const
+bool i8259_PIC::PICState::IsLevelTriggered(u8 irq) const
 {
   return (level_triggered & (1 << irq)) != 0;
 }
 
-uint32 i8259_PIC::GetInterruptNumber()
+u32 i8259_PIC::GetInterruptNumber()
 {
   PICState* master_pic = &m_state[MASTER_PIC];
 
@@ -155,9 +155,9 @@ uint32 i8259_PIC::GetInterruptNumber()
   }
 
   // Auto-EOI would set then clear the ISR, so let's just not set it.
-  uint8 irq = master_pic->GetHighestPriorityInterruptRequest();
-  uint8 interrupt_number = master_pic->vector_offset + irq;
-  uint8 bit = (1 << irq);
+  u8 irq = master_pic->GetHighestPriorityInterruptRequest();
+  u8 interrupt_number = master_pic->vector_offset + irq;
+  u8 bit = (1 << irq);
   if (!master_pic->IsAutoEOI())
     master_pic->in_service_register |= bit;
 
@@ -191,15 +191,15 @@ uint32 i8259_PIC::GetInterruptNumber()
   return interrupt_number;
 }
 
-void i8259_PIC::SetInterruptState(uint32 interrupt, bool active)
+void i8259_PIC::SetInterruptState(u32 interrupt, bool active)
 {
-  uint8 pic_index = uint8(interrupt / NUM_INTERRUPTS_PER_PIC);
-  uint8 interrupt_number = uint8(interrupt % NUM_INTERRUPTS_PER_PIC);
+  u8 pic_index = u8(interrupt / NUM_INTERRUPTS_PER_PIC);
+  u8 interrupt_number = u8(interrupt % NUM_INTERRUPTS_PER_PIC);
   if (pic_index >= NUM_PICS)
     return;
 
   PICState* pic = &m_state[pic_index];
-  uint8 bit = (1 << interrupt_number);
+  u8 bit = (1 << interrupt_number);
 
   // If the line status hasn't changed, don't do anything.
   const bool current_state = ConvertToBoolUnchecked((pic->interrupt_line_status >> interrupt_number) & 1);
@@ -244,16 +244,16 @@ void i8259_PIC::ConnectIOPorts(Bus* bus)
                           std::bind(&i8259_PIC::DataPortWriteHandler, this, SLAVE_PIC, std::placeholders::_2));
 }
 
-void i8259_PIC::CommandPortReadHandler(uint32 pic_index, uint8* value)
+void i8259_PIC::CommandPortReadHandler(u32 pic_index, u8* value)
 {
   PICState* pic = &m_state[pic_index];
   *value = pic->read_isr ? pic->in_service_register : pic->request_register;
 }
 
-void i8259_PIC::CommandPortWriteHandler(uint32 pic_index, uint8 value)
+void i8259_PIC::CommandPortWriteHandler(u32 pic_index, u8 value)
 {
   PICState* pic = &m_state[pic_index];
-  uint8 command_type = value & COMMAND_MASK;
+  u8 command_type = value & COMMAND_MASK;
 
   // Re-initializing?
   if (command_type == COMMAND_ICW1)
@@ -271,10 +271,10 @@ void i8259_PIC::CommandPortWriteHandler(uint32 pic_index, uint8 value)
   }
   else if (command_type == COMMAND_OCW2)
   {
-    uint8 ocw2_type = value & 0xE0;
+    u8 ocw2_type = value & 0xE0;
     if (ocw2_type & OCW2_EOI)
     {
-      uint8 interrupt = 0xFF;
+      u8 interrupt = 0xFF;
       if ((ocw2_type & OCW2_EOI_SPECIFIC) == OCW2_EOI_SPECIFIC)
       {
         // Specific EOI
@@ -325,7 +325,7 @@ void i8259_PIC::CommandPortWriteHandler(uint32 pic_index, uint8 value)
   }
 }
 
-void i8259_PIC::DataPortWriteHandler(uint32 pic_index, uint8 value)
+void i8259_PIC::DataPortWriteHandler(u32 pic_index, u8 value)
 {
   PICState* pic = &m_state[pic_index];
 

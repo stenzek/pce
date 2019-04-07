@@ -24,7 +24,7 @@ public:
   bool SaveState(BinaryWriter& writer) override;
 
 private:
-  static constexpr uint32 SERIALIZATION_ID = Component::MakeSerializationID('X', 'I', 'D', 'E');
+  static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('X', 'I', 'D', 'E');
 
   void ConnectIOPorts(Bus* bus) override;
 

@@ -22,11 +22,11 @@ public:
   void WriteConfigSpace(u8 function, u8 offset, u8 value) override;
 
 private:
-  static constexpr uint8 NUM_PAM_REGISTERS = 7;
-  static constexpr uint8 PAM_BASE_OFFSET = 0x59;
+  static constexpr u8 NUM_PAM_REGISTERS = 7;
+  static constexpr u8 PAM_BASE_OFFSET = 0x59;
 
-  void SetPAMMapping(uint32 base, uint32 size, uint8 flag);
-  void UpdatePAMMapping(uint8 offset);
+  void SetPAMMapping(u32 base, u32 size, u8 flag);
+  void UpdatePAMMapping(u8 offset);
 };
 
 } // namespace HW

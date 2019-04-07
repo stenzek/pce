@@ -43,7 +43,7 @@ bool DS12887::Initialize(System* system, Bus* bus)
   }
 
   m_data.resize(m_size);
-  std::fill(m_data.begin(), m_data.end(), uint8(0));
+  std::fill(m_data.begin(), m_data.end(), u8(0));
 
   ConnectIOPorts(bus);
 
@@ -143,21 +143,21 @@ void DS12887::SynchronizeTimeWithHost()
   WriteClockRegister(RTC_REGISTER_CENTURY, Truncate8((host_time.tm_year + 1900) / 100));
 }
 
-uint16 DS12887::GetConfigWordVariable(uint8 base_index) const
+u16 DS12887::GetConfigWordVariable(u8 base_index) const
 {
-  uint16 value;
+  u16 value;
   value = ZeroExtend16(m_data[base_index + 0]);
   value |= (ZeroExtend16(m_data[base_index + 1]) << 8);
   return value;
 }
 
-void DS12887::SetConfigWordVariable(uint8 base_index, uint16 value)
+void DS12887::SetConfigWordVariable(u8 base_index, u16 value)
 {
   m_data[base_index + 0] = Truncate8(value);
   m_data[base_index + 1] = Truncate8(value >> 8);
 }
 
-void DS12887::SetConfigFloppyType(uint32 index, u32 type)
+void DS12887::SetConfigFloppyType(u32 index, u32 type)
 {
   Assert(index < 2);
 
@@ -167,7 +167,7 @@ void DS12887::SetConfigFloppyType(uint32 index, u32 type)
   // 0011 - 720KB
   // 0100 - 1.44MB
 
-  uint8 floppy_type;
+  u8 floppy_type;
   switch (type)
   {
     case Floppy::DriveType_5_25:
@@ -193,7 +193,7 @@ void DS12887::SetConfigFloppyType(uint32 index, u32 type)
   }
 }
 
-void DS12887::SetConfigFloppyCount(uint32 count)
+void DS12887::SetConfigFloppyCount(u32 count)
 {
   m_data[0x14] &= 0b00111111;
   m_data[0x14] |= ((count == 2) ? 0b01 : 0b00) << 6;
@@ -208,7 +208,7 @@ void DS12887::ConnectIOPorts(Bus* bus)
   bus->ConnectIOPortWrite(IOPORT_DATA_PORT, this, std::bind(&DS12887::IOWriteDataPort, this, std::placeholders::_2));
 }
 
-void DS12887::IOReadDataPort(uint8* value)
+void DS12887::IOReadDataPort(u8* value)
 {
   const u8 index = m_index_register & m_index_register_mask;
   if (index < RTC_REGISTER_STATUS_REGISTER_A || index == RTC_REGISTER_CENTURY)
@@ -234,7 +234,7 @@ void DS12887::IOReadDataPort(uint8* value)
   }
 }
 
-void DS12887::IOWriteDataPort(uint8 value)
+void DS12887::IOWriteDataPort(u8 value)
 {
   const u8 index = m_index_register & m_index_register_mask;
 
@@ -255,13 +255,13 @@ void DS12887::IOWriteDataPort(uint8 value)
 
 void DS12887::UpdateRTCFrequency()
 {
-  static const uint32 base_rate_table[] = {4194304, 1048576, 32768, 16384};
+  static const u32 base_rate_table[] = {4194304, 1048576, 32768, 16384};
 
-  uint8 base_rate_index = ((m_data[RTC_REGISTER_STATUS_REGISTER_A] >> RTC_SRA_DV_SHIFT) & RTC_SRA_DV_MASK);
-  uint8 rate_divider = ((m_data[RTC_REGISTER_STATUS_REGISTER_A] >> RTC_SRA_RS_SHIFT) & RTC_SRA_RS_MASK);
+  u8 base_rate_index = ((m_data[RTC_REGISTER_STATUS_REGISTER_A] >> RTC_SRA_DV_SHIFT) & RTC_SRA_DV_MASK);
+  u8 rate_divider = ((m_data[RTC_REGISTER_STATUS_REGISTER_A] >> RTC_SRA_RS_SHIFT) & RTC_SRA_RS_MASK);
 
-  uint32 base_rate = base_rate_table[base_rate_index];
-  uint32 interrupt_rate = base_rate >> rate_divider;
+  u32 base_rate = base_rate_table[base_rate_index];
+  u32 interrupt_rate = base_rate >> rate_divider;
 
   Log_DevPrintf("Base rate = %u (%u hz), rate divider = %u, interrupt rate = %u hz", ZeroExtend32(base_rate_index),
                 base_rate, ZeroExtend32(rate_divider), interrupt_rate);

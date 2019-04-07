@@ -3,7 +3,7 @@
 
 namespace CPU_X86 {
 
-enum CYCLE_GROUP : uint32
+enum CYCLE_GROUP : u32
 {
   // For two-operand groups, the order is dst, src.
   // Order is imm, mem, reg. Therefore, to get from the base (reg) r/m, if r is set, add one.
@@ -288,5 +288,5 @@ enum CYCLE_GROUP : uint32
   NUM_CYCLE_GROUPS
 };
 
-extern const uint32 g_cycle_group_timings[NUM_CYCLE_GROUPS][3];
+extern const u32 g_cycle_group_timings[NUM_CYCLE_GROUPS][3];
 } // namespace CPU_X86

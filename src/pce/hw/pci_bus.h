@@ -23,8 +23,8 @@ public:
 
 protected:
   // NOTE: Assumes there is only a single PCI bus, and all devices are attached to it.
-  static constexpr uint8 NUM_PCI_BUSES = 1;
-  static constexpr uint8 NUM_PCI_DEVICES_PER_BUS = 16;
+  static constexpr u8 NUM_PCI_BUSES = 1;
+  static constexpr u8 NUM_PCI_DEVICES_PER_BUS = 16;
 
   PCIDevice* m_pci_devices[NUM_PCI_BUSES][NUM_PCI_DEVICES_PER_BUS] = {};
 };

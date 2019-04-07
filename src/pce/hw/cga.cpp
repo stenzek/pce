@@ -86,7 +86,7 @@ bool CGA::LoadState(BinaryReader& reader)
   if (valid && m_current_frame_offset > 0)
   {
     m_current_frame.resize(m_current_frame_offset);
-    valid &= reader.SafeReadBytes(m_current_frame.data(), Truncate32(m_current_frame_offset * sizeof(uint32)));
+    valid &= reader.SafeReadBytes(m_current_frame.data(), Truncate32(m_current_frame_offset * sizeof(u32)));
   }
 
   if (valid)
@@ -112,26 +112,26 @@ bool CGA::SaveState(BinaryWriter& writer)
   valid &= writer.SafeWriteUInt32(m_current_frame_width);
   valid &= writer.SafeWriteUInt32(m_current_frame_line);
   if (m_current_frame_offset > 0)
-    valid &= writer.SafeWriteBytes(m_current_frame.data(), Truncate32(m_current_frame_offset * sizeof(uint32)));
+    valid &= writer.SafeWriteBytes(m_current_frame.data(), Truncate32(m_current_frame_offset * sizeof(u32)));
 
   return valid;
 }
 
-uint32 CGA::GetBorderColor() const
+u32 CGA::GetBorderColor() const
 {
   return CGA_PALETTE[m_color_control_register.background_color];
 }
 
-uint32 CGA::GetCursorAddress() const
+u32 CGA::GetCursorAddress() const
 {
   return (ZeroExtend32(m_crtc_registers.cursor_location_high) << 8) |
          ZeroExtend32(m_crtc_registers.cursor_location_low);
 }
 
-uint32 CGA::InCursorBox() const
+u32 CGA::InCursorBox() const
 {
-  const uint8 cursor_mask = BoolToUInt8(m_character_row_counter >= ZeroExtend32(m_crtc_registers.cursor_start & 0x3F) &&
-                                        m_character_row_counter <= ZeroExtend32(m_crtc_registers.cursor_end));
+  const u8 cursor_mask = BoolToUInt8(m_character_row_counter >= ZeroExtend32(m_crtc_registers.cursor_start & 0x3F) &&
+                                     m_character_row_counter <= ZeroExtend32(m_crtc_registers.cursor_end));
   return ((cursor_mask & m_cursor_state) != 0);
 }
 
@@ -248,7 +248,7 @@ void CGA::BeginFrame()
 
   // Update cursor state.
   // TODO: Should this be at the start of a line, or the start of a frame?
-  const uint8 cursor_val = (m_crtc_registers.cursor_start >> 5) & 3;
+  const u8 cursor_val = (m_crtc_registers.cursor_start >> 5) & 3;
   switch (cursor_val)
   {
     case 1:
@@ -270,35 +270,35 @@ void CGA::BeginFrame()
 
 void CGA::RenderLineText()
 {
-  const uint32 num_characters =
+  const u32 num_characters =
     std::min(m_current_frame_width / CHARACTER_WIDTH, ZeroExtend32(m_crtc_registers.horizontal_displayed));
-  const uint32 line_width = (num_characters * CHARACTER_WIDTH) + m_timing.horizontal_left_border_pixels +
-                            m_timing.horizontal_right_border_pixels;
+  const u32 line_width = (num_characters * CHARACTER_WIDTH) + m_timing.horizontal_left_border_pixels +
+                         m_timing.horizontal_right_border_pixels;
   if (m_current_frame.size() < (m_current_frame_offset + line_width))
     m_current_frame.resize(m_current_frame_offset + line_width);
 
-  const uint32 border_color = GetBorderColor();
-  for (uint32 i = 0; i < m_timing.horizontal_left_border_pixels; i++)
+  const u32 border_color = GetBorderColor();
+  for (u32 i = 0; i < m_timing.horizontal_left_border_pixels; i++)
     m_current_frame[m_current_frame_offset++] = border_color;
 
-  uint32 cursor_address = GetCursorAddress();
-  uint32 address_register = m_address_counter;
-  uint32 character_start_y = m_character_row_counter & 0x7;
-  for (uint32 j = 0; j < num_characters; j++)
+  u32 cursor_address = GetCursorAddress();
+  u32 address_register = m_address_counter;
+  u32 character_start_y = m_character_row_counter & 0x7;
+  for (u32 j = 0; j < num_characters; j++)
   {
-    uint32 vram_address = (address_register & ADDRESS_COUNTER_VRAM_MASK_TEXT) << CRTC_ADDRESS_SHIFT;
-    uint8 character_code = m_vram[vram_address + 0];
-    uint8 character_attributes = m_vram[vram_address + 1];
+    u32 vram_address = (address_register & ADDRESS_COUNTER_VRAM_MASK_TEXT) << CRTC_ADDRESS_SHIFT;
+    u8 character_code = m_vram[vram_address + 0];
+    u8 character_attributes = m_vram[vram_address + 1];
 
-    uint8 source_bits = CGA_FONT[character_code][character_start_y];
-    uint32 foreground_color = CGA_PALETTE[character_attributes & 0xF];
-    uint32 background_color = CGA_PALETTE[(character_attributes >> 4) & 0x7];
+    u8 source_bits = CGA_FONT[character_code][character_start_y];
+    u32 foreground_color = CGA_PALETTE[character_attributes & 0xF];
+    u32 background_color = CGA_PALETTE[(character_attributes >> 4) & 0x7];
     if (address_register == cursor_address && InCursorBox())
       source_bits = 0xFF;
     if ((character_attributes >> 7) & m_blink_state)
       foreground_color = background_color;
 
-    for (uint32 k = 0; k < 8; k++)
+    for (u32 k = 0; k < 8; k++)
     {
       // This goes MSB..LSB.
       m_current_frame[m_current_frame_offset++] = (source_bits >> 7) ? foreground_color : background_color;
@@ -308,7 +308,7 @@ void CGA::RenderLineText()
     address_register = (address_register + 1) & ADDRESS_COUNTER_MASK;
   }
 
-  for (uint32 i = 0; i < m_timing.horizontal_right_border_pixels; i++)
+  for (u32 i = 0; i < m_timing.horizontal_right_border_pixels; i++)
     m_current_frame[m_current_frame_offset++] = border_color;
 
   m_current_frame_line++;
@@ -317,33 +317,33 @@ void CGA::RenderLineText()
 void CGA::RenderLineGraphics()
 {
   const bool high_resolution = m_mode_control_register.high_resolution_graphics;
-  const uint32 num_characters =
+  const u32 num_characters =
     std::min(m_current_frame_width / (high_resolution ? (CHARACTER_WIDTH * 2) : CHARACTER_WIDTH),
              ZeroExtend32(m_crtc_registers.horizontal_displayed));
-  const uint32 line_width = (num_characters * (high_resolution ? (CHARACTER_WIDTH * 2) : CHARACTER_WIDTH)) +
-                            m_timing.horizontal_left_border_pixels + m_timing.horizontal_right_border_pixels;
+  const u32 line_width = (num_characters * (high_resolution ? (CHARACTER_WIDTH * 2) : CHARACTER_WIDTH)) +
+                         m_timing.horizontal_left_border_pixels + m_timing.horizontal_right_border_pixels;
   if (m_current_frame.size() < (m_current_frame_offset + line_width))
     m_current_frame.resize(m_current_frame_offset + line_width);
 
-  const uint32 border_color = GetBorderColor();
-  for (uint32 i = 0; i < m_timing.horizontal_left_border_pixels; i++)
+  const u32 border_color = GetBorderColor();
+  for (u32 i = 0; i < m_timing.horizontal_left_border_pixels; i++)
     m_current_frame[m_current_frame_offset++] = border_color;
 
-  uint32 address_counter = m_address_counter;
-  for (uint32 j = 0; j < num_characters; j++)
+  u32 address_counter = m_address_counter;
+  for (u32 j = 0; j < num_characters; j++)
   {
     // TODO: Is this correct?
-    uint32 vram_offset = ((address_counter++ & ADDRESS_COUNTER_VRAM_MASK_GRAPHICS) << CRTC_ADDRESS_SHIFT) |
-                         ((m_character_row_counter & 1) << 13);
-    uint16 pixels = (ZeroExtend16(m_vram[vram_offset + 0]) << 8) | ZeroExtend16(m_vram[vram_offset + 1]);
+    u32 vram_offset = ((address_counter++ & ADDRESS_COUNTER_VRAM_MASK_GRAPHICS) << CRTC_ADDRESS_SHIFT) |
+                      ((m_character_row_counter & 1) << 13);
+    u16 pixels = (ZeroExtend16(m_vram[vram_offset + 0]) << 8) | ZeroExtend16(m_vram[vram_offset + 1]);
 
     if (high_resolution)
     {
-      uint32 foreground_color = CGA_PALETTE[m_color_control_register.background_color];
-      uint32 background_color = CGA_PALETTE[0];
+      u32 foreground_color = CGA_PALETTE[m_color_control_register.background_color];
+      u32 background_color = CGA_PALETTE[0];
 
       // 1 bit per pixel, 8 pixels per byte
-      for (uint32 k = 0; k < 16; k++)
+      for (u32 k = 0; k < 16; k++)
       {
         m_current_frame[m_current_frame_offset++] = (pixels >> 15) ? foreground_color : background_color;
         pixels <<= 1;
@@ -351,17 +351,17 @@ void CGA::RenderLineGraphics()
     }
     else
     {
-      const uint32* foreground_palette =
+      const u32* foreground_palette =
         (m_mode_control_register.monochrome ?
            CGA_GRAPHICS_PALETTE_2 :
            (m_color_control_register.palette_select ? CGA_GRAPHICS_PALETTE_1 : CGA_GRAPHICS_PALETTE_0));
-      uint8 foreground_intensity = m_color_control_register.foreground_intensity ? 1 : 0;
-      uint32 background_color = CGA_PALETTE[m_color_control_register.background_color];
+      u8 foreground_intensity = m_color_control_register.foreground_intensity ? 1 : 0;
+      u32 background_color = CGA_PALETTE[m_color_control_register.background_color];
 
       // 2 bits per pixel, 4 pixels per byte
-      for (uint32 k = 0; k < 8; k++)
+      for (u32 k = 0; k < 8; k++)
       {
-        uint8 index = (pixels >> 14);
+        u8 index = (pixels >> 14);
         m_current_frame[m_current_frame_offset++] =
           (index == 0) ? background_color : foreground_palette[(index << 1) | foreground_intensity];
         pixels <<= 2;
@@ -369,7 +369,7 @@ void CGA::RenderLineGraphics()
     }
   }
 
-  for (uint32 i = 0; i < m_timing.horizontal_right_border_pixels; i++)
+  for (u32 i = 0; i < m_timing.horizontal_right_border_pixels; i++)
     m_current_frame[m_current_frame_offset++] = border_color;
 
   m_current_frame_line++;
@@ -377,11 +377,11 @@ void CGA::RenderLineGraphics()
 
 void CGA::RenderLineBorder()
 {
-  const uint32 border_color = GetBorderColor();
+  const u32 border_color = GetBorderColor();
   if (m_current_frame.size() < (m_current_frame_offset + m_current_frame_width))
     m_current_frame.resize(m_current_frame_offset + m_current_frame_width);
 
-  for (uint32 i = 0; i < m_current_frame_width; i++)
+  for (u32 i = 0; i < m_current_frame_width; i++)
     m_current_frame[m_current_frame_offset++] = border_color;
 
   m_current_frame_line++;
@@ -389,8 +389,8 @@ void CGA::RenderLineBorder()
 
 void CGA::FlushFrame()
 {
-  const uint32 frame_width = m_current_frame_width;
-  const uint32 frame_height = m_current_frame_line;
+  const u32 frame_width = m_current_frame_width;
+  const u32 frame_height = m_current_frame_line;
   if (frame_width > 0 && frame_height > 0)
   {
     if (m_display->GetFramebufferWidth() != frame_width || m_display->GetFramebufferHeight() != frame_height)
@@ -399,7 +399,7 @@ void CGA::FlushFrame()
       m_display->ResizeDisplay();
     }
 
-    m_display->CopyFrame(m_current_frame.data(), m_current_frame_width * sizeof(uint32));
+    m_display->CopyFrame(m_current_frame.data(), m_current_frame_width * sizeof(u32));
     m_display->SwapFramebuffer();
   }
 
@@ -412,20 +412,20 @@ void CGA::FlushFrame()
   m_current_frame_offset = 0;
 }
 
-void CGA::ModeControlRegisterWrite(uint8 value)
+void CGA::ModeControlRegisterWrite(u8 value)
 {
   m_line_event->InvokeEarly();
   m_mode_control_register.raw = value;
   RecalculateEventTiming();
 }
 
-void CGA::ColorControlRegisterWrite(uint8 value)
+void CGA::ColorControlRegisterWrite(u8 value)
 {
   m_line_event->InvokeEarly();
   m_color_control_register.raw = value;
 }
 
-void CGA::StatusRegisterRead(uint8* value)
+void CGA::StatusRegisterRead(u8* value)
 {
   m_line_event->InvokeEarly();
 
@@ -456,7 +456,7 @@ void CGA::StatusRegisterRead(uint8* value)
   *value = sr.raw;
 }
 
-void CGA::CRTDataRegisterRead(uint8* value)
+void CGA::CRTDataRegisterRead(u8* value)
 {
   // Can only read C-F
   if (m_crtc_index_register >= 0xC && m_crtc_index_register <= 0xF)
@@ -465,10 +465,10 @@ void CGA::CRTDataRegisterRead(uint8* value)
     *value = 0;
 }
 
-void CGA::CRTDataRegisterWrite(uint8 value)
+void CGA::CRTDataRegisterWrite(u8 value)
 {
-  static constexpr uint8 masks[NUM_CRTC_REGISTERS] = {0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0x1F, 0x7F, 0x7F, 0xF3,
-                                                      0x1F, 0x7F, 0x1F, 0x3F, 0xFF, 0x3F, 0xFF, 0x3F, 0xFF};
+  static constexpr u8 masks[NUM_CRTC_REGISTERS] = {0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0x1F, 0x7F, 0x7F, 0xF3,
+                                                   0x1F, 0x7F, 0x1F, 0x3F, 0xFF, 0x3F, 0xFF, 0x3F, 0xFF};
   if (m_crtc_index_register >= NUM_CRTC_REGISTERS)
     return;
 
@@ -493,18 +493,17 @@ void CGA::RecalculateEventTiming()
 
   Timing timing;
 
-  const uint32 horizontal_total_pixels = (ZeroExtend32(m_crtc_registers.horizontal_total) + 1) * CHARACTER_WIDTH;
+  const u32 horizontal_total_pixels = (ZeroExtend32(m_crtc_registers.horizontal_total) + 1) * CHARACTER_WIDTH;
   timing.horizontal_frequency = dot_clock / double(horizontal_total_pixels);
 
   // Calculate sync times.
-  int32 horizontal_total = int32(ZeroExtend32(m_crtc_registers.horizontal_total) + 1);
-  int32 horizontal_displayed = std::min(int32(ZeroExtend32(m_crtc_registers.horizontal_displayed)), horizontal_total);
-  int32 horizontal_sync_start =
-    std::min(int32(ZeroExtend32(m_crtc_registers.horizontal_sync_position)), horizontal_total);
-  int32 horizontal_sync_end = std::min(
-    horizontal_sync_start + int32(ZeroExtend32(m_crtc_registers.horizontal_sync_pulse_width)), horizontal_total);
-  int32 horizontal_display_start = std::clamp(horizontal_total - horizontal_sync_end, int32(0), horizontal_total);
-  int32 horizontal_display_end = std::min(horizontal_display_start + horizontal_displayed, horizontal_total);
+  s32 horizontal_total = s32(ZeroExtend32(m_crtc_registers.horizontal_total) + 1);
+  s32 horizontal_displayed = std::min(s32(ZeroExtend32(m_crtc_registers.horizontal_displayed)), horizontal_total);
+  s32 horizontal_sync_start = std::min(s32(ZeroExtend32(m_crtc_registers.horizontal_sync_position)), horizontal_total);
+  s32 horizontal_sync_end =
+    std::min(horizontal_sync_start + s32(ZeroExtend32(m_crtc_registers.horizontal_sync_pulse_width)), horizontal_total);
+  s32 horizontal_display_start = std::clamp(horizontal_total - horizontal_sync_end, s32(0), horizontal_total);
+  s32 horizontal_display_end = std::min(horizontal_display_start + horizontal_displayed, horizontal_total);
   timing.horizontal_display_start_time = SimulationTime((1000000000.0 * horizontal_display_start) / dot_clock);
   timing.horizontal_display_end_time = SimulationTime((1000000000.0 * horizontal_display_end) / dot_clock);
 
@@ -522,8 +521,8 @@ void CGA::RecalculateEventTiming()
 #endif
 
   // Vertical timing.
-  const uint32 character_height = ZeroExtend32(m_crtc_registers.maximum_scan_lines + 1);
-  uint32 vertical_total_rows = ZeroExtend32(m_crtc_registers.vertical_total) + 1;
+  const u32 character_height = ZeroExtend32(m_crtc_registers.maximum_scan_lines + 1);
+  u32 vertical_total_rows = ZeroExtend32(m_crtc_registers.vertical_total) + 1;
   timing.vertical_display_end = ZeroExtend32(m_crtc_registers.vertical_displayed);
   timing.vertical_sync_start = std::min(ZeroExtend32(m_crtc_registers.vertical_sync_position), vertical_total_rows);
   timing.vertical_sync_end =
@@ -535,7 +534,7 @@ void CGA::RecalculateEventTiming()
   m_timing = timing;
 
   // Render a whole frame if possible, by delaying the event vtotal lines, to reduce CPU load.
-  uint32 vertical_total_scanlines = vertical_total_rows * character_height;
+  u32 vertical_total_scanlines = vertical_total_rows * character_height;
   m_line_event->SetFrequency(float(m_timing.horizontal_frequency), vertical_total_scanlines);
   if (!m_line_event->IsActive())
     m_line_event->Activate();

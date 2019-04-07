@@ -8,9 +8,9 @@ namespace CPU_8086 {
 
 // We use 32-bit virtual memory addresses
 // When operating in the lower modes these are zero-extended.
-using VirtualMemoryAddress = uint16;
+using VirtualMemoryAddress = u16;
 
-enum Model : uint8
+enum Model : u8
 {
   MODEL_8088,
   MODEL_8086,
@@ -21,7 +21,7 @@ enum Model : uint8
   NUM_MODELS
 };
 
-enum Reg8 : uint8
+enum Reg8 : u8
 {
   Reg8_AL,
   Reg8_CL,
@@ -35,7 +35,7 @@ enum Reg8 : uint8
   Reg8_Count
 };
 
-enum Reg16 : uint8
+enum Reg16 : u8
 {
   // General-purpose registers
   Reg16_AX,
@@ -62,7 +62,7 @@ enum Reg16 : uint8
   Reg16_Count
 };
 
-enum Flags : uint32
+enum Flags : u32
 {
   Flag_CF = (1u << 0),
   Flag_Reserved = (1u << 1),
@@ -76,7 +76,7 @@ enum Flags : uint32
   Flag_OF = (1u << 11)
 };
 
-enum Operation : uint8
+enum Operation : u8
 {
   Operation_Invalid,
   Operation_Extension,
@@ -173,7 +173,7 @@ enum Operation : uint8
   Operation_Count
 };
 
-enum Segment : uint8
+enum Segment : u8
 {
   Segment_ES,
   Segment_CS,
@@ -183,7 +183,7 @@ enum Segment : uint8
   Segment_Count
 };
 
-enum OperandSize : uint8
+enum OperandSize : u8
 {
   OperandSize_8,  // byte
   OperandSize_16, // word
@@ -191,7 +191,7 @@ enum OperandSize : uint8
   OperandSize_Count // TODO: Rename to "inherit"
 };
 
-enum OperandMode : uint8
+enum OperandMode : u8
 {
   OperandMode_None,
   OperandMode_Constant,
@@ -213,20 +213,20 @@ enum OperandMode : uint8
   OperandMode_JumpCondition,
 };
 
-inline constexpr bool OperandMode_NeedsModRM(OperandSize op_size, OperandMode op_mode, uint32 op_idx)
+inline constexpr bool OperandMode_NeedsModRM(OperandSize op_size, OperandMode op_mode, u32 op_idx)
 {
   return op_mode == OperandMode_ModRM_Reg || op_mode == OperandMode_ModRM_RM ||
          op_mode == OperandMode_ModRM_ControlRegister || op_mode == OperandMode_ModRM_DebugRegister ||
          op_mode == OperandMode_ModRM_TestRegister;
 }
 
-inline constexpr bool OperandMode_NeedsImmediate(OperandSize op_size, OperandMode op_mode, uint32 op_idx)
+inline constexpr bool OperandMode_NeedsImmediate(OperandSize op_size, OperandMode op_mode, u32 op_idx)
 {
   return op_mode == OperandMode_Immediate || op_mode == OperandMode_Immediate2 || op_mode == OperandMode_Relative ||
          op_mode == OperandMode_Memory || op_mode == OperandMode_ModRM_RM || op_mode == OperandMode_FarAddress;
 }
 
-enum InstructionFlags : uint8
+enum InstructionFlags : u8
 {
   InstructionFlag_Lock = (1 << 0),
   InstructionFlag_Rep = (1 << 1),
@@ -234,7 +234,7 @@ enum InstructionFlags : uint8
   InstructionFlag_RepNotEqual = (1 << 3)
 };
 
-enum JumpCondition : uint8
+enum JumpCondition : u8
 {
   JumpCondition_Always,
 
@@ -263,46 +263,46 @@ struct InstructionData
 {
   union // +0
   {
-    uint16 imm16;
-    uint8 imm8;
+    u16 imm16;
+    u8 imm8;
   };
   union // +2
   {
-    uint16 disp16;
-    uint8 disp8;
-    uint16 imm2_16;
-    uint8 imm2_8;
+    u16 disp16;
+    u8 disp8;
+    u16 imm2_16;
+    u8 imm2_8;
   };
 
   Segment segment; // +3
   union            // +4
   {
-    BitField<uint8, uint8, 0, 3> modrm_rm;
-    BitField<uint8, uint8, 3, 3> modrm_reg;
-    BitField<uint8, uint8, 6, 2> modrm_mod;
-    uint8 modrm;
+    BitField<u8, u8, 0, 3> modrm_rm;
+    BitField<u8, u8, 3, 3> modrm_reg;
+    BitField<u8, u8, 6, 2> modrm_mod;
+    u8 modrm;
   };
   union // +5
   {
     struct
     {
-      uint8 has_segment_override : 1;
-      uint8 has_rep : 1;
-      uint8 has_repne : 1;
-      uint8 has_lock : 1;
-      uint8 : 3;
+      u8 has_segment_override : 1;
+      u8 has_rep : 1;
+      u8 has_repne : 1;
+      u8 has_lock : 1;
+      u8 : 3;
     };
-    uint8 flags;
+    u8 flags;
   };
 
   // total size: 6 bytes
 
-  uint8 GetModRM_Reg() const { return ((modrm >> 3) & 7); }
-  uint8 GetModRM_RM() { return (modrm & 7); }
+  u8 GetModRM_Reg() const { return ((modrm >> 3) & 7); }
+  u8 GetModRM_RM() { return (modrm & 7); }
   bool ModRM_RM_IsReg() const { return (modrm_mod == 0b11); }
 };
 
-enum class ModRMAddressingMode : uint8
+enum class ModRMAddressingMode : u8
 {
   Register,                 // register contains value
   Direct,                   // operand contains address of value
@@ -313,7 +313,7 @@ enum class ModRMAddressingMode : uint8
 };
 
 // Processor interrupts
-enum Interrupt : uint32
+enum Interrupt : u32
 {
   Interrupt_DivideError = 0x00,
   Interrupt_Debugger = 0x01,

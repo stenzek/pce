@@ -17,10 +17,10 @@ class CPU_X86_TestSystem : public System
 
 public:
   static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xF0000;
-  static constexpr uint32 BIOS_ROM_SIZE = 65536;
+  static constexpr u32 BIOS_ROM_SIZE = 65536;
 
   CPU_X86_TestSystem(CPU_X86::Model cpu_model = CPU_X86::MODEL_486, float cpu_frequency = 1000000.0f,
-                     CPU::BackendType cpu_backend = CPU::BackendType::Interpreter, uint32 ram_size = 1024 * 1024);
+                     CPU::BackendType cpu_backend = CPU::BackendType::Interpreter, u32 ram_size = 1024 * 1024);
 
   ~CPU_X86_TestSystem();
 

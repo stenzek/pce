@@ -29,7 +29,7 @@ class CPU : public ::CPU
   friend Instructions;
 
 public:
-  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('8', '0', '8', '6');
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('8', '0', '8', '6');
 
 #pragma pack(push, 1)
   // Needed because the 8-bit register indices are all low bits -> all high bits
@@ -66,27 +66,27 @@ public:
     struct
     {
       // Little-endian, so LSB first
-      uint8 AL;
-      uint8 AH;
-      uint8 CL;
-      uint8 CH;
-      uint8 DL;
-      uint8 DH;
-      uint8 BL;
-      uint8 BH;
+      u8 AL;
+      u8 AH;
+      u8 CL;
+      u8 CH;
+      u8 DL;
+      u8 DH;
+      u8 BL;
+      u8 BH;
     };
 
     struct
     {
-      uint16 AX;
-      uint16 CX;
-      uint16 DX;
-      uint16 BX;
-      uint16 SP;
-      uint16 BP;
-      uint16 SI;
-      uint16 DI;
-      uint16 IP;
+      u16 AX;
+      u16 CX;
+      u16 DX;
+      u16 BX;
+      u16 SP;
+      u16 BP;
+      u16 SI;
+      u16 DI;
+      u16 IP;
       union
       {
         u16 bits;
@@ -105,17 +105,17 @@ public:
       {
         struct
         {
-          uint16 ES;
-          uint16 CS;
-          uint16 SS;
-          uint16 DS;
+          u16 ES;
+          u16 CS;
+          u16 SS;
+          u16 DS;
         };
-        uint16 segment_selectors[Segment_Count];
+        u16 segment_selectors[Segment_Count];
       };
     };
 
     Reg8Access reg8;
-    uint16 reg16[Reg16_Count];
+    u16 reg16[Reg16_Count];
   };
 
   CPU(const String& identifier, Model model, float frequency, const ObjectTypeInfo* type_info = &s_type_info);
@@ -193,7 +193,7 @@ protected:
   void SetHalted(bool halt);
 
   // Throws an exception, leaving IP containing the address of the current instruction
-  void RaiseException(uint32 interrupt);
+  void RaiseException(u32 interrupt);
 
   // Checking for external interrupts.
   bool HasExternalInterrupt() const;

@@ -52,7 +52,7 @@ bool SerialMouse::Initialize(System* system, Bus* bus)
 
 bool SerialMouse::LoadState(BinaryReader& reader)
 {
-  uint32 serialization_id;
+  u32 serialization_id;
   if (!reader.SafeReadUInt32(&serialization_id) || serialization_id != SERIALIZATION_ID)
     return false;
 
@@ -115,7 +115,7 @@ void SerialMouse::ConnectCallbacks()
                  m_serial_port->GetIdentifier().GetCharArray());
 }
 
-void SerialMouse::OnHostMousePositionChanged(int32 dx, int32 dy)
+void SerialMouse::OnHostMousePositionChanged(s32 dx, s32 dy)
 {
   //     // Cap the delta at 1.
   //     if (std::abs(dx) > 1)
@@ -129,7 +129,7 @@ void SerialMouse::OnHostMousePositionChanged(int32 dx, int32 dy)
     m_update_pending = true;
 }
 
-void SerialMouse::OnHostMouseButtonChanged(uint32 button, bool down)
+void SerialMouse::OnHostMouseButtonChanged(u32 button, bool down)
 {
   if (button > NUM_BUTTONS)
     return;
@@ -152,7 +152,7 @@ void SerialMouse::OnSerialPortDTRChanged(bool high)
 
     // TODO: This should have a 14ms delay, but we can probably get away with no delay.
     // m_update_event->Queue(2);
-    uint8 data = 0x4D;
+    u8 data = 0x4D;
     m_serial_port->WriteData(&data, sizeof(data));
     m_active = true;
     m_update_event->Queue(1);
@@ -172,7 +172,7 @@ void SerialMouse::SendUpdate()
   // If we just became active, send the initialization packet.
   if (!m_active)
   {
-    uint8 data = 0x4D;
+    u8 data = 0x4D;
     m_serial_port->WriteData(&data, sizeof(data));
     m_active = true;
     m_update_event->Reschedule(1);
@@ -184,8 +184,8 @@ void SerialMouse::SendUpdate()
     return;
 
   // Cap the dx/dy at (-128, 127)
-  uint8 packet_dx = uint8(int8(std::max(-128, std::min(m_delta_x, 127))));
-  uint8 packet_dy = uint8(int8(std::max(-128, std::min(m_delta_y, 127))));
+  u8 packet_dx = u8(s8(std::max(-128, std::min(m_delta_x, 127))));
+  u8 packet_dy = u8(s8(std::max(-128, std::min(m_delta_y, 127))));
   m_delta_x = 0;
   m_delta_y = 0;
 
@@ -195,8 +195,8 @@ void SerialMouse::SendUpdate()
   // 1 	1 	lb 	rb 	dy7 	dy6 	dx7 	dx6
   // 2 	0 	dx5 	dx4 	dx3 	dx2 	dx1 	dx0
   // 3 	0 	dy5 	dy4 	dy3 	dy2 	dy1 	dy0
-  std::array<uint8, 3> packet;
-  packet[0] = 0x40 | (uint8(m_button_states[0]) << 5) | (uint8(m_button_states[1]) << 4) | ((packet_dy & 0xC0) >> 4) |
+  std::array<u8, 3> packet;
+  packet[0] = 0x40 | (u8(m_button_states[0]) << 5) | (u8(m_button_states[1]) << 4) | ((packet_dy & 0xC0) >> 4) |
               ((packet_dx & 0xC0) >> 6);
   packet[1] = (packet_dx & 0x3F);
   packet[2] = (packet_dy & 0x3F);
@@ -212,7 +212,7 @@ void SerialMouse::OnSerialPortRTSChanged(bool high)
   m_serial_port->SetClearToSend(high);
 
   // No clue if this is correct, Windows seems to expect it though..
-  uint8 data = 0x4D;
+  u8 data = 0x4D;
   m_serial_port->WriteData(&data, sizeof(data));
 }
 

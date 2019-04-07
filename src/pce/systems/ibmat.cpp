@@ -14,7 +14,7 @@ DEFINE_OBJECT_GENERIC_FACTORY(IBMAT);
 BEGIN_OBJECT_PROPERTY_MAP(IBMAT)
 END_OBJECT_PROPERTY_MAP()
 
-IBMAT::IBMAT(float cpu_frequency /* = 2000000.0f */, uint32 memory_size /* = 1024 * 1024 */,
+IBMAT::IBMAT(float cpu_frequency /* = 2000000.0f */, u32 memory_size /* = 1024 * 1024 */,
              const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(type_info), m_low_bios_file_path("romimages/Bi286-l.bin"), m_high_bios_file_path("romimages/Bi286-h.bin")
 {
@@ -73,14 +73,14 @@ void IBMAT::ConnectSystemIOPorts()
   m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&IBMAT::IOWriteSystemControlPortA, this, std::placeholders::_2));
 
   //     // NFI what this is...
-  m_bus->ConnectIOPortRead(0x0061, this, [](uint32 port, uint8* value) {
-    static uint8 refresh_request_bit = 0x00;
+  m_bus->ConnectIOPortRead(0x0061, this, [](u32 port, u8* value) {
+    static u8 refresh_request_bit = 0x00;
     *value = refresh_request_bit;
     refresh_request_bit ^= 0x10;
   });
 }
 
-void IBMAT::IOWriteSystemControlPortA(uint8 value)
+void IBMAT::IOWriteSystemControlPortA(u8 value)
 {
   m_system_control_port_a.raw = value;
   SetA20State(m_system_control_port_a.a20_gate);

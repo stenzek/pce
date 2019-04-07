@@ -134,7 +134,7 @@ public:
   void Deactivate();
 
   // Changing frequency of hz events.
-  void SetFrequency(float new_frequency, uint32 interval = 1);
+  void SetFrequency(float new_frequency, u32 interval = 1);
 
   // Changing active state.
   void SetActive(bool active);

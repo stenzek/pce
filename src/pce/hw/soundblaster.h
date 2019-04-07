@@ -30,8 +30,8 @@ public:
     SoundBlaster16
   };
 
-  SoundBlaster(const String& identifier, Type type = Type::SoundBlaster10, uint32 iobase = 0x220, uint32 irq = 7,
-               uint32 dma = 1, uint32 dma16 = 5, const ObjectTypeInfo* type_info = &s_type_info);
+  SoundBlaster(const String& identifier, Type type = Type::SoundBlaster10, u32 iobase = 0x220, u32 irq = 7, u32 dma = 1,
+               u32 dma16 = 5, const ObjectTypeInfo* type_info = &s_type_info);
   ~SoundBlaster();
 
   bool Initialize(System* system, Bus* bus) override;
@@ -40,10 +40,10 @@ public:
   void Reset() override;
 
 private:
-  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('C', 'L', 'S', 'B');
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'L', 'S', 'B');
   static constexpr Audio::SampleFormat DSP_OUTPUT_FORMAT = Audio::SampleFormat::Signed16;
 
-  enum : uint32
+  enum : u32
   {
     DSP_VERSION_SB10 = 0x0105,
     DSP_VERSION_SB20 = 0x0202,
@@ -52,7 +52,7 @@ private:
     DSP_VERSION_SB16 = 0x0404
   };
 
-  enum DSP_COMMAND : uint8
+  enum DSP_COMMAND : u8
   {
     DSP_COMMAND_IDENTIFY = 0xE0,
     DSP_COMMAND_VERSION = 0xE1,
@@ -110,7 +110,7 @@ private:
     DSP_COMMAND_INTERRUPT_REQUEST_16 = 0xF3,
   };
 
-  enum DSP_SAMPLE_FORMAT : uint32
+  enum DSP_SAMPLE_FORMAT : u32
   {
     DSP_SAMPLE_FORMAT_U8_PCM,
     DSP_SAMPLE_FORMAT_S8_PCM,
@@ -134,10 +134,10 @@ private:
   InterruptController* m_interrupt_controller = nullptr;
   DMAController* m_dma_controller = nullptr;
   Type m_type;
-  uint32 m_io_base;
-  uint32 m_irq;
-  uint32 m_dma_channel;
-  uint32 m_dma_channel_16;
+  u32 m_io_base;
+  u32 m_irq;
+  u32 m_dma_channel;
+  u32 m_dma_channel_16;
   bool m_interrupt_pending = false;
   bool m_interrupt_pending_16 = false;
 
@@ -147,50 +147,50 @@ private:
   //////////////////////////////////////////////////////////////////////////
   // DSP
   //////////////////////////////////////////////////////////////////////////
-  uint32 m_dsp_version = 0;
+  u32 m_dsp_version = 0;
 
-  std::deque<uint8> m_dsp_input_buffer;
-  std::deque<uint8> m_dsp_output_buffer;
+  std::deque<u8> m_dsp_input_buffer;
+  std::deque<u8> m_dsp_output_buffer;
 
   bool m_dsp_reset = true;
-  uint8 m_dsp_test_register = 0;
+  u8 m_dsp_test_register = 0;
 
-  static uint32 GetDSPVersion(Type type);
+  static u32 GetDSPVersion(Type type);
   static YMF262::Mode GetOPLMode(Type type);
   static size_t GetBytesPerSample(DSP_SAMPLE_FORMAT format);
-  static uint32 GetSamplesPerDMATransfer(DSP_SAMPLE_FORMAT format);
+  static u32 GetSamplesPerDMATransfer(DSP_SAMPLE_FORMAT format);
 
   void ResetDSP(bool soft_reset);
   void UpdateDSPAudioOutput();
 
-  uint8 ReadDSPDataPort();
-  uint8 ReadDSPDataWriteStatusPort();
-  uint8 ReadDSPDataAvailableStatusPort();
-  void WriteDSPResetPort(uint8 value);
-  void WriteDSPCommandDataPort(uint8 value);
+  u8 ReadDSPDataPort();
+  u8 ReadDSPDataWriteStatusPort();
+  u8 ReadDSPDataAvailableStatusPort();
+  void WriteDSPResetPort(u8 value);
+  void WriteDSPCommandDataPort(u8 value);
 
   size_t GetDSPInputBufferLength() const { return m_dsp_input_buffer.size(); }
   void ClearDSPInputBuffer() { m_dsp_input_buffer.clear(); }
 
-  uint8 GetDSPCommand() const
+  u8 GetDSPCommand() const
   {
     DebugAssert(m_dsp_input_buffer.size() > 0);
     return m_dsp_input_buffer[0];
   }
-  uint8 GetDSPCommandParameterByte() const
+  u8 GetDSPCommandParameterByte() const
   {
     DebugAssert(m_dsp_input_buffer.size() > 1);
     return m_dsp_input_buffer[1];
   }
-  uint16 GetDSPCommandParameterWord() const
+  u16 GetDSPCommandParameterWord() const
   {
     DebugAssert(m_dsp_input_buffer.size() > 2);
     return ZeroExtend16(m_dsp_input_buffer[1]) | (ZeroExtend16(m_dsp_input_buffer[2]) << 8);
   }
 
   void ClearDSPOutputBuffer();
-  void WriteDSPOutputBuffer(uint8 value);
-  void ClearAndWriteDSPOutputBuffer(uint8 value);
+  void WriteDSPOutputBuffer(u8 value);
+  void ClearAndWriteDSPOutputBuffer(u8 value);
 
   struct DACState
   {
@@ -199,8 +199,8 @@ private:
 
     bool enable_speaker = false;
     float frequency = 1000000.0f;
-    uint32 silence_samples = 0;
-    uint32 dma_block_size = 0;
+    u32 silence_samples = 0;
+    u32 dma_block_size = 0;
     bool dma_paused = false;
     bool dma_active = false;
     bool dma_16 = false;
@@ -208,16 +208,16 @@ private:
     bool stereo = false;
 
     // FIFO for DSP, contains samples in the format that they are submitted
-    std::deque<uint8> fifo;
-    std::array<int16, 2> last_sample = {};
+    std::deque<u8> fifo;
+    std::array<s16, 2> last_sample = {};
     DSP_SAMPLE_FORMAT sample_format;
 
     // Subsample for ADPCM samples
-    uint32 adpcm_subsample = 0;
+    u32 adpcm_subsample = 0;
 
     // Reference byte for ADPCM samples
-    int32 adpcm_scale = 0;
-    uint8 adpcm_reference = 0;
+    s32 adpcm_scale = 0;
+    u8 adpcm_reference = 0;
     bool adpcm_reference_update_pending = 0;
   };
   DACState m_dac_state;
@@ -227,33 +227,33 @@ private:
   void UpdateDACSampleEventState();
   void SetDACSampleRate(float frequency);
 
-  int16 DecodeDACOutputSample(int16 last_sample);
+  s16 DecodeDACOutputSample(s16 last_sample);
   bool IsDACFIFOFull() const;
   void StartDACDMA(bool dma16, DSP_SAMPLE_FORMAT format, bool stereo, bool update_reference_byte, bool autoinit,
-                   bool fifo_enable, uint32 length_in_bytes);
+                   bool fifo_enable, u32 length_in_bytes);
   void StopDACDMA();
 
   struct ADCState
   {
     // float frequency = 1000000.0f;
-    int32 e2_value = 0xAA;
-    uint32 e2_count = 0;
-    int16 last_sample = 0;
+    s32 e2_value = 0xAA;
+    u32 e2_count = 0;
+    s16 last_sample = 0;
     bool dma_paused = false;
     bool dma_active = false;
     bool dma_16 = false;
 
-    std::deque<uint8> fifo;
+    std::deque<u8> fifo;
   };
   ADCState m_adc_state;
 
-  void StartADCDMA(bool dma16, uint32 length_in_bytes);
+  void StartADCDMA(bool dma16, u32 length_in_bytes);
   void StopADCDMA();
 
   struct DMAState
   {
-    uint32 length = 0;
-    uint32 remaining_bytes = 0;
+    u32 length = 0;
+    u32 remaining_bytes = 0;
     bool dma_to_host = false;
     bool autoinit = false;
     bool active = false;
@@ -263,12 +263,12 @@ private:
   DMAState m_dma_16_state;
 
   bool IsDMAActive(bool dma16) const;
-  void StartDMA(bool dma16, bool dma_to_host, bool autoinit, uint32 length, bool request = true);
+  void StartDMA(bool dma16, bool dma_to_host, bool autoinit, u32 length, bool request = true);
   void SetDMARequest(bool dma16, bool request);
   void StopDMA(bool dma16);
 
-  void DMAReadCallback(IOPortDataSize size, uint32* value, uint32 remaining_bytes, bool is_16_bit);
-  void DMAWriteCallback(IOPortDataSize size, uint32 value, uint32 remaining_bytes, bool is_16_bit);
+  void DMAReadCallback(IOPortDataSize size, u32* value, u32 remaining_bytes, bool is_16_bit);
+  void DMAWriteCallback(IOPortDataSize size, u32 value, u32 remaining_bytes, bool is_16_bit);
 
   struct MixerState
   {
@@ -276,19 +276,19 @@ private:
     std::array<float, 2> voice_volume;
   };
   MixerState m_mixer_state = {};
-  uint8 m_mixer_index_register = 0;
+  u8 m_mixer_index_register = 0;
 
-  uint8 ReadMixerIndexPort();
-  uint8 ReadMixerDataPort();
-  void WriteMixerIndexPort(uint8 value);
-  void WriteMixerDataPort(uint8 value);
+  u8 ReadMixerIndexPort();
+  u8 ReadMixerDataPort();
+  void WriteMixerIndexPort(u8 value);
+  void WriteMixerDataPort(u8 value);
 
-  uint8 ReadMixerDataPortCT1335();            // SB2.0
-  uint8 ReadMixerDataPortCT1345();            // SBPro
-  uint8 ReadMixerDataPortCT1745();            // SB16
-  void WriteMixerDataPortCT1335(uint8 value); // SB2.0
-  void WriteMixerDataPortCT1345(uint8 value); // SBPro
-  void WriteMixerDataPortCT1745(uint8 value); // SB16
+  u8 ReadMixerDataPortCT1335();            // SB2.0
+  u8 ReadMixerDataPortCT1345();            // SBPro
+  u8 ReadMixerDataPortCT1745();            // SB16
+  void WriteMixerDataPortCT1335(u8 value); // SB2.0
+  void WriteMixerDataPortCT1345(u8 value); // SBPro
+  void WriteMixerDataPortCT1745(u8 value); // SB16
 
   void ResetMixer();
 };

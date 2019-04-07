@@ -28,7 +28,7 @@ int DebuggerCodeModel::columnCount(const QModelIndex& parent /*= QModelIndex()*/
 
 QVariant DebuggerCodeModel::data(const QModelIndex& index, int role /*= Qt::DisplayRole*/) const
 {
-  uint32 reg_index = static_cast<uint32>(index.row());
+  u32 reg_index = static_cast<u32>(index.row());
   if (index.column() < 0 || index.column() >= NUM_COLUMNS)
     return QVariant();
 
@@ -49,14 +49,14 @@ QVariant DebuggerCodeModel::data(const QModelIndex& index, int role /*= Qt::Disp
       case 1:
       {
         // Bytes
-        uint32 instruction_length;
+        u32 instruction_length;
         if (!m_interface->DisassembleCode(address, nullptr, &instruction_length))
           return "<invalid>";
 
         SmallString value;
-        for (uint32 i = 0; i < instruction_length; i++)
+        for (u32 i = 0; i < instruction_length; i++)
         {
-          uint8 byte_value;
+          u8 byte_value;
           if (!m_interface->ReadMemoryByte(address + i, &byte_value))
             break;
           value.AppendFormattedString("%s%02X", (i == 0) ? "" : " ", ZeroExtend32(byte_value));
@@ -165,7 +165,7 @@ int DebuggerCodeModel::getRowForAddress(LinearMemoryAddress address)
     }
 
     // Get the instruction length
-    uint32 instruction_size;
+    u32 instruction_size;
     if (!m_interface->DisassembleCode(current_address, nullptr, &instruction_size))
     {
       resetCodeView(address);
@@ -217,7 +217,7 @@ bool DebuggerCodeModel::getAddressForRow(LinearMemoryAddress* address, int row) 
   while (last_row < row)
   {
     // Get the instruction length
-    uint32 instruction_size;
+    u32 instruction_size;
     if (!m_interface->DisassembleCode(last_address, nullptr, &instruction_size))
       return false;
 
@@ -268,7 +268,7 @@ int DebuggerRegistersModel::columnCount(const QModelIndex& parent /*= QModelInde
 
 QVariant DebuggerRegistersModel::data(const QModelIndex& index, int role /*= Qt::DisplayRole*/) const
 {
-  uint32 reg_index = static_cast<uint32>(index.row());
+  u32 reg_index = static_cast<u32>(index.row());
   if (reg_index > m_interface->GetRegisterCount())
     return QVariant();
 
@@ -364,14 +364,14 @@ QVariant DebuggerStackModel::data(const QModelIndex& index, int role /*= Qt::Dis
 
   if (width == DebuggerInterface::RegisterType::Word)
   {
-    uint16 value;
+    u16 value;
     if (!m_interface->ReadMemoryWord(address, &value))
       return QVariant();
     return QString::asprintf("0x%04X", ZeroExtend32(value));
   }
   else
   {
-    uint32 value;
+    u32 value;
     if (!m_interface->ReadMemoryDWord(address, &value))
       return QVariant();
     return QString::asprintf("0x%08X", ZeroExtend32(value));

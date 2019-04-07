@@ -26,11 +26,11 @@ public:
     Other
   };
 
-  static constexpr uint32 PHYSICAL_MEMORY_BITS = 20;
+  static constexpr u32 PHYSICAL_MEMORY_BITS = 20;
   static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS_8K = 0xFE000;
   static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS_32K = 0xF8000;
 
-  IBMXT(float cpu_frequency = 4770000.0f, uint32 memory_size = 640 * 1024, VideoType video_type = VideoType::Other,
+  IBMXT(float cpu_frequency = 4770000.0f, u32 memory_size = 640 * 1024, VideoType video_type = VideoType::Other,
         const ObjectTypeInfo* type_info = &s_type_info);
   ~IBMXT();
 
@@ -43,7 +43,7 @@ public:
   auto GetTimer() const { return m_timer; }
 
 private:
-  static constexpr uint32 SERIALIZATION_ID = Component::MakeSerializationID('P', 'C', 'X', 'T');
+  static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('P', 'C', 'X', 'T');
   static constexpr size_t SWITCH_COUNT = 8;
 
   virtual bool LoadSystemState(BinaryReader& reader) override;
@@ -54,8 +54,8 @@ private:
   void SetSwitches();
 
   // IO read/write handlers
-  void HandlePortRead(uint32 port, uint8* value);
-  void HandlePortWrite(uint32 port, uint8 value);
+  void HandlePortRead(u32 port, u8* value);
+  void HandlePortWrite(u32 port, u8 value);
 
   String m_bios_file_path;
 
@@ -70,7 +70,7 @@ private:
   VideoType m_video_type = VideoType::Other;
 
   // State to save below:
-  uint8 m_nmi_mask = 0;
+  u8 m_nmi_mask = 0;
 };
 
 } // namespace Systems

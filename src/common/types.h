@@ -79,78 +79,78 @@ constexpr TReturn SignExtend(TValue value)
 
 // Type-specific helpers
 template<typename TValue>
-constexpr uint16 ZeroExtend16(TValue value)
+constexpr u16 ZeroExtend16(TValue value)
 {
-  return ZeroExtend<uint16, TValue>(value);
+  return ZeroExtend<u16, TValue>(value);
 }
 template<typename TValue>
-constexpr uint32 ZeroExtend32(TValue value)
+constexpr u32 ZeroExtend32(TValue value)
 {
-  return ZeroExtend<uint32, TValue>(value);
+  return ZeroExtend<u32, TValue>(value);
 }
 template<typename TValue>
-constexpr uint64 ZeroExtend64(TValue value)
+constexpr u64 ZeroExtend64(TValue value)
 {
-  return ZeroExtend<uint64, TValue>(value);
+  return ZeroExtend<u64, TValue>(value);
 }
 template<typename TValue>
-constexpr uint16 SignExtend16(TValue value)
+constexpr u16 SignExtend16(TValue value)
 {
-  return SignExtend<uint16, TValue>(value);
+  return SignExtend<u16, TValue>(value);
 }
 template<typename TValue>
-constexpr uint32 SignExtend32(TValue value)
+constexpr u32 SignExtend32(TValue value)
 {
-  return SignExtend<uint32, TValue>(value);
+  return SignExtend<u32, TValue>(value);
 }
 template<typename TValue>
-constexpr uint64 SignExtend64(TValue value)
+constexpr u64 SignExtend64(TValue value)
 {
-  return SignExtend<uint64, TValue>(value);
+  return SignExtend<u64, TValue>(value);
 }
 template<typename TValue>
-constexpr uint8 Truncate8(TValue value)
+constexpr u8 Truncate8(TValue value)
 {
-  return static_cast<uint8>(static_cast<typename std::make_unsigned<decltype(value)>::type>(value));
+  return static_cast<u8>(static_cast<typename std::make_unsigned<decltype(value)>::type>(value));
 }
 template<typename TValue>
-constexpr uint16 Truncate16(TValue value)
+constexpr u16 Truncate16(TValue value)
 {
-  return static_cast<uint16>(static_cast<typename std::make_unsigned<decltype(value)>::type>(value));
+  return static_cast<u16>(static_cast<typename std::make_unsigned<decltype(value)>::type>(value));
 }
 template<typename TValue>
-constexpr uint32 Truncate32(TValue value)
+constexpr u32 Truncate32(TValue value)
 {
-  return static_cast<uint32>(static_cast<typename std::make_unsigned<decltype(value)>::type>(value));
+  return static_cast<u32>(static_cast<typename std::make_unsigned<decltype(value)>::type>(value));
 }
 
 // BCD helpers
-inline uint8 DecimalToBCD(uint8 value)
+inline u8 DecimalToBCD(u8 value)
 {
   return ((value / 10) << 4) + (value % 10);
 }
 
-inline uint8 BCDToDecimal(uint8 value)
+inline u8 BCDToDecimal(u8 value)
 {
   return ((value >> 4) * 10) + (value % 16);
 }
 
 // Boolean to integer
-constexpr uint8 BoolToUInt8(bool value)
+constexpr u8 BoolToUInt8(bool value)
 {
-  return static_cast<uint8>(value);
+  return static_cast<u8>(value);
 }
-constexpr uint16 BoolToUInt16(bool value)
+constexpr u16 BoolToUInt16(bool value)
 {
-  return static_cast<uint16>(value);
+  return static_cast<u16>(value);
 }
-constexpr uint32 BoolToUInt32(bool value)
+constexpr u32 BoolToUInt32(bool value)
 {
-  return static_cast<uint32>(value);
+  return static_cast<u32>(value);
 }
-constexpr uint64 BoolToUInt64(bool value)
+constexpr u64 BoolToUInt64(bool value)
 {
-  return static_cast<uint64>(value);
+  return static_cast<u64>(value);
 }
 
 // Integer to boolean

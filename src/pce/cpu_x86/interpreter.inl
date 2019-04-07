@@ -26,7 +26,7 @@ void Interpreter::FetchModRM(CPU* cpu)
   cpu->idata.modrm = cpu->FetchInstructionByte();
 }
 
-template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
+template<OperandSize op_size, OperandMode op_mode, u32 op_constant>
 void Interpreter::FetchImmediate(CPU* cpu)
 {
   switch (op_mode)
@@ -114,7 +114,7 @@ void Interpreter::FetchImmediate(CPU* cpu)
       }
       else
       {
-        uint8 displacement_size = addr->displacement_size;
+        u8 displacement_size = addr->displacement_size;
         if (addr->addressing_mode == ModRMAddressingMode::SIB)
         {
           // SIB has a displacement instead of base if set to EBP
@@ -157,22 +157,22 @@ void Interpreter::CalculateEffectiveAddress(CPU* cpu)
     case OperandMode_ModRM_RM:
     {
       // NOTE: The uint16() cast here is needed otherwise the result is an int rather than uint16.
-      uint8 index = ((cpu->idata.modrm >> 6) << 3) | (cpu->idata.modrm & 7);
+      u8 index = ((cpu->idata.modrm >> 6) << 3) | (cpu->idata.modrm & 7);
       if (cpu->idata.address_size == AddressSize_16)
       {
         switch (index & 31)
         {
           case 0:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.BX + cpu->m_registers.SI));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.SI));
             break;
           case 1:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.BX + cpu->m_registers.DI));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.DI));
             break;
           case 2:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.BP + cpu->m_registers.SI));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.SI));
             break;
           case 3:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.BP + cpu->m_registers.DI));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.DI));
             break;
           case 4:
             cpu->m_effective_address = ZeroExtend32(cpu->m_registers.SI);
@@ -188,59 +188,59 @@ void Interpreter::CalculateEffectiveAddress(CPU* cpu)
             break;
           case 8:
             cpu->m_effective_address =
-              ZeroExtend32(uint16(cpu->m_registers.BX + cpu->m_registers.SI + cpu->idata.disp16));
+              ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 9:
             cpu->m_effective_address =
-              ZeroExtend32(uint16(cpu->m_registers.BX + cpu->m_registers.DI + cpu->idata.disp16));
+              ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 10:
             cpu->m_effective_address =
-              ZeroExtend32(uint16(cpu->m_registers.BP + cpu->m_registers.SI + cpu->idata.disp16));
+              ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 11:
             cpu->m_effective_address =
-              ZeroExtend32(uint16(cpu->m_registers.BP + cpu->m_registers.DI + cpu->idata.disp16));
+              ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 12:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.SI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 13:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.DI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 14:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.BP + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BP + cpu->idata.disp16));
             break;
           case 15:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.BX + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BX + cpu->idata.disp16));
             break;
           case 16:
             cpu->m_effective_address =
-              ZeroExtend32(uint16(cpu->m_registers.BX + cpu->m_registers.SI + cpu->idata.disp16));
+              ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 17:
             cpu->m_effective_address =
-              ZeroExtend32(uint16(cpu->m_registers.BX + cpu->m_registers.DI + cpu->idata.disp16));
+              ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 18:
             cpu->m_effective_address =
-              ZeroExtend32(uint16(cpu->m_registers.BP + cpu->m_registers.SI + cpu->idata.disp16));
+              ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 19:
             cpu->m_effective_address =
-              ZeroExtend32(uint16(cpu->m_registers.BP + cpu->m_registers.DI + cpu->idata.disp16));
+              ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 20:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.SI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 21:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.DI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 22:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.BP + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BP + cpu->idata.disp16));
             break;
           case 23:
-            cpu->m_effective_address = ZeroExtend32(uint16(cpu->m_registers.BX + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BX + cpu->idata.disp16));
             break;
           case 24:
             cpu->m_effective_address = Reg16_AX;
@@ -366,12 +366,12 @@ void Interpreter::CalculateEffectiveAddress(CPU* cpu)
           case 20:
           {
             // SIB modes
-            const uint32 base_addr =
+            const u32 base_addr =
               cpu->idata.HasSIBBase() ? cpu->m_registers.reg32[cpu->idata.GetSIBBaseRegister()] : 0;
-            const uint32 index_addr =
+            const u32 index_addr =
               cpu->idata.HasSIBIndex() ? cpu->m_registers.reg32[cpu->idata.GetSIBIndexRegister()] : 0;
-            const uint8 scaling_factor = cpu->idata.GetSIBScaling();
-            const uint32 displacement = cpu->idata.disp32;
+            const u8 scaling_factor = cpu->idata.GetSIBScaling();
+            const u32 displacement = cpu->idata.disp32;
             cpu->m_effective_address = base_addr;
             cpu->m_effective_address += index_addr << scaling_factor;
             cpu->m_effective_address += displacement;
@@ -384,7 +384,7 @@ void Interpreter::CalculateEffectiveAddress(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 VirtualMemoryAddress Interpreter::CalculateJumpTarget(CPU* cpu)
 {
   static_assert(dst_mode == OperandMode_Relative || dst_mode == OperandMode_ModRM_RM,
@@ -405,8 +405,8 @@ VirtualMemoryAddress Interpreter::CalculateJumpTarget(CPU* cpu)
   }
 }
 
-template<OperandMode mode, uint32 constant>
-uint8 Interpreter::ReadByteOperand(CPU* cpu)
+template<OperandMode mode, u32 constant>
+u8 Interpreter::ReadByteOperand(CPU* cpu)
 {
   switch (mode)
   {
@@ -445,8 +445,8 @@ uint8 Interpreter::ReadByteOperand(CPU* cpu)
   }
 }
 
-template<OperandMode mode, uint32 constant>
-uint16 Interpreter::ReadWordOperand(CPU* cpu)
+template<OperandMode mode, u32 constant>
+u16 Interpreter::ReadWordOperand(CPU* cpu)
 {
   switch (mode)
   {
@@ -476,8 +476,8 @@ uint16 Interpreter::ReadWordOperand(CPU* cpu)
   }
 }
 
-template<OperandMode mode, uint32 constant>
-uint32 Interpreter::ReadDWordOperand(CPU* cpu)
+template<OperandMode mode, u32 constant>
+u32 Interpreter::ReadDWordOperand(CPU* cpu)
 {
   switch (mode)
   {
@@ -515,15 +515,15 @@ uint32 Interpreter::ReadDWordOperand(CPU* cpu)
   }
 }
 
-template<OperandSize size, OperandMode mode, uint32 constant>
-uint16 Interpreter::ReadSignExtendedWordOperand(CPU* cpu)
+template<OperandSize size, OperandMode mode, u32 constant>
+u16 Interpreter::ReadSignExtendedWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
   {
     case OperandSize_8:
     {
-      uint8 value;
+      u8 value;
       switch (mode)
       {
         case OperandMode_Register:
@@ -561,15 +561,15 @@ uint16 Interpreter::ReadSignExtendedWordOperand(CPU* cpu)
   }
 }
 
-template<OperandSize size, OperandMode mode, uint32 constant>
-uint32 Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
+template<OperandSize size, OperandMode mode, u32 constant>
+u32 Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
   {
     case OperandSize_8:
     {
-      uint8 value;
+      u8 value;
       switch (mode)
       {
         case OperandMode_Register:
@@ -601,7 +601,7 @@ uint32 Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
     }
     case OperandSize_16:
     {
-      uint16 value;
+      u16 value;
       switch (mode)
       {
         case OperandMode_Register:
@@ -639,15 +639,15 @@ uint32 Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
   }
 }
 
-template<OperandSize size, OperandMode mode, uint32 constant>
-uint16 Interpreter::ReadZeroExtendedWordOperand(CPU* cpu)
+template<OperandSize size, OperandMode mode, u32 constant>
+u16 Interpreter::ReadZeroExtendedWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
   {
     case OperandSize_8:
     {
-      uint8 value;
+      u8 value;
       switch (mode)
       {
         case OperandMode_Constant:
@@ -688,15 +688,15 @@ uint16 Interpreter::ReadZeroExtendedWordOperand(CPU* cpu)
   }
 }
 
-template<OperandSize size, OperandMode mode, uint32 constant>
-uint32 Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
+template<OperandSize size, OperandMode mode, u32 constant>
+u32 Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
 {
   const OperandSize actual_size = (size == OperandSize_Count) ? cpu->idata.operand_size : size;
   switch (actual_size)
   {
     case OperandSize_8:
     {
-      uint8 value;
+      u8 value;
       switch (mode)
       {
         case OperandMode_Constant:
@@ -731,7 +731,7 @@ uint32 Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
     }
     case OperandSize_16:
     {
-      uint16 value;
+      u16 value;
       switch (mode)
       {
         case OperandMode_Constant:
@@ -772,8 +772,8 @@ uint32 Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
   }
 }
 
-template<OperandMode mode, uint32 constant>
-void Interpreter::WriteByteOperand(CPU* cpu, uint8 value)
+template<OperandMode mode, u32 constant>
+void Interpreter::WriteByteOperand(CPU* cpu, u8 value)
 {
   switch (mode)
   {
@@ -803,8 +803,8 @@ void Interpreter::WriteByteOperand(CPU* cpu, uint8 value)
   }
 }
 
-template<OperandMode mode, uint32 constant>
-void Interpreter::WriteWordOperand(CPU* cpu, uint16 value)
+template<OperandMode mode, u32 constant>
+void Interpreter::WriteWordOperand(CPU* cpu, u16 value)
 {
   switch (mode)
   {
@@ -834,8 +834,8 @@ void Interpreter::WriteWordOperand(CPU* cpu, uint16 value)
   }
 }
 
-template<OperandMode mode, uint32 constant>
-void Interpreter::WriteDWordOperand(CPU* cpu, uint32 value)
+template<OperandMode mode, u32 constant>
+void Interpreter::WriteDWordOperand(CPU* cpu, u32 value)
 {
   switch (mode)
   {
@@ -867,7 +867,7 @@ void Interpreter::WriteDWordOperand(CPU* cpu, uint32 value)
 }
 
 template<OperandMode mode>
-void Interpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, uint16* segment_selector,
+void Interpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, u16* segment_selector,
                                         VirtualMemoryAddress* address)
 {
   // Can either be far immediate, or memory
@@ -915,31 +915,31 @@ void Interpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, uint16* segm
   }
 }
 
-template<OperandMode mode, uint32 constant>
-uint64 Interpreter::ReadQWordOperand(CPU* cpu)
+template<OperandMode mode, u32 constant>
+u64 Interpreter::ReadQWordOperand(CPU* cpu)
 {
   // Only possible for memory operands.
   static_assert(mode == OperandMode_Memory || mode == OperandMode_ModRM_RM);
 
-  uint32 address;
+  u32 address;
   if constexpr (mode == OperandMode_Memory)
     address = cpu->idata.disp32;
   else
     address = cpu->m_effective_address;
 
   // TODO: Is the masking here correct?
-  uint32 qword_low = cpu->ReadMemoryDWord(cpu->idata.segment, address);
-  uint32 qword_high = cpu->ReadMemoryDWord(cpu->idata.segment, (address + 4) & cpu->idata.GetAddressMask());
+  u32 qword_low = cpu->ReadMemoryDWord(cpu->idata.segment, address);
+  u32 qword_high = cpu->ReadMemoryDWord(cpu->idata.segment, (address + 4) & cpu->idata.GetAddressMask());
   return (ZeroExtend64(qword_high) << 32) | ZeroExtend64(qword_low);
 }
 
-template<OperandMode mode, uint32 constant>
-void Interpreter::WriteQWordOperand(CPU* cpu, uint64 value)
+template<OperandMode mode, u32 constant>
+void Interpreter::WriteQWordOperand(CPU* cpu, u64 value)
 {
   // Only possible for memory operands.
   static_assert(mode == OperandMode_Memory || mode == OperandMode_ModRM_RM);
 
-  uint32 address;
+  u32 address;
   if constexpr (mode == OperandMode_Memory)
     address = cpu->idata.disp32;
   else
@@ -1020,15 +1020,15 @@ bool Interpreter::TestJumpCondition(CPU* cpu)
   }
 }
 
-constexpr bool IsSign(uint8 value)
+constexpr bool IsSign(u8 value)
 {
   return !!(value >> 7);
 }
-constexpr bool IsSign(uint16 value)
+constexpr bool IsSign(u16 value)
 {
   return !!(value >> 15);
 }
-constexpr bool IsSign(uint32 value)
+constexpr bool IsSign(u32 value)
 {
   return !!(value >> 31);
 }
@@ -1047,13 +1047,13 @@ constexpr bool IsAdjust(T old_value, T new_value)
 template<typename T>
 constexpr bool IsParity(T value)
 {
-  return static_cast<bool>(~_mm_popcnt_u32(static_cast<uint32>(value & 0xFF)) & 1);
+  return static_cast<bool>(~_mm_popcnt_u32(static_cast<u32>(value & 0xFF)) & 1);
 }
 #else
 template<typename T>
 constexpr bool IsParity(T value)
 {
-  return static_cast<bool>(~Y_popcnt(static_cast<uint8>(value & 0xFF)) & 1);
+  return static_cast<bool>(~Y_popcnt(static_cast<u8>(value & 0xFF)) & 1);
 }
 #endif
 
@@ -1072,12 +1072,12 @@ constexpr bool IsParity(T value)
   } while (0)
 //#define SET_FLAG(regs, flag, expr) (regs)->EFLAGS.flag = (expr)
 
-inline uint8 ALUOp_Add8(CPU::Registers* registers, uint8 lhs, uint8 rhs)
+inline u8 ALUOp_Add8(CPU::Registers* registers, u8 lhs, u8 rhs)
 {
-  uint16 old_value = lhs;
-  uint16 add_value = rhs;
-  uint16 new_value = old_value + add_value;
-  uint8 out_value = uint8(new_value & 0xFF);
+  u16 old_value = lhs;
+  u16 add_value = rhs;
+  u16 new_value = old_value + add_value;
+  u8 out_value = u8(new_value & 0xFF);
 
   SET_FLAG(registers, CF, ((new_value & 0xFF00) != 0));
   SET_FLAG(registers, OF, ((((new_value ^ old_value) & (new_value ^ add_value)) & 0x80) == 0x80));
@@ -1089,13 +1089,13 @@ inline uint8 ALUOp_Add8(CPU::Registers* registers, uint8 lhs, uint8 rhs)
   return out_value;
 }
 
-inline uint8 ALUOp_Adc8(CPU::Registers* registers, uint8 lhs, uint8 rhs)
+inline u8 ALUOp_Adc8(CPU::Registers* registers, u8 lhs, u8 rhs)
 {
-  uint16 old_value = lhs;
-  uint16 add_value = rhs;
-  uint16 carry_in = (registers->EFLAGS.CF) ? 1 : 0;
-  uint16 new_value = old_value + add_value + carry_in;
-  uint8 out_value = uint8(new_value & 0xFF);
+  u16 old_value = lhs;
+  u16 add_value = rhs;
+  u16 carry_in = (registers->EFLAGS.CF) ? 1 : 0;
+  u16 new_value = old_value + add_value + carry_in;
+  u8 out_value = u8(new_value & 0xFF);
 
   SET_FLAG(registers, CF, ((new_value & 0xFF00) != 0));
   SET_FLAG(registers, OF, ((((new_value ^ old_value) & (new_value ^ add_value)) & 0x80) == 0x80));
@@ -1107,12 +1107,12 @@ inline uint8 ALUOp_Adc8(CPU::Registers* registers, uint8 lhs, uint8 rhs)
   return out_value;
 }
 
-inline uint8 ALUOp_Sub8(CPU::Registers* registers, uint8 lhs, uint8 rhs)
+inline u8 ALUOp_Sub8(CPU::Registers* registers, u8 lhs, u8 rhs)
 {
-  uint16 old_value = lhs;
-  uint16 sub_value = rhs;
-  uint16 new_value = old_value - sub_value;
-  uint8 out_value = uint8(new_value & 0xFF);
+  u16 old_value = lhs;
+  u16 sub_value = rhs;
+  u16 new_value = old_value - sub_value;
+  u8 out_value = u8(new_value & 0xFF);
 
   SET_FLAG(registers, CF, ((new_value & 0xFF00) != 0));
   SET_FLAG(registers, OF, ((((new_value ^ old_value) & (old_value ^ sub_value)) & 0x80) == 0x80));
@@ -1124,13 +1124,13 @@ inline uint8 ALUOp_Sub8(CPU::Registers* registers, uint8 lhs, uint8 rhs)
   return out_value;
 }
 
-inline uint8 ALUOp_Sbb8(CPU::Registers* registers, uint8 lhs, uint8 rhs)
+inline u8 ALUOp_Sbb8(CPU::Registers* registers, u8 lhs, u8 rhs)
 {
-  uint16 old_value = lhs;
-  uint16 sub_value = rhs;
-  uint16 carry_in = registers->EFLAGS.CF ? 1 : 0;
-  uint16 new_value = old_value - sub_value - carry_in;
-  uint8 out_value = uint8(new_value & 0xFF);
+  u16 old_value = lhs;
+  u16 sub_value = rhs;
+  u16 carry_in = registers->EFLAGS.CF ? 1 : 0;
+  u16 new_value = old_value - sub_value - carry_in;
+  u8 out_value = u8(new_value & 0xFF);
 
   SET_FLAG(registers, CF, ((new_value & 0xFF00) != 0));
   SET_FLAG(registers, OF, ((((new_value ^ old_value) & (old_value ^ sub_value)) & 0x80) == 0x80));
@@ -1142,12 +1142,12 @@ inline uint8 ALUOp_Sbb8(CPU::Registers* registers, uint8 lhs, uint8 rhs)
   return out_value;
 }
 
-inline uint16 ALUOp_Add16(CPU::Registers* registers, uint16 lhs, uint16 rhs)
+inline u16 ALUOp_Add16(CPU::Registers* registers, u16 lhs, u16 rhs)
 {
-  uint32 old_value = lhs;
-  uint32 add_value = rhs;
-  uint32 new_value = old_value + add_value;
-  uint16 out_value = uint16(new_value & 0xFFFF);
+  u32 old_value = lhs;
+  u32 add_value = rhs;
+  u32 new_value = old_value + add_value;
+  u16 out_value = u16(new_value & 0xFFFF);
 
   SET_FLAG(registers, CF, ((new_value & 0xFFFF0000) != 0));
   SET_FLAG(registers, OF, ((((new_value ^ old_value) & (new_value ^ add_value)) & 0x8000) == 0x8000));
@@ -1159,13 +1159,13 @@ inline uint16 ALUOp_Add16(CPU::Registers* registers, uint16 lhs, uint16 rhs)
   return out_value;
 }
 
-inline uint16 ALUOp_Adc16(CPU::Registers* registers, uint16 lhs, uint16 rhs)
+inline u16 ALUOp_Adc16(CPU::Registers* registers, u16 lhs, u16 rhs)
 {
-  uint32 old_value = lhs;
-  uint32 add_value = rhs;
-  uint32 carry_in = (registers->EFLAGS.CF) ? 1 : 0;
-  uint32 new_value = old_value + add_value + carry_in;
-  uint16 out_value = uint16(new_value & 0xFFFF);
+  u32 old_value = lhs;
+  u32 add_value = rhs;
+  u32 carry_in = (registers->EFLAGS.CF) ? 1 : 0;
+  u32 new_value = old_value + add_value + carry_in;
+  u16 out_value = u16(new_value & 0xFFFF);
 
   SET_FLAG(registers, CF, ((new_value & 0xFFFF0000) != 0));
   SET_FLAG(registers, OF, ((((new_value ^ old_value) & (new_value ^ add_value)) & 0x8000) == 0x8000));
@@ -1177,12 +1177,12 @@ inline uint16 ALUOp_Adc16(CPU::Registers* registers, uint16 lhs, uint16 rhs)
   return out_value;
 }
 
-inline uint16 ALUOp_Sub16(CPU::Registers* registers, uint16 lhs, uint16 rhs)
+inline u16 ALUOp_Sub16(CPU::Registers* registers, u16 lhs, u16 rhs)
 {
-  uint32 old_value = lhs;
-  uint32 sub_value = rhs;
-  uint32 new_value = old_value - sub_value;
-  uint16 out_value = uint16(new_value & 0xFFFF);
+  u32 old_value = lhs;
+  u32 sub_value = rhs;
+  u32 new_value = old_value - sub_value;
+  u16 out_value = u16(new_value & 0xFFFF);
 
   SET_FLAG(registers, CF, ((new_value & 0xFFFF0000) != 0));
   SET_FLAG(registers, OF, ((((new_value ^ old_value) & (old_value ^ sub_value)) & 0x8000) == 0x8000));
@@ -1194,13 +1194,13 @@ inline uint16 ALUOp_Sub16(CPU::Registers* registers, uint16 lhs, uint16 rhs)
   return out_value;
 }
 
-inline uint16 ALUOp_Sbb16(CPU::Registers* registers, uint16 lhs, uint16 rhs)
+inline u16 ALUOp_Sbb16(CPU::Registers* registers, u16 lhs, u16 rhs)
 {
-  uint32 old_value = lhs;
-  uint32 sub_value = rhs;
-  uint32 carry_in = registers->EFLAGS.CF ? 1 : 0;
-  uint32 new_value = old_value - sub_value - carry_in;
-  uint16 out_value = uint16(new_value & 0xFFFF);
+  u32 old_value = lhs;
+  u32 sub_value = rhs;
+  u32 carry_in = registers->EFLAGS.CF ? 1 : 0;
+  u32 new_value = old_value - sub_value - carry_in;
+  u16 out_value = u16(new_value & 0xFFFF);
 
   SET_FLAG(registers, CF, ((new_value & 0xFFFF0000) != 0));
   SET_FLAG(registers, OF, ((((new_value ^ old_value) & (old_value ^ sub_value)) & 0x8000) == 0x8000));
@@ -1212,12 +1212,12 @@ inline uint16 ALUOp_Sbb16(CPU::Registers* registers, uint16 lhs, uint16 rhs)
   return out_value;
 }
 
-inline uint32 ALUOp_Add32(CPU::Registers* registers, uint32 lhs, uint32 rhs)
+inline u32 ALUOp_Add32(CPU::Registers* registers, u32 lhs, u32 rhs)
 {
-  uint64 old_value = ZeroExtend64(lhs);
-  uint64 add_value = ZeroExtend64(rhs);
-  uint64 new_value = old_value + add_value;
-  uint32 out_value = Truncate32(new_value);
+  u64 old_value = ZeroExtend64(lhs);
+  u64 add_value = ZeroExtend64(rhs);
+  u64 new_value = old_value + add_value;
+  u32 out_value = Truncate32(new_value);
 
   SET_FLAG(registers, CF, ((new_value & UINT64_C(0xFFFFFFFF00000000)) != 0));
   SET_FLAG(registers, OF,
@@ -1230,13 +1230,13 @@ inline uint32 ALUOp_Add32(CPU::Registers* registers, uint32 lhs, uint32 rhs)
   return out_value;
 }
 
-inline uint32 ALUOp_Adc32(CPU::Registers* registers, uint32 lhs, uint32 rhs)
+inline u32 ALUOp_Adc32(CPU::Registers* registers, u32 lhs, u32 rhs)
 {
-  uint64 old_value = ZeroExtend64(lhs);
-  uint64 add_value = ZeroExtend64(rhs);
-  uint64 carry_in = (registers->EFLAGS.CF) ? 1 : 0;
-  uint64 new_value = old_value + add_value + carry_in;
-  uint32 out_value = Truncate32(new_value);
+  u64 old_value = ZeroExtend64(lhs);
+  u64 add_value = ZeroExtend64(rhs);
+  u64 carry_in = (registers->EFLAGS.CF) ? 1 : 0;
+  u64 new_value = old_value + add_value + carry_in;
+  u32 out_value = Truncate32(new_value);
 
   SET_FLAG(registers, CF, ((new_value & UINT64_C(0xFFFFFFFF00000000)) != 0));
   SET_FLAG(registers, OF,
@@ -1249,12 +1249,12 @@ inline uint32 ALUOp_Adc32(CPU::Registers* registers, uint32 lhs, uint32 rhs)
   return out_value;
 }
 
-inline uint32 ALUOp_Sub32(CPU::Registers* registers, uint32 lhs, uint32 rhs)
+inline u32 ALUOp_Sub32(CPU::Registers* registers, u32 lhs, u32 rhs)
 {
-  uint64 old_value = ZeroExtend64(lhs);
-  uint64 sub_value = ZeroExtend64(rhs);
-  uint64 new_value = old_value - sub_value;
-  uint32 out_value = Truncate32(new_value);
+  u64 old_value = ZeroExtend64(lhs);
+  u64 sub_value = ZeroExtend64(rhs);
+  u64 new_value = old_value - sub_value;
+  u32 out_value = Truncate32(new_value);
 
   SET_FLAG(registers, CF, ((new_value & UINT64_C(0xFFFFFFFF00000000)) != 0));
   SET_FLAG(registers, OF,
@@ -1267,13 +1267,13 @@ inline uint32 ALUOp_Sub32(CPU::Registers* registers, uint32 lhs, uint32 rhs)
   return out_value;
 }
 
-inline uint32 ALUOp_Sbb32(CPU::Registers* registers, uint32 lhs, uint32 rhs)
+inline u32 ALUOp_Sbb32(CPU::Registers* registers, u32 lhs, u32 rhs)
 {
-  uint64 old_value = ZeroExtend64(lhs);
-  uint64 sub_value = ZeroExtend64(rhs);
-  uint64 carry_in = registers->EFLAGS.CF ? 1 : 0;
-  uint64 new_value = old_value - sub_value - carry_in;
-  uint32 out_value = Truncate32(new_value);
+  u64 old_value = ZeroExtend64(lhs);
+  u64 sub_value = ZeroExtend64(rhs);
+  u64 carry_in = registers->EFLAGS.CF ? 1 : 0;
+  u64 new_value = old_value - sub_value - carry_in;
+  u32 out_value = Truncate32(new_value);
 
   SET_FLAG(registers, CF, ((new_value & UINT64_C(0xFFFFFFFF00000000)) != 0));
   SET_FLAG(registers, OF,
@@ -1286,8 +1286,8 @@ inline uint32 ALUOp_Sbb32(CPU::Registers* registers, uint32 lhs, uint32 rhs)
   return out_value;
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_ADD(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1296,23 +1296,23 @@ void Interpreter::Execute_Operation_ADD(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    uint8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    uint8 new_value = ALUOp_Add8(&cpu->m_registers, lhs, rhs);
+    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 new_value = ALUOp_Add8(&cpu->m_registers, lhs, rhs);
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint16 new_value = ALUOp_Add16(&cpu->m_registers, lhs, rhs);
+    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 new_value = ALUOp_Add16(&cpu->m_registers, lhs, rhs);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint32 new_value = ALUOp_Add32(&cpu->m_registers, lhs, rhs);
+    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 new_value = ALUOp_Add32(&cpu->m_registers, lhs, rhs);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
   }
 
@@ -1326,8 +1326,8 @@ void Interpreter::Execute_Operation_ADD(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_ADC(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1336,23 +1336,23 @@ void Interpreter::Execute_Operation_ADC(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    uint8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    uint8 new_value = ALUOp_Adc8(&cpu->m_registers, lhs, rhs);
+    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 new_value = ALUOp_Adc8(&cpu->m_registers, lhs, rhs);
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint16 new_value = ALUOp_Adc16(&cpu->m_registers, lhs, rhs);
+    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 new_value = ALUOp_Adc16(&cpu->m_registers, lhs, rhs);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint32 new_value = ALUOp_Adc32(&cpu->m_registers, lhs, rhs);
+    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 new_value = ALUOp_Adc32(&cpu->m_registers, lhs, rhs);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
   }
 
@@ -1366,8 +1366,8 @@ void Interpreter::Execute_Operation_ADC(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_SUB(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1376,23 +1376,23 @@ void Interpreter::Execute_Operation_SUB(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    uint8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    uint8 new_value = ALUOp_Sub8(&cpu->m_registers, lhs, rhs);
+    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 new_value = ALUOp_Sub8(&cpu->m_registers, lhs, rhs);
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint16 new_value = ALUOp_Sub16(&cpu->m_registers, lhs, rhs);
+    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 new_value = ALUOp_Sub16(&cpu->m_registers, lhs, rhs);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint32 new_value = ALUOp_Sub32(&cpu->m_registers, lhs, rhs);
+    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 new_value = ALUOp_Sub32(&cpu->m_registers, lhs, rhs);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
   }
 
@@ -1406,8 +1406,8 @@ void Interpreter::Execute_Operation_SUB(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_SBB(CPU* cpu)
 {
   OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1416,23 +1416,23 @@ void Interpreter::Execute_Operation_SBB(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    uint8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    uint8 new_value = ALUOp_Sbb8(&cpu->m_registers, lhs, rhs);
+    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 new_value = ALUOp_Sbb8(&cpu->m_registers, lhs, rhs);
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint16 new_value = ALUOp_Sbb16(&cpu->m_registers, lhs, rhs);
+    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 new_value = ALUOp_Sbb16(&cpu->m_registers, lhs, rhs);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint32 new_value = ALUOp_Sbb32(&cpu->m_registers, lhs, rhs);
+    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 new_value = ALUOp_Sbb32(&cpu->m_registers, lhs, rhs);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
   }
 
@@ -1446,8 +1446,8 @@ void Interpreter::Execute_Operation_SBB(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_CMP(CPU* cpu)
 {
   OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1457,20 +1457,20 @@ void Interpreter::Execute_Operation_CMP(CPU* cpu)
   // Implemented as subtract but discarding the result
   if (actual_size == OperandSize_8)
   {
-    uint8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
     ALUOp_Sub8(&cpu->m_registers, lhs, rhs);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
     ALUOp_Sub16(&cpu->m_registers, lhs, rhs);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
     ALUOp_Sub32(&cpu->m_registers, lhs, rhs);
   }
 
@@ -1484,8 +1484,8 @@ void Interpreter::Execute_Operation_CMP(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_AND(CPU* cpu)
 {
   OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1495,9 +1495,9 @@ void Interpreter::Execute_Operation_AND(CPU* cpu)
   bool sf, zf, pf;
   if (actual_size == OperandSize_8)
   {
-    uint8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    uint8 new_value = lhs & rhs;
+    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 new_value = lhs & rhs;
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
 
     sf = IsSign(new_value);
@@ -1506,9 +1506,9 @@ void Interpreter::Execute_Operation_AND(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint16 new_value = lhs & rhs;
+    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 new_value = lhs & rhs;
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     sf = IsSign(new_value);
@@ -1517,9 +1517,9 @@ void Interpreter::Execute_Operation_AND(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint32 new_value = lhs & rhs;
+    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 new_value = lhs & rhs;
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     sf = IsSign(new_value);
@@ -1551,8 +1551,8 @@ void Interpreter::Execute_Operation_AND(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_OR(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1562,9 +1562,9 @@ void Interpreter::Execute_Operation_OR(CPU* cpu)
   bool sf, zf, pf;
   if (actual_size == OperandSize_8)
   {
-    uint8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    uint8 new_value = lhs | rhs;
+    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 new_value = lhs | rhs;
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
 
     sf = IsSign(new_value);
@@ -1573,9 +1573,9 @@ void Interpreter::Execute_Operation_OR(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint16 new_value = lhs | rhs;
+    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 new_value = lhs | rhs;
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     sf = IsSign(new_value);
@@ -1584,9 +1584,9 @@ void Interpreter::Execute_Operation_OR(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint32 new_value = lhs | rhs;
+    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 new_value = lhs | rhs;
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     sf = IsSign(new_value);
@@ -1618,8 +1618,8 @@ void Interpreter::Execute_Operation_OR(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_XOR(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1629,9 +1629,9 @@ void Interpreter::Execute_Operation_XOR(CPU* cpu)
   bool sf, zf, pf;
   if (actual_size == OperandSize_8)
   {
-    uint8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    uint8 new_value = lhs ^ rhs;
+    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 new_value = lhs ^ rhs;
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
 
     sf = IsSign(new_value);
@@ -1640,9 +1640,9 @@ void Interpreter::Execute_Operation_XOR(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint16 new_value = lhs ^ rhs;
+    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 new_value = lhs ^ rhs;
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     sf = IsSign(new_value);
@@ -1651,9 +1651,9 @@ void Interpreter::Execute_Operation_XOR(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint32 new_value = lhs ^ rhs;
+    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 new_value = lhs ^ rhs;
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     sf = IsSign(new_value);
@@ -1685,8 +1685,8 @@ void Interpreter::Execute_Operation_XOR(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_TEST(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1696,9 +1696,9 @@ void Interpreter::Execute_Operation_TEST(CPU* cpu)
   bool sf, zf, pf;
   if (actual_size == OperandSize_8)
   {
-    uint8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    uint8 new_value = lhs & rhs;
+    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 new_value = lhs & rhs;
 
     sf = IsSign(new_value);
     zf = IsZero(new_value);
@@ -1706,9 +1706,9 @@ void Interpreter::Execute_Operation_TEST(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 rhs = ReadWordOperand<src_mode, src_constant>(cpu);
-    uint16 new_value = lhs & rhs;
+    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 rhs = ReadWordOperand<src_mode, src_constant>(cpu);
+    u16 new_value = lhs & rhs;
 
     sf = IsSign(new_value);
     zf = IsZero(new_value);
@@ -1716,9 +1716,9 @@ void Interpreter::Execute_Operation_TEST(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 rhs = ReadDWordOperand<src_mode, src_constant>(cpu);
-    uint32 new_value = lhs & rhs;
+    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 rhs = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u32 new_value = lhs & rhs;
 
     sf = IsSign(new_value);
     zf = IsZero(new_value);
@@ -1749,8 +1749,8 @@ void Interpreter::Execute_Operation_TEST(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_MOV(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1781,23 +1781,23 @@ void Interpreter::Execute_Operation_MOV(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 value = ReadByteOperand<src_mode, src_constant>(cpu);
     WriteByteOperand<dst_mode, dst_constant>(cpu, value);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<src_mode, src_constant>(cpu);
+    u16 value = ReadWordOperand<src_mode, src_constant>(cpu);
     WriteWordOperand<dst_mode, dst_constant>(cpu, value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_MOVZX(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1811,18 +1811,18 @@ void Interpreter::Execute_Operation_MOVZX(CPU* cpu)
 
   if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 value = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
     WriteWordOperand<dst_mode, dst_constant>(cpu, value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadZeroExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 value = ReadZeroExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_MOVSX(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1836,25 +1836,25 @@ void Interpreter::Execute_Operation_MOVSX(CPU* cpu)
 
   if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 value = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
     WriteWordOperand<dst_mode, dst_constant>(cpu, value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 value = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16 && src_size == OperandSize_16, "Segment registers are 16-bits");
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
 
-  const uint8 segreg = cpu->idata.GetModRM_Reg();
+  const u8 segreg = cpu->idata.GetModRM_Reg();
 
   // TODO: Loading the SS register with a MOV instruction inhibits all interrupts until after the execution
   // of the next instruction. This operation allows a stack pointer to be loaded into the ESP register with the next
@@ -1873,7 +1873,7 @@ void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
       return;
     }
 
-    uint16 value = ReadWordOperand<src_mode, src_constant>(cpu);
+    u16 value = ReadWordOperand<src_mode, src_constant>(cpu);
     cpu->LoadSegmentRegister(static_cast<CPU_X86::Segment>(segreg), value);
   }
   else
@@ -1887,7 +1887,7 @@ void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
     }
 
     // These are zero-extended when the operand size is 32-bit and the destination is a register.
-    uint16 value = cpu->m_registers.segment_selectors[segreg];
+    u16 value = cpu->m_registers.segment_selectors[segreg];
     if constexpr (dst_mode == OperandMode_ModRM_RM)
     {
       if (cpu->idata.operand_size == OperandSize_32 && cpu->idata.modrm_rm_register)
@@ -1902,8 +1902,8 @@ void Interpreter::Execute_Operation_MOV_Sreg(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_XCHG(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -1915,32 +1915,32 @@ void Interpreter::Execute_Operation_XCHG(CPU* cpu)
   // In memory version, memory is op0, register is op1. Memory must be written first.
   if (actual_size == OperandSize_8)
   {
-    uint8 value0 = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 value1 = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 value0 = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 value1 = ReadByteOperand<src_mode, src_constant>(cpu);
 
     WriteByteOperand<dst_mode, dst_constant>(cpu, value1);
     WriteByteOperand<src_mode, src_constant>(cpu, value0);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value0 = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 value1 = ReadWordOperand<src_mode, src_constant>(cpu);
+    u16 value0 = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 value1 = ReadWordOperand<src_mode, src_constant>(cpu);
 
     WriteWordOperand<dst_mode, dst_constant>(cpu, value1);
     WriteWordOperand<src_mode, src_constant>(cpu, value0);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value0 = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 value1 = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u32 value0 = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 value1 = ReadDWordOperand<src_mode, src_constant>(cpu);
 
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value1);
     WriteDWordOperand<src_mode, src_constant>(cpu, value0);
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
-         OperandMode count_mode, uint32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
+         OperandMode count_mode, u32 count_constant>
 void Interpreter::Execute_Operation_SHL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -1955,13 +1955,13 @@ void Interpreter::Execute_Operation_SHL(CPU* cpu)
   // resulting in a maximum count of 31.
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    uint16 shifted_value = ZeroExtend16(value) << shift_amount;
-    uint8 new_value = Truncate8(shifted_value);
+    u16 shifted_value = ZeroExtend16(value) << shift_amount;
+    u8 new_value = Truncate8(shifted_value);
     WriteByteOperand<val_mode, val_constant>(cpu, new_value);
 
     SET_FLAG(&cpu->m_registers, CF, ((shifted_value & 0x100) != 0));
@@ -1974,13 +1974,13 @@ void Interpreter::Execute_Operation_SHL(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    uint32 shifted_value = ZeroExtend32(value) << shift_amount;
-    uint16 new_value = Truncate16(shifted_value);
+    u32 shifted_value = ZeroExtend32(value) << shift_amount;
+    u16 new_value = Truncate16(shifted_value);
     WriteWordOperand<val_mode, val_constant>(cpu, new_value);
 
     SET_FLAG(&cpu->m_registers, CF, ((shifted_value & 0x10000) != 0));
@@ -1993,13 +1993,13 @@ void Interpreter::Execute_Operation_SHL(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    uint64 shifted_value = ZeroExtend64(value) << shift_amount;
-    uint32 new_value = Truncate32(shifted_value);
+    u64 shifted_value = ZeroExtend64(value) << shift_amount;
+    u32 new_value = Truncate32(shifted_value);
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
 
     SET_FLAG(&cpu->m_registers, CF, ((shifted_value & UINT64_C(0x100000000)) != 0));
@@ -2012,8 +2012,8 @@ void Interpreter::Execute_Operation_SHL(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
-         OperandMode count_mode, uint32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
+         OperandMode count_mode, u32 count_constant>
 void Interpreter::Execute_Operation_SHR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2028,12 +2028,12 @@ void Interpreter::Execute_Operation_SHR(CPU* cpu)
   // resulting in a maximum count of 31.
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    uint8 new_value = value >> shift_amount;
+    u8 new_value = value >> shift_amount;
     WriteByteOperand<val_mode, val_constant>(cpu, new_value);
 
     SET_FLAG(&cpu->m_registers, CF, ((shift_amount ? (value >> (shift_amount - 1) & 1) : (value & 1)) != 0));
@@ -2044,12 +2044,12 @@ void Interpreter::Execute_Operation_SHR(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    uint16 new_value = value >> shift_amount;
+    u16 new_value = value >> shift_amount;
     WriteWordOperand<val_mode, val_constant>(cpu, new_value);
 
     SET_FLAG(&cpu->m_registers, CF, ((shift_amount ? (value >> (shift_amount - 1) & 1) : (value & 1)) != 0));
@@ -2060,12 +2060,12 @@ void Interpreter::Execute_Operation_SHR(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    uint32 new_value = value >> shift_amount;
+    u32 new_value = value >> shift_amount;
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
 
     SET_FLAG(&cpu->m_registers, CF, ((shift_amount ? (value >> (shift_amount - 1) & 1) : (value & 1)) != 0));
@@ -2076,8 +2076,8 @@ void Interpreter::Execute_Operation_SHR(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
-         OperandMode count_mode, uint32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
+         OperandMode count_mode, u32 count_constant>
 void Interpreter::Execute_Operation_SAR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2094,15 +2094,15 @@ void Interpreter::Execute_Operation_SAR(CPU* cpu)
   // resulting in a maximum count of 31.
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    uint8 new_value = uint8(int8(value) >> shift_amount);
+    u8 new_value = u8(s8(value) >> shift_amount);
     WriteByteOperand<val_mode, val_constant>(cpu, new_value);
 
-    SET_FLAG(&cpu->m_registers, CF, ((int8(value) >> (shift_amount - 1) & 1) != 0));
+    SET_FLAG(&cpu->m_registers, CF, ((s8(value) >> (shift_amount - 1) & 1) != 0));
     SET_FLAG(&cpu->m_registers, OF, false);
     SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
     SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
@@ -2110,15 +2110,15 @@ void Interpreter::Execute_Operation_SAR(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    uint16 new_value = uint16(int16(value) >> shift_amount);
+    u16 new_value = u16(s16(value) >> shift_amount);
     WriteWordOperand<val_mode, val_constant>(cpu, new_value);
 
-    SET_FLAG(&cpu->m_registers, CF, ((int16(value) >> (shift_amount - 1) & 1) != 0));
+    SET_FLAG(&cpu->m_registers, CF, ((s16(value) >> (shift_amount - 1) & 1) != 0));
     SET_FLAG(&cpu->m_registers, OF, false);
     SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
     SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
@@ -2126,15 +2126,15 @@ void Interpreter::Execute_Operation_SAR(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    uint32 new_value = uint32(int32(value) >> shift_amount);
+    u32 new_value = u32(s32(value) >> shift_amount);
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
 
-    SET_FLAG(&cpu->m_registers, CF, ((int32(value) >> (shift_amount - 1) & 1) != 0));
+    SET_FLAG(&cpu->m_registers, CF, ((s32(value) >> (shift_amount - 1) & 1) != 0));
     SET_FLAG(&cpu->m_registers, OF, false);
     SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
     SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
@@ -2142,8 +2142,8 @@ void Interpreter::Execute_Operation_SAR(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
-         OperandMode count_mode, uint32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
+         OperandMode count_mode, u32 count_constant>
 void Interpreter::Execute_Operation_RCL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2158,15 +2158,15 @@ void Interpreter::Execute_Operation_RCL(CPU* cpu)
   // the 5 least-significant bits.
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (rotate_count == 0)
       return;
 
-    uint8 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
-    for (uint8 i = 0; i < rotate_count; i++)
+    u8 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
+    for (u8 i = 0; i < rotate_count; i++)
     {
-      uint8 save_value = value;
+      u8 save_value = value;
       value = (save_value << 1) | carry;
       carry = (save_value >> 7);
     }
@@ -2177,15 +2177,15 @@ void Interpreter::Execute_Operation_RCL(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (rotate_count == 0)
       return;
 
-    uint16 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
-    for (uint8 i = 0; i < rotate_count; i++)
+    u16 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
+    for (u8 i = 0; i < rotate_count; i++)
     {
-      uint16 save_value = value;
+      u16 save_value = value;
       value = (save_value << 1) | carry;
       carry = (save_value >> 15);
     }
@@ -2196,15 +2196,15 @@ void Interpreter::Execute_Operation_RCL(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (rotate_count == 0)
       return;
 
-    uint32 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
-    for (uint8 i = 0; i < rotate_count; i++)
+    u32 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
+    for (u8 i = 0; i < rotate_count; i++)
     {
-      uint32 save_value = value;
+      u32 save_value = value;
       value = (save_value << 1) | carry;
       carry = (save_value >> 31);
     }
@@ -2215,8 +2215,8 @@ void Interpreter::Execute_Operation_RCL(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
-         OperandMode count_mode, uint32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
+         OperandMode count_mode, u32 count_constant>
 void Interpreter::Execute_Operation_RCR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2231,15 +2231,15 @@ void Interpreter::Execute_Operation_RCR(CPU* cpu)
   // the 5 least-significant bits.
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (rotate_count == 0)
       return;
 
-    uint8 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
-    for (uint8 i = 0; i < rotate_count; i++)
+    u8 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
+    for (u8 i = 0; i < rotate_count; i++)
     {
-      uint8 save_value = value;
+      u8 save_value = value;
       value = (save_value >> 1) | (carry << 7);
       carry = (save_value & 1);
     }
@@ -2250,15 +2250,15 @@ void Interpreter::Execute_Operation_RCR(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (rotate_count == 0)
       return;
 
-    uint16 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
-    for (uint8 i = 0; i < rotate_count; i++)
+    u16 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
+    for (u8 i = 0; i < rotate_count; i++)
     {
-      uint16 save_value = value;
+      u16 save_value = value;
       value = (save_value >> 1) | (carry << 15);
       carry = (save_value & 1);
     }
@@ -2269,15 +2269,15 @@ void Interpreter::Execute_Operation_RCR(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (rotate_count == 0)
       return;
 
-    uint32 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
-    for (uint8 i = 0; i < rotate_count; i++)
+    u32 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
+    for (u8 i = 0; i < rotate_count; i++)
     {
-      uint32 save_value = value;
+      u32 save_value = value;
       value = (save_value >> 1) | (carry << 31);
       carry = (save_value & 1);
     }
@@ -2288,8 +2288,8 @@ void Interpreter::Execute_Operation_RCR(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
-         OperandMode count_mode, uint32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
+         OperandMode count_mode, u32 count_constant>
 void Interpreter::Execute_Operation_ROL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2303,68 +2303,68 @@ void Interpreter::Execute_Operation_ROL(CPU* cpu)
   // Hopefully this will compile down to a native ROL instruction
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
-    uint8 new_value = value;
+    u8 new_value = value;
     if ((count & 0x7) != 0)
     {
-      uint8 masked_count = count & 0x7;
+      u8 masked_count = count & 0x7;
       new_value = (value << masked_count) | (value >> (8 - masked_count));
       WriteByteOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    uint8 b0 = (new_value & 1);
-    uint8 b7 = (new_value >> 7);
+    u8 b0 = (new_value & 1);
+    u8 b7 = (new_value >> 7);
     SET_FLAG(&cpu->m_registers, CF, (b0 != 0));
     SET_FLAG(&cpu->m_registers, OF, ((b0 ^ b7) != 0));
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
-    uint16 new_value = value;
+    u16 new_value = value;
     if ((count & 0xf) != 0)
     {
-      uint8 masked_count = count & 0xf;
+      u8 masked_count = count & 0xf;
       new_value = (value << masked_count) | (value >> (16 - masked_count));
       WriteWordOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    uint16 b0 = (new_value & 1);
-    uint16 b15 = (new_value >> 15);
+    u16 b0 = (new_value & 1);
+    u16 b15 = (new_value >> 15);
     SET_FLAG(&cpu->m_registers, CF, (b0 != 0));
     SET_FLAG(&cpu->m_registers, OF, ((b0 ^ b15) != 0));
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
-    uint32 new_value = value;
-    uint8 masked_count = count & 0x1f;
+    u32 new_value = value;
+    u8 masked_count = count & 0x1f;
     if (masked_count != 0)
     {
       new_value = (value << masked_count) | (value >> (32 - masked_count));
       WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    uint32 b0 = (new_value & 1);
-    uint32 b31 = ((new_value >> 31) & 1);
+    u32 b0 = (new_value & 1);
+    u32 b31 = ((new_value >> 31) & 1);
     SET_FLAG(&cpu->m_registers, CF, (b0 != 0));
     SET_FLAG(&cpu->m_registers, OF, ((b0 ^ b31) != 0));
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant, OperandSize count_size,
-         OperandMode count_mode, uint32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
+         OperandMode count_mode, u32 count_constant>
 void Interpreter::Execute_Operation_ROR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2378,68 +2378,68 @@ void Interpreter::Execute_Operation_ROR(CPU* cpu)
   // Hopefully this will compile down to a native ROR instruction
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
-    uint8 new_value = value;
-    uint8 masked_count = count & 0x7;
+    u8 new_value = value;
+    u8 masked_count = count & 0x7;
     if (masked_count != 0)
     {
       new_value = (value >> masked_count) | (value << (8 - masked_count));
       WriteByteOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    uint16 b6 = ((new_value >> 6) & 1);
-    uint16 b7 = ((new_value >> 7) & 1);
+    u16 b6 = ((new_value >> 6) & 1);
+    u16 b7 = ((new_value >> 7) & 1);
     SET_FLAG(&cpu->m_registers, CF, (b7 != 0));
     SET_FLAG(&cpu->m_registers, OF, ((b6 ^ b7) != 0));
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
-    uint16 new_value = value;
-    uint8 masked_count = count & 0xf;
+    u16 new_value = value;
+    u8 masked_count = count & 0xf;
     if (masked_count != 0)
     {
       new_value = (value >> masked_count) | (value << (16 - masked_count));
       WriteWordOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    uint16 b14 = ((new_value >> 14) & 1);
-    uint16 b15 = ((new_value >> 15) & 1);
+    u16 b14 = ((new_value >> 14) & 1);
+    u16 b15 = ((new_value >> 15) & 1);
     SET_FLAG(&cpu->m_registers, CF, (b15 != 0));
     SET_FLAG(&cpu->m_registers, OF, ((b14 ^ b15) != 0));
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
-    uint32 new_value = value;
-    uint8 masked_count = count & 0x1f;
+    u32 new_value = value;
+    u8 masked_count = count & 0x1f;
     if (masked_count != 0)
     {
       new_value = (value >> masked_count) | (value << (32 - masked_count));
       WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    uint32 b30 = ((new_value >> 30) & 1);
-    uint32 b31 = ((new_value >> 31) & 1);
+    u32 b30 = ((new_value >> 30) & 1);
+    u32 b31 = ((new_value >> 31) & 1);
     SET_FLAG(&cpu->m_registers, CF, (b31 != 0));
     SET_FLAG(&cpu->m_registers, OF, ((b30 ^ b31) != 0));
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_IN(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -2453,47 +2453,47 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
   else
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
-  const uint16 port_number = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+  const u16 port_number = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
   if (actual_size == OperandSize_8)
   {
-    if (!cpu->HasIOPermissions(port_number, sizeof(uint8), true))
+    if (!cpu->HasIOPermissions(port_number, sizeof(u8), true))
     {
       cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
       return;
     }
 
-    uint8 value;
+    u8 value;
     cpu->m_bus->ReadIOPortByte(port_number, &value);
     WriteByteOperand<dst_mode, dst_constant>(cpu, value);
   }
   else if (actual_size == OperandSize_16)
   {
-    if (!cpu->HasIOPermissions(port_number, sizeof(uint16), true))
+    if (!cpu->HasIOPermissions(port_number, sizeof(u16), true))
     {
       cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
       return;
     }
 
-    uint16 value;
+    u16 value;
     cpu->m_bus->ReadIOPortWord(port_number, &value);
     WriteWordOperand<dst_mode, dst_constant>(cpu, value);
   }
   else if (actual_size == OperandSize_32)
   {
-    if (!cpu->HasIOPermissions(port_number, sizeof(uint32), true))
+    if (!cpu->HasIOPermissions(port_number, sizeof(u32), true))
     {
       cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
       return;
     }
 
-    uint32 value;
+    u32 value;
     cpu->m_bus->ReadIOPortDWord(port_number, &value);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_OUT(CPU* cpu)
 {
   const OperandSize actual_size = (src_size == OperandSize_Count) ? cpu->idata.operand_size : src_size;
@@ -2507,43 +2507,43 @@ void Interpreter::Execute_Operation_OUT(CPU* cpu)
   else
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
-  const uint16 port_number = ReadZeroExtendedWordOperand<dst_size, dst_mode, dst_constant>(cpu);
+  const u16 port_number = ReadZeroExtendedWordOperand<dst_size, dst_mode, dst_constant>(cpu);
   if (actual_size == OperandSize_8)
   {
-    if (!cpu->HasIOPermissions(port_number, sizeof(uint8), true))
+    if (!cpu->HasIOPermissions(port_number, sizeof(u8), true))
     {
       cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
       return;
     }
 
-    uint8 value = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 value = ReadByteOperand<src_mode, src_constant>(cpu);
     cpu->m_bus->WriteIOPortByte(port_number, value);
   }
   else if (actual_size == OperandSize_16)
   {
-    if (!cpu->HasIOPermissions(port_number, sizeof(uint16), true))
+    if (!cpu->HasIOPermissions(port_number, sizeof(u16), true))
     {
       cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
       return;
     }
 
-    uint16 value = ReadWordOperand<src_mode, src_constant>(cpu);
+    u16 value = ReadWordOperand<src_mode, src_constant>(cpu);
     cpu->m_bus->WriteIOPortWord(port_number, value);
   }
   else if (actual_size == OperandSize_32)
   {
-    if (!cpu->HasIOPermissions(port_number, sizeof(uint32), true))
+    if (!cpu->HasIOPermissions(port_number, sizeof(u32), true))
     {
       cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
       return;
     }
 
-    uint32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
     cpu->m_bus->WriteIOPortDWord(port_number, value);
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
 void Interpreter::Execute_Operation_INC(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2560,27 +2560,27 @@ void Interpreter::Execute_Operation_INC(CPU* cpu)
   bool cf = cpu->m_registers.EFLAGS.CF;
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 new_value = ALUOp_Add8(&cpu->m_registers, value, 1);
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 new_value = ALUOp_Add8(&cpu->m_registers, value, 1);
     WriteByteOperand<val_mode, val_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint16 new_value = ALUOp_Add16(&cpu->m_registers, value, 1);
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u16 new_value = ALUOp_Add16(&cpu->m_registers, value, 1);
     WriteWordOperand<val_mode, val_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint32 new_value = ALUOp_Add32(&cpu->m_registers, value, 1);
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u32 new_value = ALUOp_Add32(&cpu->m_registers, value, 1);
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
   }
 
   SET_FLAG(&cpu->m_registers, CF, cf);
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
 void Interpreter::Execute_Operation_DEC(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2597,27 +2597,27 @@ void Interpreter::Execute_Operation_DEC(CPU* cpu)
   bool cf = cpu->m_registers.EFLAGS.CF;
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 new_value = ALUOp_Sub8(&cpu->m_registers, value, 1);
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 new_value = ALUOp_Sub8(&cpu->m_registers, value, 1);
     WriteByteOperand<val_mode, val_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint16 new_value = ALUOp_Sub16(&cpu->m_registers, value, 1);
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u16 new_value = ALUOp_Sub16(&cpu->m_registers, value, 1);
     WriteWordOperand<val_mode, val_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint32 new_value = ALUOp_Sub32(&cpu->m_registers, value, 1);
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u32 new_value = ALUOp_Sub32(&cpu->m_registers, value, 1);
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
   }
 
   SET_FLAG(&cpu->m_registers, CF, cf);
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
 void Interpreter::Execute_Operation_NOT(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2632,25 +2632,25 @@ void Interpreter::Execute_Operation_NOT(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 new_value = ~value;
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 new_value = ~value;
     WriteByteOperand<val_mode, val_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint16 new_value = ~value;
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u16 new_value = ~value;
     WriteWordOperand<val_mode, val_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint32 new_value = ~value;
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u32 new_value = ~value;
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
 void Interpreter::Execute_Operation_NEG(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2665,8 +2665,8 @@ void Interpreter::Execute_Operation_NEG(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    uint8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    uint8 new_value = uint8(-int8(value));
+    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 new_value = u8(-s8(value));
     WriteByteOperand<val_mode, val_constant>(cpu, new_value);
 
     ALUOp_Sub8(&cpu->m_registers, 0, value);
@@ -2674,8 +2674,8 @@ void Interpreter::Execute_Operation_NEG(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    uint16 new_value = uint16(-int16(value));
+    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    u16 new_value = u16(-s16(value));
     WriteWordOperand<val_mode, val_constant>(cpu, new_value);
 
     ALUOp_Sub16(&cpu->m_registers, 0, value);
@@ -2683,8 +2683,8 @@ void Interpreter::Execute_Operation_NEG(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    uint32 new_value = uint32(-int32(value));
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u32 new_value = u32(-s32(value));
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
 
     ALUOp_Sub32(&cpu->m_registers, 0, value);
@@ -2692,7 +2692,7 @@ void Interpreter::Execute_Operation_NEG(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
 void Interpreter::Execute_Operation_MUL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2718,8 +2718,8 @@ void Interpreter::Execute_Operation_MUL(CPU* cpu)
     u32 lhs = ZeroExtend32(cpu->m_registers.AX);
     u32 rhs = ZeroExtend32(ReadWordOperand<val_mode, val_constant>(cpu));
     u32 result = lhs * rhs;
-    cpu->m_registers.AX = uint16(result & 0xFFFF);
-    cpu->m_registers.DX = uint16(result >> 16);
+    cpu->m_registers.AX = u16(result & 0xFFFF);
+    cpu->m_registers.DX = u16(result >> 16);
     SET_FLAG(&cpu->m_registers, OF, (cpu->m_registers.DX != 0));
     SET_FLAG(&cpu->m_registers, CF, (cpu->m_registers.DX != 0));
     SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AX));
@@ -2743,8 +2743,8 @@ void Interpreter::Execute_Operation_MUL(CPU* cpu)
   }
 }
 
-template<OperandSize op1_size, OperandMode op1_mode, uint32 op1_constant, OperandSize op2_size, OperandMode op2_mode,
-         uint32 op2_constant, OperandSize op3_size, OperandMode op3_mode, uint32 op3_constant>
+template<OperandSize op1_size, OperandMode op1_mode, u32 op1_constant, OperandSize op2_size, OperandMode op2_mode,
+         u32 op2_constant, OperandSize op3_size, OperandMode op3_mode, u32 op3_constant>
 void Interpreter::Execute_Operation_IMUL(CPU* cpu)
 {
   CalculateEffectiveAddress<op1_mode>(cpu);
@@ -2854,7 +2854,7 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       truncated_result = Truncate32(result);
 
       cpu->AddCyclesRM(CYCLES_IMUL_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-      cpu->m_registers.EDX = Truncate32(uint64(result) >> 32);
+      cpu->m_registers.EDX = Truncate32(u64(result) >> 32);
       cpu->m_registers.EAX = truncated_result;
     }
 
@@ -2865,7 +2865,7 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
 void Interpreter::Execute_Operation_DIV(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2876,64 +2876,64 @@ void Interpreter::Execute_Operation_DIV(CPU* cpu)
     cpu->AddCyclesRM(CYCLES_DIV_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
     // Eight-bit divides use AX as a source
-    uint8 divisor = ReadByteOperand<val_mode, val_constant>(cpu);
+    u8 divisor = ReadByteOperand<val_mode, val_constant>(cpu);
     if (divisor == 0)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
     }
 
-    uint16 source = cpu->m_registers.AX;
-    uint16 quotient = source / divisor;
-    uint16 remainder = source % divisor;
+    u16 source = cpu->m_registers.AX;
+    u16 quotient = source / divisor;
+    u16 remainder = source % divisor;
     if (quotient > 0xFF)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
     }
 
-    cpu->m_registers.AL = uint8(quotient);
-    cpu->m_registers.AH = uint8(remainder);
+    cpu->m_registers.AL = u8(quotient);
+    cpu->m_registers.AH = u8(remainder);
   }
   else if (actual_size == OperandSize_16)
   {
     cpu->AddCyclesRM(CYCLES_DIV_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
     // 16-bit divides use DX:AX as a source
-    uint16 divisor = ReadWordOperand<val_mode, val_constant>(cpu);
+    u16 divisor = ReadWordOperand<val_mode, val_constant>(cpu);
     if (divisor == 0)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
     }
 
-    uint32 source = (uint32(cpu->m_registers.DX) << 16) | uint32(cpu->m_registers.AX);
-    uint32 quotient = source / divisor;
-    uint32 remainder = source % divisor;
+    u32 source = (u32(cpu->m_registers.DX) << 16) | u32(cpu->m_registers.AX);
+    u32 quotient = source / divisor;
+    u32 remainder = source % divisor;
     if (quotient > 0xFFFF)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
     }
 
-    cpu->m_registers.AX = uint16(quotient);
-    cpu->m_registers.DX = uint16(remainder);
+    cpu->m_registers.AX = u16(quotient);
+    cpu->m_registers.DX = u16(remainder);
   }
   else if (actual_size == OperandSize_32)
   {
     cpu->AddCyclesRM(CYCLES_DIV_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
     // 32-bit divides use EDX:EAX as a source
-    uint32 divisor = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u32 divisor = ReadDWordOperand<val_mode, val_constant>(cpu);
     if (divisor == 0)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
     }
 
-    uint64 source = (ZeroExtend64(cpu->m_registers.EDX) << 32) | ZeroExtend64(cpu->m_registers.EAX);
-    uint64 quotient = source / divisor;
-    uint64 remainder = source % divisor;
+    u64 source = (ZeroExtend64(cpu->m_registers.EDX) << 32) | ZeroExtend64(cpu->m_registers.EAX);
+    u64 quotient = source / divisor;
+    u64 remainder = source % divisor;
     if (quotient > UINT64_C(0xFFFFFFFF))
     {
       cpu->RaiseException(Interrupt_DivideError);
@@ -2950,7 +2950,7 @@ void Interpreter::Execute_Operation_DIV(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
 void Interpreter::Execute_Operation_IDIV(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2961,19 +2961,19 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
     cpu->AddCyclesRM(CYCLES_IDIV_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
     // Eight-bit divides use AX as a source
-    int8 divisor = int8(ReadByteOperand<val_mode, val_constant>(cpu));
+    s8 divisor = s8(ReadByteOperand<val_mode, val_constant>(cpu));
     if (divisor == 0)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
     }
 
-    int16 source = int16(cpu->m_registers.AX);
-    int16 quotient = source / divisor;
-    int16 remainder = source % divisor;
-    uint8 truncated_quotient = Truncate8(uint16(quotient));
-    uint8 truncated_remainder = Truncate8(uint16(remainder));
-    if (int8(truncated_quotient) != quotient)
+    s16 source = s16(cpu->m_registers.AX);
+    s16 quotient = source / divisor;
+    s16 remainder = source % divisor;
+    u8 truncated_quotient = Truncate8(u16(quotient));
+    u8 truncated_remainder = Truncate8(u16(remainder));
+    if (s8(truncated_quotient) != quotient)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
@@ -2987,19 +2987,19 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
     cpu->AddCyclesRM(CYCLES_IDIV_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
     // 16-bit divides use DX:AX as a source
-    int16 divisor = int16(ReadWordOperand<val_mode, val_constant>(cpu));
+    s16 divisor = s16(ReadWordOperand<val_mode, val_constant>(cpu));
     if (divisor == 0)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
     }
 
-    int32 source = int32((uint32(cpu->m_registers.DX) << 16) | uint32(cpu->m_registers.AX));
-    int32 quotient = source / divisor;
-    int32 remainder = source % divisor;
-    uint16 truncated_quotient = Truncate16(uint32(quotient));
-    uint16 truncated_remainder = Truncate16(uint32(remainder));
-    if (int16(truncated_quotient) != quotient)
+    s32 source = s32((u32(cpu->m_registers.DX) << 16) | u32(cpu->m_registers.AX));
+    s32 quotient = source / divisor;
+    s32 remainder = source % divisor;
+    u16 truncated_quotient = Truncate16(u32(quotient));
+    u16 truncated_remainder = Truncate16(u32(remainder));
+    if (s16(truncated_quotient) != quotient)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
@@ -3013,19 +3013,19 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
     cpu->AddCyclesRM(CYCLES_IDIV_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
     // 16-bit divides use DX:AX as a source
-    int32 divisor = int32(ReadDWordOperand<val_mode, val_constant>(cpu));
+    s32 divisor = s32(ReadDWordOperand<val_mode, val_constant>(cpu));
     if (divisor == 0)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
     }
 
-    int64 source = int64((ZeroExtend64(cpu->m_registers.EDX) << 32) | ZeroExtend64(cpu->m_registers.EAX));
-    int64 quotient = source / divisor;
-    int64 remainder = source % divisor;
-    uint32 truncated_quotient = Truncate32(uint64(quotient));
-    uint32 truncated_remainder = Truncate32(uint64(remainder));
-    if (int32(truncated_quotient) != quotient)
+    s64 source = s64((ZeroExtend64(cpu->m_registers.EDX) << 32) | ZeroExtend64(cpu->m_registers.EAX));
+    s64 quotient = source / divisor;
+    s64 remainder = source % divisor;
+    u32 truncated_quotient = Truncate32(u64(quotient));
+    u32 truncated_remainder = Truncate32(u64(remainder));
+    if (s32(truncated_quotient) != quotient)
     {
       cpu->RaiseException(Interrupt_DivideError);
       return;
@@ -3036,7 +3036,7 @@ void Interpreter::Execute_Operation_IDIV(CPU* cpu)
   }
 }
 
-template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
+template<OperandSize src_size, OperandMode src_mode, u32 src_constant>
 void Interpreter::Execute_Operation_PUSH(CPU* cpu)
 {
   CalculateEffectiveAddress<src_mode>(cpu);
@@ -3052,17 +3052,17 @@ void Interpreter::Execute_Operation_PUSH(CPU* cpu)
 
   if (cpu->idata.operand_size == OperandSize_16)
   {
-    uint16 value = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 value = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
     cpu->PushWord(value);
   }
   else if (cpu->idata.operand_size == OperandSize_32)
   {
-    uint32 value = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 value = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
     cpu->PushDWord(value);
   }
 }
 
-template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
+template<OperandSize src_size, OperandMode src_mode, u32 src_constant>
 void Interpreter::Execute_Operation_PUSH_Sreg(CPU* cpu)
 {
   static_assert(src_size == OperandSize_16 && src_mode == OperandMode_SegmentRegister && src_constant < Segment_Count,
@@ -3071,14 +3071,14 @@ void Interpreter::Execute_Operation_PUSH_Sreg(CPU* cpu)
   cpu->AddCycles(CYCLES_PUSH_SREG);
 
   // TODO: Is this correct for 32-bits? Bochs only writes 2 of the 4 bytes.
-  uint16 selector = cpu->m_registers.segment_selectors[src_constant];
+  u16 selector = cpu->m_registers.segment_selectors[src_constant];
   if (cpu->idata.operand_size == OperandSize_16)
     cpu->PushWord(selector);
   else
     cpu->PushDWord(SignExtend32(selector));
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_POP_Sreg(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_16 && dst_mode == OperandMode_SegmentRegister && dst_constant < Segment_Count,
@@ -3086,7 +3086,7 @@ void Interpreter::Execute_Operation_POP_Sreg(CPU* cpu)
 
   cpu->AddCyclesPMode(CYCLES_POP_SREG);
 
-  uint16 selector;
+  u16 selector;
   if (cpu->idata.operand_size == OperandSize_16)
     selector = cpu->PopWord();
   else
@@ -3095,7 +3095,7 @@ void Interpreter::Execute_Operation_POP_Sreg(CPU* cpu)
   cpu->LoadSegmentRegister(static_cast<Segment>(dst_constant), selector);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_POP(CPU* cpu)
 {
   if constexpr (dst_mode == OperandMode_Register)
@@ -3109,13 +3109,13 @@ void Interpreter::Execute_Operation_POP(CPU* cpu)
   // is that after the pop operation has occurred, not before.
   if (cpu->idata.operand_size == OperandSize_16)
   {
-    uint16 value = cpu->PopWord();
+    u16 value = cpu->PopWord();
     CalculateEffectiveAddress<dst_mode>(cpu);
     WriteWordOperand<dst_mode, dst_constant>(cpu, value);
   }
   else
   {
-    uint32 value = cpu->PopDWord();
+    u32 value = cpu->PopDWord();
     CalculateEffectiveAddress<dst_mode>(cpu);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
@@ -3126,7 +3126,7 @@ void Interpreter::Execute_Operation_PUSHA(CPU* cpu)
   cpu->AddCycles(CYCLES_PUSHA);
   if (cpu->idata.operand_size == OperandSize_16)
   {
-    uint16 old_SP = cpu->m_registers.SP;
+    u16 old_SP = cpu->m_registers.SP;
     cpu->PushWord(cpu->m_registers.AX);
     cpu->PushWord(cpu->m_registers.CX);
     cpu->PushWord(cpu->m_registers.DX);
@@ -3138,7 +3138,7 @@ void Interpreter::Execute_Operation_PUSHA(CPU* cpu)
   }
   else if (cpu->idata.operand_size == OperandSize_32)
   {
-    uint32 old_ESP = cpu->m_registers.ESP;
+    u32 old_ESP = cpu->m_registers.ESP;
     cpu->PushDWord(cpu->m_registers.EAX);
     cpu->PushDWord(cpu->m_registers.ECX);
     cpu->PushDWord(cpu->m_registers.EDX);
@@ -3157,14 +3157,14 @@ void Interpreter::Execute_Operation_POPA(CPU* cpu)
   // Assignment split from reading in case of exception.
   if (cpu->idata.operand_size == OperandSize_16)
   {
-    uint16 DI = cpu->PopWord();
-    uint16 SI = cpu->PopWord();
-    uint16 BP = cpu->PopWord();
+    u16 DI = cpu->PopWord();
+    u16 SI = cpu->PopWord();
+    u16 BP = cpu->PopWord();
     /*uint16 SP = */ cpu->PopWord();
-    uint16 BX = cpu->PopWord();
-    uint16 DX = cpu->PopWord();
-    uint16 CX = cpu->PopWord();
-    uint16 AX = cpu->PopWord();
+    u16 BX = cpu->PopWord();
+    u16 DX = cpu->PopWord();
+    u16 CX = cpu->PopWord();
+    u16 AX = cpu->PopWord();
     cpu->m_registers.DI = DI;
     cpu->m_registers.SI = SI;
     cpu->m_registers.BP = BP;
@@ -3175,14 +3175,14 @@ void Interpreter::Execute_Operation_POPA(CPU* cpu)
   }
   else if (cpu->idata.operand_size == OperandSize_32)
   {
-    uint32 EDI = cpu->PopDWord();
-    uint32 ESI = cpu->PopDWord();
-    uint32 EBP = cpu->PopDWord();
+    u32 EDI = cpu->PopDWord();
+    u32 ESI = cpu->PopDWord();
+    u32 EBP = cpu->PopDWord();
     /*uint32 ESP = */ cpu->PopDWord();
-    uint32 EBX = cpu->PopDWord();
-    uint32 EDX = cpu->PopDWord();
-    uint32 ECX = cpu->PopDWord();
-    uint32 EAX = cpu->PopDWord();
+    u32 EBX = cpu->PopDWord();
+    u32 EDX = cpu->PopDWord();
+    u32 ECX = cpu->PopDWord();
+    u32 EAX = cpu->PopDWord();
     cpu->m_registers.EDI = EDI;
     cpu->m_registers.ESI = ESI;
     cpu->m_registers.EBP = EBP;
@@ -3193,15 +3193,15 @@ void Interpreter::Execute_Operation_POPA(CPU* cpu)
   }
 }
 
-template<OperandSize frame_size, OperandMode frame_mode, uint32 frame_constant, OperandSize level_size,
-         OperandMode level_mode, uint32 level_constant>
+template<OperandSize frame_size, OperandMode frame_mode, u32 frame_constant, OperandSize level_size,
+         OperandMode level_mode, u32 level_constant>
 void Interpreter::Execute_Operation_ENTER(CPU* cpu)
 {
   static_assert(frame_size == OperandSize_16 && level_size == OperandSize_8, "args have correct size");
   cpu->AddCycles(CYCLES_ENTER);
 
-  uint16 stack_frame_size = ReadWordOperand<frame_mode, frame_constant>(cpu);
-  uint8 level = ReadByteOperand<level_mode, level_constant>(cpu);
+  u16 stack_frame_size = ReadWordOperand<frame_mode, frame_constant>(cpu);
+  u8 level = ReadByteOperand<level_mode, level_constant>(cpu);
 
   // Push current frame pointer.
   if (cpu->idata.operand_size == OperandSize_16)
@@ -3209,18 +3209,18 @@ void Interpreter::Execute_Operation_ENTER(CPU* cpu)
   else
     cpu->PushDWord(cpu->m_registers.EBP);
 
-  uint32 frame_pointer = cpu->m_registers.ESP;
+  u32 frame_pointer = cpu->m_registers.ESP;
   if (level > 0)
   {
     // Use our own local copy of EBP in case any of these fail.
     if (cpu->idata.operand_size == OperandSize_16)
     {
-      uint16 BP = cpu->m_registers.BP;
-      for (uint8 i = 1; i < level; i++)
+      u16 BP = cpu->m_registers.BP;
+      for (u8 i = 1; i < level; i++)
       {
-        BP -= sizeof(uint16);
+        BP -= sizeof(u16);
 
-        uint16 prev_ptr = cpu->ReadMemoryWord(Segment_SS, BP);
+        u16 prev_ptr = cpu->ReadMemoryWord(Segment_SS, BP);
         cpu->PushWord(prev_ptr);
       }
       cpu->PushDWord(frame_pointer);
@@ -3228,12 +3228,12 @@ void Interpreter::Execute_Operation_ENTER(CPU* cpu)
     }
     else
     {
-      uint32 EBP = cpu->m_registers.EBP;
-      for (uint8 i = 1; i < level; i++)
+      u32 EBP = cpu->m_registers.EBP;
+      for (u8 i = 1; i < level; i++)
       {
-        EBP -= sizeof(uint32);
+        EBP -= sizeof(u32);
 
-        uint32 prev_ptr = cpu->ReadMemoryDWord(Segment_SS, EBP);
+        u32 prev_ptr = cpu->ReadMemoryDWord(Segment_SS, EBP);
         cpu->PushDWord(prev_ptr);
       }
       cpu->PushDWord(frame_pointer);
@@ -3266,8 +3266,8 @@ void Interpreter::Execute_Operation_LEAVE(CPU* cpu)
     cpu->m_registers.EBP = cpu->PopDWord();
 }
 
-template<OperandSize sreg_size, OperandMode sreg_mode, uint32 sreg_constant, OperandSize reg_size, OperandMode reg_mode,
-         uint32 reg_constant, OperandSize ptr_size, OperandMode ptr_mode, uint32 ptr_constant>
+template<OperandSize sreg_size, OperandMode sreg_mode, u32 sreg_constant, OperandSize reg_size, OperandMode reg_mode,
+         u32 reg_constant, OperandSize ptr_size, OperandMode ptr_mode, u32 ptr_constant>
 void Interpreter::Execute_Operation_LXS(CPU* cpu)
 {
   static_assert(sreg_mode == OperandMode_SegmentRegister, "sreg_mode is Segment Register");
@@ -3284,7 +3284,7 @@ void Interpreter::Execute_Operation_LXS(CPU* cpu)
   CalculateEffectiveAddress<ptr_mode>(cpu);
   cpu->AddCyclesPMode(CYCLES_LxS);
 
-  uint16 segment_selector;
+  u16 segment_selector;
   VirtualMemoryAddress address;
   ReadFarAddressOperand<ptr_mode>(cpu, cpu->idata.operand_size, &segment_selector, &address);
 
@@ -3299,8 +3299,8 @@ void Interpreter::Execute_Operation_LXS(CPU* cpu)
     DebugUnreachableCode();
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_LEA(CPU* cpu)
 {
   static_assert(src_mode == OperandMode_ModRM_RM, "Source operand is a pointer");
@@ -3315,7 +3315,7 @@ void Interpreter::Execute_Operation_LEA(CPU* cpu)
     WriteDWordOperand<dst_mode, dst_constant>(cpu, cpu->m_effective_address);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_JMP_Near(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -3331,7 +3331,7 @@ void Interpreter::Execute_Operation_JMP_Near(CPU* cpu)
   cpu->BranchTo(jump_address);
 }
 
-template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_Jcc(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -3346,14 +3346,14 @@ void Interpreter::Execute_Operation_Jcc(CPU* cpu)
   cpu->BranchTo(jump_address);
 }
 
-template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_LOOP(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
   cpu->AddCycles((condition != JumpCondition_Always) ? CYCLES_LOOPZ : CYCLES_LOOP);
 
-  uint32 count;
+  u32 count;
   if (cpu->idata.address_size == AddressSize_16)
     count = ZeroExtend32(--cpu->m_registers.CX);
   else
@@ -3367,7 +3367,7 @@ void Interpreter::Execute_Operation_LOOP(CPU* cpu)
   cpu->BranchTo(jump_address);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_CALL_Near(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -3388,17 +3388,17 @@ void Interpreter::Execute_Operation_CALL_Near(CPU* cpu)
   cpu->BranchTo(jump_address);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_RET_Near(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   cpu->AddCycles(CYCLES_RET_NEAR);
 
-  uint32 pop_count = 0;
+  u32 pop_count = 0;
   if constexpr (dst_mode != OperandMode_None)
     pop_count = ReadZeroExtendedDWordOperand<dst_size, dst_mode, dst_constant>(cpu);
 
-  uint32 return_EIP;
+  u32 return_EIP;
   if (cpu->idata.operand_size == OperandSize_16)
   {
     return_EIP = ZeroExtend32(cpu->PopWord());
@@ -3421,7 +3421,7 @@ void Interpreter::Execute_Operation_RET_Near(CPU* cpu)
   cpu->BranchTo(return_EIP);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_JMP_Far(CPU* cpu)
 {
   // #UD if the second argument is a register, not memory.
@@ -3441,14 +3441,14 @@ void Interpreter::Execute_Operation_JMP_Far(CPU* cpu)
   else
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
-  uint16 segment_selector;
+  u16 segment_selector;
   VirtualMemoryAddress address;
   ReadFarAddressOperand<dst_mode>(cpu, actual_size, &segment_selector, &address);
 
   cpu->FarJump(segment_selector, address, actual_size);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_CALL_Far(CPU* cpu)
 {
   // #UD if the second argument is a register, not memory.
@@ -3468,28 +3468,28 @@ void Interpreter::Execute_Operation_CALL_Far(CPU* cpu)
   else
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
-  uint16 segment_selector;
+  u16 segment_selector;
   VirtualMemoryAddress address;
   ReadFarAddressOperand<dst_mode>(cpu, actual_size, &segment_selector, &address);
 
   cpu->FarCall(segment_selector, address, actual_size);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_RET_Far(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
 
   cpu->AddCycles(CYCLES_RET_FAR);
 
-  uint32 pop_count = 0;
+  u32 pop_count = 0;
   if constexpr (dst_mode != OperandMode_None)
     pop_count = ReadZeroExtendedDWordOperand<dst_size, dst_mode, dst_constant>(cpu);
 
   cpu->FarReturn(cpu->idata.operand_size, pop_count);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_INT(CPU* cpu)
 {
   static_assert(dst_size == OperandSize_8, "size is 8 bits");
@@ -3632,7 +3632,7 @@ void Interpreter::Execute_Operation_STI(CPU* cpu)
 void Interpreter::Execute_Operation_SALC(CPU* cpu)
 {
   // Undocumented instruction. Same as SBB AL, AL without modifying any flags.
-  uint32 old_flags = cpu->m_registers.EFLAGS.bits;
+  u32 old_flags = cpu->m_registers.EFLAGS.bits;
   cpu->AddCycles(CYCLES_ALU_REG_RM_REG);
   cpu->m_registers.AL = ALUOp_Sbb8(&cpu->m_registers, cpu->m_registers.AL, cpu->m_registers.AL);
   cpu->m_registers.EFLAGS.bits = old_flags;
@@ -3657,7 +3657,7 @@ void Interpreter::Execute_Operation_LAHF(CPU* cpu)
 
 void Interpreter::Execute_Operation_SAHF(CPU* cpu)
 {
-  const uint32 change_mask = Flag_SF | Flag_ZF | Flag_AF | Flag_CF | Flag_PF;
+  const u32 change_mask = Flag_SF | Flag_ZF | Flag_AF | Flag_CF | Flag_PF;
   cpu->AddCycles(CYCLES_SAHF);
   cpu->SetFlags((cpu->m_registers.EFLAGS.bits & ~change_mask) | (ZeroExtend32(cpu->m_registers.AH) & change_mask));
 }
@@ -3803,15 +3803,15 @@ void Interpreter::Execute_Operation_XLAT(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_XLAT);
 
-  uint8 value;
+  u8 value;
   if (cpu->idata.address_size == AddressSize_16)
   {
-    uint16 address = cpu->m_registers.BX + ZeroExtend16(cpu->m_registers.AL);
+    u16 address = cpu->m_registers.BX + ZeroExtend16(cpu->m_registers.AL);
     value = cpu->ReadMemoryByte(cpu->idata.segment, address);
   }
   else if (cpu->idata.address_size == AddressSize_32)
   {
-    uint32 address = cpu->m_registers.EBX + ZeroExtend32(cpu->m_registers.AL);
+    u32 address = cpu->m_registers.EBX + ZeroExtend32(cpu->m_registers.AL);
     value = cpu->ReadMemoryByte(cpu->idata.segment, address);
   }
   else
@@ -3868,13 +3868,13 @@ void Interpreter::Execute_Operation_AAS(CPU* cpu)
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
 }
 
-template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
+template<OperandSize op_size, OperandMode op_mode, u32 op_constant>
 void Interpreter::Execute_Operation_AAM(CPU* cpu)
 {
   CalculateEffectiveAddress<op_mode>(cpu);
   cpu->AddCycles(CYCLES_AAM);
 
-  uint8 operand = ReadByteOperand<op_mode, op_constant>(cpu);
+  u8 operand = ReadByteOperand<op_mode, op_constant>(cpu);
   if (operand == 0)
   {
     cpu->RaiseException(Interrupt_DivideError);
@@ -3893,16 +3893,16 @@ void Interpreter::Execute_Operation_AAM(CPU* cpu)
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
 }
 
-template<OperandSize op_size, OperandMode op_mode, uint32 op_constant>
+template<OperandSize op_size, OperandMode op_mode, u32 op_constant>
 void Interpreter::Execute_Operation_AAD(CPU* cpu)
 {
   CalculateEffectiveAddress<op_mode>(cpu);
   cpu->AddCycles(CYCLES_AAD);
 
-  uint8 operand = ReadByteOperand<op_mode, op_constant>(cpu);
-  uint16 result = uint16(cpu->m_registers.AH) * uint16(operand) + uint16(cpu->m_registers.AL);
+  u8 operand = ReadByteOperand<op_mode, op_constant>(cpu);
+  u16 result = u16(cpu->m_registers.AH) * u16(operand) + u16(cpu->m_registers.AL);
 
-  cpu->m_registers.AL = uint8(result & 0xFF);
+  cpu->m_registers.AL = u8(result & 0xFF);
   cpu->m_registers.AH = 0;
 
   SET_FLAG(&cpu->m_registers, AF, false);
@@ -3918,7 +3918,7 @@ void Interpreter::Execute_Operation_DAA(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_BCD_ADDSUB);
 
-  uint8 old_AL = cpu->m_registers.AL;
+  u8 old_AL = cpu->m_registers.AL;
   bool old_CF = cpu->m_registers.EFLAGS.CF;
 
   if ((old_AL & 0xF) > 0x9 || cpu->m_registers.EFLAGS.AF)
@@ -3952,7 +3952,7 @@ void Interpreter::Execute_Operation_DAS(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_BCD_ADDSUB);
 
-  uint8 old_AL = cpu->m_registers.AL;
+  u8 old_AL = cpu->m_registers.AL;
   bool old_CF = cpu->m_registers.EFLAGS.CF;
 
   if ((old_AL & 0xF) > 0x9 || cpu->m_registers.EFLAGS.AF)
@@ -3978,7 +3978,7 @@ void Interpreter::Execute_Operation_DAS(CPU* cpu)
   SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
 }
 
-template<OperandSize val_size, OperandMode val_mode, uint32 val_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
 void Interpreter::Execute_Operation_BSWAP(CPU* cpu)
 {
   CalculateEffectiveAddress<val_mode>(cpu);
@@ -3987,7 +3987,7 @@ void Interpreter::Execute_Operation_BSWAP(CPU* cpu)
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
   if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
     value = Y_byteswap_uint32(value);
     WriteDWordOperand<val_mode, val_constant>(cpu, value);
   }
@@ -3998,7 +3998,7 @@ void Interpreter::Execute_Operation_BSWAP(CPU* cpu)
   }
 }
 
-template<OperandSize addr_size, OperandMode addr_mode, uint32 addr_constant>
+template<OperandSize addr_size, OperandMode addr_mode, u32 addr_constant>
 void Interpreter::Execute_Operation_INVLPG(CPU* cpu)
 {
   CalculateEffectiveAddress<addr_mode>(cpu);
@@ -4020,16 +4020,16 @@ void Interpreter::Execute_Operation_INVLPG(CPU* cpu)
   cpu->InvalidateTLBEntry(cpu->m_effective_address);
 }
 
-template<OperandSize addr_size, OperandMode addr_mode, uint32 addr_constant, OperandSize table_size,
-         OperandMode table_mode, uint32 table_constant>
+template<OperandSize addr_size, OperandMode addr_mode, u32 addr_constant, OperandSize table_size,
+         OperandMode table_mode, u32 table_constant>
 void Interpreter::Execute_Operation_BOUND(CPU* cpu)
 {
   CalculateEffectiveAddress<addr_mode>(cpu);
   CalculateEffectiveAddress<table_mode>(cpu);
 
-  uint32 address;
-  uint32 lower_bound;
-  uint32 upper_bound;
+  u32 address;
+  u32 lower_bound;
+  u32 upper_bound;
   VirtualMemoryAddress table_address = cpu->m_effective_address;
   const OperandSize actual_size = (addr_size == OperandSize_Count) ? cpu->idata.operand_size : addr_size;
   if (actual_size == OperandSize_16)
@@ -4061,8 +4061,8 @@ void Interpreter::Execute_Operation_BOUND(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_ARPL(CPU* cpu)
 {
   static_assert(src_size == OperandSize_16 && dst_size == OperandSize_16, "operand sizes are 16-bits");
@@ -4091,7 +4091,7 @@ void Interpreter::Execute_Operation_ARPL(CPU* cpu)
   }
 }
 
-template<Operation operation, OperandSize selector_size, OperandMode selector_mode, uint32 selector_constant>
+template<Operation operation, OperandSize selector_size, OperandMode selector_mode, u32 selector_constant>
 void Interpreter::Execute_Operation_VERx(CPU* cpu)
 {
   static_assert(selector_size == OperandSize_16, "selector size is 16-bits");
@@ -4142,22 +4142,22 @@ void Interpreter::Execute_Operation_VERx(CPU* cpu)
   }
 }
 
-template<OperandSize selector_size, OperandMode selector_mode, uint32 selector_constant>
+template<OperandSize selector_size, OperandMode selector_mode, u32 selector_constant>
 void Interpreter::Execute_Operation_VERW(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_VERR_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   Execute_Operation_VERx<Operation_VERW, selector_size, selector_mode, selector_constant>(cpu);
 }
 
-template<OperandSize selector_size, OperandMode selector_mode, uint32 selector_constant>
+template<OperandSize selector_size, OperandMode selector_mode, u32 selector_constant>
 void Interpreter::Execute_Operation_VERR(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_VERW_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   Execute_Operation_VERx<Operation_VERR, selector_size, selector_mode, selector_constant>(cpu);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize selector_size,
-         OperandMode selector_mode, uint32 selector_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize selector_size,
+         OperandMode selector_mode, u32 selector_constant>
 void Interpreter::Execute_Operation_LSL(CPU* cpu)
 {
   static_assert(selector_size == OperandSize_16, "selector size is 16-bits");
@@ -4201,7 +4201,7 @@ void Interpreter::Execute_Operation_LSL(CPU* cpu)
     return;
   }
 
-  const uint32 limit = descriptor.is_memory_descriptor ? descriptor.memory.GetLimit() : descriptor.tss.GetLimit();
+  const u32 limit = descriptor.is_memory_descriptor ? descriptor.memory.GetLimit() : descriptor.tss.GetLimit();
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   if (actual_size == OperandSize_16)
     WriteWordOperand<dst_mode, dst_constant>(cpu, Truncate16(limit));
@@ -4213,8 +4213,8 @@ void Interpreter::Execute_Operation_LSL(CPU* cpu)
   cpu->m_registers.EFLAGS.ZF = true;
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize selector_size,
-         OperandMode selector_mode, uint32 selector_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize selector_size,
+         OperandMode selector_mode, u32 selector_constant>
 void Interpreter::Execute_Operation_LAR(CPU* cpu)
 {
   static_assert(selector_size == OperandSize_16, "selector size is 16-bits");
@@ -4260,7 +4260,7 @@ void Interpreter::Execute_Operation_LAR(CPU* cpu)
 
   // All good
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
-  const uint32 result = descriptor.bits1 & 0x00FFFF00;
+  const u32 result = descriptor.bits1 & 0x00FFFF00;
   if (actual_size == OperandSize_16)
     WriteWordOperand<dst_mode, dst_constant>(cpu, Truncate16(result));
   else if (actual_size == OperandSize_32)
@@ -4271,7 +4271,7 @@ void Interpreter::Execute_Operation_LAR(CPU* cpu)
   cpu->m_registers.EFLAGS.ZF = true;
 }
 
-template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
+template<OperandSize src_size, OperandMode src_mode, u32 src_constant>
 void Interpreter::Execute_Operation_LIDT(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_LGDT);
@@ -4283,8 +4283,8 @@ void Interpreter::Execute_Operation_LIDT(CPU* cpu)
 
   CalculateEffectiveAddress<src_mode>(cpu);
   const VirtualMemoryAddress base_address = cpu->m_effective_address;
-  uint32 table_limit = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0));
-  uint32 table_base_address = cpu->ReadMemoryDWord(cpu->idata.segment, base_address + 2);
+  u32 table_limit = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0));
+  u32 table_base_address = cpu->ReadMemoryDWord(cpu->idata.segment, base_address + 2);
 
   // 16-bit operand drops higher order bits
   if (cpu->idata.operand_size == OperandSize_16)
@@ -4293,7 +4293,7 @@ void Interpreter::Execute_Operation_LIDT(CPU* cpu)
   cpu->LoadInterruptDescriptorTable(table_base_address, table_limit);
 }
 
-template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
+template<OperandSize src_size, OperandMode src_mode, u32 src_constant>
 void Interpreter::Execute_Operation_LGDT(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_LGDT);
@@ -4305,8 +4305,8 @@ void Interpreter::Execute_Operation_LGDT(CPU* cpu)
 
   CalculateEffectiveAddress<src_mode>(cpu);
   const VirtualMemoryAddress base_address = cpu->m_effective_address;
-  uint32 table_limit = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0));
-  uint32 table_base_address = cpu->ReadMemoryDWord(cpu->idata.segment, base_address + 2);
+  u32 table_limit = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0));
+  u32 table_base_address = cpu->ReadMemoryDWord(cpu->idata.segment, base_address + 2);
 
   // 16-bit operand drops higher order bits
   if (cpu->idata.operand_size == OperandSize_16)
@@ -4315,7 +4315,7 @@ void Interpreter::Execute_Operation_LGDT(CPU* cpu)
   cpu->LoadGlobalDescriptorTable(table_base_address, table_limit);
 }
 
-template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
+template<OperandSize src_size, OperandMode src_mode, u32 src_constant>
 void Interpreter::Execute_Operation_LLDT(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_LLDT_RM_MEM, cpu->idata.ModRM_RM_IsReg());
@@ -4332,11 +4332,11 @@ void Interpreter::Execute_Operation_LLDT(CPU* cpu)
   }
 
   CalculateEffectiveAddress<src_mode>(cpu);
-  const uint16 selector = ReadWordOperand<src_mode, src_constant>(cpu);
+  const u16 selector = ReadWordOperand<src_mode, src_constant>(cpu);
   cpu->LoadLocalDescriptorTable(selector);
 }
 
-template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
+template<OperandSize src_size, OperandMode src_mode, u32 src_constant>
 void Interpreter::Execute_Operation_LTR(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_LTR_RM_MEM, cpu->idata.ModRM_RM_IsReg());
@@ -4353,18 +4353,18 @@ void Interpreter::Execute_Operation_LTR(CPU* cpu)
   }
 
   CalculateEffectiveAddress<src_mode>(cpu);
-  const uint16 selector = ReadWordOperand<src_mode, src_constant>(cpu);
+  const u16 selector = ReadWordOperand<src_mode, src_constant>(cpu);
   cpu->LoadTaskSegment(selector);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_SIDT(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   cpu->AddCycles(CYCLES_SGDT);
 
-  uint32 idt_address = Truncate32(cpu->m_idt_location.base_address);
-  uint16 idt_limit = Truncate16(cpu->m_idt_location.limit);
+  u32 idt_address = Truncate32(cpu->m_idt_location.base_address);
+  u16 idt_limit = Truncate16(cpu->m_idt_location.limit);
 
   // 16-bit operand sets higher-order bits to zero
   if (cpu->idata.operand_size == OperandSize_16)
@@ -4376,14 +4376,14 @@ void Interpreter::Execute_Operation_SIDT(CPU* cpu)
   cpu->WriteMemoryDWord(cpu->idata.segment, base_address + 2, idt_address);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_SGDT(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
   cpu->AddCycles(CYCLES_SGDT);
 
-  uint32 gdt_address = Truncate32(cpu->m_gdt_location.base_address);
-  uint16 gdt_limit = Truncate16(cpu->m_gdt_location.limit);
+  u32 gdt_address = Truncate32(cpu->m_gdt_location.base_address);
+  u16 gdt_limit = Truncate16(cpu->m_gdt_location.limit);
 
   // 16-bit operand sets higher-order bits to zero
   if (cpu->idata.operand_size == OperandSize_16)
@@ -4396,7 +4396,7 @@ void Interpreter::Execute_Operation_SGDT(CPU* cpu)
   cpu->WriteMemoryDWord(cpu->idata.segment, base_address + 2, gdt_address);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_SLDT(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_SLDT_RM_MEM, cpu->idata.ModRM_RM_IsReg());
@@ -4411,7 +4411,7 @@ void Interpreter::Execute_Operation_SLDT(CPU* cpu)
   WriteWordOperand<dst_mode, dst_constant>(cpu, cpu->m_registers.LDTR);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_STR(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_STR_RM_MEM, cpu->idata.ModRM_RM_IsReg());
@@ -4426,7 +4426,7 @@ void Interpreter::Execute_Operation_STR(CPU* cpu)
   WriteWordOperand<dst_mode, dst_constant>(cpu, cpu->m_registers.TR);
 }
 
-template<OperandSize src_size, OperandMode src_mode, uint32 src_constant>
+template<OperandSize src_size, OperandMode src_mode, u32 src_constant>
 void Interpreter::Execute_Operation_LMSW(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_LMSW_RM_MEM, cpu->idata.ModRM_RM_IsReg());
@@ -4439,22 +4439,22 @@ void Interpreter::Execute_Operation_LMSW(CPU* cpu)
 
   // LMSW cannot clear the PE bit of CR0.
   CalculateEffectiveAddress<src_mode>(cpu);
-  const uint16 value = ReadWordOperand<src_mode, src_constant>(cpu);
+  const u16 value = ReadWordOperand<src_mode, src_constant>(cpu);
   cpu->LoadSpecialRegister(Reg32_CR0, (cpu->m_registers.CR0 & 0xFFFFFFF1) | ZeroExtend32(value & 0xF));
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_SMSW(CPU* cpu)
 {
   cpu->AddCyclesRM(CYCLES_SMSW_RM_MEM, cpu->idata.ModRM_RM_IsReg());
 
   CalculateEffectiveAddress<dst_mode>(cpu);
-  const uint16 value = Truncate16(cpu->m_registers.CR0);
+  const u16 value = Truncate16(cpu->m_registers.CR0);
   WriteWordOperand<dst_mode, dst_constant>(cpu, value);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant, OperandSize count_size, OperandMode count_mode, uint32 count_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant, OperandSize count_size, OperandMode count_mode, u32 count_constant>
 void Interpreter::Execute_Operation_SHLD(CPU* cpu)
 {
   static_assert(dst_size == src_size && count_size == OperandSize_8, "args are correct size");
@@ -4469,19 +4469,19 @@ void Interpreter::Execute_Operation_SHLD(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 shift_in = ReadWordOperand<src_mode, src_constant>(cpu);
-    uint8 shift_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u16 value = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 shift_in = ReadWordOperand<src_mode, src_constant>(cpu);
+    u8 shift_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_count == 0)
       return;
 
-    uint32 temp_value1 = ((ZeroExtend32(value) << 16) | ZeroExtend32(shift_in));
-    uint32 temp_value2 = temp_value1 << shift_count;
+    u32 temp_value1 = ((ZeroExtend32(value) << 16) | ZeroExtend32(shift_in));
+    u32 temp_value2 = temp_value1 << shift_count;
     if (shift_count > 16)
       temp_value2 |= (value << (shift_count - 16));
 
     // temp_value >>= 16;
-    uint16 new_value = Truncate16(temp_value2 >> 16);
+    u16 new_value = Truncate16(temp_value2 >> 16);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     cpu->m_registers.EFLAGS.CF = (((temp_value1 >> (32 - shift_count)) & 1) != 0);
@@ -4492,13 +4492,13 @@ void Interpreter::Execute_Operation_SHLD(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 shift_in = ReadDWordOperand<src_mode, src_constant>(cpu);
-    uint8 shift_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u32 value = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 shift_in = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u8 shift_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_count == 0)
       return;
 
-    uint32 new_value = (value << shift_count) | (shift_in >> (32 - shift_count));
+    u32 new_value = (value << shift_count) | (shift_in >> (32 - shift_count));
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     cpu->m_registers.EFLAGS.CF = (((value >> (32 - shift_count)) & 1) != 0);
@@ -4509,8 +4509,8 @@ void Interpreter::Execute_Operation_SHLD(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant, OperandSize count_size, OperandMode count_mode, uint32 count_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant, OperandSize count_size, OperandMode count_mode, u32 count_constant>
 void Interpreter::Execute_Operation_SHRD(CPU* cpu)
 {
   static_assert(dst_size == src_size && count_size == OperandSize_8, "args are correct size");
@@ -4524,18 +4524,18 @@ void Interpreter::Execute_Operation_SHRD(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 shift_in = ReadWordOperand<src_mode, src_constant>(cpu);
-    uint8 shift_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u16 value = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 shift_in = ReadWordOperand<src_mode, src_constant>(cpu);
+    u8 shift_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_count == 0)
       return;
 
-    uint32 temp_value = ((ZeroExtend32(shift_in) << 16) | ZeroExtend32(value));
+    u32 temp_value = ((ZeroExtend32(shift_in) << 16) | ZeroExtend32(value));
     temp_value >>= shift_count;
     if (shift_count > 16)
       temp_value |= (value << (32 - shift_count));
 
-    uint16 new_value = Truncate16(temp_value);
+    u16 new_value = Truncate16(temp_value);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     cpu->m_registers.EFLAGS.CF = (((value >> (shift_count - 1)) & 1) != 0);
@@ -4546,13 +4546,13 @@ void Interpreter::Execute_Operation_SHRD(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 shift_in = ReadDWordOperand<src_mode, src_constant>(cpu);
-    uint8 shift_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    u32 value = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 shift_in = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u8 shift_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_count == 0)
       return;
 
-    uint32 new_value = (shift_in << (32 - shift_count)) | (value >> shift_count);
+    u32 new_value = (shift_in << (32 - shift_count)) | (value >> shift_count);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
     cpu->m_registers.EFLAGS.CF = (((value >> (shift_count - 1)) & 1) != 0);
@@ -4563,8 +4563,8 @@ void Interpreter::Execute_Operation_SHRD(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_XADD(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_XADD);
@@ -4579,9 +4579,9 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    uint8 dst = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 src = ReadByteOperand<src_mode, src_constant>(cpu);
-    uint8 tmp = ALUOp_Add8(&cpu->m_registers, dst, src);
+    u8 dst = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 src = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 tmp = ALUOp_Add8(&cpu->m_registers, dst, src);
     src = dst;
     dst = tmp;
 
@@ -4598,9 +4598,9 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 dst = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 src = ReadWordOperand<src_mode, src_constant>(cpu);
-    uint16 tmp = ALUOp_Add16(&cpu->m_registers, dst, src);
+    u16 dst = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 src = ReadWordOperand<src_mode, src_constant>(cpu);
+    u16 tmp = ALUOp_Add16(&cpu->m_registers, dst, src);
     src = dst;
     dst = tmp;
     if (swap_order)
@@ -4616,9 +4616,9 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 dst = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 src = ReadDWordOperand<src_mode, src_constant>(cpu);
-    uint32 tmp = ALUOp_Add32(&cpu->m_registers, dst, src);
+    u32 dst = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 src = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u32 tmp = ALUOp_Add32(&cpu->m_registers, dst, src);
     src = dst;
     dst = tmp;
     if (swap_order)
@@ -4639,8 +4639,8 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_CMPXCHG);
@@ -4651,8 +4651,8 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   if (actual_size == OperandSize_8)
   {
-    uint8 dest = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    uint8 source = ReadByteOperand<src_mode, src_constant>(cpu);
+    u8 dest = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    u8 source = ReadByteOperand<src_mode, src_constant>(cpu);
     if (ALUOp_Sub8(&cpu->m_registers, cpu->m_registers.AL, dest) == 0)
     {
       // ZF should be set by the ALU op
@@ -4670,8 +4670,8 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
   }
   else if (actual_size == OperandSize_16)
   {
-    uint16 dest = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    uint16 source = ReadWordOperand<src_mode, src_constant>(cpu);
+    u16 dest = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    u16 source = ReadWordOperand<src_mode, src_constant>(cpu);
     if (ALUOp_Sub16(&cpu->m_registers, cpu->m_registers.AX, dest) == 0)
     {
       // ZF should be set by the ALU op
@@ -4689,8 +4689,8 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 dest = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    uint32 source = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u32 dest = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    u32 source = ReadDWordOperand<src_mode, src_constant>(cpu);
     if (ALUOp_Sub32(&cpu->m_registers, cpu->m_registers.EAX, dest) == 0)
     {
       // ZF should be set by the ALU op
@@ -4713,7 +4713,7 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
   }
 }
 
-template<OperandSize mem_size, OperandMode mem_mode, uint32 mem_constant>
+template<OperandSize mem_size, OperandMode mem_mode, u32 mem_constant>
 void Interpreter::Execute_Operation_CMPXCHG8B(CPU* cpu)
 {
   static_assert(mem_size == OperandSize_64, "operands is 64-bit");
@@ -4728,11 +4728,11 @@ void Interpreter::Execute_Operation_CMPXCHG8B(CPU* cpu)
     return;
   }
 
-  uint64 temp = ReadQWordOperand<mem_mode, mem_constant>(cpu);
-  uint64 edx_eax = (ZeroExtend64(cpu->m_registers.EDX) << 32) | ZeroExtend64(cpu->m_registers.EAX);
+  u64 temp = ReadQWordOperand<mem_mode, mem_constant>(cpu);
+  u64 edx_eax = (ZeroExtend64(cpu->m_registers.EDX) << 32) | ZeroExtend64(cpu->m_registers.EAX);
   if (edx_eax == temp)
   {
-    uint64 ecx_ebx = (ZeroExtend64(cpu->m_registers.ECX) << 32) | ZeroExtend64(cpu->m_registers.EBX);
+    u64 ecx_ebx = (ZeroExtend64(cpu->m_registers.ECX) << 32) | ZeroExtend64(cpu->m_registers.EBX);
     WriteQWordOperand<mem_mode, mem_constant>(cpu, ecx_ebx);
     cpu->m_registers.EFLAGS.ZF = true;
   }
@@ -4746,8 +4746,8 @@ void Interpreter::Execute_Operation_CMPXCHG8B(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_BSR(CPU* cpu)
 {
   // TODO: Timing.
@@ -4760,10 +4760,10 @@ void Interpreter::Execute_Operation_BSR(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   if (actual_size == OperandSize_16)
   {
-    uint16 mask = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 mask = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
     if (mask != 0)
     {
-      uint16 index = 0;
+      u16 index = 0;
       Y_bitscanreverse(mask, &index);
       WriteWordOperand<dst_mode, dst_constant>(cpu, Truncate16(index));
       cpu->m_registers.EFLAGS.ZF = false;
@@ -4775,10 +4775,10 @@ void Interpreter::Execute_Operation_BSR(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 mask = ReadZeroExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 mask = ReadZeroExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
     if (mask != 0)
     {
-      uint32 index = 0;
+      u32 index = 0;
       Y_bitscanreverse(mask, &index);
       WriteDWordOperand<dst_mode, dst_constant>(cpu, index);
       cpu->m_registers.EFLAGS.ZF = false;
@@ -4790,8 +4790,8 @@ void Interpreter::Execute_Operation_BSR(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_BSF(CPU* cpu)
 {
   // TODO: Timing.
@@ -4804,10 +4804,10 @@ void Interpreter::Execute_Operation_BSF(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   if (actual_size == OperandSize_16)
   {
-    uint16 mask = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 mask = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
     if (mask != 0)
     {
-      uint16 index = 0;
+      u16 index = 0;
       Y_bitscanforward(mask, &index);
       WriteWordOperand<dst_mode, dst_constant>(cpu, Truncate16(index));
       cpu->m_registers.EFLAGS.ZF = false;
@@ -4819,10 +4819,10 @@ void Interpreter::Execute_Operation_BSF(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 mask = ReadZeroExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 mask = ReadZeroExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
     if (mask != 0)
     {
-      uint32 index = 0;
+      u32 index = 0;
       Y_bitscanforward(mask, &index);
       WriteDWordOperand<dst_mode, dst_constant>(cpu, index);
       cpu->m_registers.EFLAGS.ZF = false;
@@ -4834,8 +4834,8 @@ void Interpreter::Execute_Operation_BSF(CPU* cpu)
   }
 }
 
-template<Operation operation, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size,
-         OperandMode src_mode, uint32 src_constant>
+template<Operation operation, OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size,
+         OperandMode src_mode, u32 src_constant>
 void Interpreter::Execute_Operation_BTx(CPU* cpu)
 {
   static_assert(dst_mode == OperandMode_ModRM_RM, "dst_mode is modrm r/m");
@@ -4858,11 +4858,11 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
   const bool is_register_operand = cpu->idata.modrm_rm_register;
   if (actual_size == OperandSize_16)
   {
-    uint16 source = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint16 bit = source & 0xF;
-    uint16 mask = (UINT16_C(1) << bit);
+    u16 source = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u16 bit = source & 0xF;
+    u16 mask = (UINT16_C(1) << bit);
 
-    uint16 in_value, out_value;
+    u16 in_value, out_value;
     VirtualMemoryAddress effective_address = 0;
     if (is_register_operand)
     {
@@ -4873,7 +4873,7 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
     else
     {
       // Displacement can be signed, annoyingly, so we need to divide rather than shift.
-      int16 displacement = int16(source & 0xFFF0) / 16;
+      s16 displacement = s16(source & 0xFFF0) / 16;
       effective_address = cpu->m_effective_address;
       effective_address += SignExtend<VirtualMemoryAddress>(displacement) * 2;
       if (cpu->idata.address_size == AddressSize_16)
@@ -4914,11 +4914,11 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 source = ReadZeroExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    uint32 bit = source & 0x1F;
-    uint32 mask = (UINT32_C(1) << bit);
+    u32 source = ReadZeroExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 bit = source & 0x1F;
+    u32 mask = (UINT32_C(1) << bit);
 
-    uint32 in_value, out_value;
+    u32 in_value, out_value;
     VirtualMemoryAddress effective_address = 0;
     if (is_register_operand)
     {
@@ -4929,7 +4929,7 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
     else
     {
       // Displacement can be signed, annoyingly, so we need to divide rather than shift.
-      int32 displacement = int32(source & 0xFFFFFFE0) / 32;
+      s32 displacement = s32(source & 0xFFFFFFE0) / 32;
       effective_address = cpu->m_effective_address;
       effective_address += SignExtend<VirtualMemoryAddress>(displacement) * 4;
       if (cpu->idata.address_size == AddressSize_16)
@@ -4970,29 +4970,29 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_BTC(CPU* cpu)
 {
   Execute_Operation_BTx<Operation_BTC, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_BTR(CPU* cpu)
 {
   Execute_Operation_BTx<Operation_BTR, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_BTS(CPU* cpu)
 {
   Execute_Operation_BTx<Operation_BTS, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_BT(CPU* cpu)
 {
   Execute_Operation_BTx<Operation_BT, dst_size, dst_mode, dst_constant, src_size, src_mode, src_constant>(cpu);
@@ -5101,8 +5101,8 @@ void Interpreter::Execute_REP(CPU* cpu, callback cb)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_INS(CPU* cpu)
 {
   // TODO: Move the port number check out of the loop.
@@ -5110,47 +5110,47 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
     const VirtualMemoryAddress dst_address =
       (cpu->idata.address_size == AddressSize_16) ? ZeroExtend32(cpu->m_registers.DI) : cpu->m_registers.EDI;
     const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
-    const uint16 port_number = cpu->m_registers.DX;
-    uint8 data_size;
+    const u16 port_number = cpu->m_registers.DX;
+    u8 data_size;
 
     if (actual_size == OperandSize_8)
     {
-      if (!cpu->HasIOPermissions(port_number, sizeof(uint8), true))
+      if (!cpu->HasIOPermissions(port_number, sizeof(u8), true))
       {
         cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
         return;
       }
 
-      uint8 value;
+      u8 value;
       cpu->m_bus->ReadIOPortByte(port_number, &value);
       cpu->WriteMemoryByte(Segment_ES, dst_address, value);
-      data_size = sizeof(uint8);
+      data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      if (!cpu->HasIOPermissions(port_number, sizeof(uint16), true))
+      if (!cpu->HasIOPermissions(port_number, sizeof(u16), true))
       {
         cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
         return;
       }
 
-      uint16 value;
+      u16 value;
       cpu->m_bus->ReadIOPortWord(port_number, &value);
       cpu->WriteMemoryWord(Segment_ES, dst_address, value);
-      data_size = sizeof(uint16);
+      data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      if (!cpu->HasIOPermissions(port_number, sizeof(uint32), true))
+      if (!cpu->HasIOPermissions(port_number, sizeof(u32), true))
       {
         cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
         return;
       }
 
-      uint32 value;
+      u32 value;
       cpu->m_bus->ReadIOPortDWord(port_number, &value);
       cpu->WriteMemoryDWord(Segment_ES, dst_address, value);
-      data_size = sizeof(uint32);
+      data_size = sizeof(u32);
     }
     else
     {
@@ -5175,8 +5175,8 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
   });
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_OUTS(CPU* cpu)
 {
   Execute_REP<Operation_OUTS, false>(cpu, [](CPU* cpu) {
@@ -5184,44 +5184,44 @@ void Interpreter::Execute_Operation_OUTS(CPU* cpu)
     const VirtualMemoryAddress src_address =
       (cpu->idata.address_size == AddressSize_16) ? ZeroExtend32(cpu->m_registers.SI) : cpu->m_registers.ESI;
     const OperandSize actual_size = (src_size == OperandSize_Count) ? cpu->idata.operand_size : src_size;
-    uint16 port_number = cpu->m_registers.DX;
-    uint8 data_size;
+    u16 port_number = cpu->m_registers.DX;
+    u8 data_size;
 
     if (actual_size == OperandSize_8)
     {
-      if (!cpu->HasIOPermissions(port_number, sizeof(uint8), true))
+      if (!cpu->HasIOPermissions(port_number, sizeof(u8), true))
       {
         cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
         return;
       }
 
-      uint8 value = cpu->ReadMemoryByte(segment, src_address);
+      u8 value = cpu->ReadMemoryByte(segment, src_address);
       cpu->m_bus->WriteIOPortByte(port_number, value);
-      data_size = sizeof(uint8);
+      data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      if (!cpu->HasIOPermissions(port_number, sizeof(uint16), true))
+      if (!cpu->HasIOPermissions(port_number, sizeof(u16), true))
       {
         cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
         return;
       }
 
-      uint16 value = cpu->ReadMemoryWord(segment, src_address);
+      u16 value = cpu->ReadMemoryWord(segment, src_address);
       cpu->m_bus->WriteIOPortWord(port_number, value);
-      data_size = sizeof(uint16);
+      data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      if (!cpu->HasIOPermissions(port_number, sizeof(uint32), true))
+      if (!cpu->HasIOPermissions(port_number, sizeof(u32), true))
       {
         cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
         return;
       }
 
-      uint32 value = cpu->ReadMemoryDWord(segment, src_address);
+      u32 value = cpu->ReadMemoryDWord(segment, src_address);
       cpu->m_bus->WriteIOPortDWord(port_number, value);
-      data_size = sizeof(uint32);
+      data_size = sizeof(u32);
     }
     else
     {
@@ -5246,8 +5246,8 @@ void Interpreter::Execute_Operation_OUTS(CPU* cpu)
   });
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_SCAS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
@@ -5256,27 +5256,27 @@ void Interpreter::Execute_Operation_SCAS(CPU* cpu)
     VirtualMemoryAddress dst_address =
       (cpu->idata.address_size == AddressSize_16) ? ZeroExtend32(cpu->m_registers.DI) : cpu->m_registers.EDI;
     const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
-    uint8 data_size;
+    u8 data_size;
     if (actual_size == OperandSize_8)
     {
-      uint8 lhs = cpu->m_registers.AL;
-      uint8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
+      u8 lhs = cpu->m_registers.AL;
+      u8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
       ALUOp_Sub8(&cpu->m_registers, lhs, rhs);
-      data_size = sizeof(uint8);
+      data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      uint16 lhs = cpu->m_registers.AX;
-      uint16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
+      u16 lhs = cpu->m_registers.AX;
+      u16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
       ALUOp_Sub16(&cpu->m_registers, lhs, rhs);
-      data_size = sizeof(uint16);
+      data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      uint32 lhs = cpu->m_registers.EAX;
-      uint32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
+      u32 lhs = cpu->m_registers.EAX;
+      u32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
       ALUOp_Sub32(&cpu->m_registers, lhs, rhs);
-      data_size = sizeof(uint32);
+      data_size = sizeof(u32);
     }
     else
     {
@@ -5301,8 +5301,8 @@ void Interpreter::Execute_Operation_SCAS(CPU* cpu)
   });
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_LODS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
@@ -5311,25 +5311,25 @@ void Interpreter::Execute_Operation_LODS(CPU* cpu)
     const VirtualMemoryAddress src_address =
       (cpu->idata.address_size == AddressSize_16) ? ZeroExtend32(cpu->m_registers.SI) : cpu->m_registers.ESI;
     const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
-    uint8 data_size;
+    u8 data_size;
 
     if (actual_size == OperandSize_8)
     {
-      uint8 value = cpu->ReadMemoryByte(segment, src_address);
+      u8 value = cpu->ReadMemoryByte(segment, src_address);
       cpu->m_registers.AL = value;
-      data_size = sizeof(uint8);
+      data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      uint16 value = cpu->ReadMemoryWord(segment, src_address);
+      u16 value = cpu->ReadMemoryWord(segment, src_address);
       cpu->m_registers.AX = value;
-      data_size = sizeof(uint16);
+      data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      uint32 value = cpu->ReadMemoryDWord(segment, src_address);
+      u32 value = cpu->ReadMemoryDWord(segment, src_address);
       cpu->m_registers.EAX = value;
-      data_size = sizeof(uint32);
+      data_size = sizeof(u32);
     }
     else
     {
@@ -5354,8 +5354,8 @@ void Interpreter::Execute_Operation_LODS(CPU* cpu)
   });
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_STOS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
@@ -5363,25 +5363,25 @@ void Interpreter::Execute_Operation_STOS(CPU* cpu)
     const VirtualMemoryAddress dst_address =
       (cpu->idata.address_size == AddressSize_16) ? ZeroExtend32(cpu->m_registers.DI) : cpu->m_registers.EDI;
     const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
-    uint8 data_size;
+    u8 data_size;
 
     if (actual_size == OperandSize_8)
     {
-      uint8 value = cpu->m_registers.AL;
+      u8 value = cpu->m_registers.AL;
       cpu->WriteMemoryByte(Segment_ES, dst_address, value);
-      data_size = sizeof(uint8);
+      data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      uint16 value = cpu->m_registers.AX;
+      u16 value = cpu->m_registers.AX;
       cpu->WriteMemoryWord(Segment_ES, dst_address, value);
-      data_size = sizeof(uint16);
+      data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      uint32 value = cpu->m_registers.EAX;
+      u32 value = cpu->m_registers.EAX;
       cpu->WriteMemoryDWord(Segment_ES, dst_address, value);
-      data_size = sizeof(uint32);
+      data_size = sizeof(u32);
     }
     else
     {
@@ -5406,8 +5406,8 @@ void Interpreter::Execute_Operation_STOS(CPU* cpu)
   });
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_CMPS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
@@ -5419,28 +5419,28 @@ void Interpreter::Execute_Operation_CMPS(CPU* cpu)
     VirtualMemoryAddress dst_address =
       (cpu->idata.address_size == AddressSize_16) ? ZeroExtend32(cpu->m_registers.DI) : cpu->m_registers.EDI;
     const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
-    uint8 data_size;
+    u8 data_size;
 
     if (actual_size == OperandSize_8)
     {
-      uint8 lhs = cpu->ReadMemoryByte(src_segment, src_address);
-      uint8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
+      u8 lhs = cpu->ReadMemoryByte(src_segment, src_address);
+      u8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
       ALUOp_Sub8(&cpu->m_registers, lhs, rhs);
-      data_size = sizeof(uint8);
+      data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      uint16 lhs = cpu->ReadMemoryWord(src_segment, src_address);
-      uint16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
+      u16 lhs = cpu->ReadMemoryWord(src_segment, src_address);
+      u16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
       ALUOp_Sub16(&cpu->m_registers, lhs, rhs);
-      data_size = sizeof(uint16);
+      data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      uint32 lhs = cpu->ReadMemoryDWord(src_segment, src_address);
-      uint32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
+      u32 lhs = cpu->ReadMemoryDWord(src_segment, src_address);
+      u32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
       ALUOp_Sub32(&cpu->m_registers, lhs, rhs);
-      data_size = sizeof(uint32);
+      data_size = sizeof(u32);
     }
     else
     {
@@ -5477,8 +5477,8 @@ void Interpreter::Execute_Operation_CMPS(CPU* cpu)
   });
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_MOVS(CPU* cpu)
 {
   static_assert(src_size == dst_size, "operand sizes are the same");
@@ -5490,25 +5490,25 @@ void Interpreter::Execute_Operation_MOVS(CPU* cpu)
     const VirtualMemoryAddress dst_address =
       (cpu->idata.address_size == AddressSize_16) ? ZeroExtend32(cpu->m_registers.DI) : cpu->m_registers.EDI;
     const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
-    uint8 data_size;
+    u8 data_size;
 
     if (actual_size == OperandSize_8)
     {
-      uint8 value = cpu->ReadMemoryByte(src_segment, src_address);
+      u8 value = cpu->ReadMemoryByte(src_segment, src_address);
       cpu->WriteMemoryByte(Segment_ES, dst_address, value);
-      data_size = sizeof(uint8);
+      data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      uint16 value = cpu->ReadMemoryWord(src_segment, src_address);
+      u16 value = cpu->ReadMemoryWord(src_segment, src_address);
       cpu->WriteMemoryWord(Segment_ES, dst_address, value);
-      data_size = sizeof(uint16);
+      data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      uint32 value = cpu->ReadMemoryDWord(src_segment, src_address);
+      u32 value = cpu->ReadMemoryDWord(src_segment, src_address);
       cpu->WriteMemoryDWord(Segment_ES, dst_address, value);
-      data_size = sizeof(uint32);
+      data_size = sizeof(u32);
     }
     else
     {
@@ -5545,8 +5545,8 @@ void Interpreter::Execute_Operation_MOVS(CPU* cpu)
   });
 }
 
-template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size,
-         OperandMode src_mode, uint32 src_constant>
+template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size,
+         OperandMode src_mode, u32 src_constant>
 void Interpreter::Execute_Operation_CMOVcc(CPU* cpu)
 {
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
@@ -5559,19 +5559,19 @@ void Interpreter::Execute_Operation_CMOVcc(CPU* cpu)
   bool do_move = TestJumpCondition<condition>(cpu);
   if (actual_size == OperandSize_16)
   {
-    uint16 value = ReadWordOperand<src_mode, src_constant>(cpu);
+    u16 value = ReadWordOperand<src_mode, src_constant>(cpu);
     if (do_move)
       WriteWordOperand<dst_mode, dst_constant>(cpu, value);
   }
   else if (actual_size == OperandSize_32)
   {
-    uint32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
     if (do_move)
       WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
 }
 
-template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant>
+template<JumpCondition condition, OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_SETcc(CPU* cpu)
 {
   CalculateEffectiveAddress<dst_mode>(cpu);
@@ -5581,8 +5581,8 @@ void Interpreter::Execute_Operation_SETcc(CPU* cpu)
   WriteByteOperand<dst_mode, dst_constant>(cpu, BoolToUInt8(flag));
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
 {
   static_assert((src_mode == OperandMode_ModRM_TestRegister && dst_mode == OperandMode_ModRM_RM) ||
@@ -5601,10 +5601,10 @@ void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
   }
 
   // Load test register
-  uint8 tr_index = cpu->idata.GetModRM_Reg();
+  u8 tr_index = cpu->idata.GetModRM_Reg();
   if constexpr (dst_mode == OperandMode_ModRM_TestRegister)
   {
-    uint32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
+    u32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
 
     // Validate selected register
     switch (tr_index)
@@ -5627,7 +5627,7 @@ void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
   if constexpr (src_mode == OperandMode_ModRM_TestRegister)
   {
     // Validate selected register
-    uint32 value;
+    u32 value;
     switch (tr_index)
     {
       case 3:
@@ -5647,8 +5647,8 @@ void Interpreter::Execute_Operation_MOV_TR(CPU* cpu)
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_MOV_DR(CPU* cpu)
 {
   static_assert((src_mode == OperandMode_ModRM_DebugRegister && dst_mode == OperandMode_ModRM_RM) ||
@@ -5667,13 +5667,13 @@ void Interpreter::Execute_Operation_MOV_DR(CPU* cpu)
   // #UD If CR4.DE[bit 3] = 1 (debug extensions) and a MOV instruction is executed involving DR4 or DR5.
   // #DB If any debug register is accessed while the DR7.GD[bit 13] = 1.
 
-  const uint8 dr_index = cpu->idata.GetModRM_Reg();
+  const u8 dr_index = cpu->idata.GetModRM_Reg();
   if constexpr (dst_mode == OperandMode_ModRM_DebugRegister)
   {
     // Load debug register
     cpu->AddCycles((dr_index <= 3) ? CYCLES_MOV_DR0_3_REG : CYCLES_MOV_DR6_7_REG);
 
-    uint32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
+    u32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
     cpu->LoadSpecialRegister(static_cast<Reg32>(Reg32_DR0 + dr_index), value);
   }
   else if constexpr (src_mode == OperandMode_ModRM_DebugRegister)
@@ -5681,13 +5681,13 @@ void Interpreter::Execute_Operation_MOV_DR(CPU* cpu)
     // Store debug register
     cpu->AddCycles((dr_index <= 3) ? CYCLES_MOV_REG_DR0_3 : CYCLES_MOV_REG_DR6_7);
 
-    uint32 value = cpu->m_registers.reg32[Reg32_DR0 + dr_index];
+    u32 value = cpu->m_registers.reg32[Reg32_DR0 + dr_index];
     cpu->m_registers.reg32[cpu->idata.GetModRM_RM()] = value;
   }
 }
 
-template<OperandSize dst_size, OperandMode dst_mode, uint32 dst_constant, OperandSize src_size, OperandMode src_mode,
-         uint32 src_constant>
+template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
+         u32 src_constant>
 void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
 {
   static_assert((src_mode == OperandMode_ModRM_ControlRegister && dst_mode == OperandMode_ModRM_RM) ||
@@ -5707,7 +5707,7 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
   if constexpr (dst_mode == OperandMode_ModRM_ControlRegister)
   {
     // Validate selected register
-    uint32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
+    u32 value = cpu->m_registers.reg32[cpu->idata.GetModRM_RM()];
     switch (cpu->idata.modrm_reg)
     {
       case 0:
@@ -5753,7 +5753,7 @@ void Interpreter::Execute_Operation_MOV_CR(CPU* cpu)
   else if constexpr (src_mode == OperandMode_ModRM_ControlRegister)
   {
     // Validate selected register
-    uint32 value;
+    u32 value;
     switch (cpu->idata.modrm_reg)
     {
       case 0:

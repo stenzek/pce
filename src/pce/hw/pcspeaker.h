@@ -34,8 +34,8 @@ public:
   void SetLevel(bool level);
 
 private:
-  static constexpr int16 LOW_SAMPLE_VALUE = int16(VOLUME * -32768);
-  static constexpr int16 HIGH_SAMPLE_VALUE = int16(VOLUME * 32767);
+  static constexpr s16 LOW_SAMPLE_VALUE = s16(VOLUME * -32768);
+  static constexpr s16 HIGH_SAMPLE_VALUE = s16(VOLUME * 32767);
 
   void RenderSampleEvent(CycleCount cycles);
 

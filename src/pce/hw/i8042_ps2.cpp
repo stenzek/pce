@@ -124,14 +124,14 @@ bool i8042_PS2::LoadState(BinaryReader& reader)
   reader.SafeReadUInt16(&m_pending_command);
   reader.SafeReadUInt16(&m_pending_keyboard_command);
 
-  auto ReadBuffer = [&reader](std::deque<uint8>& buffer) {
-    uint32 size = 0;
+  auto ReadBuffer = [&reader](std::deque<u8>& buffer) {
+    u32 size = 0;
     reader.SafeReadUInt32(&size);
     buffer.clear();
     if (size > 0)
     {
-      uint8 data = 0;
-      for (uint32 j = 0; j < size; j++)
+      u8 data = 0;
+      for (u32 j = 0; j < size; j++)
         reader.SafeReadUInt8(&data);
       buffer.push_back(data);
     }
@@ -166,8 +166,8 @@ bool i8042_PS2::SaveState(BinaryWriter& writer)
   writer.SafeWriteUInt16(m_pending_command);
   writer.SafeWriteUInt16(m_pending_keyboard_command);
 
-  auto WriteBuffer = [&writer](std::deque<uint8>& buffer) {
-    writer.SafeWriteUInt32(static_cast<uint32>(buffer.size()));
+  auto WriteBuffer = [&writer](std::deque<u8>& buffer) {
+    writer.SafeWriteUInt32(static_cast<u32>(buffer.size()));
     if (!buffer.empty())
     {
       for (size_t j = 0; j < buffer.size(); j++)
@@ -191,12 +191,12 @@ bool i8042_PS2::SaveState(BinaryWriter& writer)
   return true;
 }
 
-void i8042_PS2::IOReadStatusRegister(uint8* value)
+void i8042_PS2::IOReadStatusRegister(u8* value)
 {
   *value = m_status_register.raw;
 }
 
-void i8042_PS2::IOReadDataPort(uint8* value)
+void i8042_PS2::IOReadDataPort(u8* value)
 {
   // Lower interrupts after read
   if (m_status_register.mouse_buffer_status)
@@ -216,18 +216,18 @@ void i8042_PS2::IOReadDataPort(uint8* value)
   UpdateEvents();
 }
 
-void i8042_PS2::IOWriteDataPort(uint8 value)
+void i8042_PS2::IOWriteDataPort(u8 value)
 {
   if (m_command_event->IsActive())
     m_command_event->InvokeEarly(true);
 
-  Log_TracePrintf("Write data port, pending command = 0x%02X, value = 0x%02X", uint32(m_pending_command), value);
+  Log_TracePrintf("Write data port, pending command = 0x%02X, value = 0x%02X", u32(m_pending_command), value);
   m_status_register.command_flag = false;
 
   EnqueueCommandOrData(value, true);
 }
 
-void i8042_PS2::IOWriteCommandRegister(uint8 value)
+void i8042_PS2::IOWriteCommandRegister(u8 value)
 {
   if (m_command_event->IsActive())
     m_command_event->InvokeEarly(true);
@@ -243,22 +243,22 @@ void i8042_PS2::OnHostKeyboardEvent(GenScanCode scancode, bool key_down)
   if (!m_keyboard.enabled)
     return;
 
-  uint8 index = key_down ? 0 : 1;
+  u8 index = key_down ? 0 : 1;
   DebugAssert(index < 2);
 
-  const uint8* hw_scancode;
+  const u8* hw_scancode;
   if (m_configuration_byte.port_1_translation)
     hw_scancode = KeyboardScanCodes::Set1Mapping[scancode][index];
   else
     hw_scancode = KeyboardScanCodes::Set2Mapping[scancode][index];
 
-  for (uint32 i = 0; hw_scancode[i] != 0; i++)
+  for (u32 i = 0; hw_scancode[i] != 0; i++)
     m_keyboard.scan_buffer.push_back(hw_scancode[i]);
 
   UpdateEvents();
 }
 
-void i8042_PS2::OnHostMousePositionChanged(int32 dx, int32 dy)
+void i8042_PS2::OnHostMousePositionChanged(s32 dx, s32 dy)
 {
   if (dx == 0 && dy == 0)
     return;
@@ -268,13 +268,13 @@ void i8042_PS2::OnHostMousePositionChanged(int32 dx, int32 dy)
   UpdateEvents();
 }
 
-void i8042_PS2::OnHostMouseButtonChanged(uint32 button, bool down)
+void i8042_PS2::OnHostMouseButtonChanged(u32 button, bool down)
 {
   if (button >= NUM_MOUSE_BUTTONS)
     return;
 
-  const uint8 mask = uint8(1) << button;
-  const uint8 new_value = (down) ? (m_mouse.button_state | mask) : (m_mouse.button_state & (~mask));
+  const u8 mask = u8(1) << button;
+  const u8 new_value = (down) ? (m_mouse.button_state | mask) : (m_mouse.button_state & (~mask));
   if (new_value != m_mouse.button_state)
   {
     m_mouse.button_state = new_value;
@@ -350,7 +350,7 @@ void i8042_PS2::OnMouseReportEvent()
   UpdateEvents();
 }
 
-void i8042_PS2::SetOutputBuffer(uint32 port, uint8 data)
+void i8042_PS2::SetOutputBuffer(u32 port, u8 data)
 {
   m_output_buffer = data;
   m_status_register.output_buffer_status = true;
@@ -358,19 +358,19 @@ void i8042_PS2::SetOutputBuffer(uint32 port, uint8 data)
   UpdateEvents();
 }
 
-void i8042_PS2::AppendToKeyboardBuffer(uint8 data)
+void i8042_PS2::AppendToKeyboardBuffer(u8 data)
 {
   m_keyboard.data_buffer.push_back(data);
   UpdateEvents();
 }
 
-void i8042_PS2::AppendToMouseBuffer(uint8 data)
+void i8042_PS2::AppendToMouseBuffer(u8 data)
 {
   m_mouse.data_buffer.push_back(data);
   UpdateEvents();
 }
 
-void i8042_PS2::EnqueueCommandOrData(uint8 data, bool is_data)
+void i8042_PS2::EnqueueCommandOrData(u8 data, bool is_data)
 {
   m_status_register.input_buffer_status = true;
 
@@ -387,7 +387,7 @@ void i8042_PS2::EnqueueCommandOrData(uint8 data, bool is_data)
   }
 
   // Some commands take longer than others
-  const uint8 command = Truncate8(m_pending_command);
+  const u8 command = Truncate8(m_pending_command);
   if (command == 0xAA) // self-test
     delay = 100;
   else if (command == 0x60) // write config byte, bochs bios expects this to happen instantly
@@ -425,7 +425,7 @@ void i8042_PS2::OnCommandEvent()
   }
 }
 
-bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data)
+bool i8042_PS2::HandleControllerCommand(u8 command, u8 data, bool has_data)
 {
   if (command >= 0x20 && command <= 0x3F)
   {
@@ -535,7 +535,7 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
       if (!has_data)
         return false;
 
-      const uint8 old_value = m_output_port.raw;
+      const u8 old_value = m_output_port.raw;
       Log_TracePrintf("KBC write output port: 0x%02X -> 0x%02X", ZeroExtend32(old_value), ZeroExtend32(data));
       m_output_port.raw = data;
 
@@ -619,9 +619,9 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     {
       if (m_output_port_written_callback)
       {
-        uint8 mask = (m_pending_command & 0x0F);
-        uint8 pulse_value = m_output_port.raw | ~mask;
-        uint8 restore_value = m_output_port.raw;
+        u8 mask = (m_pending_command & 0x0F);
+        u8 pulse_value = m_output_port.raw | ~mask;
+        u8 restore_value = m_output_port.raw;
         m_output_port_written_callback(pulse_value, restore_value, true);
         m_output_port_written_callback(restore_value, pulse_value, true);
       }
@@ -630,13 +630,12 @@ bool i8042_PS2::HandleControllerCommand(uint8 command, uint8 data, bool has_data
     }
 
     default:
-      Log_WarningPrintf("Unknown command: 0x%02X data=%s 0x%02X", uint32(command), has_data ? "yes" : "no",
-                        uint32(data));
+      Log_WarningPrintf("Unknown command: 0x%02X data=%s 0x%02X", u32(command), has_data ? "yes" : "no", u32(data));
       return true;
   }
 }
 
-bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
+bool i8042_PS2::HandleKeyboardCommand(u8 command, u8 data, bool has_data)
 {
   auto SendACK = [this]() { AppendToKeyboardBuffer(0xFA); };
 
@@ -723,7 +722,7 @@ bool i8042_PS2::HandleKeyboardCommand(uint8 command, uint8 data, bool has_data)
     }
 
     default:
-      Log_WarningPrintf("Unknown command: 0x%02X", uint32(command));
+      Log_WarningPrintf("Unknown command: 0x%02X", u32(command));
       AppendToKeyboardBuffer(0xFE); // NACK
       return true;
   }
@@ -734,7 +733,7 @@ void i8042_PS2::ResetKeyboard()
   m_keyboard.enabled = true;
 }
 
-bool i8042_PS2::HandleMouseCommand(uint8 command, uint8 data, bool has_data)
+bool i8042_PS2::HandleMouseCommand(u8 command, u8 data, bool has_data)
 {
   auto SendACK = [this]() { AppendToMouseBuffer(0xFA); };
 
@@ -770,9 +769,9 @@ bool i8042_PS2::HandleMouseCommand(uint8 command, uint8 data, bool has_data)
     {
       SendACK();
 
-      uint8 status_byte = (((!m_mouse.stream_mode) ? 0x40 : 0x00) | (!m_mouse.enabled ? 0x20 : 0x00) |
-                           // scaling==0 -> 0x10
-                           ((m_mouse.button_state & 1) << 2) | ((m_mouse.button_state & 2) << 0));
+      u8 status_byte = (((!m_mouse.stream_mode) ? 0x40 : 0x00) | (!m_mouse.enabled ? 0x20 : 0x00) |
+                        // scaling==0 -> 0x10
+                        ((m_mouse.button_state & 1) << 2) | ((m_mouse.button_state & 2) << 0));
       AppendToMouseBuffer(status_byte);
       AppendToMouseBuffer(0); // resolution byte
       AppendToMouseBuffer(m_mouse.sample_rate);
@@ -900,7 +899,7 @@ bool i8042_PS2::HandleMouseCommand(uint8 command, uint8 data, bool has_data)
     }
 
     default:
-      Log_WarningPrintf("Unknown command: 0x%02X", uint32(command));
+      Log_WarningPrintf("Unknown command: 0x%02X", u32(command));
       AppendToMouseBuffer(0xFE); // NACK
       return true;
   }
@@ -921,16 +920,16 @@ void i8042_PS2::CreateMousePacket()
 {
   union
   {
-    uint8 bits;
-    BitField<uint8, uint8, 0, 3> button_bits;
-    BitField<uint8, bool, 0, 1> button_left;
-    BitField<uint8, bool, 1, 1> button_right;
-    BitField<uint8, bool, 2, 1> button_middle;
-    BitField<uint8, bool, 3, 1> always_one;
-    BitField<uint8, bool, 4, 1> dx9;
-    BitField<uint8, bool, 5, 1> dy9;
-    BitField<uint8, bool, 6, 1> x_overflow;
-    BitField<uint8, bool, 7, 1> y_overflow;
+    u8 bits;
+    BitField<u8, u8, 0, 3> button_bits;
+    BitField<u8, bool, 0, 1> button_left;
+    BitField<u8, bool, 1, 1> button_right;
+    BitField<u8, bool, 2, 1> button_middle;
+    BitField<u8, bool, 3, 1> always_one;
+    BitField<u8, bool, 4, 1> dx9;
+    BitField<u8, bool, 5, 1> dy9;
+    BitField<u8, bool, 6, 1> x_overflow;
+    BitField<u8, bool, 7, 1> y_overflow;
   } byte0;
 
   // We match the button states to this packet byte.
@@ -942,8 +941,8 @@ void i8042_PS2::CreateMousePacket()
   byte0.x_overflow = (m_mouse.delta_x > 255 || m_mouse.delta_x < -256);
   byte0.y_overflow = (m_mouse.delta_y > 255 || m_mouse.delta_y < -256);
   AppendToMouseBuffer(byte0.bits);
-  AppendToMouseBuffer(uint8(m_mouse.delta_x));
-  AppendToMouseBuffer(uint8(m_mouse.delta_y));
+  AppendToMouseBuffer(u8(m_mouse.delta_x));
+  AppendToMouseBuffer(u8(m_mouse.delta_y));
 
   // Clear delta.
   // TODO: We could handle the overflow better by only subtracting a max of 256.

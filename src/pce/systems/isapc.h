@@ -28,7 +28,7 @@ protected:
   /// @param reserve_isa_memory Disables RAM allocation in the 15-16MB hole
   /// @param reserve_uma Disables RAM allocation in the start of the upper memory area (A0000 - BFFFF)
   /// @param reserve_rom Disables RAM allocation in the ROM UMA area (C0000 - FFFFF)
-  void AllocatePhysicalMemory(uint32 ram_size, bool reserve_isa_memory, bool reserve_uma, bool reserve_rom);
+  void AllocatePhysicalMemory(u32 ram_size, bool reserve_isa_memory, bool reserve_uma, bool reserve_rom);
 
   // Helper for A20
   bool GetA20State() const;

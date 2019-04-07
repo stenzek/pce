@@ -2,7 +2,7 @@
 
 namespace HW {
 
-const uint8 KeyboardScanCodes::Set1Mapping[NumGenScanCodes][2][MAX_SCAN_CODE_LENGTH]{
+const u8 KeyboardScanCodes::Set1Mapping[NumGenScanCodes][2][MAX_SCAN_CODE_LENGTH]{
   // Make code  break code
   {{0x00}, {0x00}},                                     // GenScanCode_None
   {{0x01}, {0x81}},                                     // GenScanCode_Escape
@@ -111,7 +111,7 @@ const uint8 KeyboardScanCodes::Set1Mapping[NumGenScanCodes][2][MAX_SCAN_CODE_LEN
   {{0x53}, {0xD3}}                                      // GenScanCode_Numpad_Decimal
 };
 
-const uint8 KeyboardScanCodes::Set2Mapping[NumGenScanCodes][2][MAX_SCAN_CODE_LENGTH]{
+const u8 KeyboardScanCodes::Set2Mapping[NumGenScanCodes][2][MAX_SCAN_CODE_LENGTH]{
   // Make code  break code
   {{0x00}, {0x00}},                                                 // GenScanCode_None
   {{0x76}, {0xF0, 0x76}},                                           // GenScanCode_Escape

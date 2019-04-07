@@ -64,11 +64,11 @@ bool CDROM::LoadState(BinaryReader& reader)
 {
   SAFE_RELEASE(m_media.stream);
 
-  uint32 magic;
+  u32 magic;
   if (!reader.SafeReadUInt32(&magic) || magic != SERIALIZATION_ID)
     return false;
 
-  uint32 size;
+  u32 size;
   if (!reader.SafeReadUInt32(&size))
     return false;
   m_command_buffer.resize(size);
@@ -91,7 +91,7 @@ bool CDROM::LoadState(BinaryReader& reader)
   if (command_active)
     m_command_event->Queue(1);
 
-  uint8 sense_key = 0;
+  u8 sense_key = 0;
   result &= reader.SafeReadUInt8(&sense_key);
   m_sense.key = static_cast<SENSE_KEY>(sense_key);
   result &= reader.SafeReadBytes(&m_sense.information, sizeof(m_sense.information));
@@ -127,19 +127,19 @@ bool CDROM::LoadState(BinaryReader& reader)
 bool CDROM::SaveState(BinaryWriter& writer)
 {
   bool result = writer.SafeWriteUInt32(SERIALIZATION_ID);
-  result &= writer.SafeWriteUInt32(static_cast<uint32>(m_command_buffer.size()));
+  result &= writer.SafeWriteUInt32(static_cast<u32>(m_command_buffer.size()));
   if (!m_command_buffer.empty())
-    result &= writer.SafeWriteBytes(m_command_buffer.data(), static_cast<uint32>(m_command_buffer.size()));
-  result &= writer.SafeWriteUInt32(static_cast<uint32>(m_data_buffer.size()));
+    result &= writer.SafeWriteBytes(m_command_buffer.data(), static_cast<u32>(m_command_buffer.size()));
+  result &= writer.SafeWriteUInt32(static_cast<u32>(m_data_buffer.size()));
   if (!m_data_buffer.empty())
-    result &= writer.SafeWriteBytes(m_data_buffer.data(), static_cast<uint32>(m_data_buffer.size()));
+    result &= writer.SafeWriteBytes(m_data_buffer.data(), static_cast<u32>(m_data_buffer.size()));
 
   result &= writer.SafeWriteUInt32(m_data_response_size);
   result &= writer.SafeWriteBool(m_busy);
   result &= writer.SafeWriteBool(m_error);
   result &= writer.SafeWriteBool(m_command_event->IsActive());
 
-  result &= writer.SafeWriteUInt8(static_cast<uint8>(m_sense.key));
+  result &= writer.SafeWriteUInt8(static_cast<u8>(m_sense.key));
   result &= writer.SafeWriteBytes(m_sense.information, sizeof(m_sense.information));
   result &= writer.SafeWriteBytes(m_sense.specific_information, sizeof(m_sense.specific_information));
   result &= writer.SafeWriteBytes(m_sense.key_spec, sizeof(m_sense.key_spec));
@@ -165,7 +165,7 @@ bool CDROM::InsertMedia(const char* filename)
     return false;
   }
 
-  uint64 file_size = m_media.stream->GetSize();
+  u64 file_size = m_media.stream->GetSize();
   if (file_size < SECTOR_SIZE)
   {
     Log_ErrorPrintf("File '%s' does not contain at least one sector", unsigned(file_size));
@@ -178,7 +178,7 @@ bool CDROM::InsertMedia(const char* filename)
   m_media.filename = filename;
   m_media.total_sectors = file_size / SECTOR_SIZE;
   m_current_lba = 0;
-  Log_InfoPrintf("Inserted CD media '%s': %u sectors", filename, uint32(m_media.total_sectors));
+  Log_InfoPrintf("Inserted CD media '%s': %u sectors", filename, u32(m_media.total_sectors));
 
   // Notify the host that the media has changed.
   UpdateSenseInfo(SENSE_UNIT_ATTENTION, ASC_MEDIUM_MAY_HAVE_CHANGED);
@@ -198,27 +198,27 @@ void CDROM::EjectMedia()
   m_current_lba = 0;
 }
 
-void CDROM::UpdateSenseInfo(SENSE_KEY key, uint8 asc)
+void CDROM::UpdateSenseInfo(SENSE_KEY key, u8 asc)
 {
   m_sense = {};
   m_sense.key = key;
   m_sense.asc = asc;
 }
 
-void CDROM::AllocateData(uint32 reserve_length, uint32 response_length)
+void CDROM::AllocateData(u32 reserve_length, u32 response_length)
 {
   m_data_buffer.resize(std::max(reserve_length, response_length));
   m_data_response_size = std::min(reserve_length, response_length);
 }
 
-uint8 CDROM::ReadCommandBufferByte(uint32 offset) const
+u8 CDROM::ReadCommandBufferByte(u32 offset) const
 {
   if (offset > m_command_buffer.size())
     return 0;
   return m_command_buffer[offset];
 }
 
-uint16 CDROM::ReadCommandBufferWord(uint32 offset) const
+u16 CDROM::ReadCommandBufferWord(u32 offset) const
 {
   // TODO: Endian conversion
   if ((offset + 1) > m_command_buffer.size())
@@ -227,7 +227,7 @@ uint16 CDROM::ReadCommandBufferWord(uint32 offset) const
   return (ZeroExtend16(m_command_buffer[offset]) << 8) | ZeroExtend16(m_command_buffer[offset + 1]);
 }
 
-uint32 CDROM::ReadCommandBufferDWord(uint32 offset) const
+u32 CDROM::ReadCommandBufferDWord(u32 offset) const
 {
   // TODO: Endian conversion
   if ((offset + 3) > m_command_buffer.size())
@@ -237,7 +237,7 @@ uint32 CDROM::ReadCommandBufferDWord(uint32 offset) const
          (ZeroExtend32(m_command_buffer[offset + 2]) << 8) | (ZeroExtend32(m_command_buffer[offset + 3]));
 }
 
-uint32 CDROM::ReadCommandBufferLBA24(uint32 offset) const
+u32 CDROM::ReadCommandBufferLBA24(u32 offset) const
 {
   // TODO: Endian conversion
   if ((offset + 3) > m_command_buffer.size())
@@ -247,7 +247,7 @@ uint32 CDROM::ReadCommandBufferLBA24(uint32 offset) const
          (ZeroExtend32(m_command_buffer[offset + 2]));
 }
 
-uint64 CDROM::ReadCommandBufferLBA48(uint32 offset) const
+u64 CDROM::ReadCommandBufferLBA48(u32 offset) const
 {
   // TODO: Endian conversion
   if ((offset + 5) > m_command_buffer.size())
@@ -258,20 +258,20 @@ uint64 CDROM::ReadCommandBufferLBA48(uint32 offset) const
          (ZeroExtend64(m_command_buffer[offset + 4]) << 8) | (ZeroExtend64(m_command_buffer[offset + 5]));
 }
 
-void CDROM::WriteDataBufferByte(uint32 offset, uint8 value)
+void CDROM::WriteDataBufferByte(u32 offset, u8 value)
 {
   Assert(offset < m_data_buffer.size());
   m_data_buffer[offset] = value;
 }
 
-void CDROM::WriteDataBufferWord(uint32 offset, uint16 value)
+void CDROM::WriteDataBufferWord(u32 offset, u16 value)
 {
   Assert((offset + 1) < m_data_buffer.size());
   m_data_buffer[offset] = Truncate8(value >> 8);
   m_data_buffer[offset + 1] = Truncate8(value);
 }
 
-void CDROM::WriteDataBufferDWord(uint32 offset, uint32 value)
+void CDROM::WriteDataBufferDWord(u32 offset, u32 value)
 {
   Assert((offset + 3) < m_data_buffer.size());
   m_data_buffer[offset] = Truncate8(value >> 24);
@@ -280,7 +280,7 @@ void CDROM::WriteDataBufferDWord(uint32 offset, uint32 value)
   m_data_buffer[offset + 3] = Truncate8(value);
 }
 
-void CDROM::WriteDataBufferLBA24(uint32 offset, uint32 value)
+void CDROM::WriteDataBufferLBA24(u32 offset, u32 value)
 {
   Assert((offset + 3) < m_data_buffer.size());
   m_data_buffer[offset] = Truncate8(value >> 16);
@@ -288,7 +288,7 @@ void CDROM::WriteDataBufferLBA24(uint32 offset, uint32 value)
   m_data_buffer[offset + 2] = Truncate8(value);
 }
 
-void CDROM::WriteDataBufferLBA48(uint32 offset, uint64 value)
+void CDROM::WriteDataBufferLBA48(u32 offset, u64 value)
 {
   Assert((offset + 5) < m_data_buffer.size());
   m_data_buffer[offset] = Truncate8(value >> 40);
@@ -322,7 +322,7 @@ bool CDROM::WriteCommandBuffer(const void* data, size_t data_len)
 
 bool CDROM::BeginCommand()
 {
-  uint8 opcode = uint8(m_command_buffer[0]);
+  u8 opcode = u8(m_command_buffer[0]);
   switch (opcode)
   {
     case SCSI_CMD_TEST_UNIT_READY:
@@ -395,9 +395,9 @@ bool CDROM::BeginCommand()
       if (m_command_buffer.size() < (opcode == SCSI_CMD_READ_10 ? 10 : 12))
         return false;
 
-      uint32 sector_count =
+      u32 sector_count =
         (opcode == SCSI_CMD_READ_10) ? ZeroExtend32(ReadCommandBufferWord(7)) : ReadCommandBufferDWord(6);
-      uint64 lba = ReadCommandBufferDWord(2);
+      u64 lba = ReadCommandBufferDWord(2);
       if ((lba + sector_count) > m_media.total_sectors)
       {
         AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_LOGICAL_BLOCK_OUT_OF_RANGE);
@@ -413,8 +413,8 @@ bool CDROM::BeginCommand()
       if (m_command_buffer.size() < 12)
         return false;
 
-      uint64 lba = ZeroExtend64(ReadCommandBufferDWord(2));
-      uint32 sector_count = ReadCommandBufferLBA24(6);
+      u64 lba = ZeroExtend64(ReadCommandBufferDWord(2));
+      u32 sector_count = ReadCommandBufferLBA24(6);
       if ((lba + sector_count) > m_media.total_sectors)
       {
         AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_LOGICAL_BLOCK_OUT_OF_RANGE);
@@ -439,7 +439,7 @@ bool CDROM::BeginCommand()
       if (m_command_buffer.size() < 10)
         return false;
 
-      uint64 lba = ZeroExtend64(ReadCommandBufferDWord(2));
+      u64 lba = ZeroExtend64(ReadCommandBufferDWord(2));
       QueueCommand(CalculateSeekTime(m_current_lba, lba));
       return true;
     }
@@ -531,7 +531,7 @@ void CDROM::CompleteCommand()
   ClearIndicator();
 }
 
-void CDROM::AbortCommand(SENSE_KEY key, uint8 asc)
+void CDROM::AbortCommand(SENSE_KEY key, u8 asc)
 {
   UpdateSenseInfo(key, asc);
   m_command_buffer.clear();
@@ -559,12 +559,12 @@ void CDROM::ClearIndicator()
   m_system->GetHostInterface()->SetUIIndicatorState(this, HostInterface::IndicatorState::Off);
 }
 
-CycleCount CDROM::CalculateSeekTime(uint64 current_lba, uint64 destination_lba) const
+CycleCount CDROM::CalculateSeekTime(u64 current_lba, u64 destination_lba) const
 {
   return 1;
 }
 
-CycleCount CDROM::CalculateReadTime(uint64 lba, uint32 sector_count) const
+CycleCount CDROM::CalculateReadTime(u64 lba, u32 sector_count) const
 {
   return 1;
 }
@@ -606,7 +606,7 @@ void CDROM::HandleRequestSenseCommand()
   AllocateData(18, m_command_buffer[4]);
   m_data_buffer[0] = 0xF0;
   m_data_buffer[1] = 0;
-  m_data_buffer[2] = uint8(m_sense.key);
+  m_data_buffer[2] = u8(m_sense.key);
   std::memcpy(&m_data_buffer[3], m_sense.information, sizeof(m_sense.information));
   m_data_buffer[7] = 10;
   std::memcpy(&m_data_buffer[8], m_sense.specific_information, sizeof(m_sense.specific_information));
@@ -636,8 +636,8 @@ void CDROM::HandleInquiryCommand()
   WriteDataBufferByte(6, 0);
   WriteDataBufferByte(7, 0);
 
-  auto PutString = [this](uint32 offset, const String& str, uint32 write_length) {
-    uint32 i;
+  auto PutString = [this](u32 offset, const String& str, u32 write_length) {
+    u32 i;
     for (i = 0; i < write_length && i < str.GetLength(); i++)
       WriteDataBufferByte(offset + i, str[i]);
     for (; i < write_length; i++)
@@ -672,9 +672,9 @@ void CDROM::HandleReadCapacityCommand()
 void CDROM::HandleReadTOCCommand()
 {
   bool msf = ConvertToBool((ReadCommandBufferByte(1) >> 1) & 1);
-  uint8 start_track = ReadCommandBufferByte(6);
-  uint8 format = ReadCommandBufferByte(9) >> 6;
-  uint16 max_length = ReadCommandBufferWord(7);
+  u8 start_track = ReadCommandBufferByte(6);
+  u8 format = ReadCommandBufferByte(9) >> 6;
+  u16 max_length = ReadCommandBufferWord(7);
 
   Log_DevPrintf("CDROM read TOC msf=%u,start_track=%u,format=%u,max_length=%u", BoolToUInt32(msf),
                 ZeroExtend32(start_track), ZeroExtend32(format), ZeroExtend32(max_length));
@@ -696,7 +696,7 @@ void CDROM::HandleReadTOCCommand()
         return;
       }
 
-      uint32 len = 4;
+      u32 len = 4;
       AllocateData((start_track <= 1) ? 20 : 8, max_length);
       m_data_buffer[2] = 1;
       m_data_buffer[3] = 1;
@@ -731,25 +731,25 @@ void CDROM::HandleReadTOCCommand()
         m_data_buffer[len++] = 0;    // Reserved
       }
 
-      uint32 blocks = uint32(m_media.total_sectors);
+      u32 blocks = u32(m_media.total_sectors);
 
       // Start address
       if (msf)
       {
-        m_data_buffer[len++] = 0;                                 // reserved
-        m_data_buffer[len++] = uint8(((blocks + 150) / 75) / 60); // minute
-        m_data_buffer[len++] = uint8(((blocks + 150) / 75) % 60); // second
-        m_data_buffer[len++] = uint8((blocks + 150) % 75);        // frame;
+        m_data_buffer[len++] = 0;                              // reserved
+        m_data_buffer[len++] = u8(((blocks + 150) / 75) / 60); // minute
+        m_data_buffer[len++] = u8(((blocks + 150) / 75) % 60); // second
+        m_data_buffer[len++] = u8((blocks + 150) % 75);        // frame;
       }
       else
       {
-        m_data_buffer[len++] = uint8((blocks >> 24) & 0xff);
-        m_data_buffer[len++] = uint8((blocks >> 16) & 0xff);
-        m_data_buffer[len++] = uint8((blocks >> 8) & 0xff);
-        m_data_buffer[len++] = uint8((blocks >> 0) & 0xff);
+        m_data_buffer[len++] = u8((blocks >> 24) & 0xff);
+        m_data_buffer[len++] = u8((blocks >> 16) & 0xff);
+        m_data_buffer[len++] = u8((blocks >> 8) & 0xff);
+        m_data_buffer[len++] = u8((blocks >> 0) & 0xff);
       }
-      m_data_buffer[0] = uint8(((len - 2) >> 8) & 0xff);
-      m_data_buffer[1] = uint8((len - 2) & 0xff);
+      m_data_buffer[0] = u8(((len - 2) >> 8) & 0xff);
+      m_data_buffer[1] = u8((len - 2) & 0xff);
 
       UpdateSenseInfo(SENSE_NO_STATUS, 0);
       CompleteCommand();
@@ -764,7 +764,7 @@ void CDROM::HandleReadTOCCommand()
       m_data_buffer[1] = 0x0A;
       m_data_buffer[2] = 1;
       m_data_buffer[3] = 1;
-      for (uint32 i = 0; i < 8; i++)
+      for (u32 i = 0; i < 8; i++)
         m_data_buffer[4 + i] = 0;
 
       UpdateSenseInfo(SENSE_NO_STATUS, 0);
@@ -775,18 +775,18 @@ void CDROM::HandleReadTOCCommand()
     case 2:
     {
       // raw toc
-      uint32 len = 4;
+      u32 len = 4;
       m_data_buffer[2] = 1;
       m_data_buffer[3] = 1;
 
-      for (uint32 i = 0; i < 4; i++)
+      for (u32 i = 0; i < 4; i++)
       {
         m_data_buffer[len++] = 1;
         m_data_buffer[len++] = 0x14;
         m_data_buffer[len++] = 0;
         if (i < 3)
         {
-          m_data_buffer[len++] = uint8(0xa0 + i);
+          m_data_buffer[len++] = u8(0xa0 + i);
         }
         else
         {
@@ -804,21 +804,21 @@ void CDROM::HandleReadTOCCommand()
         }
         else if (i == 2)
         {
-          uint32 blocks = uint32(m_media.total_sectors);
+          u32 blocks = u32(m_media.total_sectors);
 
           if (msf)
           {
-            m_data_buffer[len++] = 0;                                 // reserved
-            m_data_buffer[len++] = uint8(((blocks + 150) / 75) / 60); // minute
-            m_data_buffer[len++] = uint8(((blocks + 150) / 75) % 60); // second
-            m_data_buffer[len++] = uint8((blocks + 150) % 75);        // frame;
+            m_data_buffer[len++] = 0;                              // reserved
+            m_data_buffer[len++] = u8(((blocks + 150) / 75) / 60); // minute
+            m_data_buffer[len++] = u8(((blocks + 150) / 75) % 60); // second
+            m_data_buffer[len++] = u8((blocks + 150) % 75);        // frame;
           }
           else
           {
-            m_data_buffer[len++] = uint8((blocks >> 24) & 0xff);
-            m_data_buffer[len++] = uint8((blocks >> 16) & 0xff);
-            m_data_buffer[len++] = uint8((blocks >> 8) & 0xff);
-            m_data_buffer[len++] = uint8((blocks >> 0) & 0xff);
+            m_data_buffer[len++] = u8((blocks >> 24) & 0xff);
+            m_data_buffer[len++] = u8((blocks >> 16) & 0xff);
+            m_data_buffer[len++] = u8((blocks >> 8) & 0xff);
+            m_data_buffer[len++] = u8((blocks >> 0) & 0xff);
           }
         }
         else
@@ -829,8 +829,8 @@ void CDROM::HandleReadTOCCommand()
           m_data_buffer[len++] = 0;
         }
       }
-      m_data_buffer[0] = uint8(((len - 2) >> 8) & 0xff);
-      m_data_buffer[1] = uint8((len - 2) & 0xff);
+      m_data_buffer[0] = u8(((len - 2) >> 8) & 0xff);
+      m_data_buffer[1] = u8((len - 2) & 0xff);
 
       UpdateSenseInfo(SENSE_NO_STATUS, 0);
       CompleteCommand();
@@ -847,9 +847,9 @@ void CDROM::HandleReadSubChannelCommand()
 {
   bool msf = ConvertToBool((ReadCommandBufferByte(1) >> 1) & 1);
   bool sub_q = ConvertToBool((ReadCommandBufferByte(2) >> 6) & 1);
-  uint8 data_format = ReadCommandBufferByte(3);
-  uint8 track_number = ReadCommandBufferByte(6);
-  uint16 max_length = ReadCommandBufferWord(7);
+  u8 data_format = ReadCommandBufferByte(3);
+  u8 track_number = ReadCommandBufferByte(6);
+  u16 max_length = ReadCommandBufferWord(7);
 
   Log_DevPrintf("CDROM read subchannel msf=%u,sub_q=%u,data_format=%u,track_number=%u,max_length=%u", BoolToUInt32(msf),
                 BoolToUInt32(sub_q), ZeroExtend32(data_format), ZeroExtend32(track_number), ZeroExtend32(max_length));
@@ -900,14 +900,14 @@ void CDROM::HandleReadSubChannelCommand()
 void CDROM::HandleModeSenseCommand()
 {
   // from bochs
-  uint8 pc = (ReadCommandBufferByte(2) >> 6);
-  uint8 page_code = (ReadCommandBufferByte(2) & 0x3F);
-  uint16 max_length =
+  u8 pc = (ReadCommandBufferByte(2) >> 6);
+  u8 page_code = (ReadCommandBufferByte(2) & 0x3F);
+  u16 max_length =
     (m_command_buffer[0] == SCSI_CMD_MODE_SENSE_10) ? ReadCommandBufferWord(7) : ZeroExtend16(ReadCommandBufferByte(4));
   Log_DevPrintf("CDROM mode sense pc=%u,page_code=%u,max_length=%u", ZeroExtend32(pc), ZeroExtend32(page_code),
                 ZeroExtend32(max_length));
 
-  auto InitResponse = [this, max_length](uint32 size) {
+  auto InitResponse = [this, max_length](u32 size) {
     AllocateData(8 + size, max_length);
     m_data_buffer[0] = Truncate8((size + 6) >> 8);
     m_data_buffer[1] = Truncate8(size + 6);
@@ -950,7 +950,7 @@ void CDROM::HandleModeSenseCommand()
           // Multisession, Mode 2 Form 2, Mode 2 Form 1, Audio
           m_data_buffer[12] = 0x71;
           m_data_buffer[13] = (3 << 5);
-          m_data_buffer[14] = uint8(1 | (m_tray_locked ? (1 << 1) : 0) | (1 << 3) | (1 << 5));
+          m_data_buffer[14] = u8(1 | (m_tray_locked ? (1 << 1) : 0) | (1 << 3) | (1 << 5));
           m_data_buffer[15] = 0x00;
           m_data_buffer[16] = ((16 * 176) >> 8) & 0xff;
           m_data_buffer[17] = (16 * 176) & 0xff;
@@ -985,8 +985,8 @@ void CDROM::HandleReadCommand()
     return;
   }
 
-  uint32 lba;
-  uint32 sector_count;
+  u32 lba;
+  u32 sector_count;
   switch (m_command_buffer[0])
   {
     case SCSI_CMD_READ_10:
@@ -1035,10 +1035,10 @@ void CDROM::HandleReadCommand()
 
   // Read a single sector at a time.
   AllocateData(SECTOR_SIZE, SECTOR_SIZE);
-  if (!m_media.stream->SeekAbsolute(lba * uint64(m_data_response_size)) ||
+  if (!m_media.stream->SeekAbsolute(lba * u64(m_data_response_size)) ||
       !m_media.stream->Read2(m_data_buffer.data(), m_data_response_size))
   {
-    Log_ErrorPrintf("CDROM read error at LBA %u", uint32(lba));
+    Log_ErrorPrintf("CDROM read error at LBA %u", u32(lba));
     AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_MEDIUM_NOT_PRESENT);
     return;
   }
@@ -1067,7 +1067,7 @@ bool CDROM::TransferNextSector()
   AllocateData(SECTOR_SIZE, SECTOR_SIZE);
   if (!m_media.stream->Read2(m_data_buffer.data(), m_data_response_size))
   {
-    Log_ErrorPrintf("CDROM read error at LBA %u", uint32(m_current_lba));
+    Log_ErrorPrintf("CDROM read error at LBA %u", u32(m_current_lba));
     AbortCommand(SENSE_ILLEGAL_REQUEST, ASC_MEDIUM_NOT_PRESENT);
     return false;
   }
@@ -1091,7 +1091,7 @@ void CDROM::HandleMechanismStatusCommand()
 {
   Log_DevPrintf("CDROM read mechanism status");
 
-  uint16 max_length = ReadCommandBufferWord(8);
+  u16 max_length = ReadCommandBufferWord(8);
   AllocateData(8, max_length);
 
   WriteDataBufferByte(0, (0 << 7) /* fault */ | (0 << 5) /* changer state */ | (0 << 0) /* current slot */);

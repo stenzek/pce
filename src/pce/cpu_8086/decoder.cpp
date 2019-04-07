@@ -7,8 +7,8 @@ namespace CPU_8086 {
 bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress eip_addr, ByteStream* stream)
 {
   BinaryReader reader(stream, ENDIAN_TYPE_LITTLE);
-  if (!DecodeInstruction(instruction, eip_addr, [&reader](uint8* val) { return reader.SafeReadUInt8(val); },
-                         [&reader](uint16* val) { return reader.SafeReadUInt16(val); }))
+  if (!DecodeInstruction(instruction, eip_addr, [&reader](u8* val) { return reader.SafeReadUInt8(val); },
+                         [&reader](u16* val) { return reader.SafeReadUInt16(val); }))
   {
     return false;
   }
@@ -171,7 +171,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
   out_string->AppendString(operation_names[operation]);
 
   // print the operation suffix. this is things like jump conditions, segment names, etc.
-  uint32 operand_index = 0;
+  u32 operand_index = 0;
   if (instruction->operands[0].mode == OperandMode_JumpCondition)
   {
     out_string->AppendString(jump_condition_names[instruction->operands[0].jump_condition]);
@@ -267,7 +267,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
       break;
       case OperandMode_ModRM_Reg:
       {
-        uint8 index = instruction->GetModRM_Reg();
+        u8 index = instruction->GetModRM_Reg();
         if (size == OperandSize_8)
           out_string->AppendString(reg8_names[index]);
         else if (size == OperandSize_16)
@@ -301,14 +301,14 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
               break;
             case ModRMAddressingMode::Indexed:
             {
-              int32 disp = SignExtend32(instruction->data.disp16);
+              s32 disp = SignExtend32(instruction->data.disp16);
               out_string->AppendFormattedString("%s %s%xh", reg16_names[m->base_register], (disp < 0) ? "- " : "+ ",
                                                 (disp < 0) ? -disp : disp);
             }
             break;
             case ModRMAddressingMode::BasedIndexedDisplacement:
             {
-              int32 disp = SignExtend32(instruction->data.disp16);
+              s32 disp = SignExtend32(instruction->data.disp16);
               out_string->AppendFormattedString("%s + %s %s%xh", reg16_names[m->base_register],
                                                 reg16_names[m->index_register], (disp < 0) ? "- " : "+ ",
                                                 (disp < 0) ? -disp : disp);
@@ -323,7 +323,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
       break;
       case OperandMode_ModRM_SegmentReg:
       {
-        uint8 index = instruction->GetModRM_Reg();
+        u8 index = instruction->GetModRM_Reg();
         out_string->AppendString((index > Segment_Count) ? "<invalid>" : segment_names[index]);
       }
       break;
@@ -333,7 +333,7 @@ void Decoder::DisassembleToString(const Instruction* instruction, String* out_st
   }
 }
 
-const Decoder::ModRMAddress* Decoder::DecodeModRMAddress(uint8 modrm)
+const Decoder::ModRMAddress* Decoder::DecodeModRMAddress(u8 modrm)
 {
   // This could probably be implemented procedurally
   // http://www.sandpile.org/x86/opc_rm16.htm
@@ -372,7 +372,7 @@ const Decoder::ModRMAddress* Decoder::DecodeModRMAddress(uint8 modrm)
     /* 11 111 - BH/DI             */ {ModRMAddressingMode::Register, Reg16_DI, 0, 0, Segment_DS},
   };
 
-  uint8 index = ((modrm & 0b11000000) >> 3) | (modrm & 0b00000111);
+  u8 index = ((modrm & 0b11000000) >> 3) | (modrm & 0b00000111);
   return &modrm_table_16[index];
 }
 
@@ -388,11 +388,11 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
   for (;;)
   {
     // Fetch first byte.
-    uint8 opcode;
+    u8 opcode;
     if (!fetchb(&opcode))
       return false;
 
-    instruction->length += sizeof(uint8);
+    instruction->length += sizeof(u8);
     const TableEntry* te = &table[opcode];
 
     // Handle special cases (prefixes, overrides).
@@ -420,7 +420,7 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
         has_modrm = true;
         if (!fetchb(&instruction->data.modrm))
           return false;
-        instruction->length += sizeof(uint8);
+        instruction->length += sizeof(u8);
         te = &te->next_table[instruction->data.GetModRM_Reg()];
       }
       break;
@@ -434,7 +434,7 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
 
     // Copy operands from this table entry, if any.
     instruction->operation = te->operation;
-    for (uint32 i = 0; i < countof(te->operands); i++)
+    for (u32 i = 0; i < countof(te->operands); i++)
     {
       const Instruction::Operand& table_operand = te->operands[i];
       if (table_operand.mode == OperandMode_None)
@@ -453,7 +453,7 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
             has_modrm = true;
             if (!fetchb(&instruction->data.modrm))
               return false;
-            instruction->length += sizeof(uint8);
+            instruction->length += sizeof(u8);
           }
         }
         break;
@@ -465,13 +465,13 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
             has_modrm = true;
             if (!fetchb(&instruction->data.modrm))
               return false;
-            instruction->length += sizeof(uint8);
+            instruction->length += sizeof(u8);
           }
 
           const Decoder::ModRMAddress* addr = Decoder::DecodeModRMAddress(instruction->data.modrm);
           if (addr->addressing_mode != ModRMAddressingMode::Register)
           {
-            uint8 displacement_size = addr->displacement_size;
+            u8 displacement_size = addr->displacement_size;
             if (!instruction->data.has_segment_override)
               instruction->data.segment = addr->default_segment;
 
@@ -479,18 +479,18 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
             {
               case 1:
               {
-                uint8 tmpbyte;
+                u8 tmpbyte;
                 if (!fetchb(&tmpbyte))
                   return false;
                 instruction->data.disp16 = SignExtend16(tmpbyte);
-                instruction->length += sizeof(uint8);
+                instruction->length += sizeof(u8);
               }
               break;
               case 2:
               {
                 if (!fetchw(&instruction->data.disp16))
                   return false;
-                instruction->length += sizeof(uint16);
+                instruction->length += sizeof(u16);
               }
               break;
             }
@@ -506,14 +506,14 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
             {
               if (!fetchb(&instruction->data.imm8))
                 return false;
-              instruction->length += sizeof(uint8);
+              instruction->length += sizeof(u8);
             }
             break;
             case OperandSize_16:
             {
               if (!fetchw(&instruction->data.imm16))
                 return false;
-              instruction->length += sizeof(uint16);
+              instruction->length += sizeof(u16);
             }
             break;
           }
@@ -528,14 +528,14 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
             {
               if (!fetchb(&instruction->data.imm2_8))
                 return false;
-              instruction->length += sizeof(uint8);
+              instruction->length += sizeof(u8);
             }
             break;
             case OperandSize_16:
             {
               if (!fetchw(&instruction->data.imm2_16))
                 return false;
-              instruction->length += sizeof(uint16);
+              instruction->length += sizeof(u16);
             }
             break;
           }
@@ -548,18 +548,18 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
           {
             case OperandSize_8:
             {
-              uint8 tmpbyte;
+              u8 tmpbyte;
               if (!fetchb(&tmpbyte))
                 return false;
               instruction->data.disp16 = SignExtend16(tmpbyte);
-              instruction->length += sizeof(uint8);
+              instruction->length += sizeof(u8);
             }
             break;
             case OperandSize_16:
             {
               if (!fetchw(&instruction->data.disp16))
                 return false;
-              instruction->length += sizeof(uint16);
+              instruction->length += sizeof(u16);
             }
             break;
           }
@@ -570,7 +570,7 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
         {
           if (!fetchw(&instruction->data.disp16))
             return false;
-          instruction->length += sizeof(uint16);
+          instruction->length += sizeof(u16);
         }
         break;
 
@@ -578,10 +578,10 @@ bool Decoder::DecodeInstruction(Instruction* instruction, VirtualMemoryAddress e
         {
           if (!fetchw(&instruction->data.disp16))
             return false;
-          instruction->length += sizeof(uint16);
+          instruction->length += sizeof(u16);
           if (!fetchw(&instruction->data.imm16))
             return false;
-          instruction->length += sizeof(uint16);
+          instruction->length += sizeof(u16);
         }
         break;
 

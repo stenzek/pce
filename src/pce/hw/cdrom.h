@@ -34,7 +34,7 @@ public:
   bool IsBusy() const { return m_busy; }
   bool HasError() const { return m_error; }
   bool HasMedia() const { return (m_media.stream != nullptr); }
-  uint8 GetSenseKey() const { return static_cast<uint8>(m_sense.key); }
+  u8 GetSenseKey() const { return static_cast<u8>(m_sense.key); }
 
   const byte* GetDataBuffer() const { return m_data_buffer.data(); }
   size_t GetDataResponseSize() const { return m_data_response_size; }
@@ -56,13 +56,13 @@ public:
   bool InsertMedia(const char* filename);
 
   // Transfer next sector for multiple sector transfers.
-  uint32 GetRemainingSectors() const { return m_remaining_sectors; }
+  u32 GetRemainingSectors() const { return m_remaining_sectors; }
   bool TransferNextSector();
 
 private:
-  static constexpr uint32 SECTOR_SIZE = 2048;
-  static constexpr uint32 AUDIO_SECTOR_SIZE = 2352;
-  static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('C', 'D', 'R');
+  static constexpr u32 SECTOR_SIZE = 2048;
+  static constexpr u32 AUDIO_SECTOR_SIZE = 2352;
+  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'D', 'R');
 
   using CommandBuffer = std::vector<byte>;
   using DataBuffer = std::vector<byte>;
@@ -122,7 +122,7 @@ private:
     SCSI_CMD_SEND_DISC_STRUCTURE = 0xBF
   };
 
-  enum SENSE_KEY : uint8
+  enum SENSE_KEY : u8
   {
     SENSE_NO_STATUS = 0x00,
     SENSE_NOT_READY = 0x02,
@@ -141,33 +141,33 @@ private:
   };
 
   void EjectMedia();
-  void UpdateSenseInfo(SENSE_KEY key, uint8 asc);
-  void AllocateData(uint32 reserve_length, uint32 response_length);
+  void UpdateSenseInfo(SENSE_KEY key, u8 asc);
+  void AllocateData(u32 reserve_length, u32 response_length);
 
-  uint8 ReadCommandBufferByte(uint32 offset) const;
-  uint16 ReadCommandBufferWord(uint32 offset) const;
-  uint32 ReadCommandBufferDWord(uint32 offset) const;
-  uint32 ReadCommandBufferLBA24(uint32 offset) const;
-  uint64 ReadCommandBufferLBA48(uint32 offset) const;
+  u8 ReadCommandBufferByte(u32 offset) const;
+  u16 ReadCommandBufferWord(u32 offset) const;
+  u32 ReadCommandBufferDWord(u32 offset) const;
+  u32 ReadCommandBufferLBA24(u32 offset) const;
+  u64 ReadCommandBufferLBA48(u32 offset) const;
 
-  void WriteDataBufferByte(uint32 offset, uint8 value);
-  void WriteDataBufferWord(uint32 offset, uint16 value);
-  void WriteDataBufferDWord(uint32 offset, uint32 value);
-  void WriteDataBufferLBA24(uint32 offset, uint32 value);
-  void WriteDataBufferLBA48(uint32 offset, uint64 value);
+  void WriteDataBufferByte(u32 offset, u8 value);
+  void WriteDataBufferWord(u32 offset, u16 value);
+  void WriteDataBufferDWord(u32 offset, u32 value);
+  void WriteDataBufferLBA24(u32 offset, u32 value);
+  void WriteDataBufferLBA48(u32 offset, u64 value);
 
   bool BeginCommand();
   void QueueCommand(CycleCount time_in_microseconds);
   void ExecuteCommand();
   void CompleteCommand();
-  void AbortCommand(SENSE_KEY key, uint8 asc);
+  void AbortCommand(SENSE_KEY key, u8 asc);
   void RaiseInterrupt();
   void SetIndicator();
   void ClearIndicator();
 
   // Returns the time in microseconds to move the head/laser to the specified LBA.
-  CycleCount CalculateSeekTime(uint64 current_lba, uint64 destination_lba) const;
-  CycleCount CalculateReadTime(uint64 lba, uint32 sector_count) const;
+  CycleCount CalculateSeekTime(u64 current_lba, u64 destination_lba) const;
+  CycleCount CalculateReadTime(u64 lba, u32 sector_count) const;
 
   void HandleTestUnitReadyCommand();
   void HandlePreventMediumRemovalCommand();
@@ -188,7 +188,7 @@ private:
 
   CommandBuffer m_command_buffer;
   DataBuffer m_data_buffer;
-  uint32 m_data_response_size = 0;
+  u32 m_data_response_size = 0;
 
   std::unique_ptr<TimingEvent> m_command_event;
   InterruptCallback m_interrupt_callback;
@@ -200,12 +200,12 @@ private:
   struct
   {
     SENSE_KEY key = SENSE_NO_STATUS;
-    uint8 information[4] = {};
-    uint8 specific_information[4] = {};
-    uint8 key_spec[3] = {};
-    uint8 fruc = 0;
-    uint8 asc = 0;
-    uint8 ascq = 0;
+    u8 information[4] = {};
+    u8 specific_information[4] = {};
+    u8 key_spec[3] = {};
+    u8 fruc = 0;
+    u8 asc = 0;
+    u8 ascq = 0;
   } m_sense;
 
   // Media information
@@ -213,12 +213,12 @@ private:
   {
     String filename;
     ByteStream* stream = nullptr;
-    uint64 total_sectors = 0;
+    u64 total_sectors = 0;
   } m_media;
 
   // Current head position
-  uint64 m_current_lba = 0;
-  uint32 m_remaining_sectors = 0;
+  u64 m_current_lba = 0;
+  u32 m_remaining_sectors = 0;
   bool m_tray_locked = false;
 };
 
