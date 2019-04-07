@@ -1468,7 +1468,7 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
                  CalculateLinearAddress(Segment_CS, m_current_EIP));
   }
 
-    //#define COMMON_LOGGING_FORMAT 1
+  //#define COMMON_LOGGING_FORMAT 1
 
 #ifndef COMMON_LOGGING_FORMAT
 #if 1
@@ -1626,6 +1626,24 @@ bool CPU::WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const SEGMENT_SELE
   return WriteDescriptorEntry(entry, selector.ti ? m_ldt_location : m_gdt_location, selector.index);
 }
 
+void CPU::SetDescriptorAccessedBit(DESCRIPTOR_ENTRY& entry, const DescriptorTablePointer& table, uint32 index)
+{
+  DebugAssert(entry.is_memory_descriptor);
+
+  // 486+ does not write to memory if the accessed bit is already set. 386 always does.
+  if (m_model >= MODEL_486 && entry.memory.access.accessed)
+    return;
+
+  entry.memory.access.accessed = true;
+  SafeWriteMemoryByte(table.base_address + index * 8 + 5, Truncate8(entry.bits1 >> 8),
+                      AccessFlags::UseSupervisorPrivileges);
+}
+
+void CPU::SetDescriptorAccessedBit(DESCRIPTOR_ENTRY& entry, const SEGMENT_SELECTOR_VALUE& selector)
+{
+  SetDescriptorAccessedBit(entry, selector.ti ? m_ldt_location : m_gdt_location, selector.index);
+}
+
 bool CPU::CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 check_cpl, bool raise_exceptions)
 {
   // Check for null selector
@@ -1778,8 +1796,8 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
   }
 
   // Handle null descriptor separately.
-  SEGMENT_SELECTOR_VALUE reg_value = {value};
-  if (reg_value.index == 0 && !reg_value.ti)
+  SEGMENT_SELECTOR_VALUE selector = {value};
+  if (selector.index == 0 && !selector.ti)
   {
     // SS can't be a null selector.
     if (segment == Segment_SS)
@@ -1801,23 +1819,23 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
 
   // Read descriptor entry. If this fails, it's because it's outside the limit.
   DESCRIPTOR_ENTRY descriptor;
-  if (!ReadDescriptorEntry(&descriptor, reg_value.ti ? m_ldt_location : m_gdt_location, reg_value.index))
+  if (!ReadDescriptorEntry(&descriptor, selector))
   {
-    RaiseException(Interrupt_GeneralProtectionFault, reg_value.GetExceptionErrorCode(false));
+    RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
     return;
   }
 
   // SS has to be handled separately due to stack fault exception.
   if (segment == Segment_SS)
   {
-    if (reg_value.rpl != GetCPL() || descriptor.dpl != GetCPL() || !descriptor.IsWritableDataSegment())
+    if (selector.rpl != GetCPL() || descriptor.dpl != GetCPL() || !descriptor.IsWritableDataSegment())
     {
-      RaiseException(Interrupt_GeneralProtectionFault, reg_value.GetExceptionErrorCode(false));
+      RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
       return;
     }
     if (!descriptor.IsPresent())
     {
-      RaiseException(Interrupt_StackFault, reg_value.GetExceptionErrorCode(false));
+      RaiseException(Interrupt_StackFault, selector.GetExceptionErrorCode(false));
       return;
     }
   }
@@ -1830,26 +1848,28 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
   {
     if (!descriptor.IsDataSegment() && !descriptor.IsReadableCodeSegment())
     {
-      RaiseException(Interrupt_GeneralProtectionFault, reg_value.GetExceptionErrorCode(false));
+      RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
       return;
     }
     if (descriptor.IsDataSegment() || !descriptor.IsConformingCodeSegment())
     {
-      if (reg_value.rpl > descriptor.dpl || GetCPL() > descriptor.dpl)
+      if (selector.rpl > descriptor.dpl || GetCPL() > descriptor.dpl)
       {
-        RaiseException(Interrupt_GeneralProtectionFault, reg_value.GetExceptionErrorCode(false));
+        RaiseException(Interrupt_GeneralProtectionFault, selector.GetExceptionErrorCode(false));
         return;
       }
     }
     if (!descriptor.IsPresent())
     {
-      RaiseException(Interrupt_SegmentNotPresent, reg_value.GetExceptionErrorCode(false));
+      RaiseException(Interrupt_SegmentNotPresent, selector.GetExceptionErrorCode(false));
       return;
     }
   }
 
+  // Set accessed bit now that it's safe to load.
+  SetDescriptorAccessedBit(descriptor, selector);
+
   // Extract information from descriptor
-  // TODO: Mask granularity bit on 286.
   const bool is_32bit_segment = (m_model >= MODEL_386 && descriptor.memory.flags.size);
   segment_cache->base_address = descriptor.memory.GetBase();
   segment_cache->limit_low = descriptor.memory.GetLimitLow();
@@ -1873,7 +1893,7 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
   }
 
   Log_TracePrintf("Load segment register %s = %04X: %s index %u base 0x%08X limit 0x%08X->0x%08X",
-                  segment_names[segment], ZeroExtend32(value), reg_value.ti ? "LDT" : "GDT", uint32(reg_value.index),
+                  segment_names[segment], ZeroExtend32(value), selector.ti ? "LDT" : "GDT", uint32(selector.index),
                   segment_cache->base_address, segment_cache->limit_low, segment_cache->limit_high);
 
   if (segment == Segment_CS)
@@ -1892,9 +1912,9 @@ void CPU::LoadSegmentRegister(Segment segment, uint16 value)
     }
 
     // CPL is the selector's RPL
-    if (GetCPL() != reg_value.rpl)
-      Log_DebugPrintf("Privilege change: %u -> %u", ZeroExtend32(GetCPL()), ZeroExtend32(reg_value.rpl.GetValue()));
-    SetCPL(reg_value.rpl);
+    if (GetCPL() != selector.rpl)
+      Log_DebugPrintf("Privilege change: %u -> %u", ZeroExtend32(GetCPL()), ZeroExtend32(selector.rpl.GetValue()));
+    SetCPL(selector.rpl);
     FlushPrefetchQueue();
   }
   else if (segment == Segment_SS)

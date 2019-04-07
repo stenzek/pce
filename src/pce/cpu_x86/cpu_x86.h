@@ -299,7 +299,9 @@ public:
 
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
-  void AddMemoryCycle() { /*m_pending_cycles++;*/}
+  void AddMemoryCycle()
+  { /*m_pending_cycles++;*/
+  }
   void AddCycles(CYCLE_GROUP group) { m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group]); }
   void AddCyclesPMode(CYCLE_GROUP group)
   {
@@ -436,6 +438,10 @@ protected:
   // Updates a segment descriptor
   bool WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const DescriptorTablePointer& table, uint32 index);
   bool WriteDescriptorEntry(const DESCRIPTOR_ENTRY& entry, const SEGMENT_SELECTOR_VALUE& selector);
+
+  // Updates the accessed bit in a descriptor.
+  void SetDescriptorAccessedBit(DESCRIPTOR_ENTRY& entry, const DescriptorTablePointer& table, uint32 index);
+  void SetDescriptorAccessedBit(DESCRIPTOR_ENTRY& entry, const SEGMENT_SELECTOR_VALUE& selector);
 
   // Checks code segment is valid for far jump/call/iret.
   bool CheckTargetCodeSegment(uint16 raw_selector, uint8 check_rpl, uint8 check_cpl, bool raise_exceptions);
