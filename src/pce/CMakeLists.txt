@@ -32,12 +32,6 @@ set(SRCS
     cpu_x86/interpreter.h
     cpu_x86/interpreter_backend.cpp
     cpu_x86/interpreter_backend.h
-    cpu_x86/jitx64_backend.cpp
-    cpu_x86/jitx64_backend.h
-    cpu_x86/jitx64_code.cpp
-    cpu_x86/jitx64_code.h
-    cpu_x86/jitx64_codegen.cpp
-    cpu_x86/jitx64_codegen.h
     cpu_x86/types.h
     debugger_interface.h
     dma_controller.cpp
@@ -132,7 +126,22 @@ set(SRCS
     types.h
 )
 
-add_library(pce ${SRCS})
+if(${CPU_ARCH} STREQUAL "x64")
+  set(JIT_SRCS
+    cpu_x86/jitx64_backend.cpp
+    cpu_x86/jitx64_backend.h
+    cpu_x86/jitx64_code.cpp
+    cpu_x86/jitx64_code.h
+    cpu_x86/jitx64_codegen.cpp
+    cpu_x86/jitx64_codegen.h
+  )
+  message("Building x64 recompiler")
+else()
+  set(JIT_SRCS "")
+  message("Not building recompiler")
+endif()
+
+add_library(pce ${SRCS} ${JIT_SRCS})
 
 if(ENABLE_VOODOO)
   target_sources(pce PRIVATE

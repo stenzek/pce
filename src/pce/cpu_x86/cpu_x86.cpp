@@ -531,9 +531,11 @@ void CPU::CreateBackend()
       m_backend = std::make_unique<CachedInterpreterBackend>(this);
       break;
 
+#if defined(Y_CPU_X64)
     case BackendType::Recompiler:
       m_backend = std::make_unique<JitX64Backend>(this);
       break;
+#endif
 
     default:
       Log_ErrorPrintf("Unsupported backend type %s, falling back to interpreter.", BackendTypeToString(m_backend_type));

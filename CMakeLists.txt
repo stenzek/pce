@@ -19,6 +19,27 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-switch -Wno-class-memaccess -Wno-invalid-offsetof")
 endif()
 
+# Detect processor type.
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "amd64")
+  set(CPU_ARCH "x64")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
+  # MSVC x86/x64
+  if(CMAKE_CL_64)
+    set(CPU_ARCH "x64")
+  else()
+    set(CPU_ARCH "x86")
+  endif()
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i386" OR
+       ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
+  set(CPU_ARCH "x86")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+  set(CPU_ARCH "aarch64")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm")
+  set(CPU_ARCH "arm")
+else()
+  message(FATAL_ERROR "Unknown system processor: " ${CMAKE_SYSTEM_PROCESSOR})
+endif()
+
 # Enable threads everywhere.
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
