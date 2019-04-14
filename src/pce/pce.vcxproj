@@ -37,7 +37,9 @@
     <ClCompile Include="cpu_x86\code_cache_backend.cpp" />
     <ClCompile Include="cpu_x86\cpu_x86.cpp" />
     <ClCompile Include="cpu_x86\debugger_interface.cpp" />
-    <ClCompile Include="cpu_x86\interpreter.cpp" />
+    <ClCompile Include="cpu_x86\interpreter.cpp">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/d2SSAOptimizer- %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
     <ClCompile Include="cpu_x86\jitx64_backend.cpp" />
     <ClCompile Include="cpu_x86\jitx64_code.cpp" />
     <ClCompile Include="cpu_x86\jitx64_codegen.cpp" />
