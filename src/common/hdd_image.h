@@ -2,6 +2,7 @@
 #include "YBaseLib/ByteStream.h"
 #include "pce/types.h"
 #include <memory>
+#include <string>
 #include <vector>
 
 class HDDImage
