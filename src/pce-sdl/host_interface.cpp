@@ -3,7 +3,8 @@
 #include "YBaseLib/Error.h"
 #include "common/display_renderer_d3d.h"
 #include "imgui.h"
-#include "imgui_impl_sdl_gl3.h"
+#include "imgui_impl_opengl3.h"
+#include "imgui_impl_sdl.h"
 #include "nfd.h"
 #include "pce-sdl/scancodes_sdl.h"
 #include "pce/system.h"
@@ -43,7 +44,8 @@ SDLHostInterface::~SDLHostInterface()
     case DisplayRenderer::BackendType::OpenGL:
     {
       SDL_GLContext context = SDL_GL_GetCurrentContext();
-      ImGui_ImplSdlGL3_Shutdown();
+      ImGui_ImplOpenGL3_Shutdown();
+      ImGui_ImplSDL2_Shutdown();
       ImGui::DestroyContext();
       m_display_renderer.reset();
       SDL_GL_MakeCurrent(nullptr, nullptr);
@@ -53,6 +55,7 @@ SDLHostInterface::~SDLHostInterface()
 
     default:
     {
+
       ImGui::DestroyContext();
       m_display_renderer.reset();
     }
@@ -136,23 +139,28 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
 #ifdef Y_PLATFORM_WINDOWS
     case DisplayRenderer::BackendType::Direct3D:
     {
-      if (!ImGui_ImplDX11_Init(window_handle, static_cast<DisplayRendererD3D*>(display_renderer.get())->GetD3DDevice(),
+      if (!ImGui_ImplSDL2_InitForD3D(window.get()) ||
+          !ImGui_ImplDX11_Init(static_cast<DisplayRendererD3D*>(display_renderer.get())->GetD3DDevice(),
                                static_cast<DisplayRendererD3D*>(display_renderer.get())->GetD3DContext()))
       {
         return nullptr;
       }
 
       ImGui_ImplDX11_NewFrame();
+      ImGui_ImplSDL2_NewFrame(window.get());
+      ImGui::NewFrame();
     }
     break;
 #endif
 
     case DisplayRenderer::BackendType::OpenGL:
     {
-      if (!ImGui_ImplSdlGL3_Init(window.get()))
+      if (!ImGui_ImplSDL2_InitForOpenGL(window.get(), SDL_GL_GetCurrentContext()) || !ImGui_ImplOpenGL3_Init())
         return nullptr;
 
-      ImGui_ImplSdlGL3_NewFrame(window.get());
+      ImGui_ImplOpenGL3_Init();
+      ImGui_ImplSDL2_NewFrame(window.get());
+      ImGui::NewFrame();
     }
     break;
 
@@ -432,6 +440,7 @@ void SDLHostInterface::Render()
     {
       ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
       m_display_renderer->EndFrame();
+      ImGui_ImplSDL2_NewFrame(m_window);
       ImGui_ImplDX11_NewFrame();
     }
     break;
@@ -439,16 +448,19 @@ void SDLHostInterface::Render()
 
     case DisplayRenderer::BackendType::OpenGL:
     {
-      ImGui_ImplSdlGL3_RenderDrawData(ImGui::GetDrawData());
+      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
       m_display_renderer->EndFrame();
       SDL_GL_SwapWindow(m_window);
-      ImGui_ImplSdlGL3_NewFrame(m_window);
+      ImGui_ImplSDL2_NewFrame(m_window);
+      ImGui_ImplOpenGL3_NewFrame();
     }
     break;
 
     default:
       break;
   }
+
+  ImGui::NewFrame();
 }
 
 void SDLHostInterface::RenderImGui()
