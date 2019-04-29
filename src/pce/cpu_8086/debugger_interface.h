@@ -34,7 +34,9 @@ public:
   RegisterType GetStackValueType() const override;
   LinearMemoryAddress GetStackTop() const override;
   LinearMemoryAddress GetStackBottom() const override;
-  bool DisassembleCode(LinearMemoryAddress address, String* out_line, u32* out_size) const override;
+  bool DisassembleCode(LinearMemoryAddress instruction_pointer, LinearMemoryAddress* out_linear_address,
+                       String* out_formatted_address, String* out_code_bytes, String* out_disassembly,
+                       u32* out_size) const override;
   bool IsStepping() const override;
   void SetStepping(bool enabled, u32 instructions_to_execute) override;
 

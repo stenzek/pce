@@ -50,7 +50,7 @@ QVariant DebuggerCodeModel::data(const QModelIndex& index, int role /*= Qt::Disp
       {
         // Bytes
         u32 instruction_length;
-        if (!m_interface->DisassembleCode(address, nullptr, &instruction_length))
+        if (!m_interface->DisassembleCode(address, nullptr, nullptr, nullptr, nullptr, &instruction_length))
           return "<invalid>";
 
         SmallString value;
@@ -68,7 +68,7 @@ QVariant DebuggerCodeModel::data(const QModelIndex& index, int role /*= Qt::Disp
       {
         // Instruction
         String instruction;
-        if (!m_interface->DisassembleCode(address, &instruction, nullptr))
+        if (!m_interface->DisassembleCode(address, nullptr, nullptr, nullptr, &instruction, nullptr))
           return "<invalid>";
 
         return instruction.GetCharArray();
@@ -166,7 +166,7 @@ int DebuggerCodeModel::getRowForAddress(LinearMemoryAddress address)
 
     // Get the instruction length
     u32 instruction_size;
-    if (!m_interface->DisassembleCode(current_address, nullptr, &instruction_size))
+    if (!m_interface->DisassembleCode(current_address, nullptr, nullptr, nullptr, nullptr, &instruction_size))
     {
       resetCodeView(address);
       return 0;
@@ -218,7 +218,7 @@ bool DebuggerCodeModel::getAddressForRow(LinearMemoryAddress* address, int row) 
   {
     // Get the instruction length
     u32 instruction_size;
-    if (!m_interface->DisassembleCode(last_address, nullptr, &instruction_size))
+    if (!m_interface->DisassembleCode(last_address, nullptr, nullptr, nullptr, nullptr, &instruction_size))
       return false;
 
     last_address += static_cast<LinearMemoryAddress>(instruction_size);

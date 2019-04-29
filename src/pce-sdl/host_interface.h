@@ -6,6 +6,11 @@
 struct SDL_Window;
 union SDL_Event;
 
+namespace CPUDebugger
+{
+class CPUDebugger;
+}
+
 class SDLHostInterface : public HostInterface
 {
 public:
@@ -21,7 +26,7 @@ public:
 
   static TinyString GetSaveStateFilename(u32 index);
 
-  bool CreateSystem(const char* filename, s32 save_state_index = -1);
+  bool CreateSystem(const char* filename, bool start_paused, s32 save_state_index = -1);
 
   DisplayRenderer* GetDisplayRenderer() const override { return m_display_renderer.get(); }
   Audio::Mixer* GetAudioMixer() const override { return m_mixer.get(); }
@@ -42,6 +47,7 @@ protected:
   void RenderImGui();
   void DoLoadState(u32 index);
   void DoSaveState(u32 index);
+  void DoEnableDebugger(bool enabled);
 
   bool HandleSDLEvent(const SDL_Event* event);
   bool PassEventToImGui(const SDL_Event* event);
@@ -57,4 +63,6 @@ protected:
   Timer m_last_message_time;
 
   bool m_running = false;
+
+  std::unique_ptr<CPUDebugger::CPUDebugger> m_cpu_debugger;
 };

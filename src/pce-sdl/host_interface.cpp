@@ -2,6 +2,7 @@
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Error.h"
 #include "common/display_renderer_d3d.h"
+#include "cpu_debugger.h"
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl.h"
@@ -133,6 +134,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
   // Initialize imgui.
   ImGui::CreateContext();
   ImGui::GetIO().IniFilename = nullptr;
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
   switch (display_renderer->GetBackendType())
   {
@@ -176,7 +178,7 @@ TinyString SDLHostInterface::GetSaveStateFilename(u32 index)
   return TinyString::FromFormat("savestate_%u.bin", index);
 }
 
-bool SDLHostInterface::CreateSystem(const char* filename, s32 save_state_index /* = -1 */)
+bool SDLHostInterface::CreateSystem(const char* filename, bool start_paused, s32 save_state_index /* = -1 */)
 {
   Error error;
   if (!HostInterface::CreateSystem(filename, &error))
@@ -197,7 +199,11 @@ bool SDLHostInterface::CreateSystem(const char* filename, s32 save_state_index /
   }
 
   // Resume execution.
-  ResumeSimulation();
+  if (start_paused)
+    DoEnableDebugger(true);
+  else
+    ResumeSimulation();
+
   m_running = true;
   return true;
 }
@@ -465,6 +471,30 @@ void SDLHostInterface::Render()
 
 void SDLHostInterface::RenderImGui()
 {
+  ImGui::ShowDemoWindow();
+
+#if 0
+  {
+    const ImGuiWindowFlags dock_window_flags =
+      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+      ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
+      ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_MenuBar;
+
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::SetNextWindowBgAlpha(0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::Begin("##dockspace", nullptr, dock_window_flags);
+    ImGui::PopStyleVar(3);
+    ImGui::DockSpace(ImGui::GetID("dockspace"), ImVec2(0, 0),
+                     ImGuiDockNodeFlags_NoDockingInCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
+  }
+#endif
+
   if (ImGui::BeginMainMenuBar())
   {
     if (ImGui::BeginMenu("System"))
@@ -593,6 +623,12 @@ void SDLHostInterface::RenderImGui()
     ImGui::EndMainMenuBar();
   }
 
+  if (m_cpu_debugger)
+    m_cpu_debugger->Draw();
+
+  // dockspace
+  //ImGui::End();
+
   // Activity window
   {
     bool has_activity = false;
@@ -643,6 +679,34 @@ void SDLHostInterface::DoLoadState(u32 index)
 void SDLHostInterface::DoSaveState(u32 index)
 {
   SaveSystemState(TinyString::FromFormat("savestate_%u.bin", index));
+}
+
+void SDLHostInterface::DoEnableDebugger(bool enabled)
+{
+  if (!enabled)
+  {
+    if (m_cpu_debugger)
+      m_cpu_debugger.reset();
+
+    if (m_system->GetState() == System::State::Paused)
+      ResumeSimulation();
+
+    return;
+  }
+
+  if (m_system->GetState() != System::State::Paused)
+    PauseSimulation();
+
+  if (!m_cpu_debugger)
+  {
+    DebuggerInterface* intf = m_system->GetCPU()->GetDebuggerInterface();
+    if (!intf)
+      return;
+
+    m_cpu_debugger = std::make_unique<CPUDebugger::CPUDebugger>(m_system->GetCPU(), intf);
+  }
+
+  m_cpu_debugger->Update();
 }
 
 void SDLHostInterface::Run()

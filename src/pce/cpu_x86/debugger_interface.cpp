@@ -130,8 +130,7 @@ bool DebuggerInterface::WritePhysicalMemoryDWord(PhysicalMemoryAddress address, 
 
 LinearMemoryAddress DebuggerInterface::GetInstructionPointer() const
 {
-  // This needs the linear address of the instruction pointer
-  return m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->GetRegisters()->EIP);
+  return m_cpu->GetRegisters()->EIP;
 }
 
 DebuggerInterface::RegisterType DebuggerInterface::GetStackValueType() const
@@ -162,24 +161,35 @@ LinearMemoryAddress DebuggerInterface::GetStackBottom() const
     return UINT32_C(0xFFFFFFFF);
 }
 
-bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out_line, u32* out_size) const
+bool DebuggerInterface::DisassembleCode(LinearMemoryAddress instruction_pointer,
+                                        LinearMemoryAddress* out_linear_address, String* out_formatted_address,
+                                        String* out_code_bytes, String* out_disassembly, u32* out_size) const
 {
-  u32 fetch_EIP = m_cpu->m_registers.EIP;
+  VirtualMemoryAddress fetch_EIP = instruction_pointer;
   auto fetchb = [this, &fetch_EIP](u8* val) {
-    if (!m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
+    if (!m_cpu->CheckSegmentAccess<sizeof(u8), AccessType::Execute>(Segment_CS, fetch_EIP, false) ||
+        !m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
+    {
       return false;
+    }
     fetch_EIP = (fetch_EIP + sizeof(u8)) & m_cpu->m_EIP_mask;
     return true;
   };
   auto fetchw = [this, &fetch_EIP](u16* val) {
-    if (!m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
+    if (!m_cpu->CheckSegmentAccess<sizeof(u16), AccessType::Execute>(Segment_CS, fetch_EIP, false) ||
+        !m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
+    {
       return false;
+    }
     fetch_EIP = (fetch_EIP + sizeof(u16)) & m_cpu->m_EIP_mask;
     return true;
   };
   auto fetchd = [this, &fetch_EIP](u32* val) {
-    if (!m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
+    if (!m_cpu->CheckSegmentAccess<sizeof(u32), AccessType::Execute>(Segment_CS, fetch_EIP, false) ||
+        !m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
+    {
       return false;
+    }
     fetch_EIP = (fetch_EIP + sizeof(u32)) & m_cpu->m_EIP_mask;
     return true;
   };
@@ -192,8 +202,30 @@ bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out
     return false;
   }
 
-  if (out_line)
-    Decoder::DisassembleToString(&instruction, out_line);
+  if (out_linear_address)
+    *out_linear_address = m_cpu->CalculateLinearAddress(Segment_CS, instruction_pointer);
+  if (out_formatted_address)
+    out_formatted_address->Format("%04X:%08X", ZeroExtend32(m_cpu->m_registers.CS), instruction_pointer);
+  if (out_code_bytes)
+  {
+    out_code_bytes->Clear();
+    for (u32 offset = 0; offset < instruction.length; offset++)
+    {
+      u8 val;
+      if (m_cpu->SafeReadMemoryByte(
+            m_cpu->CalculateLinearAddress(Segment_CS, static_cast<VirtualMemoryAddress>(instruction_pointer + offset)),
+            &val, AccessFlags::Debugger))
+      {
+        out_code_bytes->AppendFormattedString("%s%02X", offset == 0 ? "" : " ", ZeroExtend32(val));
+      }
+      else
+      {
+        break;
+      }
+    }
+  }
+  if (out_disassembly)
+    Decoder::DisassembleToString(&instruction, out_disassembly);
   if (out_size)
     *out_size = instruction.length;
   return true;

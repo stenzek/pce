@@ -112,7 +112,7 @@ bool DebuggerInterface::WritePhysicalMemoryDWord(PhysicalMemoryAddress address, 
 LinearMemoryAddress DebuggerInterface::GetInstructionPointer() const
 {
   // This needs the linear address of the instruction pointer
-  return m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->GetRegisters()->IP);
+  return ZeroExtend32(m_cpu->GetRegisters()->IP);
 }
 
 DebuggerInterface::RegisterType DebuggerInterface::GetStackValueType() const
@@ -130,9 +130,11 @@ LinearMemoryAddress DebuggerInterface::GetStackBottom() const
   return UINT32_C(0xFFFF);
 }
 
-bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out_line, u32* out_size) const
+bool DebuggerInterface::DisassembleCode(LinearMemoryAddress instruction_pointer,
+                                        LinearMemoryAddress* out_linear_address, String* out_formatted_address,
+                                        String* out_code_bytes, String* out_disassembly, u32* out_size) const
 {
-  u16 fetch_IP = m_cpu->m_registers.IP;
+  VirtualMemoryAddress fetch_IP = static_cast<VirtualMemoryAddress>(instruction_pointer);
   auto fetchb = [this, &fetch_IP](u8* val) {
     if (!m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_IP), val))
       return false;
@@ -151,8 +153,31 @@ bool DebuggerInterface::DisassembleCode(LinearMemoryAddress address, String* out
   if (!Decoder::DecodeInstruction(&instruction, fetch_IP, std::move(fetchb), std::move(fetchw)))
     return false;
 
-  if (out_line)
-    Decoder::DisassembleToString(&instruction, out_line);
+  if (out_linear_address)
+    *out_linear_address =
+      m_cpu->CalculateLinearAddress(Segment_CS, static_cast<VirtualMemoryAddress>(instruction_pointer));
+  if (out_formatted_address)
+    out_formatted_address->Format("%04X:%04X", ZeroExtend32(m_cpu->m_registers.CS), instruction_pointer);
+  if (out_code_bytes)
+  {
+    out_code_bytes->Clear();
+    for (u32 offset = 0; offset < instruction.length; offset++)
+    {
+      u8 val;
+      if (m_cpu->SafeReadMemoryByte(
+            m_cpu->CalculateLinearAddress(Segment_CS, static_cast<VirtualMemoryAddress>(instruction_pointer + offset)),
+            &val))
+      {
+        out_code_bytes->AppendFormattedString("%s%02X", offset == 0 ? "" : " ", ZeroExtend32(val));
+      }
+      else
+      {
+        break;
+      }
+    }
+  }
+  if (out_disassembly)
+    Decoder::DisassembleToString(&instruction, out_disassembly);
   if (out_size)
     *out_size = instruction.length;
   return true;

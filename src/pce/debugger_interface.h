@@ -61,8 +61,10 @@ public:
   virtual LinearMemoryAddress GetStackTop() const = 0;
   virtual LinearMemoryAddress GetStackBottom() const = 0;
 
-  // Dissemble code at the specified linear address
-  virtual bool DisassembleCode(LinearMemoryAddress address, String* out_line, u32* out_size) const = 0;
+  // Dissemble code at the specified linear address in the current code segment
+  virtual bool DisassembleCode(LinearMemoryAddress instruction_pointer, LinearMemoryAddress* out_linear_address,
+                               String* out_formatted_address, String* out_code_bytes, String* out_disassembly,
+                               u32* out_size) const = 0;
 
   // Single stepping
   // This also indicates whether we are broken into the debugger or not
