@@ -4131,7 +4131,7 @@ void Interpreter::Execute_Operation_VERx(CPU* cpu)
   // Check readable/writable flags. Code segments are never writable
   if constexpr (operation == Operation_VERR)
   {
-    bool is_readable = (descriptor.IsCodeSegment() || descriptor.memory.access.code_readable);
+    bool is_readable = (!descriptor.IsCodeSegment() || descriptor.memory.access.code_readable);
     cpu->m_registers.EFLAGS.ZF = is_readable;
   }
   else if constexpr (operation == Operation_VERW)
