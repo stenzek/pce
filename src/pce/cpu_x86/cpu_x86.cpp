@@ -726,6 +726,27 @@ void CPU::PushWord(u16 value)
   WriteMemoryWord(linear_address, value);
 }
 
+void CPU::PushWord32(u16 value)
+{
+  PhysicalMemoryAddress linear_address;
+  if (m_stack_address_size == AddressSize_16)
+  {
+    u16 new_SP = m_registers.SP - sizeof(u32);
+    CheckSegmentAccess<sizeof(u32), AccessType::Write>(Segment_SS, ZeroExtend32(new_SP), true);
+    linear_address = CalculateLinearAddress(Segment_SS, ZeroExtend32(new_SP));
+    m_registers.SP = new_SP;
+  }
+  else
+  {
+    u32 new_ESP = m_registers.ESP - sizeof(u32);
+    CheckSegmentAccess<sizeof(u32), AccessType::Write>(Segment_SS, new_ESP, true);
+    linear_address = CalculateLinearAddress(Segment_SS, new_ESP);
+    m_registers.ESP = new_ESP;
+  }
+
+  WriteMemoryWord(linear_address, value);
+}
+
 void CPU::PushDWord(u32 value)
 {
   PhysicalMemoryAddress linear_address;

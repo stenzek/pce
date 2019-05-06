@@ -3070,12 +3070,11 @@ void Interpreter::Execute_Operation_PUSH_Sreg(CPU* cpu)
 
   cpu->AddCycles(CYCLES_PUSH_SREG);
 
-  // TODO: Is this correct for 32-bits? Bochs only writes 2 of the 4 bytes.
   u16 selector = cpu->m_registers.segment_selectors[src_constant];
   if (cpu->idata.operand_size == OperandSize_16)
     cpu->PushWord(selector);
   else
-    cpu->PushDWord(SignExtend32(selector));
+    cpu->PushWord32(selector);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>

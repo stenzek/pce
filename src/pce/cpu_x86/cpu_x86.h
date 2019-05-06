@@ -416,6 +416,7 @@ protected:
   // This can cause both a page fault, as well as a stack fault, in which case
   // these functions will never return.
   void PushWord(u16 value);
+  void PushWord32(u16 value);
   void PushDWord(u32 value);
   u16 PopWord();
   u32 PopDWord();
