@@ -170,6 +170,8 @@ bool i8253_PIT::GetChannelGateInput(size_t channel_index)
 
 bool i8253_PIT::GetChannelOutputState(size_t channel_index)
 {
+  m_tick_event->InvokeEarly(false);
+
   DebugAssert(channel_index < m_channels.size());
   return m_channels[channel_index].output_state;
 }
@@ -245,16 +247,18 @@ void i8253_PIT::ReadDataPort(u32 channel_index, u8* value)
   {
     case ChannelAccessModeLSBOnly:
       *value = Truncate8(channel->read_latch_value);
+      channel->read_latch_needs_update = true;
       break;
 
     case ChannelAccessModeMSBOnly:
       *value = Truncate8(channel->read_latch_value >> 8);
+      channel->read_latch_needs_update = true;
       break;
 
     case ChannelAccessModeMSB:
       *value = Truncate8(channel->read_latch_value >> 8);
-      channel->read_latch_needs_update = true;
       channel->read_mode = ChannelAccessModeLSB;
+      channel->read_latch_needs_update = true;
       break;
 
     case ChannelAccessModeLSB:
@@ -338,6 +342,10 @@ void i8253_PIT::WriteCommandRegister(u8 value)
   // Access mode == 0 is latch immediately
   if ((value & 0x30) == 0)
   {
+    // Ignore the second latch command if two are issued.
+    if (!channel->read_latch_needs_update)
+      return;
+
     channel->read_latch_value = Truncate16(channel->count);
     channel->read_latch_needs_update = false;
     return;
@@ -597,6 +605,8 @@ void i8253_PIT::SimulateChannel(size_t channel_index, CycleCount cycles)
         {
           channel->count = GetFrequencyFromReloadValue(channel);
           channel->reload_value_set = false;
+          channel->monitor_count++;
+          cycles--;
         }
 
         // Don't count while the gate input isn't high.
@@ -632,6 +642,8 @@ void i8253_PIT::SimulateChannel(size_t channel_index, CycleCount cycles)
         {
           channel->count = GetFrequencyFromReloadValue(channel);
           channel->reload_value_set = false;
+          channel->monitor_count++;
+          cycles--;
         }
 
         // Don't count while the gate input isn't high.
@@ -667,6 +679,8 @@ void i8253_PIT::SimulateChannel(size_t channel_index, CycleCount cycles)
         {
           channel->count = GetFrequencyFromReloadValue(channel);
           channel->reload_value_set = false;
+          channel->monitor_count++;
+          cycles--;
         }
 
         // See note in SetChannelGateInput, the counter is disabled while the gate input is low.
@@ -717,6 +731,8 @@ void i8253_PIT::SimulateChannel(size_t channel_index, CycleCount cycles)
         {
           channel->count = GetFrequencyFromReloadValue(channel) & ~CycleCount(1);
           channel->reload_value_set = false;
+          channel->monitor_count++;
+          cycles--;
         }
 
         // See note in SetChannelGateInput, the counter is disabled while the gate input is low.
@@ -775,6 +791,8 @@ void i8253_PIT::SimulateChannel(size_t channel_index, CycleCount cycles)
         {
           channel->count = GetFrequencyFromReloadValue(channel);
           channel->reload_value_set = false;
+          channel->monitor_count++;
+          cycles--;
         }
 
         if ((channel->operating_mode == ChannelOperatingModeHardwareTriggeredStrobe && channel->waiting_for_gate) ||
@@ -882,7 +900,6 @@ void i8253_PIT::SetChannelOutputState(size_t channel_index, bool value)
   if (channel->output_state == value)
     return;
 
-  // if (channel_index != 1)
   Log_TracePrintf("Set PIT channel %u output %s->%s after %u cycles", Truncate32(channel_index),
                   channel->output_state ? "high" : "low", value ? "high" : "low", Truncate32(channel->monitor_count));
 

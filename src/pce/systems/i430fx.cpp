@@ -164,7 +164,7 @@ void i430FX::IOReadSystemControlPortB(u8* value)
 
 void i430FX::IOWriteSystemControlPortB(u8 value)
 {
-  Log_DebugPrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
+  Log_TracePrintf("Write system control port B: 0x%02X", ZeroExtend32(value));
 
   m_timer->SetChannelGateInput(2, !!(value & (1 << 0))); // Timer 2 gate input
   m_speaker->SetOutputEnabled(!!(value & (1 << 1)));     // Speaker data enable
