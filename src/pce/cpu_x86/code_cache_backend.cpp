@@ -661,16 +661,13 @@ void CodeCacheBackend::InterpretUncachedBlock()
   // This is slower, but the trace output will match the cached variant.
   for (;;)
   {
-    m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
-    m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
-
-    if (TRACE_EXECUTION && m_cpu->m_current_EIP != TRACE_EXECUTION_LAST_EIP)
+    if (TRACE_EXECUTION && m_cpu->m_registers.EIP != TRACE_EXECUTION_LAST_EIP)
     {
-      m_cpu->PrintCurrentStateAndInstruction(nullptr);
-      TRACE_EXECUTION_LAST_EIP = m_cpu->m_current_EIP;
+      m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP, nullptr);
+      TRACE_EXECUTION_LAST_EIP = m_cpu->m_registers.EIP;
     }
 
-    u32 fetch_EIP = m_cpu->m_current_EIP;
+    u32 fetch_EIP = m_cpu->m_registers.EIP;
     auto fetchb = [this, &fetch_EIP](u8* val) {
       m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
       fetch_EIP = (fetch_EIP + sizeof(u8)) & m_cpu->m_EIP_mask;

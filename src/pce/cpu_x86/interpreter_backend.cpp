@@ -30,9 +30,9 @@ void InterpreterBackend::Execute()
 
     if (TRACE_EXECUTION)
     {
-      if (TRACE_EXECUTION_LAST_EIP != m_cpu->m_current_EIP)
-        m_cpu->PrintCurrentStateAndInstruction();
-      TRACE_EXECUTION_LAST_EIP = m_cpu->m_current_EIP;
+      if (TRACE_EXECUTION_LAST_EIP != m_cpu->m_registers.EIP)
+        m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP);
+      TRACE_EXECUTION_LAST_EIP = m_cpu->m_registers.EIP;
     }
 
     Interpreter::ExecuteInstruction(m_cpu);

@@ -352,7 +352,7 @@ public:
   bool SafeWriteMemoryDWord(VirtualMemoryAddress address, u32 value, AccessFlags access_flags);
 
   // Prints the current state and instruction the CPU is sitting at.
-  void PrintCurrentStateAndInstruction(const char* prefix_message = nullptr);
+  void PrintCurrentStateAndInstruction(u32 EIP, const char* prefix_message = nullptr);
 
   // Component functions
   bool Initialize(System* system, Bus* bus) override;

@@ -17,7 +17,7 @@
 namespace CPU_X86 {
 void Interpreter::RaiseInvalidOpcode(CPU* cpu)
 {
-  cpu->PrintCurrentStateAndInstruction("Invalid opcode raised at ");
+  cpu->PrintCurrentStateAndInstruction(cpu->m_current_EIP, "Invalid opcode raised at ");
   cpu->RaiseException(Interrupt_InvalidOpcode);
 }
 

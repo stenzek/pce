@@ -1483,15 +1483,15 @@ bool CPU::SafeWriteMemoryDWord(VirtualMemoryAddress address, u32 value, AccessFl
          SafeWriteMemoryWord((address + 2), Truncate16(value >> 16), access_flags);
 }
 
-void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullptr */)
+void CPU::PrintCurrentStateAndInstruction(u32 EIP, const char* prefix_message /* = nullptr */)
 {
   if (prefix_message)
   {
-    std::fprintf(stdout, "%s at EIP = %04X:%08Xh (0x%08X)\n", prefix_message, m_registers.CS, m_current_EIP,
-                 CalculateLinearAddress(Segment_CS, m_current_EIP));
+    std::fprintf(stdout, "%s at EIP = %04X:%08Xh (0x%08X)\n", prefix_message, m_registers.CS, EIP,
+                 CalculateLinearAddress(Segment_CS, EIP));
   }
 
-    //#define COMMON_LOGGING_FORMAT 1
+  //#define COMMON_LOGGING_FORMAT 1
 
 #ifndef COMMON_LOGGING_FORMAT
 #if 1
@@ -1506,7 +1506,7 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
 #endif
 #endif
 
-  u32 fetch_EIP = m_current_EIP;
+  u32 fetch_EIP = EIP;
   auto fetchb = [this, &fetch_EIP](u8* val) {
     if (!SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger))
       return false;
@@ -1537,10 +1537,9 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
   for (u32 i = 0; i < instruction_length; i++)
   {
     u8 value = 0;
-    if (!SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, m_current_EIP + i), &value, AccessFlags::Debugger))
+    if (!SafeReadMemoryByte(CalculateLinearAddress(Segment_CS, EIP + i), &value, AccessFlags::Debugger))
     {
-      hex_string.AppendFormattedString(" <memory read failed at 0x%08X>",
-                                       CalculateLinearAddress(Segment_CS, m_current_EIP + i));
+      hex_string.AppendFormattedString(" <memory read failed at 0x%08X>", CalculateLinearAddress(Segment_CS, EIP + i));
       i = instruction_length;
       break;
     }
@@ -1557,23 +1556,22 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
     for (u32 i = instruction_length; i < 10; i++)
       hex_string.AppendString("   ");
 
-    LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, m_current_EIP);
-    std::fprintf(stdout, "%04X:%08Xh (0x%08X) | %s | %s\n", ZeroExtend32(m_registers.CS), m_current_EIP, linear_address,
+    LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, EIP);
+    std::fprintf(stdout, "%04X:%08Xh (0x%08X) | %s | %s\n", ZeroExtend32(m_registers.CS), EIP, linear_address,
                  hex_string.GetCharArray(), instr_string.GetCharArray());
 #else
-    std::fprintf(stdout, "%04x:%08x %s%s\n", ZeroExtend32(m_registers.CS), m_current_EIP, hex_string.GetCharArray(),
+    std::fprintf(stdout, "%04x:%08x %s%s\n", ZeroExtend32(m_registers.CS), EIP, hex_string.GetCharArray(),
                  instr_string.GetCharArray());
 #endif
   }
   else
   {
 #ifndef COMMON_LOGGING_FORMAT
-    LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, m_current_EIP);
+    LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, EIP);
     std::fprintf(stdout, "%04X:%08Xh (0x%08X) Decoding failed, bytes at failure point: %s\n",
-                 ZeroExtend32(m_registers.CS), m_current_EIP, linear_address, hex_string.GetCharArray());
+                 ZeroExtend32(m_registers.CS), EIP, linear_address, hex_string.GetCharArray());
 #else
-    std::fprintf(stdout, "%04x:%08x %s??????\n", ZeroExtend32(m_registers.CS), m_current_EIP,
-                 hex_string.GetCharArray());
+    std::fprintf(stdout, "%04x:%08x %s??????\n", ZeroExtend32(m_registers.CS), EIP, hex_string.GetCharArray());
 #endif
   }
 
@@ -1587,7 +1585,7 @@ void CPU::PrintCurrentStateAndInstruction(const char* prefix_message /* = nullpt
                ZeroExtend32(m_registers.CS), ZeroExtend32(m_registers.DS), ZeroExtend32(m_registers.ES),
                ZeroExtend32(m_registers.FS), ZeroExtend32(m_registers.GS), ZeroExtend32(m_registers.SS),
                ZeroExtend32(m_registers.TR), ZeroExtend32(m_registers.LDTR));
-  std::fprintf(stdout, "EIP: %08x EFLAGS: %08x\n", m_current_EIP, m_registers.EFLAGS.bits);
+  std::fprintf(stdout, "EIP: %08x EFLAGS: %08x\n", EIP, m_registers.EFLAGS.bits);
   std::fprintf(stdout, "CR0: %08x CR2: %08x CR3: %08x\n", m_registers.CR0, m_registers.CR2, m_registers.CR3);
   std::fprintf(stdout, "DR0: %08x DR1: %08x DR2: %08x DR3: %08x\n", m_registers.DR0, m_registers.DR1, m_registers.DR2,
                m_registers.DR3);
