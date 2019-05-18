@@ -243,13 +243,14 @@ void DS12887::IOWriteDataPort(u8 value)
     Log_DebugPrintf("Write register 0x%02X value=0x%02X", ZeroExtend32(index), ZeroExtend32(value));
 #endif
 
+  m_data[index] = value;
+
   // Handle RTC and special stuff.
   if (index < RTC_REGISTER_STATUS_REGISTER_A || index == RTC_REGISTER_CENTURY)
     UpdateClock();
   else if (index >= RTC_REGISTER_STATUS_REGISTER_A && index <= RTC_REGISTER_STATUS_REGISTER_D)
     UpdateRTCFrequency();
 
-  m_data[index] = value;
   QueueSaveRAM();
 }
 
