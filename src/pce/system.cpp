@@ -233,12 +233,8 @@ SimulationTime System::ExecuteSlice(SimulationTime time)
 {
   const SimulationTime start_timestamp = m_timing_manager.GetTotalEmulatedTime();
 
-  // Convert time into CPU cycles, since that drives things currently.
-  const CycleCount slice_cycles = CycleCount(time / m_cpu->GetCyclePeriod());
-
   // CPU will call back to us to run components.
-  if (slice_cycles > 0)
-    m_cpu->ExecuteSlice(slice_cycles);
+  m_cpu->ExecuteSlice(time);
 
   return m_timing_manager.GetEmulatedTimeDifference(start_timestamp);
 }
