@@ -319,8 +319,6 @@ void i8253_PIT::WriteCommandRegister(u8 value)
 
   if (channel_index == 0b11)
   {
-    // TODO: Read-back mode
-    Log_ErrorPrintf("PIT readback mode not fully implemented");
     for (u32 i = 0; i < NUM_CHANNELS; i++)
     {
       Channel* channel = &m_channels[i];
@@ -329,7 +327,8 @@ void i8253_PIT::WriteCommandRegister(u8 value)
       channel->read_latch_value |= (u8(channel->operating_mode) << 1);
       channel->read_latch_value |= (u8(channel->write_mode) << 4);
       channel->read_latch_value |= (u8(channel->waiting_for_reload ? 1 : 0) << 6);
-      channel->read_latch_value |= (u8(0) << 7); // Current output pin state
+      channel->read_latch_value |= (BoolToUInt8(channel->output_state) << 7);
+      channel->read_latch_needs_update = false;
     }
 
     return;
