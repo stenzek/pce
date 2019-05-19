@@ -277,10 +277,6 @@ void i8253_PIT::WriteDataPort(u32 channel_index, u8 value)
   // Ensure we're up-to-date.
   m_tick_event->InvokeEarly();
 
-  // In "lobyte/hibyte" access mode counting will stop when the first byte of the reload value is set.
-  if (channel->write_mode == ChannelAccessModeMSB)
-    channel->waiting_for_reload = true;
-
   switch (channel->write_mode)
   {
     case ChannelAccessModeLSBOnly:
@@ -301,8 +297,10 @@ void i8253_PIT::WriteDataPort(u32 channel_index, u8 value)
 
     case ChannelAccessModeLSB:
     default:
+      // In "lobyte/hibyte" access mode counting will stop when the first byte of the reload value is set.
       channel->reload_value = (channel->reload_value & 0xFF00) | ZeroExtend16(value);
       channel->write_mode = ChannelAccessModeMSB;
+      channel->waiting_for_reload = true;
       break;
   }
 
