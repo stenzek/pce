@@ -65,7 +65,6 @@ void i8253_PIT::Reset()
   {
     Channel* channel = &m_channels[i];
     channel->count = 0;
-    channel->monitor_count = 0;
     channel->downcount = 0;
 
     channel->reload_value = 0;
@@ -98,7 +97,6 @@ bool i8253_PIT::LoadState(BinaryReader& reader)
   {
     Channel* channel = &m_channels[i];
     reader.SafeReadInt64(&channel->count);
-    reader.SafeReadInt64(&channel->monitor_count);
     reader.SafeReadInt64(&channel->downcount);
     reader.SafeReadUInt16(&channel->reload_value);
 
@@ -137,7 +135,6 @@ bool i8253_PIT::SaveState(BinaryWriter& writer)
   {
     Channel* channel = &m_channels[i];
     writer.WriteInt64(channel->count);
-    writer.WriteInt64(channel->monitor_count);
     writer.WriteInt64(channel->downcount);
     writer.WriteUInt16(channel->reload_value);
     writer.WriteUInt8(static_cast<u8>(channel->operating_mode));
@@ -179,11 +176,6 @@ bool i8253_PIT::GetChannelOutputState(size_t channel_index)
 void i8253_PIT::SetChannelOutputChangeCallback(size_t channel_index, ChannelOutputChangeCallback callback)
 {
   m_channels[channel_index].change_callback = std::move(callback);
-}
-
-void i8253_PIT::SetChannelMonitorCallback(size_t channel_index, ChannelMonitorCallback callback)
-{
-  m_channels[channel_index].monitor_callback = std::move(callback);
 }
 
 void i8253_PIT::ConnectIOPorts(Bus* bus)
@@ -587,250 +579,182 @@ void i8253_PIT::SimulateChannel(size_t channel_index, CycleCount cycles)
   {
     // Don't do anything while we're waiting for the reload value to be set.
     // This is the same across all modes.
-    channel->monitor_count += cycles;
+    return;
   }
-  else
+
+  // After the reload register has been set, the current count will be set to the reload value on the next falling
+  // edge of the (1.193182 MHz) input signal. Subsequent falling edges of the input signal will decrement the
+  // current count (if the gate input is high on the preceding rising edge of the input signal).
+  if (channel->reload_value_set)
   {
-    switch (channel->operating_mode)
+    channel->count = GetFrequencyFromReloadValue(channel);
+    channel->reload_value_set = false;
+    cycles--;
+  }
+
+  switch (channel->operating_mode)
+  {
+    case ChannelOperatingModeInterrupt:
     {
-      case ChannelOperatingModeInterrupt:
-      {
-        // After the reload register has been set, the current count will be set to the reload value on the next falling
-        // edge of the (1.193182 MHz) input signal. Subsequent falling edges of the input signal will decrement the
-        // current count (if the gate input is high on the preceding rising edge of the input signal).
-        if (channel->reload_value_set)
-        {
-          channel->count = GetFrequencyFromReloadValue(channel);
-          channel->reload_value_set = false;
-          channel->monitor_count++;
-          cycles--;
-        }
-
-        // Don't count while the gate input isn't high.
-        if (!channel->gate_input)
-        {
-          channel->monitor_count += cycles;
-          break;
-        }
-
-        while (cycles >= channel->count)
-        {
-          channel->monitor_count += channel->count;
-          cycles -= channel->count;
-          channel->count = 0;
-
-          // When the current count decrements from one to zero, the output goes high and remains high until another
-          // mode/command register is written or the reload register is set again.
-          SetChannelOutputState(channel_index, true);
-
-          // The current count will wrap around to 0xFFFF (or 0x9999 in BCD mode) and continue to decrement until the
-          // mode/command register or the reload register are set, however this will not effect the output pin state.
-          channel->count = channel->bcd_mode ? 0x9999 : 0xFFFF;
-        }
-
-        channel->count -= cycles;
-        channel->monitor_count += cycles;
+      // Don't count while the gate input isn't high.
+      if (!channel->gate_input)
         break;
+
+      while (cycles >= channel->count)
+      {
+        cycles -= channel->count;
+        channel->count = 0;
+
+        // When the current count decrements from one to zero, the output goes high and remains high until another
+        // mode/command register is written or the reload register is set again.
+        SetChannelOutputState(channel_index, true);
+
+        // The current count will wrap around to 0xFFFF (or 0x9999 in BCD mode) and continue to decrement until the
+        // mode/command register or the reload register are set, however this will not effect the output pin state.
+        channel->count = channel->bcd_mode ? 0x9999 : 0xFFFF;
       }
 
-      case ChannelOperatingModeOneShot:
-      {
-        if (channel->reload_value_set)
-        {
-          channel->count = GetFrequencyFromReloadValue(channel);
-          channel->reload_value_set = false;
-          channel->monitor_count++;
-          cycles--;
-        }
+      channel->count -= cycles;
+      break;
+    }
 
-        // Don't count while the gate input isn't high.
-        if (channel->waiting_for_gate || !channel->gate_input)
-        {
-          channel->monitor_count += cycles;
-          break;
-        }
-
-        while (cycles >= channel->count)
-        {
-          channel->monitor_count += channel->count;
-          cycles -= channel->count;
-          channel->count = 0;
-
-          // When the current count decrements from one to zero, the output goes high and remains high until another
-          // mode/command register is written or the reload register is set again.
-          SetChannelOutputState(channel_index, true);
-
-          // The current count will wrap around to 0xFFFF (or 0x9999 in BCD mode) and continue to decrement until the
-          // mode/command register or the reload register are set, however this will not effect the output pin state.
-          channel->count = channel->bcd_mode ? 0x9999 : 0xFFFF;
-        }
-
-        channel->count -= cycles;
-        channel->monitor_count += cycles;
+    case ChannelOperatingModeOneShot:
+    {
+      // Don't count while the gate input isn't high.
+      if (channel->waiting_for_gate || !channel->gate_input)
         break;
+
+      while (cycles >= channel->count)
+      {
+        cycles -= channel->count;
+        channel->count = 0;
+
+        // When the current count decrements from one to zero, the output goes high and remains high until another
+        // mode/command register is written or the reload register is set again.
+        SetChannelOutputState(channel_index, true);
+
+        // The current count will wrap around to 0xFFFF (or 0x9999 in BCD mode) and continue to decrement until the
+        // mode/command register or the reload register are set, however this will not effect the output pin state.
+        channel->count = channel->bcd_mode ? 0x9999 : 0xFFFF;
       }
 
-      case ChannelOperatingModeRateGenerator:
+      channel->count -= cycles;
+      break;
+    }
+
+    case ChannelOperatingModeRateGenerator:
+    {
+      // See note in SetChannelGateInput, the counter is disabled while the gate input is low.
+      if (!channel->gate_input)
+        break;
+
+      // Add one here because we want to trigger when the counter is one as well as zero.
+      while (cycles > 0 && (cycles + 1) >= channel->count)
       {
-        if (channel->reload_value_set)
+        // When the current count decrements from two to one, the output goes low, and on the next falling edge of the
+        // (1.193182 MHz) input signal it will go high again and the current count will be set to the reload value and
+        // counting will continue.
+        if (channel->count > 1)
         {
-          channel->count = GetFrequencyFromReloadValue(channel);
-          channel->reload_value_set = false;
-          channel->monitor_count++;
-          cycles--;
+          cycles -= (channel->count - 1);
+          channel->count = 1;
+          SetChannelOutputState(channel_index, false);
         }
 
-        // See note in SetChannelGateInput, the counter is disabled while the gate input is low.
-        if (!channel->gate_input)
-        {
-          channel->monitor_count += cycles;
-          break;
-        }
-
-        // Add one here because we want to trigger when the counter is one as well as zero.
-        while (cycles > 0 && (cycles + 1) >= channel->count)
-        {
-          // When the current count decrements from two to one, the output goes low, and on the next falling edge of the
-          // (1.193182 MHz) input signal it will go high again and the current count will be set to the reload value and
-          // counting will continue.
-          if (channel->count > 1)
-          {
-            channel->monitor_count += (channel->count - 1);
-            cycles -= (channel->count - 1);
-            channel->count = 1;
-            SetChannelOutputState(channel_index, false);
-          }
-
-          // It's possible that we're set to 1 now.
-          if (cycles > 0)
-          {
-            channel->monitor_count++;
-            cycles--;
-            channel->count = GetFrequencyFromReloadValue(channel);
-            SetChannelOutputState(channel_index, true);
-          }
-        }
-
-        // Ensure output is high when counting.
+        // It's possible that we're set to 1 now.
         if (cycles > 0)
         {
-          channel->count -= cycles;
-          channel->monitor_count += cycles;
+          cycles--;
+          channel->count = GetFrequencyFromReloadValue(channel);
           SetChannelOutputState(channel_index, true);
         }
-
-        break;
       }
 
-      case ChannelOperatingModeSquareWaveGenerator:
+      // Ensure output is high when counting.
+      if (cycles > 0)
       {
-        if (channel->reload_value_set)
-        {
-          channel->count = GetFrequencyFromReloadValue(channel) & ~CycleCount(1);
-          channel->reload_value_set = false;
-          channel->monitor_count++;
-          cycles--;
-        }
-
-        // See note in SetChannelGateInput, the counter is disabled while the gate input is low.
-        if (!channel->gate_input)
-        {
-          channel->monitor_count += cycles;
-          break;
-        }
-
-        // For mode 3, the PIT channel operates as a frequency divider like mode 2, however the output signal is fed
-        // into an internal "flip flop" to produce a square wave (rather than a short pulse). The flip flop changes its
-        // output state each time its input state (or the output of the PIT channel's frequency divider) changes. This
-        // causes the actual output to change state half as often, so to compensate for this the current count is
-        // decremented twice on each falling edge of the input signal (instead of once), and the current count is set to
-        // the reload value twice as often.
-
-        // Rather than subtracting two, we multiply the cycle count by two.
-        cycles *= 2;
-
-        while (cycles >= channel->count)
-        {
-          channel->monitor_count += (channel->count / 2);
-          cycles -= channel->count;
-          channel->count = GetFrequencyFromReloadValue(channel) & ~CycleCount(1);
-
-          // For even reload values, when the current count decrements from two to zero the output of the flop-flop
-          // changes state; the current count will be reset to the reload value and counting will continue.
-          channel->square_wave_flip_flop ^= true;
-          SetChannelOutputState(channel_index, channel->square_wave_flip_flop);
-
-          // For odd reload values, the current count is always set to one less than the reload value. If the output of
-          // the flip flop is low when the current count decrements from two to zero it will behave the same as the
-          // equivalent even reload value. However, if the output of the flip flop is high the reload will be delayed
-          // for one input signal cycle (0.8381 uS), which causes the "high" pulse to be slightly longer and the duty
-          // cycle will not be exactly 50%. Because the reload value is rounded down to the nearest even number anyway,
-          // it is recommended that only even reload values be used (which means you should mask the value before
-          // sending it to the port).
-          if ((channel->reload_value % 2) != 0)
-          {
-            // We cheat here and offset the count by one, rather than delaying another cycle.
-            // Not accurate, but unlikely for the CPU to read the value in between these two PIT cycles.
-            if (channel->square_wave_flip_flop)
-              channel->count++;
-          }
-        }
-
         channel->count -= cycles;
-        channel->monitor_count += (cycles / 2);
-        break;
+        SetChannelOutputState(channel_index, true);
       }
 
-      case ChannelOperatingModeSoftwareTriggeredStrobe:
-      case ChannelOperatingModeHardwareTriggeredStrobe:
-      {
-        if (channel->reload_value_set)
-        {
-          channel->count = GetFrequencyFromReloadValue(channel);
-          channel->reload_value_set = false;
-          channel->monitor_count++;
-          cycles--;
-        }
-
-        if ((channel->operating_mode == ChannelOperatingModeHardwareTriggeredStrobe && channel->waiting_for_gate) ||
-            !channel->gate_input)
-        {
-          channel->monitor_count += cycles;
-          break;
-        }
-
-        while (cycles >= channel->count)
-        {
-          // When the current count decrements from one to zero, the output goes low for one cycle of the input signal
-          // (0.8381 uS).
-          cycles -= channel->count;
-          channel->monitor_count += channel->count;
-          channel->count = GetFrequencyFromReloadValue(channel);
-          SetChannelOutputState(channel_index, false);
-
-          // We simulate the one cycle output by adding one to the frequency.
-          // In real-time, this happens early, but in cycles it'll be correct.
-          channel->monitor_count++;
-          SetChannelOutputState(channel_index, true);
-          channel->count++;
-        }
-
-        channel->count -= cycles;
-        channel->monitor_count += cycles;
-        break;
-      }
-
-      default:
-        break;
+      break;
     }
-  }
 
-  // Fire monitor callback if present.
-  if (channel->monitor_callback && channel->monitor_count > 0)
-  {
-    CycleCount monitor_count = channel->monitor_count;
-    channel->monitor_count = 0;
-    channel->monitor_callback(monitor_count, channel->output_state);
+    case ChannelOperatingModeSquareWaveGenerator:
+    {
+      // See note in SetChannelGateInput, the counter is disabled while the gate input is low.
+      if (!channel->gate_input)
+        break;
+
+      // For mode 3, the PIT channel operates as a frequency divider like mode 2, however the output signal is fed
+      // into an internal "flip flop" to produce a square wave (rather than a short pulse). The flip flop changes its
+      // output state each time its input state (or the output of the PIT channel's frequency divider) changes. This
+      // causes the actual output to change state half as often, so to compensate for this the current count is
+      // decremented twice on each falling edge of the input signal (instead of once), and the current count is set to
+      // the reload value twice as often.
+
+      // Rather than subtracting two, we multiply the cycle count by two.
+      cycles *= 2;
+
+      while (cycles >= channel->count)
+      {
+        cycles -= channel->count;
+        channel->count = GetFrequencyFromReloadValue(channel) & ~CycleCount(1);
+
+        // For even reload values, when the current count decrements from two to zero the output of the flop-flop
+        // changes state; the current count will be reset to the reload value and counting will continue.
+        channel->square_wave_flip_flop ^= true;
+        SetChannelOutputState(channel_index, channel->square_wave_flip_flop);
+
+        // For odd reload values, the current count is always set to one less than the reload value. If the output of
+        // the flip flop is low when the current count decrements from two to zero it will behave the same as the
+        // equivalent even reload value. However, if the output of the flip flop is high the reload will be delayed
+        // for one input signal cycle (0.8381 uS), which causes the "high" pulse to be slightly longer and the duty
+        // cycle will not be exactly 50%. Because the reload value is rounded down to the nearest even number anyway,
+        // it is recommended that only even reload values be used (which means you should mask the value before
+        // sending it to the port).
+        if ((channel->reload_value % 2) != 0)
+        {
+          // We cheat here and offset the count by one, rather than delaying another cycle.
+          // Not accurate, but unlikely for the CPU to read the value in between these two PIT cycles.
+          if (channel->square_wave_flip_flop)
+            channel->count++;
+        }
+      }
+
+      channel->count -= cycles;
+      break;
+    }
+
+    case ChannelOperatingModeSoftwareTriggeredStrobe:
+    case ChannelOperatingModeHardwareTriggeredStrobe:
+    {
+      if ((channel->operating_mode == ChannelOperatingModeHardwareTriggeredStrobe && channel->waiting_for_gate) ||
+          !channel->gate_input)
+      {
+        break;
+      }
+
+      while (cycles >= channel->count)
+      {
+        // When the current count decrements from one to zero, the output goes low for one cycle of the input signal
+        // (0.8381 uS).
+        cycles -= channel->count;
+        channel->count = GetFrequencyFromReloadValue(channel);
+        SetChannelOutputState(channel_index, false);
+
+        // We simulate the one cycle output by adding one to the frequency.
+        // In real-time, this happens early, but in cycles it'll be correct.
+        SetChannelOutputState(channel_index, true);
+        channel->count++;
+      }
+
+      channel->count -= cycles;
+      break;
+    }
+
+    default:
+      break;
   }
 }
 
@@ -894,22 +818,11 @@ CycleCount i8253_PIT::UpdateChannelDowncount(size_t channel_index)
 void i8253_PIT::SetChannelOutputState(size_t channel_index, bool value)
 {
   Channel* channel = &m_channels[channel_index];
-  if (channel->output_state == value)
-    return;
-
-  Log_TracePrintf("Set PIT channel %u output %s->%s after %u cycles", Truncate32(channel_index),
-                  channel->output_state ? "high" : "low", value ? "high" : "low", Truncate32(channel->monitor_count));
-
-  CycleCount monitor_count = channel->monitor_count;
-  bool monitor_output_state = channel->output_state;
-  channel->monitor_count = 0;
+  const bool old_value = channel->output_state;
   channel->output_state = value;
 
-  if (channel->change_callback)
+  if (channel->change_callback && old_value != value)
     channel->change_callback(value);
-
-  if (channel->monitor_callback && monitor_count > 0)
-    channel->monitor_callback(monitor_count, monitor_output_state);
 }
 
 void i8253_PIT::UpdateAllChannelsDowncount()

@@ -39,11 +39,6 @@ public:
   using ChannelOutputChangeCallback = std::function<void(bool)>;
   void SetChannelOutputChangeCallback(size_t channel_index, ChannelOutputChangeCallback callback);
 
-  // Monitor callbacks are executed each time a channel is simulated, containing the number
-  // of cycles executed, as well as the current state of the output signal.
-  using ChannelMonitorCallback = std::function<void(CycleCount, bool)>;
-  void SetChannelMonitorCallback(size_t channel_index, ChannelMonitorCallback callback);
-
 private:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('8', '2', '5', '3');
 
@@ -73,7 +68,6 @@ private:
   struct Channel
   {
     CycleCount count = 0;
-    CycleCount monitor_count = 0;
     CycleCount downcount = 0;
 
     u16 reload_value = 0;
@@ -96,9 +90,8 @@ private:
     bool square_wave_flip_flop = false;
 
     ChannelOutputChangeCallback change_callback;
-    ChannelMonitorCallback monitor_callback;
 
-    bool HasCallback() const { return change_callback || monitor_callback; }
+    bool HasCallback() const { return static_cast<bool>(change_callback); }
   };
 
   void ConnectIOPorts(Bus* bus);
