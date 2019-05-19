@@ -431,7 +431,10 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 
         u32 physical_page = (physical_address & cpu->m_bus->GetMemoryAddressMask()) & CPU::PAGE_MASK;
         if (first_physical_page == 0xFFFFFFFF)
+        {
           first_physical_page = physical_page;
+          last_physical_page = physical_page;
+        }
 
         if (physical_page != last_physical_page)
         {
@@ -642,7 +645,7 @@ void CodeCacheBackend::InterpretUncachedBlock()
   // The prefetch queue is an unknown state, and likely not in sync with our execution.
   m_cpu->FlushPrefetchQueue();
 
-#if 0
+#if 1
   // Execute until we hit a branch.
   // This isn't our "formal" block exit, but it's a point where we know we'll be in a good state.
   m_branched = false;
@@ -655,8 +658,10 @@ void CodeCacheBackend::InterpretUncachedBlock()
     }
 
     Interpreter::ExecuteInstruction(m_cpu);
-    m_cpu->CommitPendingCycles();
   }
+
+  m_cpu->CommitPendingCycles();
+
 #else
   // This is slower, but the trace output will match the cached variant.
   for (;;)
@@ -669,17 +674,17 @@ void CodeCacheBackend::InterpretUncachedBlock()
 
     u32 fetch_EIP = m_cpu->m_registers.EIP;
     auto fetchb = [this, &fetch_EIP](u8* val) {
-      m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
+      m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger);
       fetch_EIP = (fetch_EIP + sizeof(u8)) & m_cpu->m_EIP_mask;
       return true;
     };
     auto fetchw = [this, &fetch_EIP](u16* val) {
-      m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
+      m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger);
       fetch_EIP = (fetch_EIP + sizeof(u16)) & m_cpu->m_EIP_mask;
       return true;
     };
     auto fetchd = [this, &fetch_EIP](u32* val) {
-      m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Normal);
+      m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger);
       fetch_EIP = (fetch_EIP + sizeof(u32)) & m_cpu->m_EIP_mask;
       return true;
     };
@@ -690,6 +695,8 @@ void CodeCacheBackend::InterpretUncachedBlock()
       &instruction, m_cpu->m_current_address_size, m_cpu->m_current_operand_size, fetch_EIP, fetchb, fetchw, fetchd);
 
     Interpreter::ExecuteInstruction(m_cpu);
+
+    m_cpu->CommitPendingCycles();
 
     if (!instruction_valid || IsExitBlockInstruction(&instruction))
       return;

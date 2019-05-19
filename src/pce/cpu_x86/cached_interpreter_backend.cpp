@@ -198,18 +198,17 @@ void CachedInterpreterBackend::ExecuteBlock(BlockBase* block)
 {
   for (const Block::Entry& instruction : static_cast<Block*>(block)->entries)
   {
-    m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
-    m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
-
 #if 0
-    if (TRACE_EXECUTION && m_cpu->m_current_EIP != TRACE_EXECUTION_LAST_EIP)
+    if (TRACE_EXECUTION && m_cpu->m_registers.EIP != TRACE_EXECUTION_LAST_EIP)
     {
-      m_cpu->PrintCurrentStateAndInstruction(nullptr);
-      TRACE_EXECUTION_LAST_EIP = m_cpu->m_current_EIP;
+      m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP, nullptr);
+      TRACE_EXECUTION_LAST_EIP = m_cpu->m_registers.EIP;
     }
 #endif
 
     m_cpu->AddCycle();
+    m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
+    m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
     m_cpu->m_registers.EIP = (m_cpu->m_registers.EIP + instruction.length) & m_cpu->m_EIP_mask;
     std::memcpy(&m_cpu->idata, &instruction.data, sizeof(m_cpu->idata));
     instruction.handler(m_cpu);
