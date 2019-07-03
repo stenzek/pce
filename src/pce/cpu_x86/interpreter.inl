@@ -2524,28 +2524,50 @@ void Interpreter::Execute_Operation_INC(CPU* cpu)
   else
     static_assert(dependent_int_false<val_mode>::value, "unknown mode");
 
-  // Preserve CF
-  bool cf = cpu->m_registers.EFLAGS.CF;
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 new_value = ALUOp_Add8(&cpu->m_registers, value, 1);
-    WriteByteOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 old_value = ZeroExtend32(ReadByteOperand<val_mode, val_constant>(cpu));
+    const u32 new_value = old_value + u32(1);
+    const u8 out_value = Truncate8(new_value);
+    const u32 eflags =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify OF/AF/SF/ZF/PF
+      ((static_cast<u32>((new_value ^ old_value) & new_value) & u32(0x80)) << 4) |          // OF
+      (static_cast<u32>(old_value ^ u32(1) ^ new_value) & Flag_AF) |                        // AF
+      SignFlag(out_value) |                                                                 // SF
+      ZeroFlag(out_value) |                                                                 // ZF
+      ParityFlag(out_value);
+    WriteByteOperand<val_mode, val_constant>(cpu, out_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u16 new_value = ALUOp_Add16(&cpu->m_registers, value, 1);
-    WriteWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 old_value = ZeroExtend32(ReadWordOperand<val_mode, val_constant>(cpu));
+    const u32 new_value = old_value + u32(1);
+    const u16 out_value = Truncate16(new_value);
+    const u32 eflags =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify OF/AF/SF/ZF/PF
+      ((static_cast<u32>((new_value ^ old_value) & new_value) & u32(0x8000)) >> 4) |        // OF
+      (static_cast<u32>(old_value ^ new_value) & Flag_AF) |                                 // AF
+      SignFlag(out_value) |                                                                 // SF
+      ZeroFlag(out_value) |                                                                 // ZF
+      ParityFlag(out_value);
+    WriteWordOperand<val_mode, val_constant>(cpu, out_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u32 new_value = ALUOp_Add32(&cpu->m_registers, value, 1);
+    const u32 old_value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u32 new_value = old_value + u32(1);
+    const u32 eflags =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify OF/AF/SF/ZF/PF
+      ((static_cast<u32>((new_value ^ old_value) & new_value) & u32(0x80000000)) >> 20) |   // OF
+      (static_cast<u32>(old_value ^ new_value) & Flag_AF) |                                 // AF
+      SignFlag(new_value) |                                                                 // SF
+      ZeroFlag(new_value) |                                                                 // ZF
+      ParityFlag(new_value);
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
-
-  SET_FLAG(&cpu->m_registers, CF, cf);
 }
 
 template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
@@ -2561,28 +2583,53 @@ void Interpreter::Execute_Operation_DEC(CPU* cpu)
   else
     static_assert(dependent_int_false<val_mode>::value, "unknown mode");
 
-  // Preserve CF
-  bool cf = cpu->m_registers.EFLAGS.CF;
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 new_value = ALUOp_Sub8(&cpu->m_registers, value, 1);
-    WriteByteOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 old_value = ZeroExtend32(ReadByteOperand<val_mode, val_constant>(cpu));
+    const u32 new_value = old_value - u32(1);
+    const u8 out_value = Truncate8(new_value);
+    const u32 eflags =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify OF/AF/SF/ZF/PF
+      ((static_cast<u32>((new_value ^ old_value) & old_value) & u32(0x80)) << 4) |          // OF
+      (static_cast<u32>(old_value ^ new_value) & Flag_AF) |                                 // AF
+      SignFlag(out_value) |                                                                 // SF
+      ZeroFlag(out_value) |                                                                 // ZF
+      ParityFlag(out_value);
+
+    WriteByteOperand<val_mode, val_constant>(cpu, out_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u16 new_value = ALUOp_Sub16(&cpu->m_registers, value, 1);
-    WriteWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 old_value = ZeroExtend32(ReadWordOperand<val_mode, val_constant>(cpu));
+    const u32 new_value = old_value - u32(1);
+    const u16 out_value = Truncate16(new_value);
+    const u32 eflags =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify OF/AF/SF/ZF/PF
+      ((static_cast<u32>((new_value ^ old_value) & old_value) & u32(0x8000)) >> 4) |        // OF
+      (static_cast<u32>(old_value ^ new_value) & Flag_AF) |                                 // AF
+      SignFlag(out_value) |                                                                 // SF
+      ZeroFlag(out_value) |                                                                 // ZF
+      ParityFlag(out_value);
+
+    WriteWordOperand<val_mode, val_constant>(cpu, out_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u32 new_value = ALUOp_Sub32(&cpu->m_registers, value, 1);
-    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
-  }
+    const u32 old_value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u32 new_value = old_value - u32(1);
+    const u32 eflags =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify OF/AF/SF/ZF/PF
+      ((static_cast<u32>((new_value ^ old_value) & old_value) & u32(0x80000000)) >> 20) |   // OF
+      (static_cast<u32>(old_value ^ new_value) & Flag_AF) |                                 // AF
+      SignFlag(new_value) |                                                                 // SF
+      ZeroFlag(new_value) |                                                                 // ZF
+      ParityFlag(new_value);
 
-  SET_FLAG(&cpu->m_registers, CF, cf);
+    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
+  }
 }
 
 template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
@@ -2600,20 +2647,20 @@ void Interpreter::Execute_Operation_NOT(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 new_value = ~value;
+    const u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    const u8 new_value = ~value;
     WriteByteOperand<val_mode, val_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u16 new_value = ~value;
+    const u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    const u16 new_value = ~value;
     WriteWordOperand<val_mode, val_constant>(cpu, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u32 new_value = ~value;
+    const u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u32 new_value = ~value;
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
   }
 }
