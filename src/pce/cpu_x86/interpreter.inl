@@ -2680,30 +2680,53 @@ void Interpreter::Execute_Operation_NEG(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 new_value = u8(-s8(value));
-    WriteByteOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 sub_value = ZeroExtend32(ReadByteOperand<val_mode, val_constant>(cpu));
+    const u32 new_value = u32(0) - sub_value;
+    const u8 out_value = Truncate8(new_value);
+    const u32 eflags = (cpu->m_registers.EFLAGS.bits &
+                        ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
+                       BoolToUInt32(new_value != 0) |                                   // CF
+                       ((static_cast<u32>(new_value & sub_value) & u32(0x80)) << 4) |   // OF
+                       (static_cast<u32>(sub_value ^ new_value) & Flag_AF) |            // AF
+                       SignFlag(out_value) |                                            // SF
+                       ZeroFlag(out_value) |                                            // ZF
+                       ParityFlag(out_value);
 
-    ALUOp_Sub8(&cpu->m_registers, 0, value);
-    SET_FLAG(&cpu->m_registers, CF, (new_value != 0));
+    WriteByteOperand<val_mode, val_constant>(cpu, out_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u16 new_value = u16(-s16(value));
-    WriteWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 sub_value = ZeroExtend32(ReadWordOperand<val_mode, val_constant>(cpu));
+    const u32 new_value = u32(0) - sub_value;
+    const u16 out_value = Truncate16(new_value);
+    const u32 eflags = (cpu->m_registers.EFLAGS.bits &
+                        ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
+                       BoolToUInt32(new_value != 0) |                                   // CF
+                       ((static_cast<u32>(new_value & sub_value) & u32(0x8000)) >> 4) | // OF
+                       (static_cast<u32>(sub_value ^ new_value) & Flag_AF) |            // AF
+                       SignFlag(out_value) |                                            // SF
+                       ZeroFlag(out_value) |                                            // ZF
+                       ParityFlag(out_value);
 
-    ALUOp_Sub16(&cpu->m_registers, 0, value);
-    SET_FLAG(&cpu->m_registers, CF, (new_value != 0));
+    WriteWordOperand<val_mode, val_constant>(cpu, out_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u32 new_value = u32(-s32(value));
-    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 sub_value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u32 new_value = u32(0) - sub_value;
+    const u32 eflags = (cpu->m_registers.EFLAGS.bits &
+                        ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) |      // Modify CF/OF/AF/SF/ZF/PF
+                       BoolToUInt32(new_value != 0) |                                        // CF
+                       ((static_cast<u32>(new_value & sub_value) & u32(0x80000000)) >> 20) | // OF
+                       (static_cast<u32>(sub_value ^ new_value) & Flag_AF) |                 // AF
+                       SignFlag(new_value) |                                                 // SF
+                       ZeroFlag(new_value) |                                                 // ZF
+                       ParityFlag(new_value);
 
-    ALUOp_Sub32(&cpu->m_registers, 0, value);
-    SET_FLAG(&cpu->m_registers, CF, (new_value != 0));
+    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
 }
 
