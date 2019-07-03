@@ -1111,52 +1111,52 @@ constexpr u32 EFLAGS_ALUSub8(u32 old_eflags, u32 old_value, u32 sub_value, u32 n
          ParityFlag(out_value);
 }
 
-inline u8 ALUOp_Add8(CPU::Registers* registers, u8 lhs, u8 rhs)
+inline u8 ALUOp_Add8(u32* eflags, u8 lhs, u8 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 add_value = ZeroExtend32(rhs);
   const u32 new_value = old_value + add_value;
   const u8 out_value = Truncate8(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUAdd8(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
+  *eflags = EFLAGS_ALUAdd8(*eflags, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
-inline u8 ALUOp_Adc8(CPU::Registers* registers, u8 lhs, u8 rhs)
+inline u8 ALUOp_Adc8(u32* eflags, u8 lhs, u8 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 add_value = ZeroExtend32(rhs);
-  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 carry_in = *eflags & Flag_CF;
   const u32 new_value = old_value + add_value + carry_in;
   const u8 out_value = Truncate8(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUAdd8(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
+  *eflags = EFLAGS_ALUAdd8(*eflags, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
-inline u8 ALUOp_Sub8(CPU::Registers* registers, u8 lhs, u8 rhs)
+inline u8 ALUOp_Sub8(u32* eflags, u8 lhs, u8 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 sub_value = ZeroExtend32(rhs);
   const u32 new_value = old_value - sub_value;
   const u8 out_value = Truncate8(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUSub8(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
+  *eflags = EFLAGS_ALUSub8(*eflags, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
 
-inline u8 ALUOp_Sbb8(CPU::Registers* registers, u8 lhs, u8 rhs)
+inline u8 ALUOp_Sbb8(u32* eflags, u8 lhs, u8 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 sub_value = ZeroExtend32(rhs);
-  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 carry_in = *eflags & Flag_CF;
   const u32 new_value = old_value - sub_value - carry_in;
   const u8 out_value = Truncate8(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUSub8(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
+  *eflags = EFLAGS_ALUSub8(*eflags, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
@@ -1183,52 +1183,52 @@ constexpr u32 EFLAGS_ALUSub16(u32 old_eflags, u32 old_value, u32 sub_value, u32 
          ParityFlag(out_value);
 }
 
-inline u16 ALUOp_Add16(CPU::Registers* registers, u16 lhs, u16 rhs)
+inline u16 ALUOp_Add16(u32* eflags, u16 lhs, u16 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 add_value = ZeroExtend32(rhs);
   const u32 new_value = old_value + add_value;
   const u16 out_value = Truncate16(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUAdd16(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
+  *eflags = EFLAGS_ALUAdd16(*eflags, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
-inline u16 ALUOp_Adc16(CPU::Registers* registers, u16 lhs, u16 rhs)
+inline u16 ALUOp_Adc16(u32* eflags, u16 lhs, u16 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 add_value = ZeroExtend32(rhs);
-  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 carry_in = *eflags & Flag_CF;
   const u32 new_value = old_value + add_value + carry_in;
   const u16 out_value = Truncate16(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUAdd16(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
+  *eflags = EFLAGS_ALUAdd16(*eflags, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
-inline u16 ALUOp_Sub16(CPU::Registers* registers, u16 lhs, u16 rhs)
+inline u16 ALUOp_Sub16(u32* eflags, u16 lhs, u16 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 sub_value = ZeroExtend32(rhs);
   const u32 new_value = old_value - sub_value;
   const u16 out_value = Truncate16(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUSub16(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
+  *eflags = EFLAGS_ALUSub16(*eflags, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
 
-inline u16 ALUOp_Sbb16(CPU::Registers* registers, u16 lhs, u16 rhs)
+inline u16 ALUOp_Sbb16(u32* eflags, u16 lhs, u16 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 sub_value = ZeroExtend32(rhs);
-  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 carry_in = *eflags & Flag_CF;
   const u32 new_value = old_value - sub_value - carry_in;
   const u16 out_value = Truncate16(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUSub16(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
+  *eflags = EFLAGS_ALUSub16(*eflags, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
@@ -1258,51 +1258,51 @@ constexpr u32 EFLAGS_ALUSub32(u32 old_eflags, u32 old_value, u32 sub_value, u64 
          ParityFlag(out_value);
 }
 
-inline u32 ALUOp_Add32(CPU::Registers* registers, u32 lhs, u32 rhs)
+inline u32 ALUOp_Add32(u32* eflags, u32 lhs, u32 rhs)
 {
   const u32 old_value = lhs;
   const u32 add_value = rhs;
   const u64 new_value = ZeroExtend64(old_value) + ZeroExtend64(add_value);
   const u32 out_value = Truncate32(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUAdd32(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
+  *eflags = EFLAGS_ALUAdd32(*eflags, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
-inline u32 ALUOp_Adc32(CPU::Registers* registers, u32 lhs, u32 rhs)
+inline u32 ALUOp_Adc32(u32* eflags, u32 lhs, u32 rhs)
 {
   const u32 old_value = lhs;
   const u32 add_value = rhs;
-  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 carry_in = *eflags & Flag_CF;
   const u64 new_value = ZeroExtend64(old_value) + ZeroExtend64(add_value) + ZeroExtend64(carry_in);
   const u32 out_value = Truncate32(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUAdd32(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
+  *eflags = EFLAGS_ALUAdd32(*eflags, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
-inline u32 ALUOp_Sub32(CPU::Registers* registers, u32 lhs, u32 rhs)
+inline u32 ALUOp_Sub32(u32* eflags, u32 lhs, u32 rhs)
 {
   const u32 old_value = lhs;
   const u32 sub_value = rhs;
   const u64 new_value = ZeroExtend64(old_value) - ZeroExtend64(sub_value);
   const u32 out_value = Truncate32(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUSub32(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
+  *eflags = EFLAGS_ALUSub32(*eflags, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
 
-inline u32 ALUOp_Sbb32(CPU::Registers* registers, u32 lhs, u32 rhs)
+inline u32 ALUOp_Sbb32(u32* eflags, u32 lhs, u32 rhs)
 {
   const u32 old_value = lhs;
   const u32 sub_value = rhs;
-  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 carry_in = *eflags & Flag_CF;
   const u64 new_value = ZeroExtend64(old_value) - ZeroExtend64(sub_value) - ZeroExtend64(carry_in);
   const u32 out_value = Truncate32(new_value);
 
-  registers->EFLAGS.bits = EFLAGS_ALUSub32(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
+  *eflags = EFLAGS_ALUSub32(*eflags, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
@@ -1317,24 +1317,30 @@ void Interpreter::Execute_Operation_ADD(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    u8 new_value = ALUOp_Add8(&cpu->m_registers, lhs, rhs);
+    const u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    const u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u8 new_value = ALUOp_Add8(&eflags, lhs, rhs);
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    u16 new_value = ALUOp_Add16(&cpu->m_registers, lhs, rhs);
+    const u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    const u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u16 new_value = ALUOp_Add16(&eflags, lhs, rhs);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    u32 new_value = ALUOp_Add32(&cpu->m_registers, lhs, rhs);
+    const u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    const u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u32 new_value = ALUOp_Add32(&eflags, lhs, rhs);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
 
   if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
@@ -1357,24 +1363,30 @@ void Interpreter::Execute_Operation_ADC(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    u8 new_value = ALUOp_Adc8(&cpu->m_registers, lhs, rhs);
+    const u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    const u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u8 new_value = ALUOp_Adc8(&eflags, lhs, rhs);
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    u16 new_value = ALUOp_Adc16(&cpu->m_registers, lhs, rhs);
+    const u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    const u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u16 new_value = ALUOp_Adc16(&eflags, lhs, rhs);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    u32 new_value = ALUOp_Adc32(&cpu->m_registers, lhs, rhs);
+    const u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    const u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u32 new_value = ALUOp_Adc32(&eflags, lhs, rhs);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
 
   if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
@@ -1397,24 +1409,30 @@ void Interpreter::Execute_Operation_SUB(CPU* cpu)
 
   if (actual_size == OperandSize_8)
   {
-    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    u8 new_value = ALUOp_Sub8(&cpu->m_registers, lhs, rhs);
+    const u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    const u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u8 new_value = ALUOp_Sub8(&eflags, lhs, rhs);
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    u16 new_value = ALUOp_Sub16(&cpu->m_registers, lhs, rhs);
+    const u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    const u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u16 new_value = ALUOp_Sub16(&eflags, lhs, rhs);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    u32 new_value = ALUOp_Sub32(&cpu->m_registers, lhs, rhs);
+    const u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    const u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u32 new_value = ALUOp_Sub32(&eflags, lhs, rhs);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
 
   if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
@@ -1439,22 +1457,28 @@ void Interpreter::Execute_Operation_SBB(CPU* cpu)
   {
     u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
     u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    u8 new_value = ALUOp_Sbb8(&cpu->m_registers, lhs, rhs);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u8 new_value = ALUOp_Sbb8(&eflags, lhs, rhs);
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_16)
   {
     u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
     u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    u16 new_value = ALUOp_Sbb16(&cpu->m_registers, lhs, rhs);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u16 new_value = ALUOp_Sbb16(&eflags, lhs, rhs);
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_32)
   {
     u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
     u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    u32 new_value = ALUOp_Sbb32(&cpu->m_registers, lhs, rhs);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u32 new_value = ALUOp_Sbb32(&eflags, lhs, rhs);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
 
   if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
@@ -1478,21 +1502,21 @@ void Interpreter::Execute_Operation_CMP(CPU* cpu)
   // Implemented as subtract but discarding the result
   if (actual_size == OperandSize_8)
   {
-    u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
-    ALUOp_Sub8(&cpu->m_registers, lhs, rhs);
+    const u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    const u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
+    ALUOp_Sub8(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
-    ALUOp_Sub16(&cpu->m_registers, lhs, rhs);
+    const u16 lhs = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    const u16 rhs = ReadSignExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
+    ALUOp_Sub16(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
-    ALUOp_Sub32(&cpu->m_registers, lhs, rhs);
+    const u32 lhs = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    const u32 rhs = ReadSignExtendedDWordOperand<src_size, src_mode, src_constant>(cpu);
+    ALUOp_Sub32(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
   }
 
   if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
@@ -3669,10 +3693,10 @@ void Interpreter::Execute_Operation_STI(CPU* cpu)
 void Interpreter::Execute_Operation_SALC(CPU* cpu)
 {
   // Undocumented instruction. Same as SBB AL, AL without modifying any flags.
-  u32 old_flags = cpu->m_registers.EFLAGS.bits;
+  u32 eflags = cpu->m_registers.EFLAGS.bits;
   cpu->AddCycles(CYCLES_ALU_REG_RM_REG);
-  cpu->m_registers.AL = ALUOp_Sbb8(&cpu->m_registers, cpu->m_registers.AL, cpu->m_registers.AL);
-  cpu->m_registers.EFLAGS.bits = old_flags;
+  cpu->m_registers.AL = ALUOp_Sbb8(&eflags, cpu->m_registers.AL, cpu->m_registers.AL);
+  cpu->m_registers.EFLAGS.bits = eflags;
 }
 
 void Interpreter::Execute_Operation_LAHF(CPU* cpu)
@@ -4618,7 +4642,8 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
   {
     u8 dst = ReadByteOperand<dst_mode, dst_constant>(cpu);
     u8 src = ReadByteOperand<src_mode, src_constant>(cpu);
-    u8 tmp = ALUOp_Add8(&cpu->m_registers, dst, src);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u8 tmp = ALUOp_Add8(&eflags, dst, src);
     src = dst;
     dst = tmp;
 
@@ -4632,12 +4657,15 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
       WriteByteOperand<dst_mode, dst_constant>(cpu, dst);
       WriteByteOperand<src_mode, src_constant>(cpu, src);
     }
+
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_16)
   {
     u16 dst = ReadWordOperand<dst_mode, dst_constant>(cpu);
     u16 src = ReadWordOperand<src_mode, src_constant>(cpu);
-    u16 tmp = ALUOp_Add16(&cpu->m_registers, dst, src);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u16 tmp = ALUOp_Add16(&eflags, dst, src);
     src = dst;
     dst = tmp;
     if (swap_order)
@@ -4650,12 +4678,15 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
       WriteWordOperand<dst_mode, dst_constant>(cpu, dst);
       WriteWordOperand<src_mode, src_constant>(cpu, src);
     }
+
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_32)
   {
     u32 dst = ReadDWordOperand<dst_mode, dst_constant>(cpu);
     u32 src = ReadDWordOperand<src_mode, src_constant>(cpu);
-    u32 tmp = ALUOp_Add32(&cpu->m_registers, dst, src);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    u32 tmp = ALUOp_Add32(&eflags, dst, src);
     src = dst;
     dst = tmp;
     if (swap_order)
@@ -4668,6 +4699,8 @@ void Interpreter::Execute_Operation_XADD(CPU* cpu)
       WriteDWordOperand<dst_mode, dst_constant>(cpu, dst);
       WriteDWordOperand<src_mode, src_constant>(cpu, src);
     }
+
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else
   {
@@ -4688,9 +4721,10 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
   const OperandSize actual_size = (dst_size == OperandSize_Count) ? cpu->idata.operand_size : dst_size;
   if (actual_size == OperandSize_8)
   {
-    u8 dest = ReadByteOperand<dst_mode, dst_constant>(cpu);
-    u8 source = ReadByteOperand<src_mode, src_constant>(cpu);
-    if (ALUOp_Sub8(&cpu->m_registers, cpu->m_registers.AL, dest) == 0)
+    const u8 dest = ReadByteOperand<dst_mode, dst_constant>(cpu);
+    const u8 source = ReadByteOperand<src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    if (ALUOp_Sub8(&eflags, cpu->m_registers.AL, dest) == 0)
     {
       // ZF should be set by the ALU op
       Assert(cpu->m_registers.EFLAGS.ZF);
@@ -4704,12 +4738,14 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
       WriteByteOperand<dst_mode, dst_constant>(cpu, dest);
       cpu->m_registers.AL = dest;
     }
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 dest = ReadWordOperand<dst_mode, dst_constant>(cpu);
-    u16 source = ReadWordOperand<src_mode, src_constant>(cpu);
-    if (ALUOp_Sub16(&cpu->m_registers, cpu->m_registers.AX, dest) == 0)
+    const u16 dest = ReadWordOperand<dst_mode, dst_constant>(cpu);
+    const u16 source = ReadWordOperand<src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    if (ALUOp_Sub16(&eflags, cpu->m_registers.AX, dest) == 0)
     {
       // ZF should be set by the ALU op
       Assert(cpu->m_registers.EFLAGS.ZF);
@@ -4723,12 +4759,14 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
       WriteWordOperand<dst_mode, dst_constant>(cpu, dest);
       cpu->m_registers.AX = dest;
     }
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 dest = ReadDWordOperand<dst_mode, dst_constant>(cpu);
-    u32 source = ReadDWordOperand<src_mode, src_constant>(cpu);
-    if (ALUOp_Sub32(&cpu->m_registers, cpu->m_registers.EAX, dest) == 0)
+    const u32 dest = ReadDWordOperand<dst_mode, dst_constant>(cpu);
+    const u32 source = ReadDWordOperand<src_mode, src_constant>(cpu);
+    u32 eflags = cpu->m_registers.EFLAGS.bits;
+    if (ALUOp_Sub32(&eflags, cpu->m_registers.EAX, dest) == 0)
     {
       // ZF should be set by the ALU op
       Assert(cpu->m_registers.EFLAGS.ZF);
@@ -4742,6 +4780,7 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
       WriteDWordOperand<dst_mode, dst_constant>(cpu, dest);
       cpu->m_registers.EAX = dest;
     }
+    cpu->m_registers.EFLAGS.bits = eflags;
   }
   else
   {
@@ -5296,23 +5335,23 @@ void Interpreter::Execute_Operation_SCAS(CPU* cpu)
     u8 data_size;
     if (actual_size == OperandSize_8)
     {
-      u8 lhs = cpu->m_registers.AL;
-      u8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
-      ALUOp_Sub8(&cpu->m_registers, lhs, rhs);
+      const u8 lhs = cpu->m_registers.AL;
+      const u8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
+      ALUOp_Sub8(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      u16 lhs = cpu->m_registers.AX;
-      u16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
-      ALUOp_Sub16(&cpu->m_registers, lhs, rhs);
+      const u16 lhs = cpu->m_registers.AX;
+      const u16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
+      ALUOp_Sub16(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      u32 lhs = cpu->m_registers.EAX;
-      u32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
-      ALUOp_Sub32(&cpu->m_registers, lhs, rhs);
+      const u32 lhs = cpu->m_registers.EAX;
+      const u32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
+      ALUOp_Sub32(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u32);
     }
     else
@@ -5460,23 +5499,23 @@ void Interpreter::Execute_Operation_CMPS(CPU* cpu)
 
     if (actual_size == OperandSize_8)
     {
-      u8 lhs = cpu->ReadMemoryByte(src_segment, src_address);
-      u8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
-      ALUOp_Sub8(&cpu->m_registers, lhs, rhs);
+      const u8 lhs = cpu->ReadMemoryByte(src_segment, src_address);
+      const u8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
+      ALUOp_Sub8(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      u16 lhs = cpu->ReadMemoryWord(src_segment, src_address);
-      u16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
-      ALUOp_Sub16(&cpu->m_registers, lhs, rhs);
+      const u16 lhs = cpu->ReadMemoryWord(src_segment, src_address);
+      const u16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
+      ALUOp_Sub16(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      u32 lhs = cpu->ReadMemoryDWord(src_segment, src_address);
-      u32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
-      ALUOp_Sub32(&cpu->m_registers, lhs, rhs);
+      const u32 lhs = cpu->ReadMemoryDWord(src_segment, src_address);
+      const u32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
+      ALUOp_Sub32(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u32);
     }
     else
