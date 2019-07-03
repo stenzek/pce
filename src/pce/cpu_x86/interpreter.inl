@@ -187,20 +187,16 @@ void Interpreter::CalculateEffectiveAddress(CPU* cpu)
             cpu->m_effective_address = ZeroExtend32(cpu->m_registers.BX);
             break;
           case 8:
-            cpu->m_effective_address =
-              ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.SI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 9:
-            cpu->m_effective_address =
-              ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.DI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 10:
-            cpu->m_effective_address =
-              ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.SI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 11:
-            cpu->m_effective_address =
-              ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.DI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 12:
             cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.SI + cpu->idata.disp16));
@@ -215,20 +211,16 @@ void Interpreter::CalculateEffectiveAddress(CPU* cpu)
             cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BX + cpu->idata.disp16));
             break;
           case 16:
-            cpu->m_effective_address =
-              ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.SI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 17:
-            cpu->m_effective_address =
-              ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.DI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BX + cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 18:
-            cpu->m_effective_address =
-              ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.SI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.SI + cpu->idata.disp16));
             break;
           case 19:
-            cpu->m_effective_address =
-              ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.DI + cpu->idata.disp16));
+            cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.BP + cpu->m_registers.DI + cpu->idata.disp16));
             break;
           case 20:
             cpu->m_effective_address = ZeroExtend32(u16(cpu->m_registers.SI + cpu->idata.disp16));
@@ -366,8 +358,7 @@ void Interpreter::CalculateEffectiveAddress(CPU* cpu)
           case 20:
           {
             // SIB modes
-            const u32 base_addr =
-              cpu->idata.HasSIBBase() ? cpu->m_registers.reg32[cpu->idata.GetSIBBaseRegister()] : 0;
+            const u32 base_addr = cpu->idata.HasSIBBase() ? cpu->m_registers.reg32[cpu->idata.GetSIBBaseRegister()] : 0;
             const u32 index_addr =
               cpu->idata.HasSIBIndex() ? cpu->m_registers.reg32[cpu->idata.GetSIBIndexRegister()] : 0;
             const u8 scaling_factor = cpu->idata.GetSIBScaling();
@@ -1049,13 +1040,27 @@ constexpr bool IsParity(T value)
 {
   return static_cast<bool>(~_mm_popcnt_u32(static_cast<u32>(value & 0xFF)) & 1);
 }
-#else
 template<typename T>
+constexpr u32 ParityFlag(T value)
+{
+  return (static_cast<u32>(~_mm_popcnt_u32(static_cast<u32>(value & 0xFF))) & u32(1)) << 2;
+}
+#else
 constexpr bool IsParity(T value)
 {
   return static_cast<bool>(~Y_popcnt(static_cast<u8>(value & 0xFF)) & 1);
 }
+template<typename T>
+constexpr u8 ParityFlag(T value)
+{
+  return (static_cast<u32>(~Y_popcnt(static_cast<u8>(value & 0xFF))) & u8(1)) << 2;
+}
 #endif
+// template<typename T>
+// constexpr bool IsParity(T value)
+// {
+//   return ConvertToBoolUnchecked(ParityFlag(value));
+// }
 
 // GCC seems to be emitting bad code for our FlagAccess class..
 #define SET_FLAG(regs, flag, expr)                                                                                     \
@@ -1072,216 +1077,232 @@ constexpr bool IsParity(T value)
   } while (0)
 //#define SET_FLAG(regs, flag, expr) (regs)->EFLAGS.flag = (expr)
 
+template<typename ValueType>
+constexpr u32 SignFlag(ValueType value)
+{
+  return (static_cast<u32>(value >> (std::numeric_limits<ValueType>::digits - 8)) & Flag_SF);
+}
+
+template<typename ValueType>
+constexpr u32 ZeroFlag(ValueType value)
+{
+  return BoolToUInt8(value == static_cast<ValueType>(0)) << 6;
+}
+
+constexpr u32 EFLAGS_ALUAdd8(u32 old_eflags, u32 old_value, u32 add_value, u32 new_value, u8 out_value)
+{
+  return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
+         (static_cast<u32>(new_value >> 8) & Flag_CF) |                                // CF
+         ((static_cast<u32>((new_value ^ old_value) & (new_value ^ add_value)) & u32(0x80)) << 4) | // OF
+         (static_cast<u32>(old_value ^ add_value ^ new_value) & Flag_AF) |                          // AF
+         SignFlag(out_value) |                                                                      // SF
+         ZeroFlag(out_value) |                                                                      // ZF
+         ParityFlag(out_value);
+}
+
+constexpr u32 EFLAGS_ALUSub8(u32 old_eflags, u32 old_value, u32 sub_value, u32 new_value, u8 out_value)
+{
+  return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
+         (static_cast<u32>(new_value >> 8) & Flag_CF) |                                // CF
+         ((static_cast<u32>((new_value ^ old_value) & (old_value ^ sub_value)) & u32(0x80)) << 4) | // OF
+         (static_cast<u32>(old_value ^ sub_value ^ new_value) & Flag_AF) |                          // AF
+         SignFlag(out_value) |                                                                      // SF
+         ZeroFlag(out_value) |                                                                      // ZF
+         ParityFlag(out_value);
+}
+
 inline u8 ALUOp_Add8(CPU::Registers* registers, u8 lhs, u8 rhs)
 {
-  u16 old_value = lhs;
-  u16 add_value = rhs;
-  u16 new_value = old_value + add_value;
-  u8 out_value = u8(new_value & 0xFF);
+  const u32 old_value = ZeroExtend32(lhs);
+  const u32 add_value = ZeroExtend32(rhs);
+  const u32 new_value = old_value + add_value;
+  const u8 out_value = Truncate8(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & 0xFF00) != 0));
-  SET_FLAG(registers, OF, ((((new_value ^ old_value) & (new_value ^ add_value)) & 0x80) == 0x80));
-  SET_FLAG(registers, AF, (((old_value ^ add_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUAdd8(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
 inline u8 ALUOp_Adc8(CPU::Registers* registers, u8 lhs, u8 rhs)
 {
-  u16 old_value = lhs;
-  u16 add_value = rhs;
-  u16 carry_in = (registers->EFLAGS.CF) ? 1 : 0;
-  u16 new_value = old_value + add_value + carry_in;
-  u8 out_value = u8(new_value & 0xFF);
+  const u32 old_value = ZeroExtend32(lhs);
+  const u32 add_value = ZeroExtend32(rhs);
+  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 new_value = old_value + add_value + carry_in;
+  const u8 out_value = Truncate8(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & 0xFF00) != 0));
-  SET_FLAG(registers, OF, ((((new_value ^ old_value) & (new_value ^ add_value)) & 0x80) == 0x80));
-  SET_FLAG(registers, AF, (((old_value ^ add_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUAdd8(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
 inline u8 ALUOp_Sub8(CPU::Registers* registers, u8 lhs, u8 rhs)
 {
-  u16 old_value = lhs;
-  u16 sub_value = rhs;
-  u16 new_value = old_value - sub_value;
-  u8 out_value = u8(new_value & 0xFF);
+  const u32 old_value = ZeroExtend32(lhs);
+  const u32 sub_value = ZeroExtend32(rhs);
+  const u32 new_value = old_value - sub_value;
+  const u8 out_value = Truncate8(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & 0xFF00) != 0));
-  SET_FLAG(registers, OF, ((((new_value ^ old_value) & (old_value ^ sub_value)) & 0x80) == 0x80));
-  SET_FLAG(registers, AF, (((old_value ^ sub_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUSub8(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
 
 inline u8 ALUOp_Sbb8(CPU::Registers* registers, u8 lhs, u8 rhs)
 {
-  u16 old_value = lhs;
-  u16 sub_value = rhs;
-  u16 carry_in = registers->EFLAGS.CF ? 1 : 0;
-  u16 new_value = old_value - sub_value - carry_in;
-  u8 out_value = u8(new_value & 0xFF);
+  const u32 old_value = ZeroExtend32(lhs);
+  const u32 sub_value = ZeroExtend32(rhs);
+  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 new_value = old_value - sub_value - carry_in;
+  const u8 out_value = Truncate8(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & 0xFF00) != 0));
-  SET_FLAG(registers, OF, ((((new_value ^ old_value) & (old_value ^ sub_value)) & 0x80) == 0x80));
-  SET_FLAG(registers, AF, (((old_value ^ sub_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUSub8(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
 
+constexpr u32 EFLAGS_ALUAdd16(u32 old_eflags, u32 old_value, u32 add_value, u32 new_value, u16 out_value)
+{
+  return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
+         (static_cast<u32>(new_value >> 16) & Flag_CF) |                               // CF
+         ((static_cast<u32>((new_value ^ old_value) & (new_value ^ add_value)) & u32(0x8000)) >> 4) | // OF
+         (static_cast<u32>(old_value ^ add_value ^ new_value) & Flag_AF) |                            // AF
+         SignFlag(out_value) |                                                                        // SF
+         ZeroFlag(out_value) |                                                                        // ZF
+         ParityFlag(out_value);
+}
+
+constexpr u32 EFLAGS_ALUSub16(u32 old_eflags, u32 old_value, u32 sub_value, u32 new_value, u16 out_value)
+{
+  return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
+         (static_cast<u32>(new_value >> 16) & Flag_CF) |                               // CF
+         ((static_cast<u32>((new_value ^ old_value) & (old_value ^ sub_value)) & u32(0x8000)) >> 4) | // OF
+         (static_cast<u32>(old_value ^ sub_value ^ new_value) & Flag_AF) |                            // AF
+         SignFlag(out_value) |                                                                        // SF
+         ZeroFlag(out_value) |                                                                        // ZF
+         ParityFlag(out_value);
+}
+
 inline u16 ALUOp_Add16(CPU::Registers* registers, u16 lhs, u16 rhs)
 {
-  u32 old_value = lhs;
-  u32 add_value = rhs;
-  u32 new_value = old_value + add_value;
-  u16 out_value = u16(new_value & 0xFFFF);
+  const u32 old_value = ZeroExtend32(lhs);
+  const u32 add_value = ZeroExtend32(rhs);
+  const u32 new_value = old_value + add_value;
+  const u16 out_value = Truncate16(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & 0xFFFF0000) != 0));
-  SET_FLAG(registers, OF, ((((new_value ^ old_value) & (new_value ^ add_value)) & 0x8000) == 0x8000));
-  SET_FLAG(registers, AF, (((old_value ^ add_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUAdd16(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
 inline u16 ALUOp_Adc16(CPU::Registers* registers, u16 lhs, u16 rhs)
 {
-  u32 old_value = lhs;
-  u32 add_value = rhs;
-  u32 carry_in = (registers->EFLAGS.CF) ? 1 : 0;
-  u32 new_value = old_value + add_value + carry_in;
-  u16 out_value = u16(new_value & 0xFFFF);
+  const u32 old_value = ZeroExtend32(lhs);
+  const u32 add_value = ZeroExtend32(rhs);
+  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 new_value = old_value + add_value + carry_in;
+  const u16 out_value = Truncate16(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & 0xFFFF0000) != 0));
-  SET_FLAG(registers, OF, ((((new_value ^ old_value) & (new_value ^ add_value)) & 0x8000) == 0x8000));
-  SET_FLAG(registers, AF, (((old_value ^ add_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUAdd16(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
 inline u16 ALUOp_Sub16(CPU::Registers* registers, u16 lhs, u16 rhs)
 {
-  u32 old_value = lhs;
-  u32 sub_value = rhs;
-  u32 new_value = old_value - sub_value;
-  u16 out_value = u16(new_value & 0xFFFF);
+  const u32 old_value = ZeroExtend32(lhs);
+  const u32 sub_value = ZeroExtend32(rhs);
+  const u32 new_value = old_value - sub_value;
+  const u16 out_value = Truncate16(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & 0xFFFF0000) != 0));
-  SET_FLAG(registers, OF, ((((new_value ^ old_value) & (old_value ^ sub_value)) & 0x8000) == 0x8000));
-  SET_FLAG(registers, AF, (((old_value ^ sub_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUSub16(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
 
 inline u16 ALUOp_Sbb16(CPU::Registers* registers, u16 lhs, u16 rhs)
 {
-  u32 old_value = lhs;
-  u32 sub_value = rhs;
-  u32 carry_in = registers->EFLAGS.CF ? 1 : 0;
-  u32 new_value = old_value - sub_value - carry_in;
-  u16 out_value = u16(new_value & 0xFFFF);
+  const u32 old_value = ZeroExtend32(lhs);
+  const u32 sub_value = ZeroExtend32(rhs);
+  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u32 new_value = old_value - sub_value - carry_in;
+  const u16 out_value = Truncate16(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & 0xFFFF0000) != 0));
-  SET_FLAG(registers, OF, ((((new_value ^ old_value) & (old_value ^ sub_value)) & 0x8000) == 0x8000));
-  SET_FLAG(registers, AF, (((old_value ^ sub_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUSub16(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
 
   return out_value;
+}
+
+constexpr u32 EFLAGS_ALUAdd32(u32 old_eflags, u32 old_value, u32 add_value, u64 new_value, u32 out_value)
+{
+  return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
+         (static_cast<u32>(new_value >> 32) & Flag_CF) |                               // CF
+         ((static_cast<u32>((Truncate32(new_value) ^ old_value) & (Truncate32(new_value) ^ add_value)) &
+           u32(0x80000000)) >>
+          20) |                                                                        // OF
+         (static_cast<u32>(old_value ^ add_value ^ Truncate32(new_value)) & Flag_AF) | // AF
+         SignFlag(out_value) |                                                         // SF
+         ZeroFlag(out_value) |                                                         // ZF
+         ParityFlag(out_value);
+}
+
+constexpr u32 EFLAGS_ALUSub32(u32 old_eflags, u32 old_value, u32 sub_value, u64 new_value, u32 out_value)
+{
+  return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
+         (static_cast<u32>(new_value >> 32) & Flag_CF) |                               // CF
+         ((static_cast<u32>((Truncate32(new_value) ^ old_value) & (old_value ^ sub_value)) & u32(0x80000000)) >>
+          20) |                                                                        // OF
+         (static_cast<u32>(old_value ^ sub_value ^ Truncate32(new_value)) & Flag_AF) | // AF
+         SignFlag(out_value) |                                                         // SF
+         ZeroFlag(out_value) |                                                         // ZF
+         ParityFlag(out_value);
 }
 
 inline u32 ALUOp_Add32(CPU::Registers* registers, u32 lhs, u32 rhs)
 {
-  u64 old_value = ZeroExtend64(lhs);
-  u64 add_value = ZeroExtend64(rhs);
-  u64 new_value = old_value + add_value;
-  u32 out_value = Truncate32(new_value);
+  const u32 old_value = lhs;
+  const u32 add_value = rhs;
+  const u64 new_value = ZeroExtend64(old_value) + ZeroExtend64(add_value);
+  const u32 out_value = Truncate32(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & UINT64_C(0xFFFFFFFF00000000)) != 0));
-  SET_FLAG(registers, OF,
-           ((((new_value ^ old_value) & (new_value ^ add_value)) & UINT64_C(0x80000000)) == UINT64_C(0x80000000)));
-  SET_FLAG(registers, AF, (((old_value ^ add_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUAdd32(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
-
 inline u32 ALUOp_Adc32(CPU::Registers* registers, u32 lhs, u32 rhs)
 {
-  u64 old_value = ZeroExtend64(lhs);
-  u64 add_value = ZeroExtend64(rhs);
-  u64 carry_in = (registers->EFLAGS.CF) ? 1 : 0;
-  u64 new_value = old_value + add_value + carry_in;
-  u32 out_value = Truncate32(new_value);
+  const u32 old_value = lhs;
+  const u32 add_value = rhs;
+  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u64 new_value = ZeroExtend64(old_value) + ZeroExtend64(add_value) + ZeroExtend64(carry_in);
+  const u32 out_value = Truncate32(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & UINT64_C(0xFFFFFFFF00000000)) != 0));
-  SET_FLAG(registers, OF,
-           ((((new_value ^ old_value) & (new_value ^ add_value)) & UINT64_C(0x80000000)) == UINT64_C(0x80000000)));
-  SET_FLAG(registers, AF, (((old_value ^ add_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUAdd32(registers->EFLAGS.bits, old_value, add_value, new_value, out_value);
 
   return out_value;
 }
 
 inline u32 ALUOp_Sub32(CPU::Registers* registers, u32 lhs, u32 rhs)
 {
-  u64 old_value = ZeroExtend64(lhs);
-  u64 sub_value = ZeroExtend64(rhs);
-  u64 new_value = old_value - sub_value;
-  u32 out_value = Truncate32(new_value);
+  const u32 old_value = lhs;
+  const u32 sub_value = rhs;
+  const u64 new_value = ZeroExtend64(old_value) - ZeroExtend64(sub_value);
+  const u32 out_value = Truncate32(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & UINT64_C(0xFFFFFFFF00000000)) != 0));
-  SET_FLAG(registers, OF,
-           ((((new_value ^ old_value) & (old_value ^ sub_value)) & UINT64_C(0x80000000)) == UINT64_C(0x80000000)));
-  SET_FLAG(registers, AF, (((old_value ^ sub_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUSub32(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
 
 inline u32 ALUOp_Sbb32(CPU::Registers* registers, u32 lhs, u32 rhs)
 {
-  u64 old_value = ZeroExtend64(lhs);
-  u64 sub_value = ZeroExtend64(rhs);
-  u64 carry_in = registers->EFLAGS.CF ? 1 : 0;
-  u64 new_value = old_value - sub_value - carry_in;
-  u32 out_value = Truncate32(new_value);
+  const u32 old_value = lhs;
+  const u32 sub_value = rhs;
+  const u32 carry_in = registers->EFLAGS.bits & Flag_CF;
+  const u64 new_value = ZeroExtend64(old_value) - ZeroExtend64(sub_value) - ZeroExtend64(carry_in);
+  const u32 out_value = Truncate32(new_value);
 
-  SET_FLAG(registers, CF, ((new_value & UINT64_C(0xFFFFFFFF00000000)) != 0));
-  SET_FLAG(registers, OF,
-           ((((new_value ^ old_value) & (old_value ^ sub_value)) & UINT64_C(0x80000000)) == UINT64_C(0x80000000)));
-  SET_FLAG(registers, AF, (((old_value ^ sub_value ^ new_value) & 0x10) == 0x10));
-  SET_FLAG(registers, SF, IsSign(out_value));
-  SET_FLAG(registers, ZF, IsZero(out_value));
-  SET_FLAG(registers, PF, IsParity(out_value));
+  registers->EFLAGS.bits = EFLAGS_ALUSub32(registers->EFLAGS.bits, old_value, sub_value, new_value, out_value);
 
   return out_value;
 }
@@ -1484,6 +1505,17 @@ void Interpreter::Execute_Operation_CMP(CPU* cpu)
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 }
 
+template<typename ValueType>
+constexpr u32 EFLAGS_BitwiseOps(u32 old_eflags, ValueType new_value)
+{
+  // The OF and CF flags are cleared; the SF, ZF, and PF flags are set according to the result. The state of the AF flag
+  // is undefined.
+  return (old_eflags & ~(Flag_OF | Flag_CF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Clear OF/CF/AF
+         SignFlag(new_value) |                                                         // SF
+         ParityFlag(new_value) |                                                       // PF
+         ZeroFlag(new_value);                                                          // ZF
+}
+
 template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant, OperandSize src_size, OperandMode src_mode,
          u32 src_constant>
 void Interpreter::Execute_Operation_AND(CPU* cpu)
@@ -1492,7 +1524,6 @@ void Interpreter::Execute_Operation_AND(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
 
-  bool sf, zf, pf;
   if (actual_size == OperandSize_8)
   {
     u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
@@ -1500,9 +1531,7 @@ void Interpreter::Execute_Operation_AND(CPU* cpu)
     u8 new_value = lhs & rhs;
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
@@ -1511,9 +1540,7 @@ void Interpreter::Execute_Operation_AND(CPU* cpu)
     u16 new_value = lhs & rhs;
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
@@ -1522,24 +1549,13 @@ void Interpreter::Execute_Operation_AND(CPU* cpu)
     u32 new_value = lhs & rhs;
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else
   {
     DebugUnreachableCode();
     return;
   }
-
-  // The OF and CF flags are cleared; the SF, ZF, and PF flags are set according to the result. The state of the AF flag
-  // is undefined.
-  SET_FLAG(&cpu->m_registers, OF, false);
-  SET_FLAG(&cpu->m_registers, CF, false);
-  SET_FLAG(&cpu->m_registers, SF, sf);
-  SET_FLAG(&cpu->m_registers, ZF, zf);
-  SET_FLAG(&cpu->m_registers, PF, pf);
-  SET_FLAG(&cpu->m_registers, AF, false);
 
   if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
     cpu->AddCycles(CYCLES_ALU_REG_IMM);
@@ -1559,7 +1575,6 @@ void Interpreter::Execute_Operation_OR(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
 
-  bool sf, zf, pf;
   if (actual_size == OperandSize_8)
   {
     u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
@@ -1567,9 +1582,7 @@ void Interpreter::Execute_Operation_OR(CPU* cpu)
     u8 new_value = lhs | rhs;
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
@@ -1578,9 +1591,7 @@ void Interpreter::Execute_Operation_OR(CPU* cpu)
     u16 new_value = lhs | rhs;
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
@@ -1589,24 +1600,13 @@ void Interpreter::Execute_Operation_OR(CPU* cpu)
     u32 new_value = lhs | rhs;
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else
   {
     DebugUnreachableCode();
     return;
   }
-
-  // The OF and CF flags are cleared; the SF, ZF, and PF flags are set according to the result. The state of the AF flag
-  // is undefined.
-  SET_FLAG(&cpu->m_registers, OF, false);
-  SET_FLAG(&cpu->m_registers, CF, false);
-  SET_FLAG(&cpu->m_registers, SF, sf);
-  SET_FLAG(&cpu->m_registers, ZF, zf);
-  SET_FLAG(&cpu->m_registers, PF, pf);
-  SET_FLAG(&cpu->m_registers, AF, false);
 
   if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
     cpu->AddCycles(CYCLES_ALU_REG_IMM);
@@ -1626,7 +1626,6 @@ void Interpreter::Execute_Operation_XOR(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
 
-  bool sf, zf, pf;
   if (actual_size == OperandSize_8)
   {
     u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
@@ -1634,9 +1633,7 @@ void Interpreter::Execute_Operation_XOR(CPU* cpu)
     u8 new_value = lhs ^ rhs;
     WriteByteOperand<dst_mode, dst_constant>(cpu, new_value);
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
@@ -1645,9 +1642,7 @@ void Interpreter::Execute_Operation_XOR(CPU* cpu)
     u16 new_value = lhs ^ rhs;
     WriteWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
@@ -1656,24 +1651,13 @@ void Interpreter::Execute_Operation_XOR(CPU* cpu)
     u32 new_value = lhs ^ rhs;
     WriteDWordOperand<dst_mode, dst_constant>(cpu, new_value);
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else
   {
     DebugUnreachableCode();
     return;
   }
-
-  // The OF and CF flags are cleared; the SF, ZF, and PF flags are set according to the result. The state of the AF flag
-  // is undefined.
-  SET_FLAG(&cpu->m_registers, OF, false);
-  SET_FLAG(&cpu->m_registers, CF, false);
-  SET_FLAG(&cpu->m_registers, SF, sf);
-  SET_FLAG(&cpu->m_registers, ZF, zf);
-  SET_FLAG(&cpu->m_registers, PF, pf);
-  SET_FLAG(&cpu->m_registers, AF, false);
 
   if constexpr (dst_mode == OperandMode_Register && src_mode == OperandMode_Immediate)
     cpu->AddCycles(CYCLES_ALU_REG_IMM);
@@ -1693,16 +1677,13 @@ void Interpreter::Execute_Operation_TEST(CPU* cpu)
   CalculateEffectiveAddress<dst_mode>(cpu);
   CalculateEffectiveAddress<src_mode>(cpu);
 
-  bool sf, zf, pf;
   if (actual_size == OperandSize_8)
   {
     u8 lhs = ReadByteOperand<dst_mode, dst_constant>(cpu);
     u8 rhs = ReadByteOperand<src_mode, src_constant>(cpu);
     u8 new_value = lhs & rhs;
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else if (actual_size == OperandSize_16)
   {
@@ -1710,9 +1691,7 @@ void Interpreter::Execute_Operation_TEST(CPU* cpu)
     u16 rhs = ReadWordOperand<src_mode, src_constant>(cpu);
     u16 new_value = lhs & rhs;
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else if (actual_size == OperandSize_32)
   {
@@ -1720,24 +1699,13 @@ void Interpreter::Execute_Operation_TEST(CPU* cpu)
     u32 rhs = ReadDWordOperand<src_mode, src_constant>(cpu);
     u32 new_value = lhs & rhs;
 
-    sf = IsSign(new_value);
-    zf = IsZero(new_value);
-    pf = IsParity(new_value);
+    cpu->m_registers.EFLAGS.bits = EFLAGS_BitwiseOps(cpu->m_registers.EFLAGS.bits, new_value);
   }
   else
   {
     DebugUnreachableCode();
     return;
   }
-
-  // The OF and CF flags are cleared; the SF, ZF, and PF flags are set according to the result. The state of the AF flag
-  // is undefined.
-  SET_FLAG(&cpu->m_registers, OF, false);
-  SET_FLAG(&cpu->m_registers, CF, false);
-  SET_FLAG(&cpu->m_registers, SF, sf);
-  SET_FLAG(&cpu->m_registers, ZF, zf);
-  SET_FLAG(&cpu->m_registers, PF, pf);
-  SET_FLAG(&cpu->m_registers, AF, false);
 
   if constexpr (src_mode == OperandMode_Immediate)
     cpu->AddCyclesRM(CYCLES_TEST_RM_MEM_REG, (dst_mode == OperandMode_ModRM_RM) ? cpu->idata.ModRM_RM_IsReg() : false);
@@ -1939,8 +1907,8 @@ void Interpreter::Execute_Operation_XCHG(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
-         OperandMode count_mode, u32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size, OperandMode count_mode,
+         u32 count_constant>
 void Interpreter::Execute_Operation_SHL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2012,8 +1980,8 @@ void Interpreter::Execute_Operation_SHL(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
-         OperandMode count_mode, u32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size, OperandMode count_mode,
+         u32 count_constant>
 void Interpreter::Execute_Operation_SHR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2076,8 +2044,8 @@ void Interpreter::Execute_Operation_SHR(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
-         OperandMode count_mode, u32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size, OperandMode count_mode,
+         u32 count_constant>
 void Interpreter::Execute_Operation_SAR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2142,8 +2110,8 @@ void Interpreter::Execute_Operation_SAR(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
-         OperandMode count_mode, u32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size, OperandMode count_mode,
+         u32 count_constant>
 void Interpreter::Execute_Operation_RCL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2215,8 +2183,8 @@ void Interpreter::Execute_Operation_RCL(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
-         OperandMode count_mode, u32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size, OperandMode count_mode,
+         u32 count_constant>
 void Interpreter::Execute_Operation_RCR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2288,8 +2256,8 @@ void Interpreter::Execute_Operation_RCR(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
-         OperandMode count_mode, u32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size, OperandMode count_mode,
+         u32 count_constant>
 void Interpreter::Execute_Operation_ROL(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
@@ -2363,8 +2331,8 @@ void Interpreter::Execute_Operation_ROL(CPU* cpu)
   }
 }
 
-template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size,
-         OperandMode count_mode, u32 count_constant>
+template<OperandSize val_size, OperandMode val_mode, u32 val_constant, OperandSize count_size, OperandMode count_mode,
+         u32 count_constant>
 void Interpreter::Execute_Operation_ROR(CPU* cpu)
 {
   const OperandSize actual_size = (val_size == OperandSize_Count) ? cpu->idata.operand_size : val_size;
