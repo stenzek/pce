@@ -1011,47 +1011,47 @@ bool Interpreter::TestJumpCondition(CPU* cpu)
   }
 }
 
-constexpr bool IsSign(u8 value)
+ALWAYS_INLINE constexpr bool IsSign(u8 value)
 {
   return !!(value >> 7);
 }
-constexpr bool IsSign(u16 value)
+ALWAYS_INLINE constexpr bool IsSign(u16 value)
 {
   return !!(value >> 15);
 }
-constexpr bool IsSign(u32 value)
+ALWAYS_INLINE constexpr bool IsSign(u32 value)
 {
   return !!(value >> 31);
 }
 template<typename T>
-constexpr bool IsZero(T value)
+ALWAYS_INLINE constexpr bool IsZero(T value)
 {
   return (value == 0);
 }
 template<typename T>
-constexpr bool IsAdjust(T old_value, T new_value)
+ALWAYS_INLINE constexpr bool IsAdjust(T old_value, T new_value)
 {
   return (old_value & 0xF) < (new_value & 0xF);
 }
 
 #ifdef Y_COMPILER_MSVC
 template<typename T>
-constexpr bool IsParity(T value)
+ALWAYS_INLINE constexpr bool IsParity(T value)
 {
   return static_cast<bool>(~_mm_popcnt_u32(static_cast<u32>(value & 0xFF)) & 1);
 }
 template<typename T>
-constexpr u32 ParityFlag(T value)
+ALWAYS_INLINE constexpr u32 ParityFlag(T value)
 {
   return (static_cast<u32>(~_mm_popcnt_u32(static_cast<u32>(value & 0xFF))) & u32(1)) << 2;
 }
 #else
-constexpr bool IsParity(T value)
+ALWAYS_INLINE constexpr bool IsParity(T value)
 {
   return static_cast<bool>(~Y_popcnt(static_cast<u8>(value & 0xFF)) & 1);
 }
 template<typename T>
-constexpr u8 ParityFlag(T value)
+ALWAYS_INLINE constexpr u8 ParityFlag(T value)
 {
   return (static_cast<u32>(~Y_popcnt(static_cast<u8>(value & 0xFF))) & u8(1)) << 2;
 }
@@ -1078,18 +1078,18 @@ constexpr u8 ParityFlag(T value)
 //#define SET_FLAG(regs, flag, expr) (regs)->EFLAGS.flag = (expr)
 
 template<typename ValueType>
-constexpr u32 SignFlag(ValueType value)
+ALWAYS_INLINE constexpr u32 SignFlag(ValueType value)
 {
   return (static_cast<u32>(value >> (std::numeric_limits<ValueType>::digits - 8)) & Flag_SF);
 }
 
 template<typename ValueType>
-constexpr u32 ZeroFlag(ValueType value)
+ALWAYS_INLINE constexpr u32 ZeroFlag(ValueType value)
 {
   return BoolToUInt8(value == static_cast<ValueType>(0)) << 6;
 }
 
-constexpr u32 EFLAGS_ALUAdd8(u32 old_eflags, u32 old_value, u32 add_value, u32 new_value, u8 out_value)
+ALWAYS_INLINE constexpr u32 EFLAGS_ALUAdd8(u32 old_eflags, u32 old_value, u32 add_value, u32 new_value, u8 out_value)
 {
   return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
          (static_cast<u32>(new_value >> 8) & Flag_CF) |                                // CF
@@ -1100,7 +1100,7 @@ constexpr u32 EFLAGS_ALUAdd8(u32 old_eflags, u32 old_value, u32 add_value, u32 n
          ParityFlag(out_value);
 }
 
-constexpr u32 EFLAGS_ALUSub8(u32 old_eflags, u32 old_value, u32 sub_value, u32 new_value, u8 out_value)
+ALWAYS_INLINE constexpr u32 EFLAGS_ALUSub8(u32 old_eflags, u32 old_value, u32 sub_value, u32 new_value, u8 out_value)
 {
   return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
          (static_cast<u32>(new_value >> 8) & Flag_CF) |                                // CF
@@ -1111,7 +1111,7 @@ constexpr u32 EFLAGS_ALUSub8(u32 old_eflags, u32 old_value, u32 sub_value, u32 n
          ParityFlag(out_value);
 }
 
-inline u8 ALUOp_Add8(u32* eflags, u8 lhs, u8 rhs)
+ALWAYS_INLINE u8 ALUOp_Add8(u32* eflags, u8 lhs, u8 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 add_value = ZeroExtend32(rhs);
@@ -1123,7 +1123,7 @@ inline u8 ALUOp_Add8(u32* eflags, u8 lhs, u8 rhs)
   return out_value;
 }
 
-inline u8 ALUOp_Adc8(u32* eflags, u8 lhs, u8 rhs)
+ALWAYS_INLINE u8 ALUOp_Adc8(u32* eflags, u8 lhs, u8 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 add_value = ZeroExtend32(rhs);
@@ -1136,7 +1136,7 @@ inline u8 ALUOp_Adc8(u32* eflags, u8 lhs, u8 rhs)
   return out_value;
 }
 
-inline u8 ALUOp_Sub8(u32* eflags, u8 lhs, u8 rhs)
+ALWAYS_INLINE u8 ALUOp_Sub8(u32* eflags, u8 lhs, u8 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 sub_value = ZeroExtend32(rhs);
@@ -1148,7 +1148,7 @@ inline u8 ALUOp_Sub8(u32* eflags, u8 lhs, u8 rhs)
   return out_value;
 }
 
-inline u8 ALUOp_Sbb8(u32* eflags, u8 lhs, u8 rhs)
+ALWAYS_INLINE u8 ALUOp_Sbb8(u32* eflags, u8 lhs, u8 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 sub_value = ZeroExtend32(rhs);
@@ -1161,7 +1161,7 @@ inline u8 ALUOp_Sbb8(u32* eflags, u8 lhs, u8 rhs)
   return out_value;
 }
 
-constexpr u32 EFLAGS_ALUAdd16(u32 old_eflags, u32 old_value, u32 add_value, u32 new_value, u16 out_value)
+ALWAYS_INLINE constexpr u32 EFLAGS_ALUAdd16(u32 old_eflags, u32 old_value, u32 add_value, u32 new_value, u16 out_value)
 {
   return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
          (static_cast<u32>(new_value >> 16) & Flag_CF) |                               // CF
@@ -1172,7 +1172,7 @@ constexpr u32 EFLAGS_ALUAdd16(u32 old_eflags, u32 old_value, u32 add_value, u32 
          ParityFlag(out_value);
 }
 
-constexpr u32 EFLAGS_ALUSub16(u32 old_eflags, u32 old_value, u32 sub_value, u32 new_value, u16 out_value)
+ALWAYS_INLINE constexpr u32 EFLAGS_ALUSub16(u32 old_eflags, u32 old_value, u32 sub_value, u32 new_value, u16 out_value)
 {
   return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
          (static_cast<u32>(new_value >> 16) & Flag_CF) |                               // CF
@@ -1183,7 +1183,7 @@ constexpr u32 EFLAGS_ALUSub16(u32 old_eflags, u32 old_value, u32 sub_value, u32 
          ParityFlag(out_value);
 }
 
-inline u16 ALUOp_Add16(u32* eflags, u16 lhs, u16 rhs)
+ALWAYS_INLINE u16 ALUOp_Add16(u32* eflags, u16 lhs, u16 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 add_value = ZeroExtend32(rhs);
@@ -1195,7 +1195,7 @@ inline u16 ALUOp_Add16(u32* eflags, u16 lhs, u16 rhs)
   return out_value;
 }
 
-inline u16 ALUOp_Adc16(u32* eflags, u16 lhs, u16 rhs)
+ALWAYS_INLINE u16 ALUOp_Adc16(u32* eflags, u16 lhs, u16 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 add_value = ZeroExtend32(rhs);
@@ -1208,7 +1208,7 @@ inline u16 ALUOp_Adc16(u32* eflags, u16 lhs, u16 rhs)
   return out_value;
 }
 
-inline u16 ALUOp_Sub16(u32* eflags, u16 lhs, u16 rhs)
+ALWAYS_INLINE u16 ALUOp_Sub16(u32* eflags, u16 lhs, u16 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 sub_value = ZeroExtend32(rhs);
@@ -1220,7 +1220,7 @@ inline u16 ALUOp_Sub16(u32* eflags, u16 lhs, u16 rhs)
   return out_value;
 }
 
-inline u16 ALUOp_Sbb16(u32* eflags, u16 lhs, u16 rhs)
+ALWAYS_INLINE u16 ALUOp_Sbb16(u32* eflags, u16 lhs, u16 rhs)
 {
   const u32 old_value = ZeroExtend32(lhs);
   const u32 sub_value = ZeroExtend32(rhs);
@@ -1233,7 +1233,7 @@ inline u16 ALUOp_Sbb16(u32* eflags, u16 lhs, u16 rhs)
   return out_value;
 }
 
-constexpr u32 EFLAGS_ALUAdd32(u32 old_eflags, u32 old_value, u32 add_value, u64 new_value, u32 out_value)
+ALWAYS_INLINE constexpr u32 EFLAGS_ALUAdd32(u32 old_eflags, u32 old_value, u32 add_value, u64 new_value, u32 out_value)
 {
   return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
          (static_cast<u32>(new_value >> 32) & Flag_CF) |                               // CF
@@ -1246,7 +1246,7 @@ constexpr u32 EFLAGS_ALUAdd32(u32 old_eflags, u32 old_value, u32 add_value, u64 
          ParityFlag(out_value);
 }
 
-constexpr u32 EFLAGS_ALUSub32(u32 old_eflags, u32 old_value, u32 sub_value, u64 new_value, u32 out_value)
+ALWAYS_INLINE constexpr u32 EFLAGS_ALUSub32(u32 old_eflags, u32 old_value, u32 sub_value, u64 new_value, u32 out_value)
 {
   return (old_eflags & ~(Flag_CF | Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/AF/SF/ZF/PF
          (static_cast<u32>(new_value >> 32) & Flag_CF) |                               // CF
@@ -1258,7 +1258,7 @@ constexpr u32 EFLAGS_ALUSub32(u32 old_eflags, u32 old_value, u32 sub_value, u64 
          ParityFlag(out_value);
 }
 
-inline u32 ALUOp_Add32(u32* eflags, u32 lhs, u32 rhs)
+ALWAYS_INLINE u32 ALUOp_Add32(u32* eflags, u32 lhs, u32 rhs)
 {
   const u32 old_value = lhs;
   const u32 add_value = rhs;
@@ -1269,7 +1269,8 @@ inline u32 ALUOp_Add32(u32* eflags, u32 lhs, u32 rhs)
 
   return out_value;
 }
-inline u32 ALUOp_Adc32(u32* eflags, u32 lhs, u32 rhs)
+
+ALWAYS_INLINE u32 ALUOp_Adc32(u32* eflags, u32 lhs, u32 rhs)
 {
   const u32 old_value = lhs;
   const u32 add_value = rhs;
@@ -1282,7 +1283,7 @@ inline u32 ALUOp_Adc32(u32* eflags, u32 lhs, u32 rhs)
   return out_value;
 }
 
-inline u32 ALUOp_Sub32(u32* eflags, u32 lhs, u32 rhs)
+ALWAYS_INLINE u32 ALUOp_Sub32(u32* eflags, u32 lhs, u32 rhs)
 {
   const u32 old_value = lhs;
   const u32 sub_value = rhs;
@@ -1294,7 +1295,7 @@ inline u32 ALUOp_Sub32(u32* eflags, u32 lhs, u32 rhs)
   return out_value;
 }
 
-inline u32 ALUOp_Sbb32(u32* eflags, u32 lhs, u32 rhs)
+ALWAYS_INLINE u32 ALUOp_Sbb32(u32* eflags, u32 lhs, u32 rhs)
 {
   const u32 old_value = lhs;
   const u32 sub_value = rhs;
@@ -1530,7 +1531,7 @@ void Interpreter::Execute_Operation_CMP(CPU* cpu)
 }
 
 template<typename ValueType>
-constexpr u32 EFLAGS_BitwiseOps(u32 old_eflags, ValueType new_value)
+ALWAYS_INLINE constexpr u32 EFLAGS_BitwiseOps(u32 old_eflags, ValueType new_value)
 {
   // The OF and CF flags are cleared; the SF, ZF, and PF flags are set according to the result. The state of the AF flag
   // is undefined.

@@ -5,6 +5,17 @@
 #include <cstring>
 #include <type_traits>
 
+// Force inline helper
+#ifndef ALWAYS_INLINE
+#if defined(_MSC_VER)
+#define ALWAYS_INLINE __forceinline static inline
+#elif defined(__GNUC__) || defined(__clang__)
+#define ALWAYS_INLINE __attribute__((always_inline)) static inline
+#else
+#define ALWAYS_INLINE static inline
+#endif
+#endif
+
 using s8 = int8_t;
 using u8 = uint8_t;
 using s16 = int16_t;
