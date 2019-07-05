@@ -240,9 +240,15 @@ bool TimingManager::LoadState(BinaryReader& reader)
     if (!reader.SafeReadCString(&event_name))
       return false;
 
-    CycleCount downcount, time_since_last_run;
-    if (!reader.SafeReadInt64(&downcount) || !reader.SafeReadInt64(&time_since_last_run))
+    float frequency;
+    SimulationTime cycle_period;
+    CycleCount interval;
+    SimulationTime downcount, time_since_last_run;
+    if (!reader.SafeReadFloat(&frequency) || !reader.SafeReadInt64(&cycle_period) || !reader.SafeReadInt64(&interval) ||
+        !reader.SafeReadInt64(&downcount) || !reader.SafeReadInt64(&time_since_last_run))
+    {
       return false;
+    }
 
     TimingEvent* event = FindActiveEvent(event_name);
     if (!event)
@@ -253,6 +259,9 @@ bool TimingManager::LoadState(BinaryReader& reader)
     }
 
     // Using reschedule is safe here since we call sort afterwards.
+    event->m_frequency = frequency;
+    event->m_cycle_period = cycle_period;
+    event->m_interval = interval;
     event->m_downcount = downcount;
     event->m_time_since_last_run = time_since_last_run;
   }
@@ -285,8 +294,12 @@ bool TimingManager::SaveState(BinaryWriter& writer)
     if (!writer.SafeWriteCString(evt->GetName()))
       return false;
 
-    if (!writer.SafeWriteInt64(evt->m_downcount) || !writer.SafeWriteInt64(evt->m_time_since_last_run))
+    if (!writer.SafeWriteFloat(evt->m_frequency) || !writer.SafeWriteInt64(evt->m_cycle_period) ||
+        !writer.SafeWriteInt64(evt->m_interval) || !writer.SafeWriteInt64(evt->m_downcount) ||
+        !writer.SafeWriteInt64(evt->m_time_since_last_run))
+    {
       return false;
+    }
 
     event_count++;
   }
@@ -294,7 +307,9 @@ bool TimingManager::SaveState(BinaryWriter& writer)
   u64 end_offset = writer.GetStreamPosition();
   if (!writer.SafeSeekAbsolute(count_offset) || !writer.SafeWriteUInt32(event_count) ||
       !writer.SafeSeekAbsolute(end_offset))
+  {
     return false;
+  }
 
   Log_DevPrintf("Wrote %u events to save state.", event_count);
   return true;
