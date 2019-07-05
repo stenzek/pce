@@ -174,14 +174,148 @@ bool SoundBlaster::LoadState(BinaryReader& reader)
   if (reader.ReadUInt32() != SERIALIZATION_ID)
     return false;
 
-  Reset();
+  if (!m_ymf262.LoadState(reader))
+    return false;
 
-  return !reader.GetErrorState();
+  m_interrupt_pending = reader.ReadBool();
+  m_interrupt_pending_16 = reader.ReadBool();
+
+  u32 size = reader.ReadUInt32();
+  m_dsp_input_buffer.clear();
+  for (u32 i = 0; i < size; i++)
+    m_dsp_input_buffer.push_back(reader.ReadUInt8());
+
+  size = reader.ReadUInt32();
+  m_dsp_output_buffer.clear();
+  for (u32 i = 0; i < size; i++)
+    m_dsp_output_buffer.push_back(reader.ReadUInt8());
+
+  m_dsp_reset = reader.ReadBool();
+  m_dsp_test_register = reader.ReadUInt8();
+
+  m_dac_state.enable_speaker = reader.ReadBool();
+  m_dac_state.frequency = reader.ReadFloat();
+  m_dac_state.silence_samples = reader.ReadUInt32();
+  m_dac_state.dma_block_size = reader.ReadUInt32();
+  m_dac_state.dma_paused = reader.ReadBool();
+  m_dac_state.dma_active = reader.ReadBool();
+  m_dac_state.dma_16 = reader.ReadBool();
+  m_dac_state.fifo_enable = reader.ReadBool();
+  m_dac_state.stereo = reader.ReadBool();
+  size = reader.ReadUInt32();
+  m_dac_state.fifo.clear();
+  for (u32 i = 0; i < size; i++)
+    m_dac_state.fifo.push_back(reader.ReadUInt8());
+  for (size_t i = 0; i < m_dac_state.last_sample.size(); i++)
+    m_dac_state.last_sample[i] = reader.ReadInt16();
+  m_dac_state.sample_format = static_cast<DSP_SAMPLE_FORMAT>(reader.ReadUInt8());
+  m_dac_state.adpcm_subsample = reader.ReadUInt32();
+  m_dac_state.adpcm_scale = reader.ReadInt32();
+  m_dac_state.adpcm_reference = reader.ReadUInt8();
+  m_dac_state.adpcm_reference_update_pending = reader.ReadBool();
+
+  m_adc_state.e2_value = reader.ReadInt32();
+  m_adc_state.e2_count = reader.ReadUInt32();
+  m_adc_state.last_sample = reader.ReadInt16();
+  m_adc_state.dma_paused = reader.ReadBool();
+  m_adc_state.dma_active = reader.ReadBool();
+  m_adc_state.dma_16 = reader.ReadBool();
+  size = reader.ReadUInt32();
+  m_adc_state.fifo.clear();
+  for (u32 i = 0; i < size; i++)
+    m_adc_state.fifo.push_back(reader.ReadUInt8());
+
+  for (DMAState* dma_state : {&m_dma_state, &m_dma_16_state})
+  {
+    dma_state->length = reader.ReadUInt32();
+    dma_state->remaining_bytes = reader.ReadUInt32();
+    dma_state->dma_to_host = reader.ReadBool();
+    dma_state->autoinit = reader.ReadBool();
+    dma_state->active = reader.ReadBool();
+    dma_state->request = reader.ReadBool();
+  }
+
+  for (size_t i = 0; i < m_mixer_state.master_volume.size(); i++)
+    m_mixer_state.master_volume[i] = reader.ReadFloat();
+  for (size_t i = 0; i < m_mixer_state.voice_volume.size(); i++)
+    m_mixer_state.voice_volume[i] = reader.ReadFloat();
+  m_mixer_index_register = reader.ReadUInt8();
+
+  if (reader.GetErrorState())
+    return false;
+
+  m_dac_state.output_channel->ClearBuffer();
+  m_dac_state.output_channel->ChangeSampleRate(m_dac_state.frequency);
+  UpdateDACSampleEventState();
+  return true;
 }
 
 bool SoundBlaster::SaveState(BinaryWriter& writer)
 {
   writer.WriteUInt32(SERIALIZATION_ID);
+
+  if (!m_ymf262.SaveState(writer))
+    return false;
+
+  writer.WriteBool(m_interrupt_pending);
+  writer.WriteBool(m_interrupt_pending_16);
+
+  writer.WriteUInt32(static_cast<u32>(m_dsp_input_buffer.size()));
+  for (size_t i = 0; i < m_dsp_input_buffer.size(); i++)
+    writer.WriteByte(m_dsp_input_buffer[i]);
+
+  writer.WriteUInt32(static_cast<u32>(m_dsp_output_buffer.size()));
+  for (size_t i = 0; i < m_dsp_output_buffer.size(); i++)
+    writer.WriteByte(m_dsp_output_buffer[i]);
+
+  writer.WriteBool(m_dsp_reset);
+  writer.WriteUInt8(m_dsp_test_register);
+
+  writer.WriteBool(m_dac_state.enable_speaker);
+  writer.WriteFloat(m_dac_state.frequency);
+  writer.WriteUInt32(m_dac_state.silence_samples);
+  writer.WriteUInt32(m_dac_state.dma_block_size);
+  writer.WriteBool(m_dac_state.dma_paused);
+  writer.WriteBool(m_dac_state.dma_active);
+  writer.WriteBool(m_dac_state.dma_16);
+  writer.WriteBool(m_dac_state.fifo_enable);
+  writer.WriteBool(m_dac_state.stereo);
+  writer.WriteUInt32(static_cast<u32>(m_dac_state.fifo.size()));
+  for (size_t i = 0; i < m_dac_state.fifo.size(); i++)
+    writer.WriteByte(m_dac_state.fifo[i]);
+  for (size_t i = 0; i < m_dac_state.last_sample.size(); i++)
+    writer.WriteInt16(m_dac_state.last_sample[i]);
+  writer.WriteUInt8(static_cast<u8>(m_dac_state.sample_format));
+  writer.WriteUInt32(m_dac_state.adpcm_subsample);
+  writer.WriteInt32(m_dac_state.adpcm_scale);
+  writer.WriteUInt8(m_dac_state.adpcm_reference);
+  writer.WriteBool(m_dac_state.adpcm_reference_update_pending);
+
+  writer.WriteInt32(m_adc_state.e2_value);
+  writer.WriteUInt32(m_adc_state.e2_count);
+  writer.WriteInt16(m_adc_state.last_sample);
+  writer.WriteBool(m_adc_state.dma_paused);
+  writer.WriteBool(m_adc_state.dma_active);
+  writer.WriteBool(m_adc_state.dma_16);
+  writer.WriteUInt32(static_cast<u32>(m_adc_state.fifo.size()));
+  for (size_t i = 0; i < m_adc_state.fifo.size(); i++)
+    writer.WriteByte(m_adc_state.fifo[i]);
+
+  for (const DMAState* dma_state : {&m_dma_state, &m_dma_16_state})
+  {
+    writer.WriteUInt32(dma_state->length);
+    writer.WriteUInt32(dma_state->remaining_bytes);
+    writer.WriteBool(dma_state->dma_to_host);
+    writer.WriteBool(dma_state->autoinit);
+    writer.WriteBool(dma_state->active);
+    writer.WriteBool(dma_state->request);
+  }
+
+  for (size_t i = 0; i < m_mixer_state.master_volume.size(); i++)
+    writer.WriteFloat(m_mixer_state.master_volume[i]);
+  for (size_t i = 0; i < m_mixer_state.voice_volume.size(); i++)
+    writer.WriteFloat(m_mixer_state.voice_volume[i]);
+  writer.WriteUInt8(m_mixer_index_register);
 
   return !writer.InErrorState();
 }
