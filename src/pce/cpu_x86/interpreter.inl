@@ -1948,60 +1948,69 @@ void Interpreter::Execute_Operation_SHL(CPU* cpu)
   // resulting in a maximum count of 31.
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    const u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    u16 shifted_value = ZeroExtend16(value) << shift_amount;
-    u8 new_value = Truncate8(shifted_value);
-    WriteByteOperand<val_mode, val_constant>(cpu, new_value);
+    const u16 shifted_value = ZeroExtend16(value) << shift_amount;
+    const u8 new_value = Truncate8(shifted_value);
+    const u32 new_eflags =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF | Flag_AF)) |
+      (ZeroExtend32(shifted_value >> 8) & Flag_CF) | // CF, (shifted_value & 0x100) != 0
+      (((ZeroExtend32(shifted_value) << 3) ^ (ZeroExtend32(shifted_value) << 4)) & Flag_OF &
+       (BoolToUInt32(shift_amount == 1)
+        << 11)) |           // OF, (shift_amount == 1 && (((shifted_value >> 7) & 1) ^ ((shifted_value >> 8) & 1)) != 0)
+      SignFlag(new_value) | // SF
+      ZeroFlag(new_value) | // ZF
+      ParityFlag(new_value); // PF
 
-    SET_FLAG(&cpu->m_registers, CF, ((shifted_value & 0x100) != 0));
-    SET_FLAG(&cpu->m_registers, OF,
-             (shift_amount == 1 && (((shifted_value >> 7) & 1) ^ ((shifted_value >> 8) & 1)) != 0));
-    SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
-    SET_FLAG(&cpu->m_registers, AF, false);
+    WriteByteOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    const u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    u32 shifted_value = ZeroExtend32(value) << shift_amount;
-    u16 new_value = Truncate16(shifted_value);
-    WriteWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 shifted_value = ZeroExtend32(value) << shift_amount;
+    const u16 new_value = Truncate16(shifted_value);
+    const u32 new_eflags =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF | Flag_AF)) |
+      ((shifted_value >> 16) & Flag_CF) | // CF, (shifted_value & 0x10000) != 0
+      (((shifted_value >> 4) ^ (shifted_value >> 5)) & Flag_OF &
+       (BoolToUInt32(shift_amount == 1)
+        << 11)) | // OF, (shift_amount == 1 && (((shifted_value >> 15) & 1) ^ ((shifted_value >> 16) & 1)) != 0)
+      SignFlag(new_value) |  // SF
+      ZeroFlag(new_value) |  // ZF
+      ParityFlag(new_value); // PF
 
-    SET_FLAG(&cpu->m_registers, CF, ((shifted_value & 0x10000) != 0));
-    SET_FLAG(&cpu->m_registers, OF,
-             (shift_amount == 1 && (((shifted_value >> 15) & 1) ^ ((shifted_value >> 16) & 1)) != 0));
-    SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
-    SET_FLAG(&cpu->m_registers, AF, false);
+    WriteWordOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    u64 shifted_value = ZeroExtend64(value) << shift_amount;
-    u32 new_value = Truncate32(shifted_value);
-    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u64 shifted_value = ZeroExtend64(value) << shift_amount;
+    const u32 new_value = Truncate32(shifted_value);
+    const u32 new_eflags =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF | Flag_AF)) |
+      (Truncate32(shifted_value >> 32) & Flag_CF) | // CF, (shifted_value & 0x100000000) != 0
+      (Truncate32((shifted_value >> 20) ^ (shifted_value >> 21)) & Flag_OF &
+       (BoolToUInt32(shift_amount == 1)
+        << 11)) | // OF, (shift_amount == 1 && (((shifted_value >> 31) & 1) ^ ((shifted_value >> 32) & 1)) != 0)
+      SignFlag(new_value) |  // SF
+      ZeroFlag(new_value) |  // ZF
+      ParityFlag(new_value); // PF
 
-    SET_FLAG(&cpu->m_registers, CF, ((shifted_value & UINT64_C(0x100000000)) != 0));
-    SET_FLAG(&cpu->m_registers, OF,
-             (shift_amount == 1 && (((shifted_value >> 31) & 1) ^ ((shifted_value >> 32) & 1)) != 0));
-    SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
-    SET_FLAG(&cpu->m_registers, AF, false);
+    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
 }
 
@@ -2021,51 +2030,60 @@ void Interpreter::Execute_Operation_SHR(CPU* cpu)
   // resulting in a maximum count of 31.
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    const u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    u8 new_value = value >> shift_amount;
-    WriteByteOperand<val_mode, val_constant>(cpu, new_value);
+    const u8 new_value = value >> shift_amount;
+    const u32 new_eflags = (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) |
+                           (ZeroExtend32(value >> (shift_amount - 1)) & Flag_CF) | // CF
+                           (ZeroExtend32(value << 4) & Flag_OF &
+                            (BoolToUInt32(shift_amount == 1) << 11)) | // OF, shift_amount == 1 && (value & 0x80)
+                           SignFlag(new_value) |                       // SF
+                           ZeroFlag(new_value) |                       // ZF
+                           ParityFlag(new_value);                      // PF
 
-    SET_FLAG(&cpu->m_registers, CF, ((shift_amount ? (value >> (shift_amount - 1) & 1) : (value & 1)) != 0));
-    SET_FLAG(&cpu->m_registers, OF, (shift_amount == 1 && (value & 0x80) != 0));
-    SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
+    WriteByteOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    const u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    u16 new_value = value >> shift_amount;
-    WriteWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u16 new_value = value >> shift_amount;
+    const u32 new_eflags = (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) |
+                           (ZeroExtend32(value >> (shift_amount - 1)) & Flag_CF) | // CF
+                           (ZeroExtend32(value >> 4) & Flag_OF &
+                            (BoolToUInt32(shift_amount == 1) << 11)) | // OF, shift_amount == 1 && (value & 0x8000)
+                           SignFlag(new_value) |                       // SF
+                           ZeroFlag(new_value) |                       // ZF
+                           ParityFlag(new_value);                      // PF
 
-    SET_FLAG(&cpu->m_registers, CF, ((shift_amount ? (value >> (shift_amount - 1) & 1) : (value & 1)) != 0));
-    SET_FLAG(&cpu->m_registers, OF, (shift_amount == 1 && (value & 0x8000) != 0));
-    SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
+    WriteWordOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    u32 new_value = value >> shift_amount;
-    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 new_value = value >> shift_amount;
+    const u32 new_eflags = (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) |
+                           ((value >> (shift_amount - 1)) & Flag_CF) | // CF
+                           ((value >> 20) & Flag_OF &
+                            (BoolToUInt32(shift_amount == 1) << 11)) | // OF, shift_amount == 1 && (value & 0x80000000)
+                           SignFlag(new_value) |                       // SF
+                           ZeroFlag(new_value) |                       // ZF
+                           ParityFlag(new_value);                      // PF
 
-    SET_FLAG(&cpu->m_registers, CF, ((shift_amount ? (value >> (shift_amount - 1) & 1) : (value & 1)) != 0));
-    SET_FLAG(&cpu->m_registers, OF, (shift_amount == 1 && (value & 0x80000000) != 0));
-    SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
+    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
 }
 
@@ -2087,51 +2105,54 @@ void Interpreter::Execute_Operation_SAR(CPU* cpu)
   // resulting in a maximum count of 31.
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    const u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    u8 new_value = u8(s8(value) >> shift_amount);
-    WriteByteOperand<val_mode, val_constant>(cpu, new_value);
+    const u8 new_value = u8(s8(value) >> shift_amount);
+    const u32 new_eflags = (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) |
+                           (ZeroExtend32(s8(value) >> (shift_amount - 1)) & Flag_CF) | // CF
+                           SignFlag(new_value) |                                       // SF
+                           ZeroFlag(new_value) |                                       // ZF
+                           ParityFlag(new_value);                                      // PF
 
-    SET_FLAG(&cpu->m_registers, CF, ((s8(value) >> (shift_amount - 1) & 1) != 0));
-    SET_FLAG(&cpu->m_registers, OF, false);
-    SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
+    WriteByteOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    const u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    u16 new_value = u16(s16(value) >> shift_amount);
-    WriteWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u16 new_value = u16(s16(value) >> shift_amount);
+    const u32 new_eflags = (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) |
+                           (ZeroExtend32(s16(value) >> (shift_amount - 1)) & Flag_CF) | // CF
+                           SignFlag(new_value) |                                        // SF
+                           ZeroFlag(new_value) |                                        // ZF
+                           ParityFlag(new_value);                                       // PF
 
-    SET_FLAG(&cpu->m_registers, CF, ((s16(value) >> (shift_amount - 1) & 1) != 0));
-    SET_FLAG(&cpu->m_registers, OF, false);
-    SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
+    WriteWordOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u8 shift_amount = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (shift_amount == 0)
       return;
 
-    u32 new_value = u32(s32(value) >> shift_amount);
-    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    const u32 new_value = u32(s32(value) >> shift_amount);
+    const u32 new_eflags = (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) |
+                           (static_cast<u32>(s32(value) >> (shift_amount - 1)) & Flag_CF) | // CF
+                           SignFlag(new_value) |                                            // SF
+                           ZeroFlag(new_value) |                                            // ZF
+                           ParityFlag(new_value);                                           // PF
 
-    SET_FLAG(&cpu->m_registers, CF, ((s32(value) >> (shift_amount - 1) & 1) != 0));
-    SET_FLAG(&cpu->m_registers, OF, false);
-    SET_FLAG(&cpu->m_registers, PF, IsParity(new_value));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(new_value));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(new_value));
+    WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
 }
 
