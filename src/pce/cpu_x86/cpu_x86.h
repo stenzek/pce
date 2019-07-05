@@ -47,15 +47,15 @@ public:
   // Needed because the 8-bit register indices are all low bits -> all high bits
   struct Reg8Access
   {
-    const u8& operator[](size_t index) const { return data[index % 4][index / 4]; }
-    u8& operator[](size_t index) { return data[index % 4][index / 4]; }
+    ALWAYS_INLINE const u8& operator[](size_t index) const { return data[index % 4][index / 4]; }
+    ALWAYS_INLINE u8& operator[](size_t index) { return data[index % 4][index / 4]; }
 
     u8 data[Reg32_Count][4];
   };
   struct Reg16Access
   {
-    const u16& operator[](size_t index) const { return data[index][0]; }
-    u16& operator[](size_t index) { return data[index][0]; }
+    ALWAYS_INLINE const u16& operator[](size_t index) const { return data[index][0]; }
+    ALWAYS_INLINE u16& operator[](size_t index) { return data[index][0]; }
 
     u16 data[Reg32_Count][2];
   };
@@ -63,10 +63,10 @@ public:
   template<u32 mask>
   struct FlagAccess
   {
-    inline bool IsSet() const { return !!(data & mask); }
-    inline operator bool() const { return IsSet(); }
+    ALWAYS_INLINE bool IsSet() const { return !!(data & mask); }
+    ALWAYS_INLINE operator bool() const { return IsSet(); }
 
-    inline FlagAccess& operator=(bool value)
+    ALWAYS_INLINE FlagAccess& operator=(bool value)
     {
       if (value)
         data |= mask;

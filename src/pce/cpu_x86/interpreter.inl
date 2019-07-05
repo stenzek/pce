@@ -3595,13 +3595,13 @@ void Interpreter::Execute_Operation_NOP(CPU* cpu)
 void Interpreter::Execute_Operation_CLC(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_CLEAR_SET_FLAG);
-  SET_FLAG(&cpu->m_registers, CF, false);
+  cpu->m_registers.EFLAGS.CF = false;
 }
 
 void Interpreter::Execute_Operation_CLD(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_CLEAR_SET_FLAG);
-  SET_FLAG(&cpu->m_registers, DF, false);
+  cpu->m_registers.EFLAGS.DF = false;
 }
 
 void Interpreter::Execute_Operation_CLI(CPU* cpu)
@@ -3616,13 +3616,13 @@ void Interpreter::Execute_Operation_CLI(CPU* cpu)
     {
       if (cpu->m_registers.CR4.VME)
       {
-        SET_FLAG(&cpu->m_registers, VIF, false);
+        cpu->m_registers.EFLAGS.VIF = false;
         return;
       }
     }
     else if (cpu->m_registers.CR4.PVI && cpu->GetCPL() == 3)
     {
-      SET_FLAG(&cpu->m_registers, VIF, false);
+      cpu->m_registers.EFLAGS.VIF = false;
       return;
     }
 
@@ -3630,13 +3630,13 @@ void Interpreter::Execute_Operation_CLI(CPU* cpu)
     return;
   }
 
-  SET_FLAG(&cpu->m_registers, IF, false);
+  cpu->m_registers.EFLAGS.IF = false;
 }
 
 void Interpreter::Execute_Operation_CMC(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_CLEAR_SET_FLAG);
-  SET_FLAG(&cpu->m_registers, CF, !cpu->m_registers.EFLAGS.CF);
+  cpu->m_registers.EFLAGS.bits ^= Flag_CF; // cpu->m_registers.EFLAGS.CF = !cpu->m_registers.EFLAGS.CF
 }
 
 void Interpreter::Execute_Operation_CLTS(CPU* cpu)
@@ -3654,13 +3654,13 @@ void Interpreter::Execute_Operation_CLTS(CPU* cpu)
 void Interpreter::Execute_Operation_STC(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_CLEAR_SET_FLAG);
-  SET_FLAG(&cpu->m_registers, CF, true);
+  cpu->m_registers.EFLAGS.CF = true;
 }
 
 void Interpreter::Execute_Operation_STD(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_CLEAR_SET_FLAG);
-  SET_FLAG(&cpu->m_registers, DF, true);
+  cpu->m_registers.EFLAGS.DF = true;
 }
 
 void Interpreter::Execute_Operation_STI(CPU* cpu)
@@ -3674,13 +3674,13 @@ void Interpreter::Execute_Operation_STI(CPU* cpu)
     {
       if (cpu->m_registers.CR4.VME && !cpu->m_registers.EFLAGS.VIP)
       {
-        SET_FLAG(&cpu->m_registers, VIF, true);
+        cpu->m_registers.EFLAGS.VIF = true;
         return;
       }
     }
     else if (cpu->m_registers.CR4.PVI && cpu->GetCPL() == 3 && !cpu->m_registers.EFLAGS.VIP)
     {
-      SET_FLAG(&cpu->m_registers, VIF, true);
+      cpu->m_registers.EFLAGS.VIF = true;
       return;
     }
 
@@ -3688,7 +3688,7 @@ void Interpreter::Execute_Operation_STI(CPU* cpu)
     return;
   }
 
-  SET_FLAG(&cpu->m_registers, IF, true);
+  cpu->m_registers.EFLAGS.IF = true;
 }
 
 void Interpreter::Execute_Operation_SALC(CPU* cpu)
