@@ -2317,8 +2317,8 @@ void Interpreter::Execute_Operation_ROL(CPU* cpu)
   // Hopefully this will compile down to a native ROL instruction
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    const u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
@@ -2330,15 +2330,14 @@ void Interpreter::Execute_Operation_ROL(CPU* cpu)
       WriteByteOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    u8 b0 = (new_value & 1);
-    u8 b7 = (new_value >> 7);
-    SET_FLAG(&cpu->m_registers, CF, (b0 != 0));
-    SET_FLAG(&cpu->m_registers, OF, ((b0 ^ b7) != 0));
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF)) | (ZeroExtend32(new_value) & Flag_CF) | // CF
+      (((ZeroExtend32(new_value) << 11) ^ (ZeroExtend32(new_value) << 4)) & Flag_OF);               // OF: bit 0 ^ bit 7
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    const u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
@@ -2350,15 +2349,14 @@ void Interpreter::Execute_Operation_ROL(CPU* cpu)
       WriteWordOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    u16 b0 = (new_value & 1);
-    u16 b15 = (new_value >> 15);
-    SET_FLAG(&cpu->m_registers, CF, (b0 != 0));
-    SET_FLAG(&cpu->m_registers, OF, ((b0 ^ b15) != 0));
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF)) | (ZeroExtend32(new_value) & Flag_CF) | // CF
+      (((ZeroExtend32(new_value) << 11) ^ (ZeroExtend32(new_value) >> 4)) & Flag_OF); // OF: bit 0 ^ bit 15
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
@@ -2370,10 +2368,8 @@ void Interpreter::Execute_Operation_ROL(CPU* cpu)
       WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    u32 b0 = (new_value & 1);
-    u32 b31 = ((new_value >> 31) & 1);
-    SET_FLAG(&cpu->m_registers, CF, (b0 != 0));
-    SET_FLAG(&cpu->m_registers, OF, ((b0 ^ b31) != 0));
+    cpu->m_registers.EFLAGS.bits = (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF)) | (new_value & Flag_CF) | // CF
+                                   (((new_value << 11) ^ (new_value >> 20)) & Flag_OF); // OF: bit 0 ^ bit 31
   }
 }
 
@@ -2392,8 +2388,8 @@ void Interpreter::Execute_Operation_ROR(CPU* cpu)
   // Hopefully this will compile down to a native ROR instruction
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
+    const u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
@@ -2405,15 +2401,14 @@ void Interpreter::Execute_Operation_ROR(CPU* cpu)
       WriteByteOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    u16 b6 = ((new_value >> 6) & 1);
-    u16 b7 = ((new_value >> 7) & 1);
-    SET_FLAG(&cpu->m_registers, CF, (b7 != 0));
-    SET_FLAG(&cpu->m_registers, OF, ((b6 ^ b7) != 0));
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF)) | (ZeroExtend32(new_value >> 7) & Flag_CF) | // CF
+      (((ZeroExtend32(new_value) << 5) ^ (ZeroExtend32(new_value) << 4)) & Flag_OF); // OF: bit 6 ^ bit 7
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
+    const u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
@@ -2425,15 +2420,14 @@ void Interpreter::Execute_Operation_ROR(CPU* cpu)
       WriteWordOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    u16 b14 = ((new_value >> 14) & 1);
-    u16 b15 = ((new_value >> 15) & 1);
-    SET_FLAG(&cpu->m_registers, CF, (b15 != 0));
-    SET_FLAG(&cpu->m_registers, OF, ((b14 ^ b15) != 0));
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF)) | (ZeroExtend32(new_value >> 15) & Flag_CF) | // CF
+      (((ZeroExtend32(new_value) >> 3) ^ (ZeroExtend32(new_value) >> 4)) & Flag_OF); // OF: bit 14 ^ bit 15
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    const u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
     if (count == 0)
       return;
 
@@ -2445,10 +2439,9 @@ void Interpreter::Execute_Operation_ROR(CPU* cpu)
       WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
     }
 
-    u32 b30 = ((new_value >> 30) & 1);
-    u32 b31 = ((new_value >> 31) & 1);
-    SET_FLAG(&cpu->m_registers, CF, (b31 != 0));
-    SET_FLAG(&cpu->m_registers, OF, ((b30 ^ b31) != 0));
+    cpu->m_registers.EFLAGS.bits = (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF)) |
+                                   ((new_value >> 31) & Flag_CF) |                      // CF
+                                   (((new_value >> 19) ^ (new_value >> 20)) & Flag_OF); // OF: bit 30 ^ bit 31
   }
 }
 
