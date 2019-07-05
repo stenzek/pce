@@ -3888,46 +3888,34 @@ void Interpreter::Execute_Operation_AAA(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_BCD_ADDSUB);
 
+  u32 new_eflags = cpu->m_registers.EFLAGS.bits & ~(Flag_AF | Flag_CF | Flag_SF | Flag_ZF | Flag_PF);
   if ((cpu->m_registers.AL & 0xF) > 0x09 || cpu->m_registers.EFLAGS.AF)
   {
     cpu->m_registers.AX += 0x0106;
-    SET_FLAG(&cpu->m_registers, AF, true);
-    SET_FLAG(&cpu->m_registers, CF, true);
-  }
-  else
-  {
-    SET_FLAG(&cpu->m_registers, AF, false);
-    SET_FLAG(&cpu->m_registers, CF, false);
+    new_eflags |= Flag_AF | Flag_CF;
   }
 
   cpu->m_registers.AL &= 0x0F;
 
-  SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
+  new_eflags |= SignFlag(cpu->m_registers.AL) | ZeroFlag(cpu->m_registers.AL) | ParityFlag(cpu->m_registers.AL);
+  cpu->m_registers.EFLAGS.bits = new_eflags;
 }
 
 void Interpreter::Execute_Operation_AAS(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_BCD_ADDSUB);
 
+  u32 new_eflags = cpu->m_registers.EFLAGS.bits & ~(Flag_AF | Flag_CF | Flag_SF | Flag_ZF | Flag_PF);
   if ((cpu->m_registers.AL & 0xF) > 0x09 || cpu->m_registers.EFLAGS.AF)
   {
     cpu->m_registers.AX -= 0x0106;
-    SET_FLAG(&cpu->m_registers, AF, true);
-    SET_FLAG(&cpu->m_registers, CF, true);
-  }
-  else
-  {
-    SET_FLAG(&cpu->m_registers, AF, false);
-    SET_FLAG(&cpu->m_registers, CF, false);
+    new_eflags |= Flag_AF | Flag_CF;
   }
 
   cpu->m_registers.AL &= 0x0F;
 
-  SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
+  new_eflags |= SignFlag(cpu->m_registers.AL) | ZeroFlag(cpu->m_registers.AL) | ParityFlag(cpu->m_registers.AL);
+  cpu->m_registers.EFLAGS.bits = new_eflags;
 }
 
 template<OperandSize op_size, OperandMode op_mode, u32 op_constant>
@@ -3936,7 +3924,7 @@ void Interpreter::Execute_Operation_AAM(CPU* cpu)
   CalculateEffectiveAddress<op_mode>(cpu);
   cpu->AddCycles(CYCLES_AAM);
 
-  u8 operand = ReadByteOperand<op_mode, op_constant>(cpu);
+  const u8 operand = ReadByteOperand<op_mode, op_constant>(cpu);
   if (operand == 0)
   {
     cpu->RaiseException(Interrupt_DivideError);
@@ -3946,13 +3934,9 @@ void Interpreter::Execute_Operation_AAM(CPU* cpu)
   cpu->m_registers.AH = cpu->m_registers.AL / operand;
   cpu->m_registers.AL = cpu->m_registers.AL % operand;
 
-  SET_FLAG(&cpu->m_registers, AF, false);
-  SET_FLAG(&cpu->m_registers, CF, false);
-  SET_FLAG(&cpu->m_registers, OF, false);
-
-  SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
+  cpu->m_registers.EFLAGS.bits =
+    (cpu->m_registers.EFLAGS.bits & ~(Flag_AF | Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) |
+    SignFlag(cpu->m_registers.AL) | ZeroFlag(cpu->m_registers.AL) | ParityFlag(cpu->m_registers.AL);
 }
 
 template<OperandSize op_size, OperandMode op_mode, u32 op_constant>
@@ -3961,83 +3945,64 @@ void Interpreter::Execute_Operation_AAD(CPU* cpu)
   CalculateEffectiveAddress<op_mode>(cpu);
   cpu->AddCycles(CYCLES_AAD);
 
-  u8 operand = ReadByteOperand<op_mode, op_constant>(cpu);
-  u16 result = u16(cpu->m_registers.AH) * u16(operand) + u16(cpu->m_registers.AL);
+  const u8 operand = ReadByteOperand<op_mode, op_constant>(cpu);
+  const u16 result = u16(cpu->m_registers.AH) * u16(operand) + u16(cpu->m_registers.AL);
 
   cpu->m_registers.AL = u8(result & 0xFF);
   cpu->m_registers.AH = 0;
 
-  SET_FLAG(&cpu->m_registers, AF, false);
-  SET_FLAG(&cpu->m_registers, CF, false);
-  SET_FLAG(&cpu->m_registers, OF, false);
-
-  SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
+  cpu->m_registers.EFLAGS.bits =
+    (cpu->m_registers.EFLAGS.bits & ~(Flag_AF | Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) |
+    SignFlag(cpu->m_registers.AL) | ZeroFlag(cpu->m_registers.AL) | ParityFlag(cpu->m_registers.AL);
 }
 
 void Interpreter::Execute_Operation_DAA(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_BCD_ADDSUB);
 
-  u8 old_AL = cpu->m_registers.AL;
-  bool old_CF = cpu->m_registers.EFLAGS.CF;
+  u8 new_al = cpu->m_registers.AL;
+  u32 new_eflags = cpu->m_registers.EFLAGS.bits & ~(Flag_AF | Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF);
 
-  if ((old_AL & 0xF) > 0x9 || cpu->m_registers.EFLAGS.AF)
+  if ((cpu->m_registers.AL & 0xF) > 0x9 || cpu->m_registers.EFLAGS.AF)
   {
-    SET_FLAG(&cpu->m_registers, CF, ((old_AL > 0xF9) || old_CF));
-    cpu->m_registers.AL += 0x6;
-    SET_FLAG(&cpu->m_registers, AF, true);
-  }
-  else
-  {
-    SET_FLAG(&cpu->m_registers, AF, false);
+    new_al += 0x6;
+    new_eflags |= Flag_AF | BoolToUInt32(cpu->m_registers.AL > 0xF9 || cpu->m_registers.EFLAGS.CF); // CF
   }
 
-  if (old_AL > 0x99 || old_CF)
+  if (cpu->m_registers.AL > 0x99 || cpu->m_registers.EFLAGS.CF)
   {
-    cpu->m_registers.AL += 0x60;
-    SET_FLAG(&cpu->m_registers, CF, true);
-  }
-  else
-  {
-    SET_FLAG(&cpu->m_registers, CF, false);
+    new_al += 0x60;
+    new_eflags |= Flag_CF;
   }
 
-  SET_FLAG(&cpu->m_registers, OF, false);
-  SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
+  new_eflags |= SignFlag(new_al) | ZeroFlag(new_al) | ParityFlag(new_al);
+
+  cpu->m_registers.AL = new_al;
+  cpu->m_registers.EFLAGS.bits = new_eflags;
 }
 
 void Interpreter::Execute_Operation_DAS(CPU* cpu)
 {
   cpu->AddCycles(CYCLES_BCD_ADDSUB);
 
-  u8 old_AL = cpu->m_registers.AL;
-  bool old_CF = cpu->m_registers.EFLAGS.CF;
-
-  if ((old_AL & 0xF) > 0x9 || cpu->m_registers.EFLAGS.AF)
+  u8 new_al = cpu->m_registers.AL;
+  u32 new_eflags = cpu->m_registers.EFLAGS.bits & ~(Flag_AF | Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF);
+  if ((cpu->m_registers.AL & 0xF) > 0x9 || cpu->m_registers.EFLAGS.AF)
   {
-    SET_FLAG(&cpu->m_registers, CF, ((old_AL < 0x06) || old_CF));
-    cpu->m_registers.AL -= 0x6;
-    SET_FLAG(&cpu->m_registers, AF, true);
-  }
-  else
-  {
-    SET_FLAG(&cpu->m_registers, AF, false);
+    new_al -= 0x6;
+    new_eflags |= Flag_AF | BoolToUInt32(cpu->m_registers.AL < 0x06 || cpu->m_registers.EFLAGS.CF); // CF
   }
 
-  if (old_AL > 0x99 || old_CF)
+  if (cpu->m_registers.AL > 0x99 || cpu->m_registers.EFLAGS.CF)
   {
-    cpu->m_registers.AL -= 0x60;
-    SET_FLAG(&cpu->m_registers, CF, true);
+    new_al -= 0x60;
+    new_eflags |= Flag_CF;
   }
 
-  SET_FLAG(&cpu->m_registers, OF, false);
-  SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
-  SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
+  new_eflags |= SignFlag(new_al) | ZeroFlag(new_al) | ParityFlag(new_al);
+
+  cpu->m_registers.AL = new_al;
+  cpu->m_registers.EFLAGS.bits = new_eflags;
 }
 
 template<OperandSize val_size, OperandMode val_mode, u32 val_constant>
