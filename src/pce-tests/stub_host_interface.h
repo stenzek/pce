@@ -41,6 +41,8 @@ public:
   static void ReleaseSystem();
 
 protected:
+  static void DisplayCPUStats(CPU* cpu);
+
   std::unique_ptr<DisplayRenderer> m_display_renderer;
   std::unique_ptr<Audio::Mixer> m_audio_mixer;
 };

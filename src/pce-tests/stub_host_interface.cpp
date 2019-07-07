@@ -1,6 +1,9 @@
 #include "stub_host_interface.h"
+#include "YBaseLib/Log.h"
 #include "common/audio.h"
 #include "common/display_renderer.h"
+#include <cinttypes>
+Log_SetChannel(StubHostInterface);
 
 static std::unique_ptr<StubHostInterface> s_host_interface;
 
@@ -37,9 +40,24 @@ void StubHostInterface::SetSystem(std::unique_ptr<System> system)
 void StubHostInterface::ReleaseSystem()
 {
   if (s_host_interface->m_system)
+  {
     s_host_interface->m_system->SetState(System::State::Stopped);
+    DisplayCPUStats(s_host_interface->m_system->GetCPU());
+  }
 
   s_host_interface->m_system.reset();
+}
+
+void StubHostInterface::DisplayCPUStats(CPU* cpu)
+{
+  CPU::ExecutionStats stats;
+  s_host_interface->m_system->GetCPU()->GetExecutionStats(&stats);
+  Log_DevPrintf("Cycles executed: %" PRIu64, stats.cycles_executed);
+  Log_DevPrintf("Instructions executed: %" PRIu64 " (%" PRIu64 " cached)",
+                stats.instructions_interpreted + stats.code_cache_instructions_executed,
+                stats.code_cache_instructions_executed);
+  Log_DevPrintf("Exceptions: %" PRIu64 ", interrupts: %" PRIu64 ", blocks: %" PRIu64, stats.exceptions_raised,
+                stats.interrupts_serviced, stats.num_code_cache_blocks);
 }
 
 DisplayRenderer* StubHostInterface::GetDisplayRenderer() const
