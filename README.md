@@ -8,7 +8,6 @@ PC emulator targeting a range of systems from 8086 through to Pentium
 # Emulated Hardware
 ## CPUs
  - 8086
- - 80286
  - 80386
  - 80486
  - Pentium (minus system management mode)
@@ -24,7 +23,8 @@ PC emulator targeting a range of systems from 8086 through to Pentium
  - CGA Graphics Card
  - VGA Graphics Card
  - Tseng Labs ET4000 SVGA Graphics Card
- - Generic Hard Disk Controller (ATA)
+ - PCI Bus
+ - Generic PCI IDE Hard Disk Controller (ATA)
  - Generic Floppy Disk Controller
  - Serial Mouse
  - ATAPI CDROM
@@ -37,28 +37,33 @@ PC emulator targeting a range of systems from 8086 through to Pentium
  - i430FX Chipset
 
 # Screenshots
+
 Windows 98
 
-![Windows 98](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/win98.png)
-
-Debugger UI
-
-![Debugger UI](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/debugger.png)
-
-Generic XT clone booting
-
-![Generic XT clone booting](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/xt.png)
-
-Windows 3.11
-
-![Windows 3.11](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/win3.png)
-
-Windows 95
-
-![Windows 95](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/win95.png)
+![Windows 98](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/win98.png)
 
 Various Games
 
-![keen](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/keen.png)
-![doom](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/doom.png)
-![duke](https://raw.githubusercontent.com/mclaughc/pce/md-images/screenshots/duke.png)
+![descent](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/descent.png)
+![quake](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/quake.png)
+![quake2_software](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/quake2_software.png)
+![keen](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/keen.png)
+![doom](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/doom.png)
+![duke](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/duke.png)
+
+Debugger UI
+
+![Debugger UI](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/debugger.png)
+
+Generic XT clone booting
+
+![Generic XT clone booting](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/xt.png)
+
+Windows 3.11
+
+![Windows 3.11](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/win3.png)
+
+Windows 95
+
+![Windows 95](https://raw.githubusercontent.com/stenzek/pce/md-images/screenshots/win95.png)
+
