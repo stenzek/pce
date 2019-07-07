@@ -159,7 +159,7 @@ void HDC::DetachDevice(u32 channel, u32 number)
   if (channel >= m_num_channels || number >= DEVICES_PER_CHANNEL)
     return;
 
-  m_channels[channel].devices[DEVICES_PER_CHANNEL] = nullptr;
+  m_channels[channel].devices[number] = nullptr;
 }
 
 void HDC::SetDeviceInterruptLine(u32 channel, u32 number, bool active)
