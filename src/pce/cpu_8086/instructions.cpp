@@ -2715,6 +2715,7 @@ void CPU::ExecuteInstruction()
   // Store current instruction address in m_current_EIP.
   // The address of the current instruction is needed when exceptions occur.
   m_current_IP = m_registers.IP;
+  m_execution_stats.instructions_interpreted++;
 
 #if 0
   LinearMemoryAddress linear_address = CalculateLinearAddress(Segment_CS, m_registers.IP);

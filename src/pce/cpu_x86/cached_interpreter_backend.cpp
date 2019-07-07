@@ -196,6 +196,8 @@ void CachedInterpreterBackend::DestroyBlock(BlockBase* block)
 
 void CachedInterpreterBackend::ExecuteBlock(BlockBase* block)
 {
+  m_cpu->m_execution_stats.code_cache_blocks_executed++;
+  m_cpu->m_execution_stats.code_cache_instructions_executed += static_cast<Block*>(block)->entries.size();
   for (const Block::Entry& instruction : static_cast<Block*>(block)->entries)
   {
 #if 0

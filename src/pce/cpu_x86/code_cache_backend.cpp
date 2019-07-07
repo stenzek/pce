@@ -248,6 +248,11 @@ void CodeCacheBackend::InvalidateBlock(BlockBase* block)
   RemoveBlockPhysicalMappings(block);
 }
 
+size_t CodeCacheBackend::GetCodeBlockCount() const
+{
+  return m_blocks.size();
+}
+
 void CodeCacheBackend::FlushCodeCache()
 {
   m_physical_page_blocks.clear();

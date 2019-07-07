@@ -18,6 +18,7 @@ public:
   virtual void BranchTo(u32 new_EIP) override;
   virtual void BranchFromException(u32 new_EIP) override;
 
+  virtual size_t GetCodeBlockCount() const override;
   virtual void FlushCodeCache() override;
 
 protected:

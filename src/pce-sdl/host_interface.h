@@ -1,7 +1,10 @@
+#pragma once
 #include "common/display_renderer.h"
 #include "pce-sdl/audio_sdl.h"
 #include "pce-sdl/scancodes_sdl.h"
 #include "pce/host_interface.h"
+#include <array>
+#include <mutex>
 
 struct SDL_Window;
 union SDL_Event;
@@ -32,7 +35,9 @@ public:
   void Run();
 
 protected:
-  void OnSimulationSpeedUpdate(float speed_percent) override;
+  static const u32 NUM_STATS_HISTORY_VALUES = 128;
+  
+  void OnSimulationStatsUpdate(const SimulationStats& stats) override;
 
   // We only pass mouse input through if it's grabbed
   bool IsWindowFullscreen() const;
@@ -46,6 +51,9 @@ protected:
   bool HandleSDLEvent(const SDL_Event* event);
   bool PassEventToImGui(const SDL_Event* event);
   void Render();
+  void RenderMainMenuBar();
+  void RenderActivityWindow();
+  void RenderStatsWindow();
 
   SDL_Window* m_window;
 
@@ -57,4 +65,18 @@ protected:
   Timer m_last_message_time;
 
   bool m_running = false;
+  bool m_show_stats = false;
+
+  std::mutex m_stats_mutex;
+  struct StatsAndHistory
+  {
+    SimulationStats last_stats = {};
+    std::array<float, NUM_STATS_HISTORY_VALUES> simulation_speed_history = {};
+    std::array<float, NUM_STATS_HISTORY_VALUES> host_cpu_usage_history = {};
+    std::array<float, NUM_STATS_HISTORY_VALUES> instructions_executed_history = {};
+    std::array<float, NUM_STATS_HISTORY_VALUES> interrupts_serviced_history = {};
+    std::array<float, NUM_STATS_HISTORY_VALUES> exceptions_raised_history = {};
+    u32 history_position = 0;
+  } m_stats;
+
 };

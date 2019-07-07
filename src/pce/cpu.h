@@ -17,6 +17,17 @@ public:
     Recompiler
   };
 
+  struct ExecutionStats
+  {
+    u64 cycles_executed;
+    u64 instructions_interpreted;
+    u64 exceptions_raised;
+    u64 interrupts_serviced;
+    u64 num_code_cache_blocks;
+    u64 code_cache_blocks_executed;
+    u64 code_cache_instructions_executed;
+  };
+
   CPU(const String& identifier, float frequency, BackendType backend_type,
       const ObjectTypeInfo* type_info = &s_type_info);
 
@@ -59,7 +70,10 @@ public:
   virtual void StopExecution() = 0;
 
   // Code cache flushing - for recompiler backends
-  virtual void FlushCodeCache();
+  virtual void FlushCodeCache() = 0;
+
+  // Reads stats from CPU.
+  virtual void GetExecutionStats(ExecutionStats* stats) const = 0;
 
   // Backend to string.
   static const char* BackendTypeToString(BackendType type);

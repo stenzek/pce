@@ -18,6 +18,7 @@ public:
 
   void OnControlRegisterLoaded(Reg32 reg, u32 old_value, u32 new_value) override;
 
+  size_t GetCodeBlockCount() const override;
   void FlushCodeCache() override;
 
 private:

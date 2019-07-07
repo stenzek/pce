@@ -139,12 +139,29 @@ protected:
     IndicatorState indicator_state = IndicatorState::Off;
   };
 
+  struct SimulationStats
+  {
+    float simulation_speed;
+    float host_cpu_usage;
+    u64 total_time_simulated;
+    u64 delta_time_simulated;
+    CPU::ExecutionStats cpu_stats;
+    u64 cpu_delta_cycles_executed;
+    u64 cpu_delta_instructions_interpreted;
+    u64 cpu_delta_exceptions_raised;
+    u64 cpu_delata_interrupts_serviced;
+    u64 cpu_delta_code_cache_blocks_executed;
+    u64 cpu_delta_code_cache_instructions_executed;
+
+    // TODO: Frames
+  };
+
   // Implemented in derived classes.
   virtual void OnSystemInitialized();
   virtual void OnSystemReset();
   virtual void OnSystemStateLoaded();
   virtual void OnSystemDestroy();
-  virtual void OnSimulationSpeedUpdate(float speed_percent);
+  virtual void OnSimulationStatsUpdate(const SimulationStats& stats);
   virtual void OnSimulationResumed();
   virtual void OnSimulationPaused();
 
@@ -205,4 +222,7 @@ private:
   // External event queue
   std::queue<std::pair<ExternalEventCallback, bool>> m_external_events;
   std::mutex m_external_events_lock;
+
+  // Stats tracking
+  CPU::ExecutionStats m_last_cpu_execution_stats = {};
 };

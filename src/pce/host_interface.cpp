@@ -334,7 +334,7 @@ void HostInterface::OnSystemStateLoaded()
   m_speed_elapsed_user_time = 0;
 }
 
-void HostInterface::OnSimulationSpeedUpdate(float speed_percent) {}
+void HostInterface::OnSimulationStatsUpdate(const SimulationStats& stats) {}
 
 void HostInterface::OnSystemDestroy()
 {
@@ -579,39 +579,56 @@ void HostInterface::UpdateExecutionSpeed()
 {
   // Update emulation speed.
   double speed_real_time = m_speed_elapsed_real_time.GetTimeNanoseconds();
-  if (speed_real_time >= 1000000000.0)
-  {
-    const SimulationTime elapsed_sim_time =
-      m_system->GetTimingManager()->GetEmulatedTimeDifference(m_speed_elapsed_simulation_time);
-    m_speed_elapsed_simulation_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
-    m_speed_elapsed_real_time.Reset();
+  // if (speed_real_time < 250000000.0) // 250ms //1000000000.0)
+  // return;
 
-    const double fraction = double(elapsed_sim_time) / speed_real_time;
-    OnSimulationSpeedUpdate(float(fraction * 100.0));
+  const SimulationTime elapsed_sim_time =
+    m_system->GetTimingManager()->GetEmulatedTimeDifference(m_speed_elapsed_simulation_time);
+  if (elapsed_sim_time < 1000000000) // 250000000)
+    return;
 
-#ifdef Y_BUILD_CONFIG_RELEASE
-    u64 elapsed_kernel_time_ns = 0;
-    u64 elapsed_user_time_ns = 0;
+  m_speed_elapsed_simulation_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+  m_speed_elapsed_real_time.Reset();
+
+  SimulationStats stats;
+  stats.simulation_speed = static_cast<float>(elapsed_sim_time) / static_cast<float>(speed_real_time);
+  stats.total_time_simulated = m_speed_elapsed_simulation_time;
+  stats.delta_time_simulated = elapsed_sim_time;
+  m_system->GetCPU()->GetExecutionStats(&stats.cpu_stats);
+  stats.cpu_delta_cycles_executed = stats.cpu_stats.cycles_executed - m_last_cpu_execution_stats.cycles_executed;
+  stats.cpu_delta_instructions_interpreted =
+    stats.cpu_stats.instructions_interpreted - m_last_cpu_execution_stats.instructions_interpreted;
+  stats.cpu_delta_exceptions_raised = stats.cpu_stats.exceptions_raised - m_last_cpu_execution_stats.exceptions_raised;
+  stats.cpu_delata_interrupts_serviced =
+    stats.cpu_stats.interrupts_serviced - m_last_cpu_execution_stats.interrupts_serviced;
+  stats.cpu_delta_code_cache_blocks_executed =
+    stats.cpu_stats.code_cache_blocks_executed - m_last_cpu_execution_stats.code_cache_blocks_executed;
+  stats.cpu_delta_code_cache_instructions_executed =
+    stats.cpu_stats.code_cache_instructions_executed - m_last_cpu_execution_stats.code_cache_instructions_executed;
+
+  u64 elapsed_kernel_time_ns = 0;
+  u64 elapsed_user_time_ns = 0;
 
 #ifdef Y_PLATFORM_WINDOWS
-    {
-      FILETIME creation_time, exit_time, kernel_time, user_time;
-      u64 kernel_time_100ns, user_time_100ns;
-      GetThreadTimes(GetCurrentThread(), &creation_time, &exit_time, &kernel_time, &user_time);
-      kernel_time_100ns = ZeroExtend64(kernel_time.dwHighDateTime) << 32 | ZeroExtend64(kernel_time.dwLowDateTime);
-      user_time_100ns = ZeroExtend64(user_time.dwHighDateTime) << 32 | ZeroExtend64(user_time.dwLowDateTime);
-      elapsed_kernel_time_ns = (kernel_time_100ns - m_speed_elapsed_kernel_time) * 100;
-      elapsed_user_time_ns = (user_time_100ns - m_speed_elapsed_user_time) * 100;
-      m_speed_elapsed_kernel_time = kernel_time_100ns;
-      m_speed_elapsed_user_time = user_time_100ns;
-    }
+  {
+    FILETIME creation_time, exit_time, kernel_time, user_time;
+    u64 kernel_time_100ns, user_time_100ns;
+    GetThreadTimes(GetCurrentThread(), &creation_time, &exit_time, &kernel_time, &user_time);
+    kernel_time_100ns = ZeroExtend64(kernel_time.dwHighDateTime) << 32 | ZeroExtend64(kernel_time.dwLowDateTime);
+    user_time_100ns = ZeroExtend64(user_time.dwHighDateTime) << 32 | ZeroExtend64(user_time.dwLowDateTime);
+    elapsed_kernel_time_ns = (kernel_time_100ns - m_speed_elapsed_kernel_time) * 100;
+    elapsed_user_time_ns = (user_time_100ns - m_speed_elapsed_user_time) * 100;
+    m_speed_elapsed_kernel_time = kernel_time_100ns;
+    m_speed_elapsed_user_time = user_time_100ns;
+  }
 #endif
 
-    u64 total_cpu_time_ns = elapsed_kernel_time_ns + elapsed_user_time_ns;
-    double busy_cpu_time = double(total_cpu_time_ns) / speed_real_time;
-    printf("Main thread CPU usage: %f%%\n", busy_cpu_time * 100.0);
-#endif
-  }
+  u64 total_cpu_time_ns = elapsed_kernel_time_ns + elapsed_user_time_ns;
+  stats.host_cpu_usage = static_cast<float>(total_cpu_time_ns) / static_cast<float>(speed_real_time);
+
+  OnSimulationStatsUpdate(stats);
+
+  m_last_cpu_execution_stats = stats.cpu_stats;
 }
 
 void HostInterface::WaitForCallingThread()

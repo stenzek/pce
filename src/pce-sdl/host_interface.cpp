@@ -9,6 +9,7 @@
 #include "pce-sdl/scancodes_sdl.h"
 #include "pce/system.h"
 #include <SDL.h>
+#include <cinttypes>
 #include <glad.h>
 #ifdef Y_PLATFORM_WINDOWS
 #include "imgui_impl_dx11.h"
@@ -208,21 +209,42 @@ void SDLHostInterface::ReportMessage(const char* message)
   m_last_message_time.Reset();
 }
 
-void SDLHostInterface::OnSimulationSpeedUpdate(float speed_percent)
+void SDLHostInterface::OnSimulationStatsUpdate(const SimulationStats& stats)
 {
   // Persist each message for only 3 seconds.
   if (!m_last_message.IsEmpty() && m_last_message_time.GetTimeSeconds() >= 3.0f)
     m_last_message.Clear();
 
   LargeString window_title;
+#if 0
   window_title.Format("PCE | System: %s | CPU: %s (%.2f MHz, %s) | Speed: %.1f%% | VPS: %.1f%s%s",
                       m_system->GetTypeInfo()->GetTypeName(), m_system->GetCPU()->GetModelString(),
                       m_system->GetCPU()->GetFrequency() / 1000000.0f,
-                      CPU::BackendTypeToString(m_system->GetCPU()->GetBackend()), speed_percent,
+                      CPU::BackendTypeToString(m_system->GetCPU()->GetBackend()), stats.simulation_speed * 100.0f,
                       m_display_renderer->GetPrimaryDisplayFramesPerSecond(), m_last_message.IsEmpty() ? "" : " | ",
                       m_last_message.GetCharArray());
+#else
+  window_title.Format("PCE | CPU: %s (%.2f MHz, %s) | Speed: %.1f%% | VPS: %.1f%s%s",
+                      m_system->GetCPU()->GetModelString(), m_system->GetCPU()->GetFrequency() / 1000000.0f,
+                      CPU::BackendTypeToString(m_system->GetCPU()->GetBackend()), stats.simulation_speed * 100.0f,
+                      m_display_renderer->GetPrimaryDisplayFramesPerSecond(), m_last_message.IsEmpty() ? "" : " | ",
+                      m_last_message.GetCharArray());
+#endif
 
   SDL_SetWindowTitle(m_window, window_title);
+
+  {
+    std::unique_lock<std::mutex> lock(m_stats_mutex);
+    m_stats.last_stats = stats;
+    m_stats.simulation_speed_history[m_stats.history_position] = stats.simulation_speed * 100.0f;
+    m_stats.host_cpu_usage_history[m_stats.history_position] = stats.host_cpu_usage * 100.0f;
+    m_stats.instructions_executed_history[m_stats.history_position] =
+      static_cast<float>(stats.cpu_delta_instructions_interpreted + stats.cpu_delta_code_cache_instructions_executed);
+    m_stats.interrupts_serviced_history[m_stats.history_position] =
+      static_cast<float>(stats.cpu_delata_interrupts_serviced);
+    m_stats.exceptions_raised_history[m_stats.history_position] = static_cast<float>(stats.cpu_delta_exceptions_raised);
+    m_stats.history_position = (m_stats.history_position + 1) % NUM_STATS_HISTORY_VALUES;
+  }
 }
 
 bool SDLHostInterface::IsWindowFullscreen() const
@@ -465,169 +487,229 @@ void SDLHostInterface::Render()
 
 void SDLHostInterface::RenderImGui()
 {
-  if (ImGui::BeginMainMenuBar())
-  {
-    if (ImGui::BeginMenu("System"))
-    {
-      if (ImGui::MenuItem("Reset"))
-        ResetSystem();
-
-      ImGui::Separator();
-
-      if (ImGui::BeginMenu("CPU Backend"))
-      {
-        CPU::BackendType current_backend = GetCPUBackend();
-        if (ImGui::MenuItem("Interpreter", nullptr, current_backend == CPU::BackendType::Interpreter))
-          SetCPUBackend(CPU::BackendType::Interpreter);
-        if (ImGui::MenuItem("Cached Interpreter", nullptr, current_backend == CPU::BackendType::CachedInterpreter))
-          SetCPUBackend(CPU::BackendType::CachedInterpreter);
-        if (ImGui::MenuItem("Recompiler", nullptr, current_backend == CPU::BackendType::Recompiler))
-          SetCPUBackend(CPU::BackendType::Recompiler);
-
-        ImGui::EndMenu();
-      }
-
-      if (ImGui::BeginMenu("CPU Speed"))
-      {
-        float frequency = GetCPUFrequency();
-        if (ImGui::InputFloat("Frequency", &frequency, 1000000.0f))
-        {
-          frequency = std::max(frequency, 1000000.0f);
-          SetCPUFrequency(frequency);
-        }
-        ImGui::EndMenu();
-      }
-
-      if (ImGui::MenuItem("Enable Speed Limiter", nullptr, IsSpeedLimiterEnabled()))
-        SetSpeedLimiterEnabled(!IsSpeedLimiterEnabled());
-
-      if (ImGui::MenuItem("Flush Code Cache"))
-        FlushCPUCodeCache();
-
-      ImGui::Separator();
-
-      if (ImGui::BeginMenu("Load State"))
-      {
-        for (u32 i = 1; i <= 8; i++)
-        {
-          if (ImGui::MenuItem(TinyString::FromFormat("State %u", i).GetCharArray()))
-            DoLoadState(i);
-        }
-        ImGui::EndMenu();
-      }
-
-      if (ImGui::BeginMenu("Save State"))
-      {
-        for (u32 i = 1; i <= 8; i++)
-        {
-          if (ImGui::MenuItem(TinyString::FromFormat("State %u", i).GetCharArray()))
-            DoSaveState(i);
-        }
-        ImGui::EndMenu();
-      }
-
-      if (ImGui::MenuItem("Exit"))
-        m_running = false;
-
-      ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("View"))
-    {
-      if (ImGui::MenuItem("Fullscreen", nullptr, IsWindowFullscreen()))
-        SDL_SetWindowFullscreen(m_window, IsWindowFullscreen() ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
-
-      ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Devices"))
-    {
-      if (ImGui::MenuItem("Capture Mouse") && !IsMouseGrabbed())
-        GrabMouse();
-
-      ImGui::Separator();
-
-      if (ImGui::MenuItem("Send CTRL+ALT+DEL"))
-        SendCtrlAltDel();
-
-      ImGui::Separator();
-
-      for (const ComponentUIElement& ui : m_component_ui_elements)
-      {
-        const size_t total_callbacks = ui.callbacks.size() + ui.file_callbacks.size();
-        if (total_callbacks == 0)
-          continue;
-
-        if (ImGui::BeginMenu(ui.component->GetIdentifier()))
-        {
-          for (const auto& it : ui.file_callbacks)
-          {
-            if (ImGui::MenuItem(it.first))
-            {
-              nfdchar_t* path;
-              if (NFD_OpenDialog("", "", &path) == NFD_OKAY)
-              {
-                const auto& callback = it.second;
-                String str(path);
-                QueueExternalEvent([&callback, str]() { callback(str); }, false);
-              }
-            }
-          }
-
-          for (const auto& it : ui.callbacks)
-          {
-            if (ImGui::MenuItem(it.first))
-            {
-              const auto& callback = it.second;
-              QueueExternalEvent([&callback]() { callback(); }, false);
-            }
-          }
-
-          ImGui::EndMenu();
-        }
-      }
-
-      ImGui::EndMenu();
-    }
-
-    ImGui::EndMainMenuBar();
-  }
-
-  // Activity window
-  {
-    bool has_activity = false;
-    for (const auto& elem : m_component_ui_elements)
-    {
-      if (elem.indicator_state != IndicatorState::Off)
-      {
-        has_activity = true;
-        break;
-      }
-    }
-    if (has_activity)
-    {
-      ImGui::SetNextWindowPos(ImVec2(1.0f, 32.0f));
-      if (ImGui::Begin("Activity", nullptr,
-                       ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                         ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
-      {
-        for (const auto& elem : m_component_ui_elements)
-        {
-          if (elem.indicator_state == IndicatorState::Off)
-            continue;
-
-          const char* text = elem.indicator_state == IndicatorState::Reading ? "Reading" : "Writing";
-          const ImVec4 color = elem.indicator_state == IndicatorState::Reading ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f) :
-                                                                                 ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
-          ImGui::TextColored(color, "%s (%s): %s", elem.component->GetIdentifier().GetCharArray(),
-                             elem.component->GetTypeInfo()->GetTypeName(), text);
-        }
-        ImGui::End();
-      }
-    }
-  }
+  RenderMainMenuBar();
+  RenderStatsWindow();
+  RenderActivityWindow();
 
   ImGui::Render();
+}
+
+void SDLHostInterface::RenderMainMenuBar()
+{
+  if (!ImGui::BeginMainMenuBar())
+    return;
+
+  if (ImGui::BeginMenu("System"))
+  {
+    if (ImGui::MenuItem("Reset"))
+      ResetSystem();
+
+    ImGui::Separator();
+
+    if (ImGui::BeginMenu("CPU Backend"))
+    {
+      CPU::BackendType current_backend = GetCPUBackend();
+      if (ImGui::MenuItem("Interpreter", nullptr, current_backend == CPU::BackendType::Interpreter))
+        SetCPUBackend(CPU::BackendType::Interpreter);
+      if (ImGui::MenuItem("Cached Interpreter", nullptr, current_backend == CPU::BackendType::CachedInterpreter))
+        SetCPUBackend(CPU::BackendType::CachedInterpreter);
+      if (ImGui::MenuItem("Recompiler", nullptr, current_backend == CPU::BackendType::Recompiler))
+        SetCPUBackend(CPU::BackendType::Recompiler);
+
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("CPU Speed"))
+    {
+      float frequency = GetCPUFrequency();
+      if (ImGui::InputFloat("Frequency", &frequency, 1000000.0f))
+      {
+        frequency = std::max(frequency, 1000000.0f);
+        SetCPUFrequency(frequency);
+      }
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::MenuItem("Enable Speed Limiter", nullptr, IsSpeedLimiterEnabled()))
+      SetSpeedLimiterEnabled(!IsSpeedLimiterEnabled());
+
+    if (ImGui::MenuItem("Flush Code Cache"))
+      FlushCPUCodeCache();
+
+    ImGui::Separator();
+
+    if (ImGui::BeginMenu("Load State"))
+    {
+      for (u32 i = 1; i <= 8; i++)
+      {
+        if (ImGui::MenuItem(TinyString::FromFormat("State %u", i).GetCharArray()))
+          DoLoadState(i);
+      }
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Save State"))
+    {
+      for (u32 i = 1; i <= 8; i++)
+      {
+        if (ImGui::MenuItem(TinyString::FromFormat("State %u", i).GetCharArray()))
+          DoSaveState(i);
+      }
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::MenuItem("Exit"))
+      m_running = false;
+
+    ImGui::EndMenu();
+  }
+
+  if (ImGui::BeginMenu("View"))
+  {
+    ImGui::MenuItem("Simulation Statistics", nullptr, &m_show_stats);
+
+    if (ImGui::MenuItem("Fullscreen", nullptr, IsWindowFullscreen()))
+      SDL_SetWindowFullscreen(m_window, IsWindowFullscreen() ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+
+    ImGui::EndMenu();
+  }
+
+  if (ImGui::BeginMenu("Devices"))
+  {
+    if (ImGui::MenuItem("Capture Mouse") && !IsMouseGrabbed())
+      GrabMouse();
+
+    ImGui::Separator();
+
+    if (ImGui::MenuItem("Send CTRL+ALT+DEL"))
+      SendCtrlAltDel();
+
+    ImGui::Separator();
+
+    for (const ComponentUIElement& ui : m_component_ui_elements)
+    {
+      const size_t total_callbacks = ui.callbacks.size() + ui.file_callbacks.size();
+      if (total_callbacks == 0)
+        continue;
+
+      if (ImGui::BeginMenu(ui.component->GetIdentifier()))
+      {
+        for (const auto& it : ui.file_callbacks)
+        {
+          if (ImGui::MenuItem(it.first))
+          {
+            nfdchar_t* path;
+            if (NFD_OpenDialog("", "", &path) == NFD_OKAY)
+            {
+              const auto& callback = it.second;
+              String str(path);
+              QueueExternalEvent([&callback, str]() { callback(str); }, false);
+            }
+          }
+        }
+
+        for (const auto& it : ui.callbacks)
+        {
+          if (ImGui::MenuItem(it.first))
+          {
+            const auto& callback = it.second;
+            QueueExternalEvent([&callback]() { callback(); }, false);
+          }
+        }
+
+        ImGui::EndMenu();
+      }
+    }
+
+    ImGui::EndMenu();
+  }
+
+  ImGui::EndMainMenuBar();
+}
+
+void SDLHostInterface::RenderActivityWindow()
+{
+  bool has_activity = false;
+  for (const auto& elem : m_component_ui_elements)
+  {
+    if (elem.indicator_state != IndicatorState::Off)
+    {
+      has_activity = true;
+      break;
+    }
+  }
+  if (has_activity)
+  {
+    ImGui::SetNextWindowPos(ImVec2(1.0f, 32.0f));
+    if (ImGui::Begin("Activity", nullptr,
+                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                       ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+    {
+      for (const auto& elem : m_component_ui_elements)
+      {
+        if (elem.indicator_state == IndicatorState::Off)
+          continue;
+
+        const char* text = elem.indicator_state == IndicatorState::Reading ? "Reading" : "Writing";
+        const ImVec4 color = elem.indicator_state == IndicatorState::Reading ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f) :
+                                                                               ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+        ImGui::TextColored(color, "%s (%s): %s", elem.component->GetIdentifier().GetCharArray(),
+                           elem.component->GetTypeInfo()->GetTypeName(), text);
+      }
+      ImGui::End();
+    }
+  }
+}
+
+void SDLHostInterface::RenderStatsWindow()
+{
+  static const ImVec2 STATS_WINDOW_SIZE(300.0f, 420.0f);
+  static const ImVec2 HISTORY_GRAPH_SIZE(280.0f, 32.0f);
+  if (!m_show_stats)
+    return;
+
+  ImGui::SetNextWindowSize(STATS_WINDOW_SIZE, ImGuiCond_FirstUseEver);
+  if (!ImGui::Begin("Simulation Statistics", &m_show_stats))
+  {
+    ImGui::End();
+    return;
+  }
+
+  {
+    std::unique_lock<std::mutex> lock(m_stats_mutex);
+    const SimulationStats& stats = m_stats.last_stats;
+
+    ImGui::Text("Simulation Speed: %.2f%%", static_cast<float>(stats.simulation_speed) * 100.0f);
+    ImGui::PlotLines("##stats_simulation_speed_history", m_stats.simulation_speed_history.data(),
+                     NUM_STATS_HISTORY_VALUES, m_stats.history_position, nullptr, 0.0f, 100.0f, HISTORY_GRAPH_SIZE);
+    ImGui::NewLine();
+
+    ImGui::Text("Simulation Thread CPU Usage: %.2f%%", static_cast<float>(stats.host_cpu_usage) * 100.0f);
+    ImGui::PlotLines("##stats_simulation_speed_history", m_stats.host_cpu_usage_history.data(),
+                     NUM_STATS_HISTORY_VALUES, m_stats.history_position, nullptr, 0.0f, FLT_MAX, HISTORY_GRAPH_SIZE);
+    ImGui::NewLine();
+
+    ImGui::Text("Code Block Count: %" PRIu64, stats.cpu_stats.num_code_cache_blocks);
+    ImGui::Text("Blocks Executed: %" PRIu64, stats.cpu_delta_code_cache_blocks_executed);
+    ImGui::Text("Cached Instructions Executed: %" PRIu64, stats.cpu_delta_code_cache_instructions_executed);
+    ImGui::Text("Instructions Interpreted: %" PRIu64, stats.cpu_delta_instructions_interpreted);
+    ImGui::PlotLines("##stats_instructions_executed", m_stats.instructions_executed_history.data(),
+                     NUM_STATS_HISTORY_VALUES, m_stats.history_position, nullptr, FLT_MIN, FLT_MAX, HISTORY_GRAPH_SIZE);
+    ImGui::NewLine();
+
+    ImGui::Text("Interrupts Serviced: %" PRIu64 " (delta %" PRIu64 ")", stats.cpu_stats.interrupts_serviced,
+                stats.cpu_delata_interrupts_serviced);
+    ImGui::PlotLines("##interrupts_serviced_history", m_stats.interrupts_serviced_history.data(),
+                     NUM_STATS_HISTORY_VALUES, m_stats.history_position, nullptr, FLT_MIN, FLT_MAX, HISTORY_GRAPH_SIZE);
+    ImGui::NewLine();
+
+    ImGui::Text("Exceptions Raised: %" PRIu64 " (delta %" PRIu64 ")", stats.cpu_stats.exceptions_raised,
+                stats.cpu_delta_exceptions_raised);
+    ImGui::PlotLines("##stats_exceptions_raised", m_stats.exceptions_raised_history.data(), NUM_STATS_HISTORY_VALUES,
+                     m_stats.history_position, nullptr, FLT_MIN, FLT_MAX, HISTORY_GRAPH_SIZE);
+  }
+
+  ImGui::End();
 }
 
 void SDLHostInterface::DoLoadState(u32 index)

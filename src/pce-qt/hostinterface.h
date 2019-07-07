@@ -52,7 +52,7 @@ protected:
   void OnSystemDestroy() override;
   void OnSimulationResumed() override;
   void OnSimulationPaused() override;
-  void OnSimulationSpeedUpdate(float speed_percent) override;
+  void OnSimulationStatsUpdate(const SimulationStats& stats) override;
   void YieldToUI() override;
   void run() override;
 

@@ -16,6 +16,7 @@ public:
 
   virtual void OnControlRegisterLoaded(Reg32 reg, u32 old_CR3, u32 new_CR3) = 0;
 
+  virtual size_t GetCodeBlockCount() const = 0;
   virtual void FlushCodeCache() = 0;
 };
 

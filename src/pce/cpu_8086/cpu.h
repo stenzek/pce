@@ -130,7 +130,7 @@ public:
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
   void AddCycles(CycleCount cycles) { m_pending_cycles += cycles; }
-  void AddMemoryCycle() { /*m_pending_cycles++;*/}
+  void AddMemoryCycle() { /*m_pending_cycles++;*/ }
   void CommitPendingCycles();
 
   // Calculates the physical address of memory with the specified segment and offset.
@@ -174,6 +174,8 @@ public:
   void ExecuteSlice(SimulationTime time) override;
   void StallExecution(SimulationTime time) override;
   void StopExecution() override;
+  void FlushCodeCache() override;
+  void GetExecutionStats(ExecutionStats* stats) const override;
 
 protected:
   // Instruction fetching
@@ -244,6 +246,9 @@ protected:
 
   // External interrupt request line
   bool m_irq_state = false;
+
+  // Execution stats.
+  ExecutionStats m_execution_stats = {};
 
 #ifdef ENABLE_PREFETCH_EMULATION
   byte m_prefetch_queue[PREFETCH_QUEUE_SIZE] = {};

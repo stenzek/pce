@@ -185,6 +185,7 @@ void CPU::Reset()
 
   m_effective_address = 0;
   std::memset(&idata, 0, sizeof(idata));
+  m_execution_stats = {};
 
   m_backend->Reset();
 }
@@ -299,6 +300,7 @@ bool CPU::LoadState(BinaryReader& reader)
 
   m_effective_address = 0;
   std::memset(&idata, 0, sizeof(idata));
+  m_execution_stats = {};
 
   return !reader.GetErrorState();
 }
@@ -517,6 +519,13 @@ u64 CPU::ReadTSC() const
 void CPU::FlushCodeCache()
 {
   m_backend->FlushCodeCache();
+}
+
+void CPU::GetExecutionStats(ExecutionStats* stats) const
+{
+  std::memcpy(stats, &m_execution_stats, sizeof(*stats));
+  stats->cycles_executed = m_tsc_cycles + m_pending_cycles;
+  stats->num_code_cache_blocks = m_backend->GetCodeBlockCount();
 }
 
 void CPU::CreateBackend()
@@ -2082,6 +2091,7 @@ void CPU::DispatchExternalInterrupt()
   // m_current_EIP/ESP must match the current state in case setting up the interrupt throws an exception.
   m_current_EIP = m_registers.EIP;
   m_current_ESP = m_registers.ESP;
+  m_execution_stats.interrupts_serviced++;
 
   // Request interrupt number from the PIC.
   const u32 interrupt_number = m_interrupt_controller->GetInterruptNumber();
@@ -2127,6 +2137,7 @@ void CPU::RaiseException(u32 interrupt, u32 error_code /* = 0 */)
   // partially-executed instructions, or a nested exception.
   m_registers.ESP = m_current_ESP;
   m_current_exception = interrupt;
+  m_execution_stats.exceptions_raised++;
 
   // Set up the call to the corresponding interrupt vector.
   SetupInterruptCall(interrupt, false, push_error_code, error_code, m_current_EIP);

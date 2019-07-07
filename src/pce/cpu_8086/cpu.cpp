@@ -253,8 +253,18 @@ void CPU::StopExecution()
   m_execution_downcount = 0;
 }
 
+void CPU::FlushCodeCache()
+{
+}
+
+void CPU::GetExecutionStats(ExecutionStats* stats) const
+{
+  std::memcpy(stats, &m_execution_stats, sizeof(m_execution_stats));
+}
+
 void CPU::CommitPendingCycles()
 {
+  m_execution_stats.cycles_executed += m_pending_cycles;
   m_execution_downcount -= m_pending_cycles;
   m_system->GetTimingManager()->AddPendingTime(m_pending_cycles * GetCyclePeriod());
   m_pending_cycles = 0;
@@ -562,6 +572,7 @@ void CPU::DispatchExternalInterrupt()
 
   // m_current_EIP/ESP must match the current state in case setting up the interrupt throws an exception.
   m_current_IP = m_registers.IP;
+  m_execution_stats.interrupts_serviced++;
 
   // Request interrupt number from the PIC.
   const u32 interrupt_number = m_interrupt_controller->GetInterruptNumber();
@@ -571,6 +582,7 @@ void CPU::DispatchExternalInterrupt()
 void CPU::RaiseException(u32 interrupt)
 {
   Log_DebugPrintf("Raise exception %u IP %04x:%04x", interrupt, m_registers.CS, m_current_IP);
+  m_execution_stats.exceptions_raised++;
 
   // Set up the call to the corresponding interrupt vector.
   SetupInterruptCall(interrupt, m_current_IP);

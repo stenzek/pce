@@ -80,8 +80,6 @@ const char* CPU::BackendTypeToString(BackendType type)
   }
 }
 
-void CPU::FlushCodeCache() {}
-
 void CPU::UpdateCyclePeriod()
 {
   m_cycle_period = SimulationTime(double(1000000000) / double(m_frequency));

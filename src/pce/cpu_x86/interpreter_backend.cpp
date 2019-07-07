@@ -54,6 +54,11 @@ void InterpreterBackend::BranchFromException(u32 new_EIP) {}
 
 void InterpreterBackend::OnControlRegisterLoaded(Reg32 reg, u32 old_value, u32 new_value) {}
 
+size_t InterpreterBackend::GetCodeBlockCount() const
+{
+  return 0;
+}
+
 void InterpreterBackend::FlushCodeCache() {}
 
 } // namespace CPU_X86

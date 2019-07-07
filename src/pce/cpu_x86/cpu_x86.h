@@ -372,6 +372,7 @@ public:
 
   // Code cache flushing - for recompiler backends
   void FlushCodeCache() override;
+  void GetExecutionStats(ExecutionStats* stats) const override;
 
 protected:
   // Actually creates the backend.
@@ -610,6 +611,9 @@ protected:
 
   // Timing data.
   u16 m_cycle_group_timings[NUM_CYCLE_GROUPS] = {};
+
+  // Execution statistics.
+  ExecutionStats m_execution_stats = {};
 
 #ifdef ENABLE_TLB_EMULATION
   // We use the lower 12 bits to represent a "counter" which is incremented each

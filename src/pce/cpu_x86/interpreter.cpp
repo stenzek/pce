@@ -18,6 +18,7 @@ void Interpreter::ExecuteInstruction(CPU* cpu)
   // The address of the current instruction is needed when exceptions occur.
   cpu->m_current_EIP = cpu->m_registers.EIP;
   cpu->m_current_ESP = cpu->m_registers.ESP;
+  cpu->m_execution_stats.instructions_interpreted++;
 
   // Cycle for this execution
   cpu->AddCycle();

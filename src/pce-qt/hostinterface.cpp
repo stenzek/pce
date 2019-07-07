@@ -183,10 +183,9 @@ void QtHostInterface::OnSimulationPaused()
   emit onSimulationPaused();
 }
 
-void QtHostInterface::OnSimulationSpeedUpdate(float speed_percent)
+void QtHostInterface::OnSimulationStatsUpdate(const SimulationStats& stats)
 {
-  HostInterface::OnSimulationSpeedUpdate(speed_percent);
-  emit onSimulationSpeedUpdate(speed_percent, GetDisplayRenderer()->GetPrimaryDisplayFramesPerSecond());
+  emit onSimulationSpeedUpdate(stats.simulation_speed * 100.0f, GetDisplayRenderer()->GetPrimaryDisplayFramesPerSecond());
 }
 
 void QtHostInterface::YieldToUI()
