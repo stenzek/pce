@@ -1046,6 +1046,7 @@ ALWAYS_INLINE constexpr u32 ParityFlag(T value)
   return (static_cast<u32>(~_mm_popcnt_u32(static_cast<u32>(value & 0xFF))) & u32(1)) << 2;
 }
 #else
+template<typename T>
 ALWAYS_INLINE constexpr bool IsParity(T value)
 {
   return static_cast<bool>(~Y_popcnt(static_cast<u8>(value & 0xFF)) & 1);
