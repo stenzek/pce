@@ -539,15 +539,19 @@ protected:
   void FlushPrefetchQueue();
   bool FillPrefetchQueue();
 
-  InterruptController* m_interrupt_controller = nullptr;
-  std::unique_ptr<Backend> m_backend;
-  std::unique_ptr<DebuggerInterface> m_debugger_interface;
-
   // Pending cycles, used for some jit backends.
   // Pending time is added at the start of the block, then committed at the next block execution.
   CycleCount m_pending_cycles = 0;
   CycleCount m_execution_downcount = 0;
   CycleCount m_tsc_cycles = 0;
+
+  // All guest-visible registers
+  Registers m_registers = {};
+  FPURegisters m_fpu_registers = {};
+
+  // Current execution state.
+  VirtualMemoryAddress m_effective_address = 0;
+  InstructionData idata = {};
 
   // CPU model that determines behavior.
   Model m_model = MODEL_386;
@@ -562,10 +566,6 @@ protected:
   // Used to recover from half-executed instructions when exceptions are thrown.
   u32 m_current_ESP = 0;
 
-  // All guest-visible registers
-  Registers m_registers = {};
-  FPURegisters m_fpu_registers = {};
-
   // Current address and operand sizes (operating mode)
   AddressSize m_current_address_size = AddressSize_16;
   OperandSize m_current_operand_size = OperandSize_16;
@@ -575,6 +575,10 @@ protected:
 
   // EIP mask - 0xFFFF for 16-bit code, 0xFFFFFFFF for 32-bit code.
   u32 m_EIP_mask = 0xFFFF;
+
+  InterruptController* m_interrupt_controller = nullptr;
+  std::unique_ptr<Backend> m_backend;
+  std::unique_ptr<DebuggerInterface> m_debugger_interface;
 
   // Locations of descriptor tables
   DescriptorTablePointer m_idt_location;
@@ -638,10 +642,6 @@ protected:
   u32 m_prefetch_queue_position = 0;
   u32 m_prefetch_queue_size = 0;
 #endif
-
-  // Current execution state.
-  VirtualMemoryAddress m_effective_address = 0;
-  InstructionData idata = {};
 };
 
 template<u32 size, AccessType access>
