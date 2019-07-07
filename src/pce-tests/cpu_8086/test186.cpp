@@ -8,7 +8,7 @@ Log_SetChannel(CPU_X86_Test186);
 
 static bool RunTest(const char* code_file, const char* expected_ouput_file)
 {
-  CPU_8086_TestSystem* system =
+  StubSystemPointer<CPU_8086_TestSystem> system =
     StubHostInterface::CreateSystem<CPU_8086_TestSystem>(CPU_8086::MODEL_80186, 1000000.0f, 1024 * 1024);
   system->AddROMFile(code_file, 0xF0000, 65536);
 
@@ -71,7 +71,6 @@ static bool RunTest(const char* code_file, const char* expected_ouput_file)
     }
   }
 
-  StubHostInterface::ReleaseSystem();
   return result;
 }
 

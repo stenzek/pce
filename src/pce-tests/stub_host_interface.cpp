@@ -12,6 +12,14 @@ StubHostInterface::StubHostInterface()
 
 StubHostInterface::~StubHostInterface() {}
 
+StubHostInterface* StubHostInterface::GetInstance()
+{
+  if (!s_host_interface)
+    s_host_interface = std::make_unique<StubHostInterface>();
+
+  return s_host_interface.get();
+}
+
 void StubHostInterface::SetSystem(std::unique_ptr<System> system)
 {
   if (!s_host_interface)

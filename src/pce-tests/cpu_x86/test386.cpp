@@ -15,7 +15,7 @@ static void RunTest386(CPU::BackendType cpu_backend)
 
   // The clock speed has to be sufficiently high to execute the entire test program. 100MHz should do.
   const float cpu_frequency = 100000000.0f;
-  CPU_X86_TestSystem* system =
+  StubSystemPointer<CPU_X86_TestSystem> system =
     StubHostInterface::CreateSystem<CPU_X86_TestSystem>(CPU_X86::MODEL_386, cpu_frequency, cpu_backend, 1024 * 1024);
 
   system->AddROMFile(image_file, 0xf0000u);

@@ -8,7 +8,7 @@ Log_SetChannel(CPU_X86_Test186);
 
 static bool RunTest(CPU::BackendType backend, const char* code_file, const char* expected_ouput_file)
 {
-  CPU_X86_TestSystem* system =
+  StubSystemPointer<CPU_X86_TestSystem> system =
     StubHostInterface::CreateSystem<CPU_X86_TestSystem>(CPU_X86::MODEL_386, 1000000.0f, backend, 1024 * 1024);
   system->AddROMFile(code_file, UINT32_C(0xF0000));
 
@@ -71,7 +71,6 @@ static bool RunTest(CPU::BackendType backend, const char* code_file, const char*
     }
   }
 
-  StubHostInterface::ReleaseSystem();
   return result;
 }
 
