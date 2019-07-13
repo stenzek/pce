@@ -311,6 +311,8 @@ void HDC::IOReadStatusRegister(u32 channel, u8* value)
 
   const ATADevice* device = GetCurrentDevice(channel);
   *value = device ? device->ReadStatusRegister() : 0xFF;
+  Log_TracePrintf("ATA read status register %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
+                  ZeroExtend32(*value));
 }
 
 void HDC::IOReadAltStatusRegister(u32 channel, u8* value)
@@ -323,11 +325,14 @@ void HDC::IOReadAltStatusRegister(u32 channel, u8* value)
 
   const ATADevice* device = GetCurrentDevice(channel);
   *value = device ? device->ReadStatusRegister() : 0xFF;
+  Log_TracePrintf("ATA read alt status register %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
+                  ZeroExtend32(*value));
 }
 
 void HDC::IOWriteCommandRegister(u32 channel, u8 value)
 {
-  Log_TracePrintf("ATA write command register <- 0x%02X", ZeroExtend32(value));
+  Log_TracePrintf("ATA write command register %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
+                  ZeroExtend32(value));
 
   const u8 index = GetCurrentDeviceIndex(channel);
   if (!m_channels[channel].devices[index])
@@ -343,11 +348,14 @@ void HDC::IOReadErrorRegister(u32 channel, u8* value)
 {
   const ATADevice* device = GetCurrentDevice(channel);
   *value = device ? device->ReadErrorRegister() : 0xFF;
+  Log_TracePrintf("ATA read error register %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
+                  ZeroExtend32(*value));
 }
 
 void HDC::IOWriteControlRegister(u32 channel, u8 value)
 {
-  Log_TracePrintf("ATA write control register <- 0x%02X", ZeroExtend32(value));
+  Log_TracePrintf("ATA write control register %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
+                  ZeroExtend32(value));
 
   auto old_value = m_channels[channel].control_register;
   m_channels[channel].control_register.bits = value;
@@ -432,6 +440,8 @@ void HDC::IOReadCommandBlockSectorCount(u32 channel, u8* value)
   const ATADevice* device = GetCurrentDevice(channel);
   *value =
     device ? device->ReadCommandBlockSectorCount(m_channels[channel].control_register.high_order_byte_readback) : 0xFF;
+  Log_TracePrintf("ATA read sector count %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
+                  ZeroExtend32(*value));
 }
 
 void HDC::IOReadCommandBlockSectorNumber(u32 channel, u8* value)
@@ -439,6 +449,8 @@ void HDC::IOReadCommandBlockSectorNumber(u32 channel, u8* value)
   const ATADevice* device = GetCurrentDevice(channel);
   *value =
     device ? device->ReadCommandBlockSectorNumber(m_channels[channel].control_register.high_order_byte_readback) : 0xFF;
+  Log_TracePrintf("ATA read sector number %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
+                  ZeroExtend32(*value));
 }
 
 void HDC::IOReadCommandBlockCylinderLow(u32 channel, u8* value)
@@ -446,6 +458,8 @@ void HDC::IOReadCommandBlockCylinderLow(u32 channel, u8* value)
   const ATADevice* device = GetCurrentDevice(channel);
   *value =
     device ? device->ReadCommandBlockCylinderLow(m_channels[channel].control_register.high_order_byte_readback) : 0xFF;
+  Log_TracePrintf("ATA read cylinder low %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
+                  ZeroExtend32(*value));
 }
 
 void HDC::IOReadCommandBlockCylinderHigh(u32 channel, u8* value)
@@ -453,11 +467,13 @@ void HDC::IOReadCommandBlockCylinderHigh(u32 channel, u8* value)
   const ATADevice* device = GetCurrentDevice(channel);
   *value =
     device ? device->ReadCommandBlockCylinderHigh(m_channels[channel].control_register.high_order_byte_readback) : 0xFF;
+  Log_TracePrintf("ATA read cylinder high %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
+                  ZeroExtend32(*value));
 }
 
 void HDC::IOWriteCommandBlockFeatures(u32 channel, u8 value)
 {
-  Log_TracePrintf("ATA write command block features 0x%02X", value);
+  Log_TracePrintf("ATA write command block features %u/%u 0x%02X", channel, GetCurrentDeviceIndex(channel), value);
   for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
     if (m_channels[channel].devices[i])
@@ -467,7 +483,7 @@ void HDC::IOWriteCommandBlockFeatures(u32 channel, u8 value)
 
 void HDC::IOWriteCommandBlockSectorCount(u32 channel, u8 value)
 {
-  Log_TracePrintf("ATA write command block sector count 0x%02X", value);
+  Log_TracePrintf("ATA write command block %u/%u sector count 0x%02X", channel, GetCurrentDeviceIndex(channel), value);
   for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
     if (m_channels[channel].devices[i])
@@ -477,7 +493,7 @@ void HDC::IOWriteCommandBlockSectorCount(u32 channel, u8 value)
 
 void HDC::IOWriteCommandBlockSectorNumber(u32 channel, u8 value)
 {
-  Log_TracePrintf("ATA write command block sector number 0x%02X", value);
+  Log_TracePrintf("ATA write command block %u/%u sector number 0x%02X", channel, GetCurrentDeviceIndex(channel), value);
   for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
     if (m_channels[channel].devices[i])
@@ -487,7 +503,7 @@ void HDC::IOWriteCommandBlockSectorNumber(u32 channel, u8 value)
 
 void HDC::IOWriteCommandBlockCylinderLow(u32 channel, u8 value)
 {
-  Log_TracePrintf("ATA write command block cylinder low 0x%02X", value);
+  Log_TracePrintf("ATA write command block %u/%u cylinder low 0x%02X", channel, GetCurrentDeviceIndex(channel), value);
   for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
     if (m_channels[channel].devices[i])
@@ -497,7 +513,7 @@ void HDC::IOWriteCommandBlockCylinderLow(u32 channel, u8 value)
 
 void HDC::IOWriteCommandBlockCylinderHigh(u32 channel, u8 value)
 {
-  Log_TracePrintf("ATA write command block cylinder high 0x%02X", value);
+  Log_TracePrintf("ATA write command block %u/%u cylinder high 0x%02X", channel, GetCurrentDeviceIndex(channel), value);
   for (u32 i = 0; i < DEVICES_PER_CHANNEL; i++)
   {
     if (m_channels[channel].devices[i])
