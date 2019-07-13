@@ -263,6 +263,9 @@ bool CPU::LoadState(BinaryReader& reader)
   for (u32 i = 0; i < Segment_Count; i++)
     ReadSegmentCache(&m_segment_cache[i]);
 
+  for (u32 i = 0; i < countof(m_msr_registers.raw_regs); i++)
+    reader.SafeReadUInt32(&m_msr_registers.raw_regs[i]);
+
   reader.SafeReadUInt8(&m_cpl);
   reader.SafeReadUInt8(&m_tlb_user_bit);
   reader.SafeReadBool(&m_alignment_check_enabled);
@@ -362,6 +365,9 @@ bool CPU::SaveState(BinaryWriter& writer)
   };
   for (u32 i = 0; i < Segment_Count; i++)
     WriteSegmentCache(&m_segment_cache[i]);
+
+  for (u32 i = 0; i < countof(m_msr_registers.raw_regs); i++)
+    writer.WriteUInt32(m_msr_registers.raw_regs[i]);
 
   writer.WriteUInt8(m_cpl);
   writer.WriteUInt8(m_tlb_user_bit);

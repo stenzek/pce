@@ -229,6 +229,8 @@ public:
       u32 tr1;  // 0x02
       u32 tr12; // 0x0E
     } pentium;
+
+    u32 raw_regs[2];
   };
 
   struct DescriptorTablePointer
