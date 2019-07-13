@@ -753,10 +753,9 @@ void Bus::ConnectMMIO(MMIO* mmio)
   auto callback = [this, mmio](u32 page_number, PhysicalMemoryPage* page) {
     if (page->mmio_handler)
     {
-      Log_WarningPrintf("Duplicate MMIO handlers for page %08X, most recent will take precedence",
-                        unsigned(page_number * MEMORY_PAGE_SIZE));
-      page->mmio_handler->Release();
-      page->mmio_handler = nullptr;
+      Log_WarningPrintf("Page %08X already has a MMIO handler, ignoring new handler",
+                        u32(page_number * MEMORY_PAGE_SIZE));
+      return;
     }
 
     page->mmio_handler = mmio;
