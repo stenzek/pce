@@ -215,9 +215,14 @@ void i8259_PIC::SetInterruptState(u32 interrupt, bool active)
   // Set IRR on positive edge only in edge-triggered mode.
   // Update IRR whenever there is a change in level-triggered mode.
   if (active)
+  {
     pic->request_register |= bit;
-  else if (pic->IsLevelTriggered(interrupt_number))
-    pic->request_register &= ~bit;
+  }
+  else
+  {
+    if (pic->IsLevelTriggered(interrupt_number))
+      pic->request_register &= ~bit;
+  }
 
   // Update INTR.
   UpdateInterruptRequest();
