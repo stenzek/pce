@@ -146,6 +146,7 @@ protected:
   PhysicalMemoryAddress GetMemoryRegionBaseAddress(u8 function, MemoryRegion region) const;
 
   // Memory region change notifications.
+  virtual void ResetConfigSpace(u8 function);
   virtual void OnCommandRegisterChanged(u8 function);
   virtual void OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active);
 

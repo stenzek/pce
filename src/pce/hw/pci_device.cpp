@@ -70,28 +70,7 @@ bool PCIDevice::Initialize(System* system, Bus* bus)
 void PCIDevice::Reset()
 {
   for (u8 i = 0; i < m_num_functions; i++)
-  {
-    auto& cs = m_config_space[i];
-
-    // Disable memory and IO decoding?
-    cs.header.command.enable_io_space = false;
-    cs.header.command.enable_memory_space = false;
-
-    for (u8 j = 0; j < NumMemoryRegions; j++)
-    {
-      const auto& mr = cs.memory_regions[j];
-      if (mr.size > 0)
-      {
-        const u32 base = (j == MemoryRegion_ExpansionROM) ? (0x30 / 4) : ((0x10 / 4) + static_cast<u32>(j));
-        if (!mr.is_io)
-          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFF0)) | BoolToUInt32(mr.is_prefetchable);
-        else
-          cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFFC)) | 0x01;
-
-        OnMemoryRegionChanged(i, static_cast<MemoryRegion>(j), false);
-      }
-    }
-  }
+    ResetConfigSpace(i);
 }
 
 bool PCIDevice::LoadState(BinaryReader& reader)
@@ -211,6 +190,40 @@ PhysicalMemoryAddress PCIDevice::GetMemoryRegionBaseAddress(u8 function, MemoryR
     return cs.dwords[base] & UINT32_C(0xFFFFFFF0);
   else
     return cs.dwords[base] & UINT32_C(0xFFFFFFFC);
+}
+
+void PCIDevice::ResetConfigSpace(u8 function)
+{
+  auto& cs = m_config_space[function];
+
+  // Don't trample over the read-only fields.
+  for (u32 byte_offset = 0x04; byte_offset < 0x08; byte_offset++)
+    cs.bytes[byte_offset] = 0;
+  for (u32 byte_offset = 0x10; byte_offset < 0x2C; byte_offset++)
+    cs.bytes[byte_offset] = 0;
+  for (u32 byte_offset = 0x30; byte_offset < 0x34; byte_offset++)
+    cs.bytes[byte_offset] = 0;
+  for (u32 byte_offset = 0x40; byte_offset < countof(cs.bytes); byte_offset++)
+    cs.bytes[byte_offset] = 0;
+
+  // Disable memory and IO decoding?
+  cs.header.command.enable_io_space = false;
+  cs.header.command.enable_memory_space = false;
+
+  for (u8 j = 0; j < NumMemoryRegions; j++)
+  {
+    const auto& mr = cs.memory_regions[j];
+    if (mr.size > 0)
+    {
+      const u32 base = (j == MemoryRegion_ExpansionROM) ? (0x30 / 4) : ((0x10 / 4) + static_cast<u32>(j));
+      if (!mr.is_io)
+        cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFF0)) | BoolToUInt32(mr.is_prefetchable);
+      else
+        cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFFC)) | 0x01;
+
+      OnMemoryRegionChanged(function, static_cast<MemoryRegion>(j), false);
+    }
+  }
 }
 
 void PCIDevice::OnCommandRegisterChanged(u8 function) {}

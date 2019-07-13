@@ -166,17 +166,21 @@ void PCIIDE::DoReset(u32 channel, bool hardware_reset)
     }
   }
 
-  if (hardware_reset)
-  {
-    m_config_space[0].header.command.enable_io_space = true;
-    m_config_space[0].header.command.enable_bus_master = true;
-    m_config_space[0].words[0x20] = 0x8000; // IDE0 Enabled
-    m_config_space[0].words[0x21] = 0x8000; // IDE1 Enabled
-  }
+  BaseClass::DoReset(channel, hardware_reset);
+}
+
+void PCIIDE::ResetConfigSpace(u8 function)
+{
+  PCIDevice::ResetConfigSpace(function);
+  if (function > 0)
+    return;
+
+  m_config_space[0].header.command.enable_io_space = true;
+  m_config_space[0].header.command.enable_bus_master = true;
+  m_config_space[0].words[0x20] = 0x8000; // IDE0 Enabled
+  m_config_space[0].words[0x21] = 0x8000; // IDE1 Enabled
 
   ConnectIOPorts(BaseClass::GetBus());
-
-  BaseClass::DoReset(channel, hardware_reset);
 }
 
 void PCIIDE::OnCommandRegisterChanged(u8 function)

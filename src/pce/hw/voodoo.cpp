@@ -37,20 +37,12 @@ bool Voodoo::Initialize(System* system, Bus* bus)
     case Type::Voodoo1:
       InitPCIID(0, 0x121A, 0x0001);
       InitPCIClass(0, 0x04, 0x00, 0x00, 0x00);
-      InitPCIMemoryRegion(0, PCIDevice::MemoryRegion_BAR0, DEFAULT_MEMORY_REGION_ADDRESS, MEMORY_REGION_SIZE, false,
-                          false);
       type = TYPE_VOODOO_1;
       freq = (m_clock_frequency != 0) ? m_clock_frequency : STD_VOODOO_1_CLOCK;
       break;
     case Type::Voodoo2:
       InitPCIID(0, 0x121A, 0x0002);
       InitPCIClass(0, 0x04, 0x80, 0x00, 0x00);
-      InitPCIMemoryRegion(0, PCIDevice::MemoryRegion_BAR0, DEFAULT_MEMORY_REGION_ADDRESS, MEMORY_REGION_SIZE, false,
-                          false);
-      m_config_space[0].bytes[0x40] = 0x00;
-      m_config_space[0].bytes[0x41] = 0x40; // Voodoo2 revision
-      m_config_space[0].bytes[0x42] = 0x01;
-      m_config_space[0].bytes[0x43] = 0x00;
       type = TYPE_VOODOO_2;
       freq = (m_clock_frequency != 0) ? m_clock_frequency : STD_VOODOO_2_CLOCK;
       break;
@@ -94,9 +86,35 @@ bool Voodoo::SaveState(BinaryWriter& writer)
   return BaseClass::SaveState(writer);
 }
 
+void Voodoo::ResetConfigSpace(u8 function)
+{
+  BaseClass::ResetConfigSpace(function);
+
+  if (function > 0)
+    return;
+
+  switch (m_type)
+  {
+    case Type::Voodoo1:
+      InitPCIMemoryRegion(0, PCIDevice::MemoryRegion_BAR0, DEFAULT_MEMORY_REGION_ADDRESS, MEMORY_REGION_SIZE, false,
+                          false);
+      break;
+    case Type::Voodoo2:
+      InitPCIMemoryRegion(0, PCIDevice::MemoryRegion_BAR0, DEFAULT_MEMORY_REGION_ADDRESS, MEMORY_REGION_SIZE, false,
+                          false);
+      m_config_space[0].bytes[0x40] = 0x00;
+      m_config_space[0].bytes[0x41] = 0x40; // Voodoo2 revision
+      m_config_space[0].bytes[0x42] = 0x01;
+      m_config_space[0].bytes[0x43] = 0x00;
+      break;
+    default:
+      break;
+  }
+}
+
 u8 Voodoo::ReadConfigSpace(u8 function, u8 offset)
 {
-  if (function >= 1)
+  if (function > 0)
     return 0xFF;
 
   u8 value;

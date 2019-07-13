@@ -29,7 +29,14 @@ bool i82437FX::Initialize(System* system, Bus* bus)
 
 void i82437FX::Reset()
 {
-  PCIDevice::Reset();
+  BaseClass::Reset();
+}
+
+void i82437FX::ResetConfigSpace(u8 function)
+{
+  BaseClass::ResetConfigSpace(function);
+  if (function > 0)
+    return;
 
   // Default values from pcem.
   m_config_space[0].bytes[0x04] = 0x06;

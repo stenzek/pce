@@ -28,6 +28,7 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
+  void ResetConfigSpace(u8 function) override;
   u8 ReadConfigSpace(u8 function, u8 offset) override;
   void WriteConfigSpace(u8 function, u8 offset, u8 value) override;
 

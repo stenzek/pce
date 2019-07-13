@@ -36,6 +36,7 @@ protected:
   static constexpr u32 MEMORY_REGION_SIZE = 16 * 1024 * 1024;
   static constexpr u32 MEMORY_REGION_DWORD_MASK = (MEMORY_REGION_SIZE / 4) - 1;
 
+  void ResetConfigSpace(u8 function) override;
   u8 ReadConfigSpace(u8 function, u8 offset) override;
   void WriteConfigSpace(u8 function, u8 offset, u8 value) override;
   void OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active) override;
