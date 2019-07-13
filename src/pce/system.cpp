@@ -57,8 +57,7 @@ void System::Reset()
 {
   m_timing_manager.ResetTotalEmulatedTime();
 
-  m_cpu->Reset();
-
+  m_bus->Reset();
   for (Component* component : m_components)
     component->Reset();
 }
