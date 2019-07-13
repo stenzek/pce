@@ -8,7 +8,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
-Log_SetChannel(CPUX86::Interpreter);
+Log_SetChannel(CPU_X86::CodeCacheBackend);
 
 namespace CPU_X86 {
 

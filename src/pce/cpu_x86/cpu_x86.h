@@ -299,7 +299,9 @@ public:
 
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
-  void AddMemoryCycle() { /*m_pending_cycles++;*/}
+  void AddMemoryCycle()
+  { /*m_pending_cycles++;*/
+  }
   void AddCycles(CYCLE_GROUP group) { m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group]); }
   void AddCyclesPMode(CYCLE_GROUP group)
   {
@@ -379,25 +381,28 @@ protected:
   void CreateBackend();
 
   // Reads privilege level
-  u8 GetCPL() const;
+  u8 GetCPL() const { return m_cpl; }
 
   // Checks for supervisor/user mode
-  bool InSupervisorMode() const;
-  bool InUserMode() const;
-  bool IsPagingEnabled() const;
+  bool InSupervisorMode() const { return (GetCPL() != 3); }
+  bool InUserMode() const { return (GetCPL() == 3); }
+  bool IsPagingEnabled() const { return ConvertToBoolUnchecked((m_registers.CR0 >> 31) & u32(1) /* CR0Bit_PG */); }
 
   // Reads i/o privilege level from flags
-  u16 GetIOPL() const;
+  u16 GetIOPL() const { return Truncate16((m_registers.EFLAGS.bits >> 12) & u32(3) /* Flag_IOPL */); }
 
   // Helper to check for real mode
   // Returns false for V8086 mode
-  bool InRealMode() const;
+  bool InRealMode() const { return ConvertToBoolUnchecked((m_registers.CR0 & u32(1)) ^ u32(1) /* CR0Bit_PE */); }
 
   // Helper to check for protected mode
-  bool InProtectedMode() const;
+  bool InProtectedMode() const { return ConvertToBoolUnchecked(m_registers.CR0 & u32(1) /* CR0Bit_PE */); }
 
   // Helper to check for V8086 mode
-  bool InVirtual8086Mode() const;
+  bool InVirtual8086Mode() const
+  {
+    return ConvertToBoolUnchecked((m_registers.EFLAGS.bits >> 17) & u32(1) /* Flag_VM */);
+  }
 
   // Full page translation - page table lookup.
   bool LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,

@@ -554,46 +554,6 @@ void CPU::CreateBackend()
   }
 }
 
-u8 CPU::GetCPL() const
-{
-  return m_cpl;
-}
-
-bool CPU::InSupervisorMode() const
-{
-  return (GetCPL() != 3);
-}
-
-bool CPU::InUserMode() const
-{
-  return (GetCPL() == 3);
-}
-
-bool CPU::IsPagingEnabled() const
-{
-  return ((m_registers.CR0 & CR0Bit_PG) != 0);
-}
-
-u16 CPU::GetIOPL() const
-{
-  return Truncate16((m_registers.EFLAGS.bits & Flag_IOPL) >> 12);
-}
-
-bool CPU::InRealMode() const
-{
-  return ((m_registers.CR0 & CR0Bit_PE) == 0);
-}
-
-bool CPU::InProtectedMode() const
-{
-  return ((m_registers.CR0 & CR0Bit_PE) != 0);
-}
-
-bool CPU::InVirtual8086Mode() const
-{
-  return m_registers.EFLAGS.VM;
-}
-
 u8 CPU::FetchInstructionByte()
 {
 #ifdef ENABLE_PREFETCH_EMULATION
