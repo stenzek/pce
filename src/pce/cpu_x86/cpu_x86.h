@@ -4,6 +4,7 @@
 #include "pce/cpu.h"
 #include "pce/cpu_x86/cycles.h"
 #include "pce/cpu_x86/types.h"
+#include "pce/system.h"
 #include <functional>
 #include <memory>
 
@@ -225,8 +226,8 @@ public:
   {
     struct
     {
-      u32 tr1;        // 0x02
-      u32 tr12;       // 0x0E
+      u32 tr1;  // 0x02
+      u32 tr12; // 0x0E
     } pentium;
   };
 
@@ -320,8 +321,16 @@ public:
   {
     m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + static_cast<int>(rm_reg)]);
   }
-  void CommitPendingCycles();
-  u64 ReadTSC() const;
+
+  void CommitPendingCycles()
+  {
+    m_tsc_cycles += m_pending_cycles;
+    m_execution_downcount -= m_pending_cycles;
+    m_system->GetTimingManager()->AddPendingTime(m_pending_cycles * GetCyclePeriod());
+    m_pending_cycles = 0;
+  }
+
+  u64 ReadTSC() const { return static_cast<u64>(m_tsc_cycles + m_pending_cycles); }
 
   // Calculates the physical address of memory with the specified segment and offset.
   // If code is set, it is assumed to be reading instructions, otherwise data.

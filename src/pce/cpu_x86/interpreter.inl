@@ -2470,6 +2470,8 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
       return;
     }
 
+    cpu->CommitPendingCycles();
+
     u8 value;
     cpu->m_bus->ReadIOPortByte(port_number, &value);
     WriteByteOperand<dst_mode, dst_constant>(cpu, value);
@@ -2482,6 +2484,8 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
       return;
     }
 
+    cpu->CommitPendingCycles();
+
     u16 value;
     cpu->m_bus->ReadIOPortWord(port_number, &value);
     WriteWordOperand<dst_mode, dst_constant>(cpu, value);
@@ -2493,6 +2497,8 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
       cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
       return;
     }
+
+    cpu->CommitPendingCycles();
 
     u32 value;
     cpu->m_bus->ReadIOPortDWord(port_number, &value);
@@ -2524,6 +2530,8 @@ void Interpreter::Execute_Operation_OUT(CPU* cpu)
       return;
     }
 
+    cpu->CommitPendingCycles();
+
     u8 value = ReadByteOperand<src_mode, src_constant>(cpu);
     cpu->m_bus->WriteIOPortByte(port_number, value);
   }
@@ -2535,6 +2543,8 @@ void Interpreter::Execute_Operation_OUT(CPU* cpu)
       return;
     }
 
+    cpu->CommitPendingCycles();
+
     u16 value = ReadWordOperand<src_mode, src_constant>(cpu);
     cpu->m_bus->WriteIOPortWord(port_number, value);
   }
@@ -2545,6 +2555,8 @@ void Interpreter::Execute_Operation_OUT(CPU* cpu)
       cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
       return;
     }
+
+    cpu->CommitPendingCycles();
 
     u32 value = ReadDWordOperand<src_mode, src_constant>(cpu);
     cpu->m_bus->WriteIOPortDWord(port_number, value);
@@ -5178,6 +5190,8 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
         return;
       }
 
+      cpu->CommitPendingCycles();
+
       u8 value;
       cpu->m_bus->ReadIOPortByte(port_number, &value);
       cpu->WriteMemoryByte(Segment_ES, dst_address, value);
@@ -5191,6 +5205,8 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
         return;
       }
 
+      cpu->CommitPendingCycles();
+
       u16 value;
       cpu->m_bus->ReadIOPortWord(port_number, &value);
       cpu->WriteMemoryWord(Segment_ES, dst_address, value);
@@ -5203,6 +5219,8 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
         cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
         return;
       }
+
+      cpu->CommitPendingCycles();
 
       u32 value;
       cpu->m_bus->ReadIOPortDWord(port_number, &value);
@@ -5252,6 +5270,8 @@ void Interpreter::Execute_Operation_OUTS(CPU* cpu)
         return;
       }
 
+      cpu->CommitPendingCycles();
+
       u8 value = cpu->ReadMemoryByte(segment, src_address);
       cpu->m_bus->WriteIOPortByte(port_number, value);
       data_size = sizeof(u8);
@@ -5264,6 +5284,8 @@ void Interpreter::Execute_Operation_OUTS(CPU* cpu)
         return;
       }
 
+      cpu->CommitPendingCycles();
+
       u16 value = cpu->ReadMemoryWord(segment, src_address);
       cpu->m_bus->WriteIOPortWord(port_number, value);
       data_size = sizeof(u16);
@@ -5275,6 +5297,8 @@ void Interpreter::Execute_Operation_OUTS(CPU* cpu)
         cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
         return;
       }
+
+      cpu->CommitPendingCycles();
 
       u32 value = cpu->ReadMemoryDWord(segment, src_address);
       cpu->m_bus->WriteIOPortDWord(port_number, value);

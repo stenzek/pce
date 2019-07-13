@@ -44,7 +44,7 @@ public:
   float GetFrequency() const { return m_frequency; }
   void SetFrequency(float frequency);
 
-  SimulationTime GetCyclePeriod() const;
+  SimulationTime GetCyclePeriod() const { return m_cycle_period; }
 
   // IRQs are level-triggered
   virtual void SetIRQState(bool state);

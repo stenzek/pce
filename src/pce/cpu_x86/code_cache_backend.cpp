@@ -662,6 +662,12 @@ void CodeCacheBackend::InterpretUncachedBlock()
       break;
     }
 
+    if (TRACE_EXECUTION && m_cpu->m_registers.EIP != TRACE_EXECUTION_LAST_EIP)
+    {
+      m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP, nullptr);
+      TRACE_EXECUTION_LAST_EIP = m_cpu->m_registers.EIP;
+    }
+
     Interpreter::ExecuteInstruction(m_cpu);
   }
 

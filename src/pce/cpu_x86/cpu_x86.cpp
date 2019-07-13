@@ -503,19 +503,6 @@ void CPU::StopExecution()
   m_execution_downcount = 0;
 }
 
-void CPU::CommitPendingCycles()
-{
-  m_tsc_cycles += m_pending_cycles;
-  m_execution_downcount -= m_pending_cycles;
-  m_system->GetTimingManager()->AddPendingTime(m_pending_cycles * GetCyclePeriod());
-  m_pending_cycles = 0;
-}
-
-u64 CPU::ReadTSC() const
-{
-  return static_cast<u64>(m_tsc_cycles + m_pending_cycles);
-}
-
 void CPU::FlushCodeCache()
 {
   m_backend->FlushCodeCache();

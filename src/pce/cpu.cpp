@@ -48,11 +48,6 @@ void CPU::SetFrequency(float frequency)
   UpdateCyclePeriod();
 }
 
-SimulationTime CPU::GetCyclePeriod() const
-{
-  return m_cycle_period;
-}
-
 void CPU::SetIRQState(bool state) {}
 
 void CPU::SignalNMI() {}
