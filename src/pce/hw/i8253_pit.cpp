@@ -372,7 +372,6 @@ void i8253_PIT::SetChannelMode(size_t channel_index, ChannelOperatingMode mode)
       SetChannelOutputState(channel_index, false);
       channel->waiting_for_reload = true;
       channel->waiting_for_gate = false;
-      channel->reload_value_set = false;
     }
     break;
 
@@ -382,7 +381,6 @@ void i8253_PIT::SetChannelMode(size_t channel_index, ChannelOperatingMode mode)
       // to be set by software.
       SetChannelOutputState(channel_index, true);
       channel->waiting_for_reload = true;
-      channel->reload_value_set = false;
 
       // After the reload register has been set the PIT will wait for the next rising edge of the gate input.
       channel->waiting_for_gate = true;
@@ -398,7 +396,6 @@ void i8253_PIT::SetChannelMode(size_t channel_index, ChannelOperatingMode mode)
       SetChannelOutputState(channel_index, true);
       channel->waiting_for_reload = true;
       channel->waiting_for_gate = false;
-      channel->reload_value_set = false;
     }
     break;
 
@@ -410,7 +407,6 @@ void i8253_PIT::SetChannelMode(size_t channel_index, ChannelOperatingMode mode)
       SetChannelOutputState(channel_index, true);
       channel->waiting_for_reload = true;
       channel->waiting_for_gate = false;
-      channel->reload_value_set = false;
     }
     break;
 
@@ -423,7 +419,6 @@ void i8253_PIT::SetChannelMode(size_t channel_index, ChannelOperatingMode mode)
       SetChannelOutputState(channel_index, true);
       channel->waiting_for_reload = true;
       channel->waiting_for_gate = true;
-      channel->reload_value_set = false;
     }
     break;
 
@@ -456,6 +451,11 @@ void i8253_PIT::SetChannelReloadRegister(size_t channel_index, u16 reload_value)
       // The reload value can be changed at any time. In "lobyte/hibyte" access mode counting
       // will stop when the first byte of the reload value is set.
       channel->waiting_for_reload = false;
+
+      // Set the count early. This is so that if the reload register is set and then latched immediately after,
+      // software doesn't see the old value. If we don't do this, some Pentium BIOSes lock up at certain frequencies
+      // when the event doesn't line up between the accesses.
+      channel->count = GetFrequencyFromReloadValue(channel);
     }
     break;
 
@@ -488,6 +488,7 @@ void i8253_PIT::SetChannelReloadRegister(size_t channel_index, u16 reload_value)
       // signal, and counting will continue using the new reload value.
       channel->reload_value = reload_value;
       channel->waiting_for_reload = false;
+      channel->count = GetFrequencyFromReloadValue(channel);
     }
     break;
 
@@ -778,7 +779,7 @@ CycleCount i8253_PIT::UpdateChannelDowncount(size_t channel_index)
     {
       if (!channel->waiting_for_reload && !channel->waiting_for_gate && channel->HasCallback() &&
           !channel->output_state)
-        channel->downcount = channel->reload_value_set ? 1 : channel->count;
+        channel->downcount = channel->count;
       else
         channel->downcount = 0;
     }
@@ -787,7 +788,7 @@ CycleCount i8253_PIT::UpdateChannelDowncount(size_t channel_index)
     case ChannelOperatingModeRateGenerator:
     {
       if (!channel->waiting_for_reload && channel->gate_input && channel->HasCallback())
-        channel->downcount = channel->reload_value_set ? 1 : std::max(channel->count - 1, CycleCount(1));
+        channel->downcount = std::max(channel->count - 1, CycleCount(1));
       else
         channel->downcount = 0;
     }
@@ -796,7 +797,7 @@ CycleCount i8253_PIT::UpdateChannelDowncount(size_t channel_index)
     case ChannelOperatingModeSquareWaveGenerator:
     {
       if (!channel->waiting_for_reload && channel->gate_input && channel->HasCallback())
-        channel->downcount = channel->reload_value_set ? 1 : std::max(channel->count / 2, CycleCount(1));
+        channel->downcount = std::max(channel->count / 2, CycleCount(1));
       else
         channel->downcount = 0;
     }
