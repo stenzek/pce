@@ -427,6 +427,9 @@ enum Operation : u8
   Operation_CPUID,
   Operation_RDTSC,
   Operation_CMPXCHG8B,
+  Operation_WRMSR,
+  Operation_RDMSR,
+  Operation_RSM,
 
   // 8087+
   Operation_F2XM1,
@@ -1106,6 +1109,15 @@ union PAGE_TABLE_ENTRY
   BitField<u32, bool, 6, 1> dirty;
   BitField<u32, bool, 8, 1> global;
   BitField<u32, u32, 12, 20> physical_address;
+};
+
+enum MSR : u32
+{
+  MSR_MACHINE_CHECK_ADDRESS = 0x00,
+  MSR_MACHINE_CHECK_TYPE = 0x01,
+  MSR_TR1 = 0x02,
+  MSR_TR12 = 0x0E,
+  MSR_TSC = 0x10
 };
 
 } // namespace CPU_X86

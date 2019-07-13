@@ -194,8 +194,14 @@ void CPU_X86::Interpreter::Dispatch(CPU* cpu)
             FetchImmediate<OperandSize_32, OperandMode_ModRM_RM, 0>(cpu); // fetch immediate for operand 1 (OperandMode_ModRM_RM)
             Execute_Operation_MOV_TR<OperandSize_32, OperandMode_ModRM_TestRegister, 0, OperandSize_32, OperandMode_ModRM_RM, 0>(cpu);
             return;
+          case 0x30: // WRMSR
+            Execute_Operation_WRMSR(cpu);
+            return;
           case 0x31: // RDTSC
             Execute_Operation_RDTSC(cpu);
+            return;
+          case 0x32: // RDMSR
+            Execute_Operation_RDMSR(cpu);
             return;
           case 0x40: // CMOVcc Gv, Ev
             FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_Reg)
@@ -451,6 +457,9 @@ void CPU_X86::Interpreter::Dispatch(CPU* cpu)
             return;
           case 0xA9: // POP_Sreg GS
             Execute_Operation_POP_Sreg<OperandSize_16, OperandMode_SegmentRegister, Segment_GS>(cpu);
+            return;
+          case 0xAA: // RSM
+            Execute_Operation_RSM(cpu);
             return;
           case 0xAB: // BTS Ev, Gv
             FetchModRM(cpu); // fetch modrm for operand 0 (OperandMode_ModRM_RM)
@@ -3273,7 +3282,9 @@ CPU_X86::Interpreter::HandlerFunctionMap CPU_X86::Interpreter::s_handler_functio
   { HandlerFunctionKey::Build(Operation_MOV_DR, OperandSize_32, OperandMode_ModRM_DebugRegister, 0, OperandSize_32, OperandMode_ModRM_RM, 0), &CPU_X86::Interpreter::Execute_Operation_MOV_DR<OperandSize_32, OperandMode_ModRM_DebugRegister, 0, OperandSize_32, OperandMode_ModRM_RM, 0>},
   { HandlerFunctionKey::Build(Operation_MOV_TR, OperandSize_32, OperandMode_ModRM_RM, 0, OperandSize_32, OperandMode_ModRM_TestRegister, 0), &CPU_X86::Interpreter::Execute_Operation_MOV_TR<OperandSize_32, OperandMode_ModRM_RM, 0, OperandSize_32, OperandMode_ModRM_TestRegister, 0>},
   { HandlerFunctionKey::Build(Operation_MOV_TR, OperandSize_32, OperandMode_ModRM_TestRegister, 0, OperandSize_32, OperandMode_ModRM_RM, 0), &CPU_X86::Interpreter::Execute_Operation_MOV_TR<OperandSize_32, OperandMode_ModRM_TestRegister, 0, OperandSize_32, OperandMode_ModRM_RM, 0>},
+  { HandlerFunctionKey::Build(Operation_WRMSR), &CPU_X86::Interpreter::Execute_Operation_WRMSR},
   { HandlerFunctionKey::Build(Operation_RDTSC), &CPU_X86::Interpreter::Execute_Operation_RDTSC},
+  { HandlerFunctionKey::Build(Operation_RDMSR), &CPU_X86::Interpreter::Execute_Operation_RDMSR},
   { HandlerFunctionKey::Build(Operation_CMOVcc, OperandSize_8, OperandMode_JumpCondition, JumpCondition_Overflow, OperandSize_16, OperandMode_ModRM_Reg, 0, OperandSize_16, OperandMode_ModRM_RM, 0), &CPU_X86::Interpreter::Execute_Operation_CMOVcc<JumpCondition_Overflow, OperandSize_16, OperandMode_ModRM_Reg, 0, OperandSize_16, OperandMode_ModRM_RM, 0>},
   { HandlerFunctionKey::Build(Operation_CMOVcc, OperandSize_8, OperandMode_JumpCondition, JumpCondition_Overflow, OperandSize_32, OperandMode_ModRM_Reg, 0, OperandSize_32, OperandMode_ModRM_RM, 0), &CPU_X86::Interpreter::Execute_Operation_CMOVcc<JumpCondition_Overflow, OperandSize_32, OperandMode_ModRM_Reg, 0, OperandSize_32, OperandMode_ModRM_RM, 0>},
   { HandlerFunctionKey::Build(Operation_CMOVcc, OperandSize_8, OperandMode_JumpCondition, JumpCondition_NotOverflow, OperandSize_16, OperandMode_ModRM_Reg, 0, OperandSize_16, OperandMode_ModRM_RM, 0), &CPU_X86::Interpreter::Execute_Operation_CMOVcc<JumpCondition_NotOverflow, OperandSize_16, OperandMode_ModRM_Reg, 0, OperandSize_16, OperandMode_ModRM_RM, 0>},
@@ -3365,6 +3376,7 @@ CPU_X86::Interpreter::HandlerFunctionMap CPU_X86::Interpreter::s_handler_functio
   { HandlerFunctionKey::Build(Operation_SHLD, OperandSize_32, OperandMode_ModRM_RM, 0, OperandSize_32, OperandMode_ModRM_Reg, 0, OperandSize_8, OperandMode_Register, Reg8_CL), &CPU_X86::Interpreter::Execute_Operation_SHLD<OperandSize_32, OperandMode_ModRM_RM, 0, OperandSize_32, OperandMode_ModRM_Reg, 0, OperandSize_8, OperandMode_Register, Reg8_CL>},
   { HandlerFunctionKey::Build(Operation_PUSH_Sreg, OperandSize_16, OperandMode_SegmentRegister, Segment_GS), &CPU_X86::Interpreter::Execute_Operation_PUSH_Sreg<OperandSize_16, OperandMode_SegmentRegister, Segment_GS>},
   { HandlerFunctionKey::Build(Operation_POP_Sreg, OperandSize_16, OperandMode_SegmentRegister, Segment_GS), &CPU_X86::Interpreter::Execute_Operation_POP_Sreg<OperandSize_16, OperandMode_SegmentRegister, Segment_GS>},
+  { HandlerFunctionKey::Build(Operation_RSM), &CPU_X86::Interpreter::Execute_Operation_RSM},
   { HandlerFunctionKey::Build(Operation_BTS, OperandSize_16, OperandMode_ModRM_RM, 0, OperandSize_16, OperandMode_ModRM_Reg, 0), &CPU_X86::Interpreter::Execute_Operation_BTS<OperandSize_16, OperandMode_ModRM_RM, 0, OperandSize_16, OperandMode_ModRM_Reg, 0>},
   { HandlerFunctionKey::Build(Operation_BTS, OperandSize_32, OperandMode_ModRM_RM, 0, OperandSize_32, OperandMode_ModRM_Reg, 0), &CPU_X86::Interpreter::Execute_Operation_BTS<OperandSize_32, OperandMode_ModRM_RM, 0, OperandSize_32, OperandMode_ModRM_Reg, 0>},
   { HandlerFunctionKey::Build(Operation_SHRD, OperandSize_16, OperandMode_ModRM_RM, 0, OperandSize_16, OperandMode_ModRM_Reg, 0, OperandSize_8, OperandMode_Immediate, 0), &CPU_X86::Interpreter::Execute_Operation_SHRD<OperandSize_16, OperandMode_ModRM_RM, 0, OperandSize_16, OperandMode_ModRM_Reg, 0, OperandSize_8, OperandMode_Immediate, 0>},

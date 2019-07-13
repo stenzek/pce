@@ -5905,6 +5905,55 @@ void Interpreter::Execute_Operation_RDTSC(CPU* cpu)
   cpu->m_registers.EAX = Truncate32(tsc);
   cpu->m_registers.EDX = Truncate32(tsc >> 32);
 }
+
+void Interpreter::Execute_Operation_RDMSR(CPU* cpu)
+{
+  if (cpu->m_model < MODEL_PENTIUM)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
+  cpu->AddCycles(CYCLES_RDMSR);
+
+  // Must be in CPL=0, and not in V8086 mode. V8086 mode implies CPL=3, so no need to check explicitly.
+  if (cpu->GetCPL() != 0)
+  {
+    cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+    return;
+  }
+
+  const u64 value = cpu->ReadMSR(cpu->m_registers.ECX);
+  cpu->m_registers.EAX = Truncate32(value);
+  cpu->m_registers.EDX = Truncate32(value >> 32);
+}
+
+void Interpreter::Execute_Operation_WRMSR(CPU* cpu)
+{
+  if (cpu->m_model < MODEL_PENTIUM)
+  {
+    cpu->RaiseException(Interrupt_InvalidOpcode);
+    return;
+  }
+
+  cpu->AddCycles(CYCLES_RDMSR);
+
+  // Must be in CPL=0, and not in V8086 mode. V8086 mode implies CPL=3, so no need to check explicitly.
+  if (cpu->GetCPL() != 0)
+  {
+    cpu->RaiseException(Interrupt_GeneralProtectionFault, 0);
+    return;
+  }
+
+  const u64 value = (ZeroExtend64(cpu->m_registers.EDX) << 32) | ZeroExtend64(cpu->m_registers.EAX);
+  cpu->WriteMSR(cpu->m_registers.ECX, value);
+}
+
+void Interpreter::Execute_Operation_RSM(CPU* cpu)
+{
+  Panic("RSM instruction");
+  cpu->RaiseException(Interrupt_InvalidOpcode);
+}
 } // namespace CPU_X86
 
 #ifdef Y_COMPILER_MSVC

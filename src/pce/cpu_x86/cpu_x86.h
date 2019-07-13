@@ -221,6 +221,15 @@ public:
     FPUTagWord TW;
   };
 
+  union MSRRegisters
+  {
+    struct
+    {
+      u32 tr1;        // 0x02
+      u32 tr12;       // 0x0E
+    } pentium;
+  };
+
   struct DescriptorTablePointer
   {
     LinearMemoryAddress base_address;
@@ -519,6 +528,10 @@ protected:
   // Handle CPUID instruction.
   void ExecuteCPUIDInstruction();
 
+  // Model-specific registers.
+  u64 ReadMSR(u32 index);
+  void WriteMSR(u32 index, u64 value);
+
   // Switches to the task segment selected by the parameter.
   // Optionally sets nested task flag and backlink field.
   // This assumes that new_task is a valid descriptor and is not busy.
@@ -593,6 +606,9 @@ protected:
 
   // Descriptor caches for memory segments
   SegmentCache m_segment_cache[Segment_Count];
+
+  // Model-specific registers
+  MSRRegisters m_msr_registers = {};
 
   // Current privilege level of executing code.
   u8 m_cpl = 0;

@@ -99,6 +99,7 @@ void CPU::Reset()
 
   Y_memzero(&m_registers, sizeof(m_registers));
   Y_memzero(&m_fpu_registers, sizeof(m_fpu_registers));
+  Y_memzero(&m_msr_registers, sizeof(m_msr_registers));
 
   // IOPL NT, reserved are 1 on 8086
   m_registers.EFLAGS.bits = 0;
@@ -178,7 +179,6 @@ void CPU::Reset()
   m_fpu_registers.CW.bits = 0x0040;
   m_fpu_registers.SW.bits = 0x0000;
   m_fpu_registers.TW.bits = 0x5555;
-  std::memset(m_fpu_registers.ST, 0, sizeof(m_fpu_registers.ST));
 
   InvalidateAllTLBEntries(true);
   FlushPrefetchQueue();
@@ -4066,8 +4066,7 @@ void CPU::ExecuteCPUIDInstruction()
 
         case MODEL_PENTIUM:
           m_registers.EDX = CPUID_FLAG_FPU /*| CPUID_FLAG_DE */ | CPUID_FLAG_VME /*| CPUID_FLAG_PSE*/
-                            | CPUID_FLAG_TSC                                     /* | CPUID_FLAG_MSR*/
-                            |
+                            | CPUID_FLAG_TSC | CPUID_FLAG_MSR |
                             /*| CPUID_FLAG_MCE */ CPUID_FLAG_CX8;
           break;
       }
@@ -4093,6 +4092,59 @@ void CPU::ExecuteCPUIDInstruction()
     }
     break;
   }
+}
+
+u64 CPU::ReadMSR(u32 index)
+{
+  if (m_model == MODEL_PENTIUM)
+  {
+    switch (index)
+    {
+      case MSR_TR1:
+        return ZeroExtend64(m_msr_registers.pentium.tr1);
+
+      case MSR_TR12:
+        return ZeroExtend64(m_msr_registers.pentium.tr12);
+
+      case MSR_TSC:
+        return ReadTSC();
+
+      default:
+        break;
+    }
+  }
+
+  Log_WarningPrintf("Unhandled MSR read: 0x%08X", index);
+  RaiseException(Interrupt_GeneralProtectionFault, 0);
+  return 0;
+}
+
+void CPU::WriteMSR(u32 index, u64 value)
+{
+  if (m_model == MODEL_PENTIUM)
+  {
+    switch (index)
+    {
+      case MSR_TR1:
+        m_msr_registers.pentium.tr1 = Truncate32(value);
+        return;
+
+      case MSR_TR12:
+        m_msr_registers.pentium.tr12 = Truncate32(value);
+        return;
+
+      case MSR_TSC:
+        CommitPendingCycles();
+        m_tsc_cycles = value;
+        return;
+
+      default:
+        break;
+    }
+  }
+
+  Log_WarningPrintf("Unhandled MSR write: 0x%08X <- %" PRIx64, index, value);
+  RaiseException(Interrupt_GeneralProtectionFault, 0);
 }
 
 void CPU::DumpPageTable()

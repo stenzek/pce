@@ -230,6 +230,9 @@ class Operation(Enum):
     CPUID = "Operation_CPUID"
     RDTSC = "Operation_RDTSC"
     CMPXCHG8B = "Operation_CMPXCHG8B"
+    WRMSR = "Operation_WRMSR"
+    RDMSR = "Operation_RDMSR"
+    RSM = "Operation_RSM"
 
     # 8087+
     F2XM1 = "Operation_F2XM1"

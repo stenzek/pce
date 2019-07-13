@@ -320,6 +320,9 @@ private:
   static inline void Execute_Operation_WAIT(CPU* cpu);
   static inline void Execute_Operation_CPUID(CPU* cpu);
   static inline void Execute_Operation_RDTSC(CPU* cpu);
+  static inline void Execute_Operation_RDMSR(CPU* cpu);
+  static inline void Execute_Operation_WRMSR(CPU* cpu);
+  static inline void Execute_Operation_RSM(CPU* cpu);
 
   static inline void Execute_Operation_AAA(CPU* cpu);
   static inline void Execute_Operation_AAS(CPU* cpu);
