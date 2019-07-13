@@ -86,6 +86,8 @@ void i8253_PIT::Reset()
 
     channel->square_wave_flip_flop = false;
   }
+
+  RescheduleTimerEvent();
 }
 
 bool i8253_PIT::LoadState(BinaryReader& reader)

@@ -55,7 +55,7 @@ bool System::Initialize()
 
 void System::Reset()
 {
-  m_timing_manager.ResetTotalEmulatedTime();
+  m_timing_manager.Reset();
 
   m_bus->Reset();
   for (Component* component : m_components)

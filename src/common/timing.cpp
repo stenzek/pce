@@ -213,6 +213,14 @@ void TimingManager::RunEvents()
   m_running_events = false;
 }
 
+void TimingManager::Reset()
+{
+  m_pending_time = 0;
+  m_total_emulated_time = 0;
+  for (TimingEvent* ev : m_events)
+    ev->Reset();
+}
+
 bool TimingManager::LoadState(BinaryReader& reader)
 {
   u32 signature;

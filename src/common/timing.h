@@ -26,7 +26,6 @@ public:
   SimulationTime GetPendingTime() const { return m_pending_time; }
   SimulationTime GetNextEventTime() const { return m_next_event_time; }
   SimulationTime GetTotalEmulatedTime() const { return m_total_emulated_time; }
-  void ResetTotalEmulatedTime() { m_total_emulated_time = 0; }
 
   // Calculates the difference between the specified timestamp and the current emulated time.
   SimulationTime GetEmulatedTimeDifference(SimulationTime timestamp);
@@ -39,6 +38,7 @@ public:
   void RemoveActiveEvent(TimingEvent* event);
   void SortEvents();
   void RunEvents();
+  void Reset();
 
   // Event lookup, use with care.
   // If you modify an event, call SortEvents afterwards.
