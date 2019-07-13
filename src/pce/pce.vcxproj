@@ -124,7 +124,6 @@
     <ClInclude Include="dma_controller.h" />
     <ClInclude Include="hw\adlib.h" />
     <ClInclude Include="hw\cdrom.h" />
-    <ClInclude Include="hw\cmos_info.h" />
     <ClInclude Include="hw\et4000.h" />
     <ClInclude Include="hw\floppy.h" />
     <ClInclude Include="hw\i82437fx.h" />

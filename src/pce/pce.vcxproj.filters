@@ -337,9 +337,6 @@
     <ClInclude Include="hw\ata_device.h">
       <Filter>hw</Filter>
     </ClInclude>
-    <ClInclude Include="hw\cmos_info.h">
-      <Filter>hw</Filter>
-    </ClInclude>
     <ClInclude Include="hw\ata_hdd.h">
       <Filter>hw</Filter>
     </ClInclude>
