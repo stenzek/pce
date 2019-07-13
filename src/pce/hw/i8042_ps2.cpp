@@ -218,8 +218,7 @@ void i8042_PS2::IOReadDataPort(u8* value)
 
 void i8042_PS2::IOWriteDataPort(u8 value)
 {
-  if (m_command_event->IsActive())
-    m_command_event->InvokeEarly(true);
+  m_command_event->InvokeEarly(true);
 
   Log_TracePrintf("Write data port, pending command = 0x%02X, value = 0x%02X", u32(m_pending_command), value);
   m_status_register.command_flag = false;
@@ -229,8 +228,7 @@ void i8042_PS2::IOWriteDataPort(u8 value)
 
 void i8042_PS2::IOWriteCommandRegister(u8 value)
 {
-  if (m_command_event->IsActive())
-    m_command_event->InvokeEarly(true);
+  m_command_event->InvokeEarly(true);
 
   Log_TracePrintf("Write command register, value = 0x%02X", value);
   m_status_register.command_flag = true;
