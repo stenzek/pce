@@ -36,7 +36,7 @@ if(ENABLE_OPENGL)
   target_link_libraries(common glad)
 endif()
 
-if(WIN32)
+if(MSVC)
   target_sources(common PRIVATE display_renderer_d3d.cpp display_renderer_d3d.h)
   target_link_libraries(common d3d11.lib)
 endif()

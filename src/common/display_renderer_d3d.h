@@ -1,7 +1,7 @@
 #pragma once
 #include "YBaseLib/Common.h"
 
-#if defined(Y_PLATFORM_WINDOWS)
+#if defined(Y_COMPILER_MSVC)
 
 #include "YBaseLib/Windows/WindowsHeaders.h"
 #include "display_renderer.h"

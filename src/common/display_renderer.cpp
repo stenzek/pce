@@ -158,7 +158,7 @@ public:
 
 DisplayRenderer::BackendType DisplayRenderer::GetDefaultBackendType()
 {
-#ifdef Y_PLATFORM_WINDOWS
+#ifdef Y_COMPILER_MSVC
   return BackendType::Direct3D;
 #else
   return BackendType::OpenGL;
@@ -175,7 +175,7 @@ std::unique_ptr<DisplayRenderer> DisplayRenderer::Create(BackendType backend, Wi
       renderer = std::make_unique<DisplayRendererNull>(window_handle, window_width, window_height);
       break;
 
-#ifdef Y_PLATFORM_WINDOWS
+#ifdef Y_COMPILER_MSVC
     case BackendType::Direct3D:
       renderer = std::make_unique<DisplayRendererD3D>(window_handle, window_width, window_height);
       break;

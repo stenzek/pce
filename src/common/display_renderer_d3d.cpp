@@ -5,10 +5,8 @@
 #include <algorithm>
 #include <array>
 
-#if defined(Y_PLATFORM_WINDOWS)
 #if defined(Y_COMPILER_MSVC)
 #pragma comment(lib, "d3d11.lib")
-#endif
 
 static constexpr u32 SWAP_CHAIN_BUFFER_COUNT = 2;
 static constexpr DXGI_FORMAT SWAP_CHAIN_BUFFER_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
