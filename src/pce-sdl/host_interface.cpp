@@ -11,7 +11,7 @@
 #include <SDL.h>
 #include <cinttypes>
 #include <glad.h>
-#ifdef Y_PLATFORM_WINDOWS
+#ifdef Y_COMPILER_MSVC
 #include "imgui_impl_dx11.h"
 #include <SDL_syswm.h>
 #endif
@@ -32,7 +32,7 @@ SDLHostInterface::~SDLHostInterface()
 
   switch (m_display_renderer->GetBackendType())
   {
-#ifdef Y_PLATFORM_WINDOWS
+#ifdef Y_COMPILER_MSVC
     case DisplayRenderer::BackendType::Direct3D:
     {
       ImGui_ImplDX11_Shutdown();
@@ -97,7 +97,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
       return nullptr;
     }
   }
-#ifdef Y_PLATFORM_WINDOWS
+#ifdef Y_COMPILER_MSVC
   if (display_renderer_backend == DisplayRenderer::BackendType::Direct3D)
   {
     // Get window handle from SDL window
@@ -137,7 +137,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
 
   switch (display_renderer->GetBackendType())
   {
-#ifdef Y_PLATFORM_WINDOWS
+#ifdef Y_COMPILER_MSVC
     case DisplayRenderer::BackendType::Direct3D:
     {
       if (!ImGui_ImplSDL2_InitForD3D(window.get()) ||
@@ -457,7 +457,7 @@ void SDLHostInterface::Render()
   const DisplayRenderer::BackendType backend_type = m_display_renderer->GetBackendType();
   switch (backend_type)
   {
-#ifdef Y_PLATFORM_WINDOWS
+#ifdef Y_COMPILER_MSVC
     case DisplayRenderer::BackendType::Direct3D:
     {
       ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
