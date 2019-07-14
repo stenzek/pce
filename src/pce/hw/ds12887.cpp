@@ -123,7 +123,7 @@ void DS12887::SynchronizeTimeWithHost()
 {
   const std::time_t host_time_t = time(nullptr);
   tm host_time;
-#ifdef Y_COMPILER_MSVC
+#ifdef Y_PLATFORM_WINDOWS
   localtime_s(&host_time, &host_time_t);
 #else
   localtime_r(&host_time_t, &host_time);

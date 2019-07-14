@@ -1,4 +1,3 @@
-#ifdef WIN32
 #include "display_renderer_d3d.h"
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/Memory.h"
@@ -6,7 +5,10 @@
 #include <algorithm>
 #include <array>
 
+#if defined(Y_PLATFORM_WINDOWS)
+#if defined(Y_COMPILER_MSVC)
 #pragma comment(lib, "d3d11.lib")
+#endif
 
 static constexpr u32 SWAP_CHAIN_BUFFER_COUNT = 2;
 static constexpr DXGI_FORMAT SWAP_CHAIN_BUFFER_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -127,8 +129,11 @@ void DisplayGL::UpdateFramebufferTexture()
         return;
       }
 
-      D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc =
-        CD3D11_SHADER_RESOURCE_VIEW_DESC(m_framebuffer_texture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D);
+      D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+      srv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+      srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+      srv_desc.Texture2D.MostDetailedMip = 0;
+      srv_desc.Texture2D.MipLevels = 1;
       hr = d3d_device->CreateShaderResourceView(m_framebuffer_texture.Get(), &srv_desc,
                                                 m_framebuffer_texture_srv.ReleaseAndGetAddressOf());
       if (FAILED(hr))
@@ -285,8 +290,7 @@ void DisplayRendererD3D::RenderDisplays()
     const int viewport_height = int(dim.second);
     const int viewport_y = ((window_height - viewport_height) / 2) + m_top_padding;
 
-    D3D11_VIEWPORT vp =
-      CD3D11_VIEWPORT(float(viewport_x), float(viewport_y), float(viewport_width), float(viewport_height));
+    D3D11_VIEWPORT vp = { float(viewport_x), float(viewport_y), float(viewport_width), float(viewport_height), 0.0f, 1.0f };
     m_context->RSSetViewports(1, &vp);
 
     static_cast<DisplayGL*>(display)->Render();

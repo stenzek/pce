@@ -1,6 +1,7 @@
 #pragma once
+#include "YBaseLib/Common.h"
 
-#ifdef WIN32
+#if defined(Y_PLATFORM_WINDOWS)
 
 #include "YBaseLib/Windows/WindowsHeaders.h"
 #include "display_renderer.h"

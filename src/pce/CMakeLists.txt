@@ -50,7 +50,6 @@ set(SRCS
     hw/cdrom.h
     hw/cga.cpp
     hw/cga.h
-    hw/cmos_info.h
     hw/ds12887.cpp
     hw/ds12887.h
     hw/et4000.cpp
