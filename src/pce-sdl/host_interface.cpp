@@ -159,7 +159,7 @@ std::unique_ptr<SDLHostInterface> SDLHostInterface::Create(
       if (!ImGui_ImplSDL2_InitForOpenGL(window.get(), SDL_GL_GetCurrentContext()) || !ImGui_ImplOpenGL3_Init())
         return nullptr;
 
-      ImGui_ImplOpenGL3_Init();
+      ImGui_ImplOpenGL3_NewFrame();
       ImGui_ImplSDL2_NewFrame(window.get());
       ImGui::NewFrame();
     }
