@@ -3,10 +3,8 @@
   <ItemGroup>
     <ClInclude Include="bitfield.h" />
     <ClInclude Include="types.h" />
-    <ClInclude Include="clock.h" />
     <ClInclude Include="fastjmp.h" />
     <ClInclude Include="hdd_image.h" />
-    <ClInclude Include="timing.h" />
     <ClInclude Include="audio.h" />
     <ClInclude Include="object.h" />
     <ClInclude Include="object_type_info.h" />
@@ -20,9 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hdd_image.cpp" />
-    <ClCompile Include="timing.cpp" />
     <ClCompile Include="audio.cpp" />
-    <ClCompile Include="clock.cpp" />
     <ClCompile Include="object_type_info.cpp" />
     <ClCompile Include="property.cpp" />
     <ClCompile Include="object.cpp" />

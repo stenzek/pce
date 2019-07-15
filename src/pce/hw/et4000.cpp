@@ -19,7 +19,7 @@ BEGIN_OBJECT_PROPERTY_MAP(ET4000)
 END_OBJECT_PROPERTY_MAP()
 
 ET4000::ET4000(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("ET4000 Retrace", 25175000), m_bios_file_path("romimages/et4000.bin")
+  : BaseClass(identifier, type_info), m_bios_file_path("romimages/et4000.bin")
 {
 }
 
@@ -40,8 +40,6 @@ bool ET4000::Initialize(System* system, Bus* bus)
     return false;
   m_display->SetDisplayAspectRatio(4, 3);
 
-  m_clock.SetManager(system->GetTimingManager());
-
   if (!LoadBIOSROM())
     return false;
 
@@ -49,7 +47,7 @@ bool ET4000::Initialize(System* system, Bus* bus)
   RegisterVRAMMMIO();
 
   // Retrace event will be scheduled after timing is calculated.
-  m_retrace_event = m_clock.NewEvent("Retrace", 1, std::bind(&ET4000::Render, this), false);
+  m_retrace_event = m_system->CreateFrequencyEvent("Retrace", 25175000.0f, std::bind(&ET4000::Render, this), false);
   return true;
 }
 

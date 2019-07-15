@@ -1,7 +1,9 @@
 #pragma once
 #include "ata_device.h"
 #include "cdrom.h"
-#include "common/timing.h"
+#include <memory>
+
+class TimingEvent;
 
 namespace HW {
 
@@ -50,7 +52,7 @@ private:
 
   CDROM m_cdrom;
 
-  TimingEvent::Pointer m_command_event;
+  std::unique_ptr<TimingEvent> m_command_event;
 
   // Size of all ATAPI packets.
   u32 m_packet_size = 12;

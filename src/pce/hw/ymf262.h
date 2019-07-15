@@ -2,12 +2,13 @@
 
 #include "YBaseLib/TaskQueue.h"
 #include "common/audio.h"
-#include "common/clock.h"
 #include "pce/component.h"
 #include "pce/system.h"
 #include <array>
 
 #define YMF262_USE_THREAD 1
+
+class TimingEvent;
 
 namespace DBOPL {
 struct Chip;
@@ -29,7 +30,7 @@ public:
   };
 
 public:
-  YMF262(Mode mode, const char* clock_prefix = "");
+  YMF262(Mode mode);
   ~YMF262();
 
   bool Initialize(System* system);
@@ -48,9 +49,6 @@ public:
 
 private:
   static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('Y', '2', '6', '2');
-
-  static constexpr float TIMER1_FREQUENCY = 12500.0f; // 80 microseconds
-  static constexpr float TIMER2_FREQUENCY = 3125.0f;  // 320 microseconds
   static constexpr size_t NUM_TIMERS = 2;             // 2 timers per chip in dual mode
 
   struct ChipState
@@ -67,7 +65,7 @@ private:
       bool masked = true;
       bool expired = false;
       bool active = false;
-      TimingEvent::Pointer event;
+      std::unique_ptr<TimingEvent> event;
     };
 
     std::array<Timer, NUM_TIMERS> timers = {};
@@ -85,12 +83,11 @@ private:
   void UpdateTimerEvent(size_t chip_index, size_t timer_index);
   void FlushWorkerThread() const;
 
-  Clock m_clock;
   Mode m_mode = Mode::OPL2;
 
   System* m_system = nullptr;
   Audio::Channel* m_output_channel = nullptr;
-  TimingEvent::Pointer m_render_sample_event;
+  std::unique_ptr<TimingEvent> m_render_sample_event;
 
   std::array<ChipState, 2> m_chips;
   size_t m_num_chips = 0;

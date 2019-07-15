@@ -163,11 +163,11 @@ inline s32 mul_32x32_shift(s32 a, s32 b, s8 shift)
   return static_cast<s32>((static_cast<s64>(a) * static_cast<s64>(b)) >> shift);
 }
 
-  /*************************************
-   *
-   *  Debugging
-   *
-   *************************************/
+/*************************************
+ *
+ *  Debugging
+ *
+ *************************************/
 
 #define DEBUG_DEPTH (0)
 #define DEBUG_LOD (0)
@@ -457,9 +457,9 @@ void voodoo_device::init_fbi(voodoo_device* vd, fbi_state* f, void* memory, int 
   }
 
   /* allocate a VBLANK timer */
-  f->vsync_start_timer = vd->m_timing_manager->CreateNanosecondIntervalEvent(
+  f->vsync_start_timer = vd->m_system->CreateNanosecondEvent(
     "Voodoo vsync end", 1, std::bind(&voodoo_device::vblank_callback, vd, std::placeholders::_3), false);
-  f->vsync_stop_timer = vd->m_timing_manager->CreateNanosecondIntervalEvent(
+  f->vsync_stop_timer = vd->m_system->CreateNanosecondEvent(
     "Voodoo vsync end", 1, std::bind(&voodoo_device::vblank_off_callback, vd, std::placeholders::_3), false);
   f->vblank = false;
 
@@ -791,7 +791,7 @@ void voodoo_device::swap_buffers(voodoo_device* vd)
 {
   int count;
 
-  s32 current_line = vd->m_display_timing.GetCurrentLine(vd->m_timing_manager->GetTotalEmulatedTime());
+  s32 current_line = vd->m_display_timing.GetCurrentLine(vd->m_system->GetSimulationTime());
   if (LOG_VBLANK_SWAP)
     Log_DevPrintf("--- swap_buffers @ %d", current_line);
 
@@ -831,7 +831,7 @@ void voodoo_device::swap_buffers(voodoo_device* vd)
   {
     if (LOG_VBLANK_SWAP)
       Log_DevPrintf("---- swap_buffers flush begin");
-    vd->pci.op_end_time = vd->m_timing_manager->GetTotalEmulatedTime();
+    vd->pci.op_end_time = vd->m_system->GetSimulationTime();
     flush_fifos(vd);
     if (LOG_VBLANK_SWAP)
       Log_DevPrintf("---- swap_buffers flush end");
@@ -2016,13 +2016,12 @@ void voodoo_device::cmdfifo_w(voodoo_device* vd, cmdfifo_info* f, u32 offset, u3
     if (cycles > 0)
     {
       vd->pci.op_pending = true;
-      vd->pci.op_end_time =
-        vd->m_timing_manager->GetTotalEmulatedTime() + ((SimulationTime)cycles * vd->attoseconds_per_cycle);
+      vd->pci.op_end_time = vd->m_system->GetSimulationTime() + ((SimulationTime)cycles * vd->attoseconds_per_cycle);
 
       if (LOG_FIFO_VERBOSE)
       {
         Log_DevPrintf("VOODOO.%d.FIFO:direct write start at %" PRId64 " end at %" PRId64, vd->index,
-                      vd->m_timing_manager->GetTotalEmulatedTime(), vd->pci.op_end_time);
+                      vd->m_system->GetSimulationTime(), vd->pci.op_end_time);
       }
     }
   }
@@ -2665,7 +2664,7 @@ s32 voodoo_device::register_w(voodoo_device* vd, u32 offset, u32 data)
             vd->fbi.vsync_stop_timer->SetActive(false);
             if (vd->m_display_timing.IsValid())
             {
-              dt.ResetClock(vd->m_timing_manager->GetTotalEmulatedTime());
+              dt.ResetClock(vd->m_system->GetSimulationTime());
               dt.LogFrequencies("Voodoo");
               vd->fbi.vsync_start_timer->Queue(dt.GetVerticalSyncStartTime());
             }
@@ -3578,7 +3577,7 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
       return;
     in_flush = true;
 
-    const SimulationTime current_time = vd->m_timing_manager->GetTotalEmulatedTime();
+    const SimulationTime current_time = vd->m_system->GetSimulationTime();
 
     if (!vd->pci.op_pending)
       Panic("flush_fifos called with no pending operation");
@@ -3793,12 +3792,12 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
       if (cycles)
       {
         pci.op_pending = true;
-        pci.op_end_time = m_timing_manager->GetTotalEmulatedTime() + ((SimulationTime)cycles * attoseconds_per_cycle);
+        pci.op_end_time = m_system->GetSimulationTime() + ((SimulationTime)cycles * attoseconds_per_cycle);
 
         if (LOG_FIFO_VERBOSE)
         {
           Log_DevPrintf("VOODOO.%d.FIFO:direct write start at %" PRId64 " end at %" PRId64, index,
-                        m_timing_manager->GetTotalEmulatedTime(), pci.op_end_time);
+                        m_system->GetSimulationTime(), pci.op_end_time);
         }
       }
       return;
@@ -3978,7 +3977,7 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
         else
         {
           // Want screen position from vblank off
-          result = vd->m_display_timing.GetCurrentLine(vd->m_timing_manager->GetTotalEmulatedTime());
+          result = vd->m_display_timing.GetCurrentLine(vd->m_system->GetSimulationTime());
         }
         break;
 
@@ -3991,7 +3990,7 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
         // result = 0x200 << 16;   /* should be between 0x7b and 0x267 */
         // result |= 0x80;         /* should be between 0x17 and 0x103 */
         // Return 0 if vblank is active
-        auto ss = vd->m_display_timing.GetSnapshot(vd->m_timing_manager->GetTotalEmulatedTime());
+        auto ss = vd->m_display_timing.GetSnapshot(vd->m_system->GetSimulationTime());
         if (vd->fbi.vblank)
         {
           result = 0;
@@ -4177,15 +4176,15 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
       device start callback
   -------------------------------------------------*/
 
-  void voodoo_device::initialize(Bus * bus, TimingManager * timing_manager, Display * display)
+  void voodoo_device::initialize(System * system, Bus * bus, Display * display)
   {
     const raster_info* info;
     void *fbmem, *tmumem[2];
     u32 tmumem0, tmumem1;
     int val;
 
+    m_system = system;
     m_bus = bus;
-    m_timing_manager = timing_manager;
     m_display = display;
 
     /* validate configuration */

@@ -23,6 +23,8 @@ bool CPU::Initialize(System* system, Bus* bus)
 void CPU::Reset()
 {
   BaseClass::Reset();
+  m_pending_cycles = 0;
+  m_execution_downcount = 0;
 }
 
 bool CPU::LoadState(BinaryReader& reader)

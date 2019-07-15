@@ -63,8 +63,8 @@ YMF262::Mode SoundBlaster::GetOPLMode(Type type)
 SoundBlaster::SoundBlaster(const String& identifier, Type type /* = Type::SoundBlaster10 */, u32 iobase /* = 0x220 */,
                            u32 irq /* = 7 */, u32 dma /* = 1 */, u32 dma16 /* = 5 */,
                            const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("Sound Blaster DSP", 44100), m_type(type), m_io_base(iobase), m_irq(irq),
-    m_dma_channel(dma), m_dma_channel_16(dma16), m_ymf262(GetOPLMode(type)), m_dsp_version(GetDSPVersion(type))
+  : BaseClass(identifier, type_info), m_type(type), m_io_base(iobase), m_irq(irq), m_dma_channel(dma),
+    m_dma_channel_16(dma16), m_ymf262(GetOPLMode(type)), m_dsp_version(GetDSPVersion(type))
 {
 }
 
@@ -87,8 +87,6 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
     Log_ErrorPrintf("Failed to locate interrupt controller");
     return false;
   }
-
-  m_clock.SetManager(system->GetTimingManager());
 
   // IO port connections
   // Present in all sound blaster models
@@ -135,7 +133,8 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
     Panic("Failed to create Sound blaster output channel");
 
   m_dac_state.sample_event =
-    m_clock.NewEvent("DAC Sample", 1, std::bind(&SoundBlaster::DACSampleEvent, this, std::placeholders::_2), false);
+    m_system->CreateClockedEvent("Sound Blaster DSP Render", 44100.0f, 1,
+                                 std::bind(&SoundBlaster::DACSampleEvent, this, std::placeholders::_2), false);
 
   // DMA channel connections
   m_dma_controller = system->GetComponentByType<DMAController>();

@@ -2,8 +2,6 @@ set(SRCS
     audio.cpp
     audio.h
     bitfield.h
-    clock.cpp
-    clock.h
     display.cpp
     display.h
     display_renderer.cpp
@@ -19,8 +17,6 @@ set(SRCS
     object_type_info.h
     property.cpp
     property.h
-    timing.cpp
-    timing.h
     types.h
     type_registry.h
 )

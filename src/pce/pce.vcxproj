@@ -95,6 +95,7 @@
     <ClCompile Include="thirdparty\mame\rgbgen.cpp" />
     <ClCompile Include="thirdparty\mame\rgbsse.cpp" />
     <ClCompile Include="thirdparty\mame\voodoo.cpp" />
+    <ClCompile Include="timing_event.cpp" />
     <ClCompile Include="types.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -179,6 +180,7 @@
     <ClInclude Include="thirdparty\mame\vooddefs.h" />
     <ClInclude Include="thirdparty\mame\voodoo.h" />
     <ClInclude Include="thirdparty\mame\voodoo_rast.hxx" />
+    <ClInclude Include="timing_event.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>

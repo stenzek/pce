@@ -1,9 +1,8 @@
 #pragma once
 
 #include "common/bitfield.h"
-#include "common/clock.h"
-#include "pce/component.h"
-#include "pce/system.h"
+#include "../component.h"
+#include "../system.h"
 #include <array>
 #include <memory>
 #include <string>
@@ -310,7 +309,6 @@ private:
   void IODACDataRegisterRead(u8* value);
   void IODACDataRegisterWrite(u8 value);
 
-  Clock m_clock;
   std::string m_bios_file_path;
 
   // The 4 planes of 64KB (256KB) VRAM is interleaved here.
@@ -341,7 +339,7 @@ private:
 
   // retrace event
   void RecalculateEventTiming();
-  TimingEvent::Pointer m_retrace_event;
+  std::unique_ptr<TimingEvent> m_retrace_event;
 
   // Timing
   struct

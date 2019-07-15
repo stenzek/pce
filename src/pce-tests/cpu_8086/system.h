@@ -24,7 +24,7 @@ public:
 
   void AddROMFile(const char* filename, PhysicalMemoryAddress load_address, u32 expected_size = 0);
 
-  bool Ready();
+  bool Execute(SimulationTime timeout = SecondsToSimulationTime(60));
 
 private:
   bool Initialize() override;

@@ -43,7 +43,6 @@ public:
   auto GetTimer() const { return m_timer; }
 
 private:
-  static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('P', 'C', 'X', 'T');
   static constexpr size_t SWITCH_COUNT = 8;
 
   virtual bool LoadSystemState(BinaryReader& reader) override;

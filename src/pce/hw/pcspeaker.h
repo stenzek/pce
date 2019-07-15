@@ -2,9 +2,9 @@
 
 #include "common/audio.h"
 #include "common/bitfield.h"
-#include "common/clock.h"
-#include "pce/component.h"
-#include "pce/system.h"
+#include "../component.h"
+
+class TimingEvent;
 
 namespace HW {
 
@@ -39,13 +39,12 @@ private:
 
   void RenderSampleEvent(CycleCount cycles);
 
-  Clock m_clock;
   Audio::Channel* m_output_channel = nullptr;
 
   bool m_output_enabled = false;
   bool m_level = false;
 
-  TimingEvent::Pointer m_render_sample_event;
+  std::unique_ptr<TimingEvent> m_render_sample_event;
 };
 
 } // namespace HW

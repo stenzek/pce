@@ -3845,7 +3845,7 @@ void Interpreter::Execute_Operation_HLT(CPU* cpu)
     return;
   }
 
-  cpu->SetHalted(true);
+  cpu->Halt();
 }
 
 void Interpreter::Execute_Operation_CBW(CPU* cpu)

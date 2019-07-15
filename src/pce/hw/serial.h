@@ -1,13 +1,14 @@
 #pragma once
-
 #include <array>
+#include <memory>
 #include <vector>
 
+#include "../component.h"
+#include "../interrupt_controller.h"
+#include "../types.h"
 #include "common/bitfield.h"
-#include "common/clock.h"
-#include "pce/component.h"
-#include "pce/interrupt_controller.h"
-#include "pce/types.h"
+
+class TimingEvent;
 
 namespace HW {
 
@@ -112,11 +113,11 @@ private:
 
   InterruptController* m_interrupt_controller = nullptr;
 
-  Clock m_clock;
   Model m_model;
 
   u32 m_base_io_address;
   u32 m_irq_number;
+  s32 m_base_rate;
 
   // Read/write fifos
   std::array<byte, MAX_FIFO_SIZE> m_input_fifo;
@@ -139,7 +140,7 @@ private:
   RequestToSendCallback m_request_to_send_callback;
 
   // Transfer event, only active when data is being transmitted/received
-  TimingEvent::Pointer m_transfer_event;
+  std::unique_ptr<TimingEvent> m_transfer_event;
 
   // Clock divider
   u16 m_clock_divider = 1; // BAR+0/1 with DLAB=1

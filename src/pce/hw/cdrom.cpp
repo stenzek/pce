@@ -19,8 +19,8 @@ PROPERTY_TABLE_MEMBER_STRING("FirmwareVersion", 0, offsetof(CDROM, m_firmware_ve
 END_OBJECT_PROPERTY_MAP()
 
 CDROM::CDROM(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("CDROM", 1000000.0f), m_vendor_id_string("POTATO"),
-    m_model_id_string("POTATOROM"), m_firmware_version_string("1.00")
+  : BaseClass(identifier, type_info), m_vendor_id_string("POTATO"), m_model_id_string("POTATOROM"),
+    m_firmware_version_string("1.00")
 {
 }
 
@@ -31,8 +31,8 @@ bool CDROM::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_clock.SetManager(system->GetTimingManager());
-  m_command_event = m_clock.NewEvent("CDROM Command Event", 1, std::bind(&CDROM::ExecuteCommand, this), false);
+  m_command_event =
+    m_system->CreateMicrosecondEvent("CDROM Command Event", 1, std::bind(&CDROM::ExecuteCommand, this), false);
 
   // Create indicator and menu options.
   system->GetHostInterface()->AddUIIndicator(this, HostInterface::IndicatorType::CDROM);

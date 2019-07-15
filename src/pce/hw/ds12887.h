@@ -1,7 +1,6 @@
 #pragma once
 
 #include "YBaseLib/Assert.h"
-#include "common/clock.h"
 #include "pce/component.h"
 #include <array>
 #include <memory>
@@ -9,6 +8,7 @@
 
 class ByteStream;
 class InterruptController;
+class TimingEvent;
 
 namespace HW {
 
@@ -142,8 +142,8 @@ protected:
   u8 m_index_register = 0;
   u8 m_index_register_mask = 0xFF;
 
-  TimingEvent::Pointer m_rtc_interrupt_event{};
-  TimingEvent::Pointer m_save_ram_event{};
+  std::unique_ptr<TimingEvent> m_rtc_interrupt_event;
+  std::unique_ptr<TimingEvent> m_save_ram_event;
 
   SimulationTime m_last_clock_update_time = 0;
 

@@ -17,7 +17,7 @@ BEGIN_OBJECT_PROPERTY_MAP(i8253_PIT)
 END_OBJECT_PROPERTY_MAP()
 
 i8253_PIT::i8253_PIT(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("i8253 PIT", CLOCK_FREQUENCY)
+  : BaseClass(identifier, type_info)
 {
 }
 
@@ -28,13 +28,10 @@ bool i8253_PIT::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_clock.SetManager(system->GetTimingManager());
   ConnectIOPorts(bus);
 
   // Create the tick event.
-  m_tick_event =
-    m_clock.NewEvent("Tick Event", GetDowncount(), std::bind(&i8253_PIT::TickTimers, this, std::placeholders::_2));
-
+  m_tick_event = m_system->CreateClockedEvent("i8253 PIT Tick", CLOCK_FREQUENCY, GetDowncount(), std::bind(&i8253_PIT::TickTimers, this, std::placeholders::_2), true);
   return true;
 }
 

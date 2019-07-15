@@ -20,7 +20,7 @@ PROPERTY_TABLE_MEMBER_BOOL("FastTransfers", 0, offsetof(FDC, m_fast_transfers), 
 END_OBJECT_PROPERTY_MAP()
 
 FDC::FDC(const String& identifier, Model model /* = Model_8272 */, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("Floppy Controller", CLOCK_FREQUENCY), m_model(model)
+  : BaseClass(identifier, type_info), m_model(model)
 {
 }
 
@@ -31,7 +31,6 @@ bool FDC::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_clock.SetManager(system->GetTimingManager());
   m_dma = system->GetComponentByType<DMAController>();
   if (!m_dma)
   {
@@ -46,7 +45,7 @@ bool FDC::Initialize(System* system, Bus* bus)
   }
 
   ConnectIOPorts(bus);
-  m_command_event = m_clock.NewEvent("Floppy Command", 1, std::bind(&FDC::EndCommand, this), false);
+  m_command_event = m_system->CreateMicrosecondEvent("Floppy Command", 1, std::bind(&FDC::EndCommand, this), false);
   return true;
 }
 
@@ -988,7 +987,7 @@ void FDC::IOWriteDigitalOutputRegister(u8 value)
     {
       // Queue a reset command. Make sure we can interrupt this.
       Log_DebugPrintf("FDC enter reset");
-      m_reset_begin_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+      m_reset_begin_time = m_system->GetSimulationTime();
       m_command_event->SetActive(false);
     }
     else
@@ -997,7 +996,7 @@ void FDC::IOWriteDigitalOutputRegister(u8 value)
       // TODO: We should ignore commands until this point.
       Log_DebugPrintf("FDC leave reset");
 
-      SimulationTime time_since_reset = m_system->GetTimingManager()->GetEmulatedTimeDifference(m_reset_begin_time);
+      SimulationTime time_since_reset = m_system->GetSimulationTimeSince(m_reset_begin_time);
       if (time_since_reset > 1000)
       {
         m_reset_begin_time = 0;

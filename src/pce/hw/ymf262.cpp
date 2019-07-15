@@ -8,8 +8,7 @@
 
 namespace HW {
 
-YMF262::YMF262(Mode mode, const char* clock_prefix /* = "" */)
-  : m_clock(SmallString::FromFormat("%sYMF262", clock_prefix), OUTPUT_FREQUENCY), m_mode(mode)
+YMF262::YMF262(Mode mode) : m_mode(mode)
 {
   DBOPL::InitTables();
 
@@ -30,7 +29,6 @@ YMF262::~YMF262()
 bool YMF262::Initialize(System* system)
 {
   m_system = system;
-  m_clock.SetManager(system->GetTimingManager());
 
   m_output_channel = m_system->GetHostInterface()->GetAudioMixer()->CreateChannel(
     "YMF262", OUTPUT_FREQUENCY, Audio::SampleFormat::Signed16, IsStereo() ? 2 : 1);
@@ -41,18 +39,20 @@ bool YMF262::Initialize(System* system)
   }
 
   // Render samples every 100ms, or when the level changes.
-  m_render_sample_event = m_clock.NewEvent("Render Samples", CycleCount(OUTPUT_FREQUENCY / Audio::MixFrequency),
-                                           std::bind(&YMF262::RenderSampleEvent, this, std::placeholders::_2));
+  m_render_sample_event =
+    m_system->CreateClockedEvent("YMF262 Render", OUTPUT_FREQUENCY, CycleCount(OUTPUT_FREQUENCY / Audio::MixFrequency),
+                                 std::bind(&YMF262::RenderSampleEvent, this, std::placeholders::_2), true);
 
   // Timer events, start disabled
   for (size_t i = 0; i < m_num_chips; i++)
   {
     ChipState& chip = m_chips[i];
-    for (size_t j = 0; j < NUM_TIMERS; j++)
-    {
-      chip.timers[j].event = m_clock.NewEvent(
-        "Timer Expire", 1, std::bind(&YMF262::TimerExpiredEvent, this, i, j, std::placeholders::_2), false);
-    }
+    chip.timers[0].event =
+      m_system->CreateClockedEvent("YMF262 Timer 1 Expire", OUTPUT_FREQUENCY, 1,
+                                   std::bind(&YMF262::TimerExpiredEvent, this, i, 0, std::placeholders::_2), false);
+    chip.timers[1].event =
+      m_system->CreateClockedEvent("YMF262 Timer 2 Expire", OUTPUT_FREQUENCY, 1,
+                                   std::bind(&YMF262::TimerExpiredEvent, this, i, 1, std::placeholders::_2), false);
   }
 
 #ifdef YMF262_USE_THREAD

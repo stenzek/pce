@@ -1,8 +1,7 @@
 #pragma once
 #include "common/bitfield.h"
-#include "common/clock.h"
-#include "pce/component.h"
-#include "pce/system.h"
+#include "../component.h"
+#include "../system.h"
 #include <array>
 #include <memory>
 #include <optional>
@@ -11,6 +10,7 @@
 class Display;
 class ByteStream;
 class MMIO;
+class TimingEvent;
 
 namespace HW {
 
@@ -502,7 +502,6 @@ private:
   // uint8 m_mc6845_compat_reg_mode_control = 0;
   // uint8 m_mc6845_compat_reg_mono_mode_control = 0;
 
-  Clock m_clock;
   std::string m_bios_file_path;
   std::unique_ptr<byte[]> m_bios_rom;
   u32 m_bios_size = 0;
@@ -527,7 +526,7 @@ private:
 
   // retrace event
   void RecalculateEventTiming();
-  TimingEvent::Pointer m_retrace_event;
+  std::unique_ptr<TimingEvent> m_retrace_event;
 
   // Timing
   struct

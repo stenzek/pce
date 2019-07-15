@@ -2301,8 +2301,8 @@ public:
 
   static inline void Execute_Operation_HLT(CPU* cpu)
   {
-    cpu->SetHalted(true);
     cpu->AddCycles(2);
+    cpu->Halt();
   }
 
   static inline void Execute_Operation_CBW(CPU* cpu)

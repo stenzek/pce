@@ -12,7 +12,7 @@ BEGIN_OBJECT_PROPERTY_MAP(PCSpeaker)
 END_OBJECT_PROPERTY_MAP()
 
 PCSpeaker::PCSpeaker(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("PC Speaker", OUTPUT_FREQUENCY)
+  : BaseClass(identifier, type_info)
 {
 }
 
@@ -27,16 +27,15 @@ bool PCSpeaker::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_clock.SetManager(system->GetTimingManager());
-
   m_output_channel = m_system->GetHostInterface()->GetAudioMixer()->CreateChannel("PC Speaker", OUTPUT_FREQUENCY,
                                                                                   Audio::SampleFormat::Signed16, 1);
   if (!m_output_channel)
     Panic("Failed to create PC speaker output channel");
 
   // Render samples every 100ms, or when the level changes.
-  m_render_sample_event = m_clock.NewEvent("Render Samples", CycleCount(OUTPUT_FREQUENCY / Audio::MixFrequency),
-                                           std::bind(&PCSpeaker::RenderSampleEvent, this, std::placeholders::_2));
+  m_render_sample_event = m_system->CreateClockedEvent(
+    "PC Speaker Render", OUTPUT_FREQUENCY, CycleCount(OUTPUT_FREQUENCY / Audio::MixFrequency),
+    std::bind(&PCSpeaker::RenderSampleEvent, this, std::placeholders::_2), true);
 
   return true;
 }

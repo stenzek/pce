@@ -1,9 +1,10 @@
 #pragma once
 #include "common/bitfield.h"
-#include "common/clock.h"
 #include "pce/component.h"
 #include "pce/types.h"
 #include <array>
+
+class TimingEvent;
 
 namespace HW {
 
@@ -114,11 +115,9 @@ private:
   void SetChannelOutputState(size_t channel_index, bool value);
   void UpdateAllChannelsDowncount();
 
-  Clock m_clock;
-
   std::array<Channel, NUM_CHANNELS> m_channels;
 
-  TimingEvent::Pointer m_tick_event;
+  std::unique_ptr<TimingEvent> m_tick_event;
 };
 
 } // namespace HW

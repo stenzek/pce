@@ -76,10 +76,10 @@ bool ATAHDD::Initialize(System* system, Bus* bus)
 
   // Flush the HDD images once a second, to ensure data isn't lost.
   m_flush_event =
-    m_system->GetTimingManager()->CreateFrequencyEvent("HDD Image Flush", 1.0f, std::bind(&ATAHDD::FlushImage, this));
-  m_command_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
+    m_system->CreateFrequencyEvent("HDD Image Flush", 1.0f, std::bind(&ATAHDD::FlushImage, this), true);
+  m_command_event = m_system->CreateMicrosecondEvent(
     "ATA HDD Command", 1, std::bind(&ATAHDD::ExecutePendingCommand, this), false);
-  m_read_write_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
+  m_read_write_event = m_system->CreateMicrosecondEvent(
     "ATA HDD Read/Write", 1, std::bind(&ATAHDD::ExecutePendingReadWrite, this), false);
 
   // Create indicator and menu options.

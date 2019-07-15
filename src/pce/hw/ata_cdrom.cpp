@@ -30,8 +30,8 @@ bool ATACDROM::Initialize(System* system, Bus* bus)
   if (!m_cdrom.Initialize(system, bus))
     return false;
 
-  m_command_event = m_system->GetTimingManager()->CreateMicrosecondIntervalEvent(
-    "ATAPI Command", 1, std::bind(&ATACDROM::ExecutePendingCommand, this), false);
+  m_command_event =
+    m_system->CreateMicrosecondEvent("ATAPI Command", 1, std::bind(&ATACDROM::ExecutePendingCommand, this), false);
   m_cdrom.SetInterruptCallback(std::bind(&ATACDROM::InterruptCallback, this));
 
   return true;

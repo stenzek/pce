@@ -31,12 +31,11 @@ static void RunTest386(CPU::BackendType cpu_backend)
   system->GetBus()->ConnectIOPortWrite(0x0080, system,
                                        [&data_buffer](u32 port, u8 value) { data_buffer.push_back(value); });
 
-  // Initialize the system.
-  EXPECT_TRUE(system->Ready()) << "system did not initialize successfully";
-
-  // Put a cap on the number of cycles, a runtime of 2 minutes should do.
-  system->ExecuteSlice(120 * static_cast<SimulationTime>(1000000000));
-  EXPECT_TRUE(system->GetX86CPU()->IsHalted());
+  // Execute the code.
+  EXPECT_TRUE(system->Execute(SecondsToSimulationTime(120))) << "system did not initialize or execution timed out";
+  EXPECT_TRUE(system->GetX86CPU()->IsHalted()) << "CPU is not halted indicating the test did not finish";
+  if (!system->GetX86CPU()->IsHalted())
+    return;
 
   // Compare output with known correct output.
   // TODO: Refactor this into a general diff method.

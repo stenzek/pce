@@ -46,6 +46,12 @@ public:
 
   SimulationTime GetCyclePeriod() const { return m_cycle_period; }
 
+  // Updates the downcount.
+  void SetExecutionDowncount(SimulationTime time_downcount)
+  {
+    m_execution_downcount = (time_downcount + (m_cycle_period - 1)) / m_cycle_period;
+  }
+
   // IRQs are level-triggered
   virtual void SetIRQState(bool state);
 
@@ -60,14 +66,8 @@ public:
   virtual bool SupportsBackend(BackendType mode) = 0;
   virtual void SetBackend(BackendType mode) = 0;
 
-  // Execute cycles
-  virtual void ExecuteSlice(SimulationTime time) = 0;
-
-  // Stalls the CPU (i.e. subtracts from the downcount).
-  virtual void StallExecution(SimulationTime time) = 0;
-
-  // Immediately stops execution of the CPU, i.e. zeros the downcount.
-  virtual void StopExecution() = 0;
+  // Main run loop
+  virtual void Execute() = 0;
 
   // Code cache flushing - for recompiler backends
   virtual void FlushCodeCache() = 0;
@@ -81,7 +81,17 @@ public:
 protected:
   void UpdateCyclePeriod();
 
+  // Pending cycles, used for some jit backends.
+  // Pending time is added at the start of the block, then committed at the next block execution.
+  CycleCount m_pending_cycles = 0;
+
+  // Number of cycles until the next event.
+  CycleCount m_execution_downcount = 0;
+
+  // Time for each cycle.
   SimulationTime m_cycle_period;
+
+  // Number of cycles per second.
   float m_frequency;
   BackendType m_backend_type;
 };

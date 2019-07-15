@@ -15,7 +15,7 @@ PROPERTY_TABLE_MEMBER_UINT("IOBase", 0, offsetof(AdLib, m_io_base), nullptr, 0)
 END_OBJECT_PROPERTY_MAP()
 
 AdLib::AdLib(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_chip(YMF262::Mode::OPL2, "AdLib ")
+  : BaseClass(identifier, type_info), m_chip(YMF262::Mode::OPL2)
 {
 }
 

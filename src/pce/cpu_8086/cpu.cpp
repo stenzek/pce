@@ -51,9 +51,6 @@ void CPU::Reset()
 {
   BaseClass::Reset();
 
-  m_pending_cycles = 0;
-  m_execution_downcount = 0;
-
   Y_memzero(&m_registers, sizeof(m_registers));
 
   m_registers.FLAGS.bits = 0;
@@ -195,62 +192,35 @@ void CPU::SetBackend(BackendType mode)
   Assert(mode == BackendType::Interpreter);
 }
 
-void CPU::ExecuteSlice(SimulationTime time)
+void CPU::Execute()
 {
-  const CycleCount cycles_in_slice = (time + (m_cycle_period - 1)) / m_cycle_period;
-  m_execution_downcount += cycles_in_slice;
-  if (m_execution_downcount <= 0)
-    return;
-
   fastjmp_set(&m_jmp_buf);
 
-  do
+  while (m_system->ShouldRunCPU())
   {
     // If we're halted, don't even bother calling into the backend.
     if (m_halted)
     {
+      m_pending_cycles += m_execution_downcount;
+      m_execution_downcount = 0;
       CommitPendingCycles();
-
-      // Run as many ticks until we hit the downcount.
-      const SimulationTime time_to_execute =
-        std::max(m_system->GetTimingManager()->GetNextEventTime() - m_system->GetTimingManager()->GetPendingTime(),
-                 SimulationTime(0));
-
-      // Align the execution time to the cycle period, this way we don't drift due to halt.
-      const CycleCount cycles_to_next_event =
-        std::max((time_to_execute + m_cycle_period - 1) / m_cycle_period, CycleCount(1));
-      const CycleCount cycles_to_idle = std::min(m_execution_downcount, cycles_to_next_event);
-      m_system->GetTimingManager()->AddPendingTime(cycles_to_idle * m_cycle_period);
-      m_execution_downcount -= cycles_to_idle;
+      m_system->RunEvents();
       continue;
     }
 
-    // Check for external interrupts.
-    if (HasExternalInterrupt())
-      DispatchExternalInterrupt();
+    while (m_execution_downcount > 0)
+    {
+      // Check for external interrupts.
+      if (HasExternalInterrupt())
+        DispatchExternalInterrupt();
 
-    ExecuteInstruction();
+      ExecuteInstruction();
+      CommitPendingCycles();
+    }
 
     // Run events if needed.
-    CommitPendingCycles();
-  } while (m_execution_downcount > 0);
-
-  // If we had a long-running instruction (e.g. a long REP), set downcount to zero, as it'll likely be negative.
-  // This is safe, as any time-dependent events occur during CommitPendingCycles();
-  m_execution_downcount = std::max(m_execution_downcount, CycleCount(0));
-}
-
-void CPU::StallExecution(SimulationTime time)
-{
-  const CycleCount cycles_in_slice = (time + (m_cycle_period - 1)) / m_cycle_period;
-  m_execution_downcount -= cycles_in_slice;
-  m_system->GetTimingManager()->AddPendingTime(cycles_in_slice * m_cycle_period);
-}
-
-void CPU::StopExecution()
-{
-  // Zero the downcount, causing the above loop to exit early.
-  m_execution_downcount = 0;
+    m_system->RunEvents();
+  }
 }
 
 void CPU::FlushCodeCache()
@@ -266,7 +236,7 @@ void CPU::CommitPendingCycles()
 {
   m_execution_stats.cycles_executed += m_pending_cycles;
   m_execution_downcount -= m_pending_cycles;
-  m_system->GetTimingManager()->AddPendingTime(m_pending_cycles * GetCyclePeriod());
+  m_system->AddSimulationTime(m_pending_cycles * GetCyclePeriod());
   m_pending_cycles = 0;
 }
 
@@ -383,12 +353,13 @@ void CPU::SetFlags(u16 value)
   m_registers.FLAGS.bits = (value & MASK) | (m_registers.FLAGS.bits & ~MASK);
 }
 
-void CPU::SetHalted(bool halt)
+void CPU::Halt()
 {
-  if (halt)
-    Log_TracePrintf("CPU Halt");
+  Log_TracePrintf("CPU Halt");
+  m_halted = true;
 
-  m_halted = halt;
+  // Eat all cycles until the next event.
+  m_pending_cycles += std::max(m_execution_downcount - m_pending_cycles, CycleCount(0));
 }
 
 PhysicalMemoryAddress CPU::CalculateLinearAddress(Segment segment, VirtualMemoryAddress offset)
