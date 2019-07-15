@@ -42,6 +42,11 @@ public:
   void SetConfigFloppyType(u32 index, u32 type);
   void SetConfigFloppyCount(u32 count);
 
+  /// Registers to skip saving to disk. For example, the shutdown status byte.
+  void AddSkipSavingVariable(u8 index);
+  void RemoveSkipSavingVariable(u8 index);
+  bool ShouldSkipSavingVariable(u8 index);
+
 protected:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('D', 'S', '1', '7');
   static constexpr u32 IOPORT_INDEX_REGISTER = 0x70;
@@ -149,6 +154,9 @@ protected:
 
   /// Contains the fraction of a second time "left over" from the previous update.
   SimulationTime m_clock_partial_time = 0;
+
+  /// Fields to skip saving to disk.
+  std::vector<u8> m_skip_saving_variables;
 };
 
 } // namespace HW

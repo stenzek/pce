@@ -9,6 +9,7 @@
 #include "pce/hw/fdc.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
+#include <algorithm>
 #include <ctime>
 Log_SetChannel(HW::DS12887);
 
@@ -200,6 +201,29 @@ void DS12887::SetConfigFloppyCount(u32 count)
   m_data[0x14] |= 0x01;
 }
 
+void DS12887::AddSkipSavingVariable(u8 index)
+{
+  if (std::find(m_skip_saving_variables.begin(), m_skip_saving_variables.end(), index) != m_skip_saving_variables.end())
+    return;
+
+  m_skip_saving_variables.push_back(index);
+  std::sort(m_skip_saving_variables.begin(), m_skip_saving_variables.end());
+}
+
+void DS12887::RemoveSkipSavingVariable(u8 index)
+{
+  auto iter = std::find(m_skip_saving_variables.begin(), m_skip_saving_variables.end(), index);
+  if (iter == m_skip_saving_variables.end())
+    return;
+
+  m_skip_saving_variables.erase(iter);
+}
+
+bool DS12887::ShouldSkipSavingVariable(u8 index)
+{
+  return std::binary_search(m_skip_saving_variables.begin(), m_skip_saving_variables.end(), index);
+}
+
 void DS12887::ConnectIOPorts(Bus* bus)
 {
   bus->ConnectIOPortReadToPointer(IOPORT_INDEX_REGISTER, this, &m_index_register);
@@ -251,7 +275,8 @@ void DS12887::IOWriteDataPort(u8 value)
   else if (index >= RTC_REGISTER_STATUS_REGISTER_A && index <= RTC_REGISTER_STATUS_REGISTER_D)
     UpdateRTCFrequency();
 
-  QueueSaveRAM();
+  if (!ShouldSkipSavingVariable(index))
+    QueueSaveRAM();
 }
 
 void DS12887::UpdateRTCFrequency()
@@ -328,8 +353,7 @@ void DS12887::UpdateInterruptState()
 
 void DS12887::UpdateClock()
 {
-  const SimulationTime elapsed_time =
-    m_system->GetSimulationTimeSince(m_last_clock_update_time) + m_clock_partial_time;
+  const SimulationTime elapsed_time = m_system->GetSimulationTimeSince(m_last_clock_update_time) + m_clock_partial_time;
   m_last_clock_update_time = m_system->GetSimulationTime();
 
   // Time greater than the lowest unit of time (seconds)?

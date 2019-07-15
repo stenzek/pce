@@ -28,12 +28,18 @@ bool Bochs::Initialize()
     return false;
 
   ConnectSystemIOPorts();
+
+  // Don't save the shutdown status byte, it can cause lockups at boot if it's reset at the incorrect time.
+  m_cmos->AddSkipSavingVariable(0x0F);
   return true;
 }
 
 void Bochs::Reset()
 {
   BaseClass::Reset();
+
+  // Clear the shutdown status byte to prevent lockups.
+  m_cmos->SetConfigVariable(0x0F, 0x00);
 
   // Hack: Set the CMOS variables on reset, so things like floppies are picked up.
   // We should probably set this last, or have a PostInitialize function or something.
