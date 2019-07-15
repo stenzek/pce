@@ -4,12 +4,12 @@
 #include "../dma_controller.h"
 #include "YBaseLib/PODArray.h"
 #include "common/bitfield.h"
-#include "common/clock.h"
 #include "floppy.h"
 #include <array>
 
 class ByteStream;
 class InterruptController;
+class TimingEvent;
 
 namespace HW {
 class Floppy;
@@ -31,9 +31,6 @@ public:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('F', 'D', 'C');
   static constexpr u32 SECTOR_SIZE = 512;
   static constexpr u32 MAX_DRIVES = 4;
-
-  // We use 1MHz as the clock frequency for the FDC, so we can specify "cycles" as microseconds.
-  static constexpr float CLOCK_FREQUENCY = 1000000;
 
 public:
   FDC(const String& identifier, Model model = Model_8272, const ObjectTypeInfo* type_info = &s_type_info);
@@ -61,7 +58,6 @@ protected:
 
   InterruptController* m_interrupt_controller = nullptr;
   DMAController* m_dma = nullptr;
-  Clock m_clock;
   Model m_model;
   bool m_fast_transfers = false;
 

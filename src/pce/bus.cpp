@@ -878,7 +878,8 @@ void Bus::SetPagesRAMState(PhysicalMemoryAddress start_address, u32 size, bool r
 void Bus::Stall(SimulationTime time)
 {
   Log_DebugPrintf("Stalling bus for %" PRId64 " ns", time);
-  m_system->GetCPU()->StallExecution(time);
+  m_system->AddSimulationTime(time);
+  m_system->UpdateCPUDowncount();
 }
 
 Bus::CodeHashType Bus::GetCodeHash(PhysicalMemoryAddress address, u32 length)

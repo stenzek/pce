@@ -1,11 +1,11 @@
 #pragma once
 #include "YBaseLib/String.h"
 #include "common/bitfield.h"
-#include "common/clock.h"
-#include "pce/component.h"
+#include "../component.h"
 #include <vector>
 
 class ByteStream;
+class TimingEvent;
 
 namespace HW {
 
@@ -181,7 +181,6 @@ private:
   void HandleMechanismStatusCommand();
   void HandleSeekCommand();
 
-  Clock m_clock;
   SmallString m_vendor_id_string;
   SmallString m_model_id_string;
   SmallString m_firmware_version_string;

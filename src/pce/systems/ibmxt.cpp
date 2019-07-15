@@ -63,9 +63,6 @@ bool IBMXT::LoadSystemState(BinaryReader& reader)
   if (!BaseClass::LoadSystemState(reader))
     return false;
 
-  if (reader.ReadUInt32() != SERIALIZATION_ID)
-    return false;
-
   m_nmi_mask = reader.ReadUInt8();
 
   return !reader.GetErrorState();
@@ -75,8 +72,6 @@ bool IBMXT::SaveSystemState(BinaryWriter& writer)
 {
   if (!BaseClass::SaveSystemState(writer))
     return false;
-
-  writer.WriteUInt32(SERIALIZATION_ID);
 
   writer.WriteUInt8(m_nmi_mask);
 

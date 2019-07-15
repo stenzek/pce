@@ -47,12 +47,12 @@ bool DS12887::Initialize(System* system, Bus* bus)
 
   ConnectIOPorts(bus);
 
-  m_rtc_interrupt_event = system->GetTimingManager()->CreateFrequencyEvent(
-    "RTC Interrupt", 32768.0f, std::bind(&DS12887::RTCInterruptEvent, this), false);
+  m_rtc_interrupt_event =
+    system->CreateFrequencyEvent("RTC Interrupt", 32768.0f, std::bind(&DS12887::RTCInterruptEvent, this), false);
 
   // Set up file saving.
-  m_save_ram_event = system->GetTimingManager()->CreateMillisecondIntervalEvent(
-    "RAM Save Event", SAVE_TO_FILE_DELAY_MS, std::bind(&DS12887::SaveRAMEvent, this), false);
+  m_save_ram_event = system->CreateMillisecondEvent("RAM Save Event", SAVE_TO_FILE_DELAY_MS,
+                                                    std::bind(&DS12887::SaveRAMEvent, this), false);
   m_save_filename.Format("%s%s", m_system->GetConfigBasePath().GetCharArray(), m_save_filename_suffix.GetCharArray());
   Log_DevPrintf("RTC saving to file '%s'", m_save_filename.GetCharArray());
 
@@ -92,7 +92,7 @@ void DS12887::Reset()
   if (m_sync_time_on_reset)
     SynchronizeTimeWithHost();
 
-  m_last_clock_update_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+  m_last_clock_update_time = m_system->GetSimulationTime();
   m_clock_partial_time = 0;
 }
 
@@ -329,8 +329,8 @@ void DS12887::UpdateInterruptState()
 void DS12887::UpdateClock()
 {
   const SimulationTime elapsed_time =
-    m_system->GetTimingManager()->GetEmulatedTimeDifference(m_last_clock_update_time) + m_clock_partial_time;
-  m_last_clock_update_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+    m_system->GetSimulationTimeSince(m_last_clock_update_time) + m_clock_partial_time;
+  m_last_clock_update_time = m_system->GetSimulationTime();
 
   // Time greater than the lowest unit of time (seconds)?
   const u32 elapsed_seconds = Truncate32(SimulationTimeToSeconds(elapsed_time));
@@ -361,7 +361,7 @@ void DS12887::ResetRAM()
   // RTC has power
   m_data[RTC_REGISTER_STATUS_REGISTER_D] = RTC_SRD_RAM_VALID;
 
-  m_last_clock_update_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+  m_last_clock_update_time = m_system->GetSimulationTime();
   m_clock_partial_time = 0;
   SynchronizeTimeWithHost();
 }
@@ -402,7 +402,7 @@ bool DS12887::LoadRAM()
     if (seconds > 0)
       AddClockSeconds(seconds);
 
-    m_last_clock_update_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+    m_last_clock_update_time = m_system->GetSimulationTime();
     m_clock_partial_time =
       static_cast<SimulationTime>(time_since_saved - static_cast<double>(seconds)) * INT64_C(1000000000);
   }

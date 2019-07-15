@@ -132,6 +132,8 @@ void HostInterface::QueueExternalEvent(ExternalEventCallback callback, bool wait
   m_external_events_lock.lock();
   m_external_events.emplace(std::make_pair(std::move(callback), wait));
   m_simulation_thread_semaphore.Post();
+  if (m_system)
+    m_system->InterruptRunLoop();
   m_external_events_lock.unlock();
   if (wait)
     WaitForSimulationThread();
@@ -186,8 +188,8 @@ void HostInterface::SetSpeedLimiterEnabled(bool enabled)
   // Reset the wall time, so that we don't execute the "missed" time.
   if (enabled)
   {
-    m_elapsed_real_time.Reset();
-    m_pending_execution_time = 0;
+    m_throttle_timer.Reset();
+    m_last_throttle_time = 0;
   }
 
   // Not a big deal if this races.
@@ -311,27 +313,35 @@ void HostInterface::SendCtrlAltDel()
 
 void HostInterface::OnSystemInitialized()
 {
-  ReportFormattedMessage("System initialized: %s", m_system->GetTypeInfo()->GetTypeName());
-  m_elapsed_real_time.Reset();
+  // Create throttle event.
+  m_throttle_timer.Reset();
   m_speed_elapsed_real_time.Reset();
+  m_throttle_event = m_system->CreateNanosecondEvent("Simulation Throttle", GetSimulationSliceTime(),
+                                                     std::bind(&HostInterface::ThrottleEvent, this), true);
+
+  ReportFormattedMessage("System initialized: %s", m_system->GetTypeInfo()->GetTypeName());
 }
 
 void HostInterface::OnSystemReset()
 {
   ReportFormattedMessage("System reset.");
-  m_elapsed_real_time.Reset();
+  m_throttle_timer.Reset();
+  m_last_throttle_time = 0;
   m_speed_elapsed_real_time.Reset();
-  m_speed_elapsed_simulation_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+  m_speed_elapsed_simulation_time = m_system->GetSimulationTime();
+  m_system->GetCPU()->GetExecutionStats(&m_last_cpu_execution_stats);
 }
 
 void HostInterface::OnSystemStateLoaded()
 {
   ReportFormattedMessage("State loaded.");
-  m_elapsed_real_time.Reset();
+  m_throttle_timer.Reset();
+  m_last_throttle_time = 0;
   m_speed_elapsed_real_time.Reset();
-  m_speed_elapsed_simulation_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+  m_speed_elapsed_simulation_time = m_system->GetSimulationTime();
   m_speed_elapsed_kernel_time = 0;
   m_speed_elapsed_user_time = 0;
+  m_system->GetCPU()->GetExecutionStats(&m_last_cpu_execution_stats);
 }
 
 void HostInterface::OnSimulationStatsUpdate(const SimulationStats& stats) {}
@@ -348,8 +358,8 @@ void HostInterface::OnSystemDestroy()
 void HostInterface::OnSimulationResumed()
 {
   // Reset the last wall time, otherwise all the missed time will be executed.
-  m_elapsed_real_time.Reset();
-  m_pending_execution_time = 0;
+  m_throttle_timer.Reset();
+  m_last_throttle_time = 0;
   m_speed_elapsed_real_time.Reset();
 }
 
@@ -458,7 +468,7 @@ void HostInterface::SimulationThreadRoutine()
     HandleStateChange();
     while (m_system && m_system->GetState() == System::State::Running)
     {
-      ExecuteSlice();
+      m_system->Run();
       ExecuteExternalEvents();
       HandleStateChange();
     }
@@ -472,13 +482,7 @@ SimulationTime HostInterface::GetSimulationSliceTime() const
 {
   // Target 60hz for event checks, to reduce input latency.
   // TODO: We should align this with the system scheduler quantum..
-  return INT64_C(16666667);
-}
-
-SimulationTime HostInterface::GetMaxSimulationSliceTime() const
-{
-  // Execute at maximum half a second of simulation.
-  return INT64_C(500000000);
+  return MillisecondsToSimulationTime(16);
 }
 
 SimulationTime HostInterface::GetMaxSimulationVarianceTime() const
@@ -526,68 +530,51 @@ bool HostInterface::ExecuteExternalEvents()
   return did_any_work;
 }
 
-void HostInterface::ExecuteSlice()
+void HostInterface::ThrottleEvent()
 {
-  static constexpr SimulationTime MINIMUM_SLEEP_TIME = INT64_C(1000000); // 1ms
-  const SimulationTime slice_time = GetSimulationSliceTime();
+  // Basically, the throttler works by firing an event every SLICE_TIME (16) milliseconds, and sleeping for the
+  // difference between the real time elapsed and SLICE_TIME. If the real time difference is greater than the variance
+  // (40ms), this time is considered "lost" and will be skipped. This can happen in both directions, if the previous
+  // sleep overshot, or if we are using too much host CPU.
+  // TODO: We could throttle to display instead..
+  static constexpr SimulationTime MINIMUM_SLEEP_TIME = MillisecondsToSimulationTime(1);
+
+  // Statistics...
+  UpdateExecutionSpeed();
 
   // If the speed limiter is off, we don't need to worry about any of this.
   if (!m_speed_limiter_enabled)
-  {
-    m_system->ExecuteSlice(slice_time);
-    UpdateExecutionSpeed();
     return;
-  }
 
-  // Work out how much time we need to simulate.
-  Timer execution_timer;
-  m_pending_execution_time += static_cast<SimulationTime>(std::ceil(m_elapsed_real_time.GetTimeNanoseconds()));
-  m_elapsed_real_time.Reset();
-
-  // Simulate the system for the passed time.
-  const SimulationTime time_to_simulate = std::min(m_pending_execution_time, GetMaxSimulationSliceTime());
-  const SimulationTime actual_time_simulated = m_system->ExecuteSlice(time_to_simulate);
-  m_pending_execution_time -= actual_time_simulated;
-  UpdateExecutionSpeed();
-
-  // Our sleep time is therefore the difference between the wall and simulation time.
-  const SimulationTime execution_wall_time =
-    static_cast<SimulationTime>(std::ceil(m_elapsed_real_time.GetTimeNanoseconds()));
-  const SimulationTime sleep_time = slice_time - execution_wall_time;
-#if 0
-  Log_WarningPrintf("Walltime: %f ms, exectime: %f (%f) ms, sleeptime: %f ms", execution_wall_time / 1000000.0,
-                    time_to_simulate / 1000000.0, actual_time_simulated / 1000000.0, sleep_time / 1000000.0);
+  // Use unsigned for defined overflow/wrap-around.
+  const u64 time = static_cast<u64>(m_throttle_timer.GetTimeNanoseconds());
+  SimulationTime sleep_time = static_cast<SimulationTime>(m_last_throttle_time - time);
+  if (std::abs(sleep_time) >= GetMaxSimulationVarianceTime())
+  {
+    // Don't display the slow messages in debug, it'll always be slow...
+#ifdef Y_BUILD_CONFIG_RELEASE
+    Log_WarningPrintf("System too %s, lost %.2f ms", sleep_time < 0 ? "slow" : "fast",
+                      static_cast<double>(std::abs(sleep_time) - GetMaxSimulationVarianceTime()) / 1000000.0);
 #endif
-
-  if (sleep_time >= MINIMUM_SLEEP_TIME)
+    m_last_throttle_time = time - GetMaxSimulationVarianceTime();
+  }
+  else if (sleep_time >= MINIMUM_SLEEP_TIME)
   {
     Thread::Sleep(static_cast<u32>(sleep_time / 1000000));
   }
-  else if (-sleep_time >= GetMaxSimulationVarianceTime())
-  {
-#if 0
-    Log_WarningPrintf("System too slow, lost %u ms", -sleep_time / 1000000);
-#endif
-    m_elapsed_real_time.Reset();
 
-    // Try not to waste too much time. If we zero this, we sleep next loop, since no real time has passed.
-    m_pending_execution_time = slice_time;
-  }
+  m_last_throttle_time += GetSimulationSliceTime();
 }
 
 void HostInterface::UpdateExecutionSpeed()
 {
   // Update emulation speed.
-  double speed_real_time = m_speed_elapsed_real_time.GetTimeNanoseconds();
-  // if (speed_real_time < 250000000.0) // 250ms //1000000000.0)
-  // return;
-
-  const SimulationTime elapsed_sim_time =
-    m_system->GetTimingManager()->GetEmulatedTimeDifference(m_speed_elapsed_simulation_time);
-  if (elapsed_sim_time < 1000000000) // 250000000)
+  const SimulationTime elapsed_sim_time = m_system->GetSimulationTimeSince(m_speed_elapsed_simulation_time);
+  if (elapsed_sim_time < SecondsToSimulationTime(1))
     return;
 
-  m_speed_elapsed_simulation_time = m_system->GetTimingManager()->GetTotalEmulatedTime();
+  double speed_real_time = m_speed_elapsed_real_time.GetTimeNanoseconds();
+  m_speed_elapsed_simulation_time = m_system->GetSimulationTime();
   m_speed_elapsed_real_time.Reset();
 
   SimulationStats stats;

@@ -48,14 +48,33 @@ void CPU_X86_TestSystem::AddROMFile(const char* filename, PhysicalMemoryAddress 
   m_rom_files.push_back({filename, load_address, expected_size});
 }
 
-bool CPU_X86_TestSystem::Ready()
+bool CPU_X86_TestSystem::Execute(SimulationTime timeout /* = SecondsToSimulationTime(60) */)
 {
   if (!Initialize())
     return false;
 
   Reset();
+
+  bool timed_out = false;
+  std::unique_ptr<TimingEvent> timeout_event;
+  if (timeout != 0)
+  {
+    timeout_event = CreateNanosecondEvent("Test Timeout", timeout,
+                                          [this, &timed_out](TimingEvent*, CycleCount, CycleCount) {
+                                            SetState(System::State::Stopped);
+                                            timed_out = true;
+                                          },
+                                          true);
+  }
+
   SetState(State::Running);
-  return true;
+
+  Run();
+
+  if (m_cpu->Cast<CPU_X86::CPU>()->IsHalted())
+    timed_out = false;
+
+  return !timed_out;
 }
 
 void CPU_X86_TestSystem::AddComponents()

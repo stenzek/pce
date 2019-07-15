@@ -19,7 +19,7 @@ END_OBJECT_PROPERTY_MAP()
 
 SerialMouse::SerialMouse(const String& identifier, const String& serial_port_name /* = "COM1" */,
                          const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("SerialMouse", UPDATES_PER_SEC), m_serial_port_name(serial_port_name)
+  : BaseClass(identifier, type_info), m_serial_port_name(serial_port_name)
 {
 }
 
@@ -34,8 +34,8 @@ bool SerialMouse::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_clock.SetManager(system->GetTimingManager());
-  m_update_event = m_clock.NewEvent("Update", 1, std::bind(&SerialMouse::SendUpdate, this), false);
+  m_update_event = m_system->CreateFrequencyEvent("Serial Mouse Update", UPDATES_PER_SEC,
+                                                  std::bind(&SerialMouse::SendUpdate, this), false);
 
   // Find the serial port.
   m_serial_port = system->GetComponentByIdentifier<Serial>(m_serial_port_name);

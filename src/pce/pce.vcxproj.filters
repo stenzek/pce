@@ -188,6 +188,7 @@
     <ClCompile Include="cpu_x86\interpreter.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
+    <ClCompile Include="timing_event.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -409,6 +410,7 @@
     <ClInclude Include="hw\ds12887.h">
       <Filter>hw</Filter>
     </ClInclude>
+    <ClInclude Include="timing_event.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="hw">

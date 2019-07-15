@@ -19,7 +19,7 @@ BEGIN_OBJECT_PROPERTY_MAP(CGA)
 END_OBJECT_PROPERTY_MAP()
 
 CGA::CGA(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("CGA", 3579545)
+  : BaseClass(identifier, type_info)
 {
 }
 
@@ -36,11 +36,10 @@ bool CGA::Initialize(System* system, Bus* bus)
     return false;
 
   m_display->SetDisplayAspectRatio(4, 3);
-
-  m_clock.SetManager(system->GetTimingManager());
   ConnectIOPorts(bus);
 
-  m_line_event = m_clock.NewEvent("Tick", 1, std::bind(&CGA::RenderLineEvent, this, std::placeholders::_2));
+  m_line_event = m_system->CreateClockedEvent("CGA Render Line", CLOCK_FREQUENCY, 1,
+                                              std::bind(&CGA::RenderLineEvent, this, std::placeholders::_2), true);
   return true;
 }
 

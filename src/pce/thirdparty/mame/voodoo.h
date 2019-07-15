@@ -10,7 +10,6 @@
 #pragma once
 #include "common/display.h"
 #include "common/display_timing.h"
-#include "common/timing.h"
 #include "common/types.h"
 #include "palette.h"
 #include "pce/bus.h"
@@ -926,7 +925,7 @@ public:
   voodoo_device(u32 clock, u8 vdt);
   ~voodoo_device();
 
-  void initialize(Bus* bus, TimingManager* timing_manager, Display* display);
+  void initialize(System* system, Bus* bus, Display* display);
   void reset();
 
   void set_fbmem(int value) { m_fbmem = value; }
@@ -1144,8 +1143,8 @@ protected:
     u32 tile_height; // height of video tiles
     u32 x_tiles;     // number of tiles in the X direction
 
-    TimingEvent::Pointer vsync_stop_timer;  // VBLANK End timer
-    TimingEvent::Pointer vsync_start_timer; // VBLANK timer
+    std::unique_ptr<TimingEvent> vsync_stop_timer;  // VBLANK End timer
+    std::unique_ptr<TimingEvent> vsync_start_timer; // VBLANK timer
     u8 vblank;                              // VBLANK state
     u8 vblank_count;                        // number of VBLANKs since last swap
     u8 vblank_swap_pending;                 // a swap is pending, waiting for a vblank
@@ -1314,8 +1313,8 @@ public:
   bool send_config;
   u32 tmu_config;
 
+  System* m_system = nullptr;
   Bus* m_bus = nullptr;
-  TimingManager* m_timing_manager = nullptr;
   Display* m_display = nullptr;
   DisplayTiming m_display_timing;
   u32 m_last_rendered_line = 0;

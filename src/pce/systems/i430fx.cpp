@@ -153,7 +153,7 @@ void i430FX::IOReadSystemControlPortB(u8* value)
   // http://qlibdos32.sourceforge.net/tutor/tutor-port61h.php
   // http://www.ee.hacettepe.edu.tr/~alkar/ELE336/w9-hacettepe[2016].pdf
   // Port 61h toggles every 15.085us.
-  const SimulationTime num_refresh_cycles = m_timing_manager.GetTotalEmulatedTime() / 15085;
+  const SimulationTime num_refresh_cycles = GetSimulationTime() / 15085;
   const u8 refresh_bit = Truncate8(num_refresh_cycles & 1);
 
   *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input

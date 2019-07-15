@@ -6,7 +6,6 @@
 #include "../thirdparty/mame/voodoo.h"
 #include "YBaseLib/Log.h"
 #include "common/display.h"
-#include "common/timing.h"
 Log_SetChannel(Voodoo);
 
 namespace HW {
@@ -64,7 +63,7 @@ bool Voodoo::Initialize(System* system, Bus* bus)
   m_display->SetEnable(false);
 
   m_device = std::make_unique<voodoo_device>(freq, type);
-  m_device->initialize(bus, system->GetTimingManager(), m_display.get());
+  m_device->initialize(system, bus, m_display.get());
   return true;
 }
 

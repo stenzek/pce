@@ -29,7 +29,6 @@
   <ItemGroup>
     <ClInclude Include="audio.h" />
     <ClInclude Include="bitfield.h" />
-    <ClInclude Include="clock.h" />
     <ClInclude Include="display.h" />
     <ClInclude Include="display_renderer_d3d.h" />
     <ClInclude Include="display_renderer.h" />
@@ -40,13 +39,11 @@
     <ClInclude Include="object.h" />
     <ClInclude Include="object_type_info.h" />
     <ClInclude Include="property.h" />
-    <ClInclude Include="timing.h" />
     <ClInclude Include="types.h" />
     <ClInclude Include="type_registry.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="audio.cpp" />
-    <ClCompile Include="clock.cpp" />
     <ClCompile Include="display.cpp" />
     <ClCompile Include="display_renderer_d3d.cpp" />
     <ClCompile Include="display_renderer.cpp" />
@@ -56,7 +53,6 @@
     <ClCompile Include="object.cpp" />
     <ClCompile Include="object_type_info.cpp" />
     <ClCompile Include="property.cpp" />
-    <ClCompile Include="timing.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="bitfield.natvis" />

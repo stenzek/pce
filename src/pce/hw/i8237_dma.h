@@ -1,9 +1,10 @@
 #pragma once
 #include "common/bitfield.h"
-#include "common/clock.h"
-#include "pce/component.h"
-#include "pce/dma_controller.h"
-#include "pce/types.h"
+#include "../component.h"
+#include "../dma_controller.h"
+#include "../types.h"
+
+class TimingEvent;
 
 namespace HW {
 
@@ -44,6 +45,7 @@ public:
   void SetDMAState(u32 channel_index, bool request) override;
 
 private:
+  static constexpr float CLOCK_FREQUENCY = 4772726; // 4.773 MHz
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('8', '2', '3', '7');
   static constexpr u32 NUM_CHANNELS = 8;
   static constexpr u32 NUM_CHANNELS_PER_CONTROLLER = 4;
@@ -103,14 +105,12 @@ private:
   void IOWriteMasterReset(u32 base_channel, u8 value);
   void IOWriteMaskReset(u32 base_channel, u8 value);
 
-  Clock m_clock;
-
   Channel m_channels[NUM_CHANNELS];
   bool m_flipflops[2] = {};
 
   u8 m_unused_page_registers[9] = {};
 
-  TimingEvent::Pointer m_tick_event;
+  std::unique_ptr<TimingEvent> m_tick_event;
   bool m_tick_in_progress = false;
 };
 

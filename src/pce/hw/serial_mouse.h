@@ -1,9 +1,10 @@
 #pragma once
-
-#include "common/clock.h"
-#include "pce/component.h"
-#include "pce/system.h"
+#include "../component.h"
+#include "../system.h"
 #include <array>
+#include <memory>
+
+class TimingEvent;
 
 namespace HW {
 
@@ -42,7 +43,6 @@ private:
 
   void SendUpdate();
 
-  Clock m_clock;
   String m_serial_port_name;
   Serial* m_serial_port = nullptr;
 
@@ -54,7 +54,7 @@ private:
   std::array<bool, NUM_BUTTONS> m_button_states = {};
   bool m_update_pending = false;
 
-  TimingEvent::Pointer m_update_event;
+  std::unique_ptr<TimingEvent> m_update_event;
 };
 
 } // namespace HW

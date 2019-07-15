@@ -1,9 +1,8 @@
 #pragma once
 
+#include "../component.h"
+#include "../system.h"
 #include "common/bitfield.h"
-#include "common/clock.h"
-#include "pce/component.h"
-#include "pce/system.h"
 
 class Display;
 
@@ -16,6 +15,7 @@ class CGA : public Component
   DECLARE_OBJECT_PROPERTY_MAP(CGA);
 
 public:
+  static constexpr float CLOCK_FREQUENCY = 3579545.0f;
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'G', 'A');
   static constexpr u32 VRAM_SIZE = 16384;
   static constexpr u32 PIXEL_CLOCK = 14318181;
@@ -146,12 +146,11 @@ private:
 
   void RecalculateEventTiming();
 
-  Clock m_clock;
   u32 m_address_counter = 0;
   u32 m_character_row_counter = 0;
   u32 m_current_row = 0;
   u32 m_remaining_adjust_lines = 0;
-  TimingEvent::Pointer m_line_event;
+  std::unique_ptr<TimingEvent> m_line_event;
 
   // Currently-rendering frame.
   std::vector<u32> m_current_frame;

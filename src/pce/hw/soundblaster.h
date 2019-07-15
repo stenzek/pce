@@ -1,16 +1,15 @@
 #pragma once
 
+#include "../component.h"
 #include "common/audio.h"
 #include "common/bitfield.h"
-#include "common/clock.h"
-#include "pce/component.h"
-#include "pce/hw/ymf262.h"
-#include "pce/system.h"
+#include "ymf262.h"
 #include <array>
 #include <deque>
 
 class InterruptController;
 class DMAController;
+class TimingEvent;
 
 namespace HW {
 
@@ -130,7 +129,6 @@ private:
   void RaiseInterrupt(bool is_16_bit);
   void LowerInterrupt(bool is_16_bit);
 
-  Clock m_clock;
   InterruptController* m_interrupt_controller = nullptr;
   DMAController* m_dma_controller = nullptr;
   Type m_type;
@@ -142,7 +140,7 @@ private:
   bool m_interrupt_pending_16 = false;
 
   // Yamaha FM Synth
-  HW::YMF262 m_ymf262;
+  YMF262 m_ymf262;
 
   //////////////////////////////////////////////////////////////////////////
   // DSP
@@ -195,7 +193,7 @@ private:
   struct DACState
   {
     Audio::Channel* output_channel = nullptr;
-    TimingEvent::Pointer sample_event;
+    std::unique_ptr<TimingEvent> sample_event;
 
     bool enable_speaker = false;
     float frequency = 1000000.0f;

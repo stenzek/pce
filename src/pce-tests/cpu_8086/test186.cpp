@@ -17,10 +17,7 @@ static bool RunTest(const char* code_file, const char* expected_ouput_file)
   if (!ReadFileToArray(&expected_buffer, expected_ouput_file))
     return false;
 
-  EXPECT_TRUE(system->Ready()) << "system did not initialize successfully";
-
-  // Put a cap on the number of cycles, a runtime of 10 seconds should do.
-  system->ExecuteSlice(10 * static_cast<SimulationTime>(1000000000));
+  EXPECT_TRUE(system->Execute(SecondsToSimulationTime(10))) << "system did not initialize or execution timed out";
 
   // CPU should be halted at the end of the test.
   EXPECT_TRUE(system->Get8086CPU()->IsHalted())

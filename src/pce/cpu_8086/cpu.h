@@ -1,9 +1,8 @@
 #pragma once
 
-#include "common/clock.h"
+#include "../cpu.h"
 #include "common/fastjmp.h"
-#include "pce/cpu.h"
-#include "pce/cpu_8086/types.h"
+#include "types.h"
 #include <functional>
 #include <memory>
 
@@ -130,7 +129,9 @@ public:
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
   void AddCycles(CycleCount cycles) { m_pending_cycles += cycles; }
-  void AddMemoryCycle() { /*m_pending_cycles++;*/ }
+  void AddMemoryCycle()
+  { /*m_pending_cycles++;*/
+  }
   void CommitPendingCycles();
 
   // Calculates the physical address of memory with the specified segment and offset.
@@ -171,9 +172,7 @@ public:
   void SetBackend(BackendType mode) override;
 
   // Executes instructions/cycles.
-  void ExecuteSlice(SimulationTime time) override;
-  void StallExecution(SimulationTime time) override;
-  void StopExecution() override;
+  void Execute() override;
   void FlushCodeCache() override;
   void GetExecutionStats(ExecutionStats* stats) const override;
 
@@ -192,7 +191,7 @@ protected:
 
   // Sets flags from a value, masking away bits that can't be changed
   void SetFlags(u16 value);
-  void SetHalted(bool halt);
+  void Halt();
 
   // Throws an exception, leaving IP containing the address of the current instruction
   void RaiseException(u32 interrupt);
@@ -219,11 +218,6 @@ protected:
 
   InterruptController* m_interrupt_controller = nullptr;
   std::unique_ptr<DebuggerInterface> m_debugger_interface;
-
-  // Pending cycles, used for some jit backends.
-  // Pending time is added at the start of the block, then committed at the next block execution.
-  CycleCount m_pending_cycles = 0;
-  CycleCount m_execution_downcount = 0;
 
   // CPU model that determines behavior.
   Model m_model = MODEL_8086;

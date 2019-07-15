@@ -29,87 +29,102 @@ void CachedInterpreterBackend::Execute()
   fastjmp_set(&m_jmp_buf);
   m_current_block = nullptr;
 
-  while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
+  while (m_system->ShouldRunCPU())
   {
-    // Check for external interrupts.
-    if (m_cpu->HasExternalInterrupt())
+    if (m_cpu->m_halted)
     {
-      DebugAssert(m_current_block == nullptr);
-      m_cpu->DispatchExternalInterrupt();
-    }
-
-    // Execute code.
-    if (!m_current_block)
-    {
-      // No next block, try to get one.
-      m_current_block = static_cast<Block*>(GetNextBlock());
-      if (!m_current_block)
-      {
-        // No luck. Fall back to interpreter.
-        InterpretUncachedBlock();
-        m_cpu->CommitPendingCycles();
-        continue;
-      }
-    }
-
-    // Execute the block.
-    ExecuteBlock(m_current_block);
-    m_cpu->CommitPendingCycles();
-
-    // Fix up delayed block destroying.
-    Block* previous_block = m_current_block;
-    m_current_block = nullptr;
-    if (previous_block->destroy_pending)
-    {
-      FlushBlock(previous_block);
+      m_cpu->m_pending_cycles += m_cpu->m_execution_downcount;
+      m_cpu->m_execution_downcount = 0;
+      m_cpu->CommitPendingCycles();
+      m_system->RunEvents();
       continue;
     }
 
-    // Block chaining?
-    if (!m_cpu->HasExternalInterrupt() && previous_block->IsLinkable())
+    while (m_cpu->m_execution_downcount > 0)
     {
-      if (GetBlockKeyForCurrentState(&key))
+      // Check for external interrupts.
+      if (m_cpu->HasExternalInterrupt())
       {
-        // Block points to itself?
-        if (previous_block->key == key && CanExecuteBlock(previous_block))
+        DebugAssert(m_current_block == nullptr);
+        m_cpu->DispatchExternalInterrupt();
+      }
+
+      // Execute code.
+      if (!m_current_block)
+      {
+        // No next block, try to get one.
+        m_current_block = static_cast<Block*>(GetNextBlock());
+        if (!m_current_block)
         {
-          // Execute self again.
-          m_current_block = previous_block;
+          // No luck. Fall back to interpreter.
+          InterpretUncachedBlock();
+          m_cpu->CommitPendingCycles();
+          continue;
         }
-        else
+      }
+
+      // Execute the block.
+      ExecuteBlock(m_current_block);
+      m_cpu->CommitPendingCycles();
+
+      // Fix up delayed block destroying.
+      Block* previous_block = m_current_block;
+      m_current_block = nullptr;
+      if (previous_block->destroy_pending)
+      {
+        FlushBlock(previous_block);
+        continue;
+      }
+
+      // Block chaining?
+      if (!m_cpu->HasExternalInterrupt() && previous_block->IsLinkable())
+      {
+        if (GetBlockKeyForCurrentState(&key))
         {
-          // Try to find an already-linked block.
-          for (BlockBase* linked_block : previous_block->link_successors)
+          // Block points to itself?
+          if (previous_block->key == key && CanExecuteBlock(previous_block))
           {
-            if (linked_block->key == key)
-            {
-              if (!CanExecuteBlock(linked_block))
-              {
-                // CanExecuteBlock can result in a block flush, so stop iterating here.
-                break;
-              }
-
-              // Execute the
-              m_current_block = static_cast<Block*>(linked_block);
-              continue;
-            }
+            // Execute self again.
+            m_current_block = previous_block;
           }
-
-          // No acceptable blocks found in the successor list, try a new one.
-          if (!m_current_block)
+          else
           {
-            // Link the previous block to this new block if we find a new block.
-            m_current_block = static_cast<Block*>(GetNextBlock());
-            if (m_current_block)
-              LinkBlockBase(previous_block, m_current_block);
+            // Try to find an already-linked block.
+            for (BlockBase* linked_block : previous_block->link_successors)
+            {
+              if (linked_block->key == key)
+              {
+                if (!CanExecuteBlock(linked_block))
+                {
+                  // CanExecuteBlock can result in a block flush, so stop iterating here.
+                  break;
+                }
+
+                // Execute the
+                m_current_block = static_cast<Block*>(linked_block);
+                continue;
+              }
+            }
+
+            // No acceptable blocks found in the successor list, try a new one.
+            if (!m_current_block)
+            {
+              // Link the previous block to this new block if we find a new block.
+              m_current_block = static_cast<Block*>(GetNextBlock());
+              if (m_current_block)
+                LinkBlockBase(previous_block, m_current_block);
+            }
           }
         }
       }
     }
-  }
 
-  // Current block should be cleared after executing, in case of external reset.
-  m_current_block = nullptr;
+    // Current block should be cleared after executing, in case of external reset.
+    m_current_block = nullptr;
+    
+    // Run pending events.
+    m_system->RunEvents();
+  }
 }
 
 void CachedInterpreterBackend::AbortCurrentInstruction()

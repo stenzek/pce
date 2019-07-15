@@ -1,3 +1,10 @@
+if(WIN32)
+  set(SDL2_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dep/msvc/include/SDL")
+  set(SDL2_LIBRARIES "SDL2")
+else()
+  find_package(SDL2 REQUIRED)
+endif()
+
 set(SRCS
   audio_sdl.cpp
   audio_sdl.h

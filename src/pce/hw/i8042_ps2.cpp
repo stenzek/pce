@@ -18,7 +18,7 @@ BEGIN_OBJECT_PROPERTY_MAP(i8042_PS2)
 END_OBJECT_PROPERTY_MAP()
 
 i8042_PS2::i8042_PS2(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("8042 Keyboard Controller", 1000000.0f)
+  : BaseClass(identifier, type_info)
 {
 }
 
@@ -36,12 +36,12 @@ bool i8042_PS2::Initialize(System* system, Bus* bus)
     return false;
   }
 
-  m_clock.SetManager(system->GetTimingManager());
-  m_command_event = m_clock.NewEvent("Keyboard Command", 10, std::bind(&i8042_PS2::OnCommandEvent, this), false);
-  m_transfer_event =
-    m_clock.NewEvent("Keyboard Transfer", SERIAL_TRANSFER_DELAY, std::bind(&i8042_PS2::OnTransferEvent, this), false);
-  m_mouse_report_event = m_clock.NewFrequencyEvent("Mouse Report", float(DEFAULT_MOUSE_SAMPLE_RATE),
-                                                   std::bind(&i8042_PS2::OnMouseReportEvent, this), false);
+  m_command_event =
+    system->CreateMicrosecondEvent("8042 Keyboard Command", 10, std::bind(&i8042_PS2::OnCommandEvent, this), false);
+  m_transfer_event = system->CreateMicrosecondEvent("8042 Keyboard Transfer", SERIAL_TRANSFER_DELAY,
+                                                    std::bind(&i8042_PS2::OnTransferEvent, this), false);
+  m_mouse_report_event = system->CreateFrequencyEvent("Mouse Report", float(DEFAULT_MOUSE_SAMPLE_RATE),
+                                                      std::bind(&i8042_PS2::OnMouseReportEvent, this), false);
 
   bus->ConnectIOPortRead(0x60, this, std::bind(&i8042_PS2::IOReadDataPort, this, std::placeholders::_2));
   bus->ConnectIOPortWrite(0x60, this, std::bind(&i8042_PS2::IOWriteDataPort, this, std::placeholders::_2));

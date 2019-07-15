@@ -31,10 +31,9 @@ inline std::size_t GetFifoSize(Serial::Model model)
 Serial::Serial(const String& identifier, Model model /* = Model_8250 */, u32 base_io_address /* = 0x03F8 */,
                u32 irq_number /* = 4 */, s32 base_rate /* = 1843200 */,
                const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("Serial Controller", float(std::max(base_rate / 16, 1))), m_model(model),
-    m_base_io_address(base_io_address), m_irq_number(irq_number), m_fifo_capacity(GetFifoSize(model)),
-    m_fifo_interrupt_size(1), m_input_fifo_size(0), m_output_fifo_size(0), m_input_buffer(ExternalBufferSize),
-    m_output_buffer(ExternalBufferSize)
+  : BaseClass(identifier, type_info), m_model(model), m_base_io_address(base_io_address), m_irq_number(irq_number),
+    m_base_rate(base_rate), m_fifo_capacity(GetFifoSize(model)), m_fifo_interrupt_size(1), m_input_fifo_size(0),
+    m_output_fifo_size(0), m_input_buffer(ExternalBufferSize), m_output_buffer(ExternalBufferSize)
 {
 }
 
@@ -45,7 +44,6 @@ bool Serial::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_clock.SetManager(system->GetTimingManager());
   m_interrupt_controller = system->GetComponentByType<InterruptController>();
   if (!m_interrupt_controller)
   {
@@ -57,7 +55,8 @@ bool Serial::Initialize(System* system, Bus* bus)
 
   // Create transfer event, but leave it deactivated by default.
   m_transfer_event =
-    m_clock.NewEvent("Transfer", 1, std::bind(&Serial::HandleTransferEvent, this, std::placeholders::_2), false);
+    m_system->CreateClockedEvent("Serial Port '%s' Transfer", float(std::max(m_base_rate / 16, 1)), 1,
+                                 std::bind(&Serial::HandleTransferEvent, this, std::placeholders::_2), false);
 
   return true;
 }

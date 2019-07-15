@@ -1,6 +1,5 @@
 #include "display_timing.h"
 #include "YBaseLib/Log.h"
-#include "timing.h"
 Log_SetChannel(DisplayTiming);
 
 DisplayTiming::DisplayTiming() = default;
@@ -12,7 +11,10 @@ void DisplayTiming::ResetClock(SimulationTime start_time)
 
 SimulationTime DisplayTiming::GetTime(SimulationTime time) const
 {
-  return TimingManager::GetEmulatedTimeDifference(m_clock_start_time, time);
+  if (m_clock_start_time <= time)
+    return time - m_clock_start_time;
+  else
+    return (std::numeric_limits<SimulationTime>::max() - m_clock_start_time) + time;
 }
 
 s32 DisplayTiming::GetTimeInFrame(SimulationTime time) const

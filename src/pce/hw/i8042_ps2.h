@@ -9,6 +9,7 @@
 #include <deque>
 
 class InterruptController;
+class TimingEvent;
 
 namespace HW {
 
@@ -84,7 +85,6 @@ private:
   void ResetMouse();
   void CreateMousePacket();
 
-  Clock m_clock;
   InterruptController* m_interrupt_controller = nullptr;
   OutputPortWrittenCallback m_output_port_written_callback;
 
@@ -163,9 +163,9 @@ private:
   } m_mouse;
 
   // timer events
-  TimingEvent::Pointer m_command_event{};
-  TimingEvent::Pointer m_transfer_event{};
-  TimingEvent::Pointer m_mouse_report_event{};
+  std::unique_ptr<TimingEvent> m_command_event;
+  std::unique_ptr<TimingEvent> m_transfer_event;
+  std::unique_ptr<TimingEvent> m_mouse_report_event;
 };
 
 } // namespace HW

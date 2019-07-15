@@ -19,8 +19,7 @@ PROPERTY_TABLE_MEMBER_STRING("BIOSImage", 0, offsetof(VGA, m_bios_file_path), nu
 END_OBJECT_PROPERTY_MAP()
 
 VGA::VGA(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_clock("VGA Retrace", 25175000),
-    m_bios_file_path("romimages\\VGABIOS-lgpl-latest")
+  : BaseClass(identifier, type_info), m_bios_file_path("romimages\\VGABIOS-lgpl-latest")
 {
 }
 
@@ -41,8 +40,6 @@ bool VGA::Initialize(System* system, Bus* bus)
 
   m_display->SetDisplayAspectRatio(4, 3);
 
-  m_clock.SetManager(system->GetTimingManager());
-
   if (!LoadBIOSROM())
     return false;
 
@@ -50,7 +47,7 @@ bool VGA::Initialize(System* system, Bus* bus)
   RegisterVRAMMMIO();
 
   // Retrace event will be scheduled after timing is calculated.
-  m_retrace_event = m_clock.NewEvent("Retrace", 1, std::bind(&VGA::Render, this), false);
+  m_retrace_event = m_system->CreateFrequencyEvent("VGA Retrace", 25175000.0f, std::bind(&VGA::Render, this), false);
   return true;
 }
 

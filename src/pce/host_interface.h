@@ -1,6 +1,5 @@
 #pragma once
 #include "YBaseLib/Barrier.h"
-#include "YBaseLib/Event.h"
 #include "YBaseLib/Semaphore.h"
 #include "YBaseLib/String.h"
 #include "YBaseLib/TaskQueue.h"
@@ -26,6 +25,7 @@ class Mixer;
 }
 class Component;
 class System;
+class TimingEvent;
 
 class HostInterface
 {
@@ -183,11 +183,10 @@ protected:
 
 private:
   SimulationTime GetSimulationSliceTime() const;
-  SimulationTime GetMaxSimulationSliceTime() const;
   SimulationTime GetMaxSimulationVarianceTime() const;
   void HandleStateChange();
   bool ExecuteExternalEvents();
-  void ExecuteSlice();
+  void ThrottleEvent();
   void UpdateExecutionSpeed();
   void WaitForCallingThread();
   void ShutdownSystem();
@@ -202,8 +201,9 @@ private:
   std::vector<std::pair<const void*, MouseButtonChangeCallback>> m_mouse_button_change_callbacks;
 
   // Throttle event
-  Timer m_elapsed_real_time;
-  SimulationTime m_pending_execution_time = 0;
+  std::unique_ptr<TimingEvent> m_throttle_event;
+  Timer m_throttle_timer;
+  u64 m_last_throttle_time = 0;
   bool m_speed_limiter_enabled = true;
 
   // Emulation speed tracking

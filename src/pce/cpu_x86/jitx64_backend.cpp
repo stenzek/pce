@@ -32,17 +32,30 @@ void JitX64Backend::Execute()
   // We'll jump back here when an instruction is aborted.
   fastjmp_set(&m_jmp_buf);
 
-  // Assume each instruction takes a single cycle
-  // This is totally wrong, but whatever
-  while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
+  while (m_system->ShouldRunCPU())
   {
-    // Check for external interrupts.
-    if (m_cpu->HasExternalInterrupt())
-      m_cpu->DispatchExternalInterrupt();
+    if (m_cpu->m_halted)
+    {
+      m_cpu->m_pending_cycles += m_cpu->m_execution_downcount;
+      m_cpu->m_execution_downcount = 0;
+      m_cpu->CommitPendingCycles();
+      m_system->RunEvents();
+      continue;
+    }
 
-    Dispatch();
+    while (m_cpu->m_execution_downcount > 0)
+    {
+      // Check for external interrupts.
+      if (m_cpu->HasExternalInterrupt())
+        m_cpu->DispatchExternalInterrupt();
 
-    m_cpu->CommitPendingCycles();
+      Dispatch();
+
+      m_cpu->CommitPendingCycles();
+    }
+
+    // Run pending events.
+    m_system->RunEvents();
   }
 }
 

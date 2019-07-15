@@ -16,29 +16,42 @@ void InterpreterBackend::Execute()
 {
   fastjmp_set(&m_jmp_buf);
 
-  while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
+  while (m_system->ShouldRunCPU())
   {
-    // Check for external interrupts.
-    if (m_cpu->HasExternalInterrupt())
-      m_cpu->DispatchExternalInterrupt();
-
-#if 0
-    LinearMemoryAddress linear_address = cpu->CalculateLinearAddress(Segment_CS, cpu->m_registers.EIP);
-    if (linear_address == 0xFFE53DC6)
-      TRACE_EXECUTION = true;
-#endif
-
-    if (TRACE_EXECUTION)
+    if (m_cpu->m_halted)
     {
-      if (TRACE_EXECUTION_LAST_EIP != m_cpu->m_registers.EIP)
-        m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP);
-      TRACE_EXECUTION_LAST_EIP = m_cpu->m_registers.EIP;
+      m_cpu->m_pending_cycles += m_cpu->m_execution_downcount;
+      m_cpu->m_execution_downcount = 0;
+      m_cpu->CommitPendingCycles();
+      m_system->RunEvents();
+      continue;
     }
 
-    Interpreter::ExecuteInstruction(m_cpu);
+    while (m_cpu->m_execution_downcount > 0)
+    {
+      // Check for external interrupts.
+      if (m_cpu->HasExternalInterrupt())
+        m_cpu->DispatchExternalInterrupt();
+
+#if 0
+      LinearMemoryAddress linear_address = cpu->CalculateLinearAddress(Segment_CS, cpu->m_registers.EIP);
+      if (linear_address == 0xFFE53DC6)
+        TRACE_EXECUTION = true;
+#endif
+
+      if (TRACE_EXECUTION)
+      {
+        if (TRACE_EXECUTION_LAST_EIP != m_cpu->m_registers.EIP)
+          m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP);
+        TRACE_EXECUTION_LAST_EIP = m_cpu->m_registers.EIP;
+      }
+
+      Interpreter::ExecuteInstruction(m_cpu);
+      m_cpu->CommitPendingCycles();
+    }
 
     // Run events if needed.
-    m_cpu->CommitPendingCycles();
+    m_system->RunEvents();
   }
 }
 

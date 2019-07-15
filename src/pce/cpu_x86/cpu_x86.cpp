@@ -94,7 +94,6 @@ void CPU::Reset()
   BaseClass::Reset();
 
   m_pending_cycles = 0;
-  m_execution_downcount = 0;
   m_tsc_cycles = 0;
 
   Y_memzero(&m_registers, sizeof(m_registers));
@@ -461,52 +460,9 @@ void CPU::SetBackend(CPU::BackendType mode)
   }
 }
 
-void CPU::ExecuteSlice(SimulationTime time)
+void CPU::Execute()
 {
-  const CycleCount cycles_in_slice = (time + (m_cycle_period - 1)) / m_cycle_period;
-  m_execution_downcount += cycles_in_slice;
-
-  while (m_execution_downcount > 0)
-  {
-    // If we're halted, don't even bother calling into the backend.
-    if (m_halted)
-    {
-      CommitPendingCycles();
-
-      // Run as many ticks until we hit the downcount.
-      const SimulationTime time_to_execute =
-        std::max(m_system->GetTimingManager()->GetNextEventTime() - m_system->GetTimingManager()->GetPendingTime(),
-                 SimulationTime(0));
-
-      // Align the execution time to the cycle period, this way we don't drift due to halt.
-      const CycleCount cycles_to_next_event =
-        std::max((time_to_execute + m_cycle_period - 1) / m_cycle_period, CycleCount(1));
-      const CycleCount cycles_to_idle = std::min(m_execution_downcount, cycles_to_next_event);
-      m_system->GetTimingManager()->AddPendingTime(cycles_to_idle * m_cycle_period);
-      m_execution_downcount -= cycles_to_idle;
-      continue;
-    }
-
-    // Execute instructions in the backend.
-    m_backend->Execute();
-  }
-
-  // If we had a long-running instruction (e.g. a long REP), set downcount to zero, as it'll likely be negative.
-  // This is safe, as any time-dependent events occur during CommitPendingCycles();
-  m_execution_downcount = std::max(m_execution_downcount, CycleCount(0));
-}
-
-void CPU::StallExecution(SimulationTime time)
-{
-  const CycleCount cycles_in_slice = (time + (m_cycle_period - 1)) / m_cycle_period;
-  m_execution_downcount -= cycles_in_slice;
-  m_system->GetTimingManager()->AddPendingTime(cycles_in_slice * m_cycle_period);
-}
-
-void CPU::StopExecution()
-{
-  // Zero the downcount, causing the above loop to exit early.
-  m_execution_downcount = 0;
+  m_backend->Execute();
 }
 
 void CPU::FlushCodeCache()
@@ -858,14 +814,6 @@ void CPU::SetFlags(u32 value)
   UpdateAlignmentCheckMask();
 }
 
-void CPU::SetHalted(bool halt)
-{
-  if (halt)
-    Log_TracePrintf("CPU Halt");
-
-  m_halted = halt;
-}
-
 void CPU::UpdateAlignmentCheckMask()
 {
   m_alignment_check_enabled = InUserMode() && !!(m_registers.CR0 & CR0Bit_AM) && m_registers.EFLAGS.AC;
@@ -876,6 +824,15 @@ void CPU::SetCPL(u8 cpl)
   m_cpl = cpl;
   m_tlb_user_bit = BoolToUInt8(InUserMode());
   UpdateAlignmentCheckMask();
+}
+
+void CPU::Halt()
+{
+  Log_TracePrintf("CPU Halt");
+  m_halted = true;
+
+  // Eat all cycles until the next event.
+  m_pending_cycles += std::max(m_execution_downcount - m_pending_cycles, CycleCount(0));
 }
 
 void CPU::LoadSpecialRegister(Reg32 reg, u32 value)

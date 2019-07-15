@@ -1,10 +1,9 @@
 #pragma once
 
-#include "common/clock.h"
-#include "pce/cpu.h"
-#include "pce/cpu_x86/cycles.h"
-#include "pce/cpu_x86/types.h"
-#include "pce/system.h"
+#include "../cpu.h"
+#include "../system.h"
+#include "cycles.h"
+#include "types.h"
 #include <functional>
 #include <memory>
 
@@ -328,7 +327,7 @@ public:
   {
     m_tsc_cycles += m_pending_cycles;
     m_execution_downcount -= m_pending_cycles;
-    m_system->GetTimingManager()->AddPendingTime(m_pending_cycles * GetCyclePeriod());
+    m_system->AddSimulationTime(m_pending_cycles * GetCyclePeriod());
     m_pending_cycles = 0;
   }
 
@@ -388,9 +387,7 @@ public:
   void SetBackend(BackendType mode) override;
 
   // Executes instructions/cycles.
-  void ExecuteSlice(SimulationTime time) override;
-  void StallExecution(SimulationTime time) override;
-  void StopExecution() override;
+  void Execute() override;
 
   // Code cache flushing - for recompiler backends
   void FlushCodeCache() override;
@@ -449,9 +446,9 @@ protected:
 
   // Sets flags from a value, masking away bits that can't be changed
   void SetFlags(u32 value);
-  void SetHalted(bool halt);
   void UpdateAlignmentCheckMask();
   void SetCPL(u8 cpl);
+  void Halt();
 
   // Loads 80386+ control/debug/test registers
   void LoadSpecialRegister(Reg32 reg, u32 value);
@@ -568,10 +565,6 @@ protected:
   void FlushPrefetchQueue();
   bool FillPrefetchQueue();
 
-  // Pending cycles, used for some jit backends.
-  // Pending time is added at the start of the block, then committed at the next block execution.
-  CycleCount m_pending_cycles = 0;
-  CycleCount m_execution_downcount = 0;
   CycleCount m_tsc_cycles = 0;
 
   // All guest-visible registers

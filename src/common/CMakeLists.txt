@@ -2,8 +2,6 @@ set(SRCS
     audio.cpp
     audio.h
     bitfield.h
-    clock.cpp
-    clock.h
     display.cpp
     display.h
     display_renderer.cpp
@@ -19,8 +17,6 @@ set(SRCS
     object_type_info.h
     property.cpp
     property.h
-    timing.cpp
-    timing.h
     types.h
     type_registry.h
 )
@@ -39,5 +35,14 @@ endif()
 if(MSVC)
   target_sources(common PRIVATE display_renderer_d3d.cpp display_renderer_d3d.h)
   target_link_libraries(common d3d11.lib)
+endif()
+
+if(MSVC)
+  enable_language(ASM_MASM)
+  if(CMAKE_ASM_MASM_COMPILER_WORKS)
+    target_sources(common PRIVATE fastjmp.asm)
+  else()
+    message(ERROR "MASM assembler does not work")
+  endif()
 endif()
 

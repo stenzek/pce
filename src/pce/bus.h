@@ -7,7 +7,6 @@
 
 #include "YBaseLib/Barrier.h"
 #include "YBaseLib/Common.h"
-#include "YBaseLib/Event.h"
 #include "YBaseLib/PODArray.h"
 #include "YBaseLib/TaskQueue.h"
 #include "YBaseLib/Timer.h"

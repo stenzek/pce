@@ -1,8 +1,8 @@
 #pragma once
 #include "ata_device.h"
-#include "common/timing.h"
 
 class HDDImage;
+class TimingEvent;
 
 namespace HW {
 
@@ -89,9 +89,9 @@ private:
   String m_image_filename;
   std::unique_ptr<HDDImage> m_image;
 
-  TimingEvent::Pointer m_flush_event;
-  TimingEvent::Pointer m_command_event;
-  TimingEvent::Pointer m_read_write_event;
+  std::unique_ptr<TimingEvent> m_flush_event;
+  std::unique_ptr<TimingEvent> m_command_event;
+  std::unique_ptr<TimingEvent> m_read_write_event;
 
   u64 m_lbas;
   u32 m_cylinders;
