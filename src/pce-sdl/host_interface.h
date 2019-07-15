@@ -54,15 +54,13 @@ protected:
   void RenderMainMenuBar();
   void RenderActivityWindow();
   void RenderStatsWindow();
+  void RenderOSDMessages();
 
   SDL_Window* m_window;
 
   std::unique_ptr<DisplayRenderer> m_display_renderer;
   std::unique_ptr<MixerType> m_mixer;
   std::thread m_simulation_thread;
-
-  String m_last_message;
-  Timer m_last_message_time;
 
   bool m_running = false;
   bool m_show_stats = false;

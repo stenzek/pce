@@ -59,8 +59,6 @@ void HostInterface::ResetSystem()
       Log_InfoPrintf("Resetting system...");
       m_system->Reset();
       OnSystemReset();
-      Log_InfoPrintf("System reset.");
-      ReportMessage("System reset.");
     },
     false);
 }
@@ -324,12 +322,13 @@ void HostInterface::OnSystemInitialized()
 
 void HostInterface::OnSystemReset()
 {
-  ReportFormattedMessage("System reset.");
   m_throttle_timer.Reset();
   m_last_throttle_time = 0;
   m_speed_elapsed_real_time.Reset();
   m_speed_elapsed_simulation_time = m_system->GetSimulationTime();
   m_system->GetCPU()->GetExecutionStats(&m_last_cpu_execution_stats);
+  ReportFormattedMessage("System reset.");
+  Log_InfoPrintf("System reset.");
 }
 
 void HostInterface::OnSystemStateLoaded()
@@ -389,6 +388,16 @@ void HostInterface::AddUIFileCallback(const Component* component, const String& 
 {
   ComponentUIElement* ui = GetOrCreateComponentUIElement(component);
   ui->file_callbacks.emplace_back(label, std::move(callback));
+}
+
+void HostInterface::AddOSDMessage(const char* message, float duration /* = 2.0f */)
+{
+  OSDMessage msg;
+  msg.text = message;
+  msg.duration = duration;
+
+  std::unique_lock<std::mutex> lock(m_osd_messages_lock);
+  m_osd_messages.push_back(std::move(msg));
 }
 
 void HostInterface::ExecuteKeyboardCallbacks(GenScanCode scancode, bool key_down)
@@ -551,10 +560,17 @@ void HostInterface::ThrottleEvent()
   SimulationTime sleep_time = static_cast<SimulationTime>(m_last_throttle_time - time);
   if (std::abs(sleep_time) >= GetMaxSimulationVarianceTime())
   {
-    // Don't display the slow messages in debug, it'll always be slow...
 #ifdef Y_BUILD_CONFIG_RELEASE
-    Log_WarningPrintf("System too %s, lost %.2f ms", sleep_time < 0 ? "slow" : "fast",
-                      static_cast<double>(std::abs(sleep_time) - GetMaxSimulationVarianceTime()) / 1000000.0);
+    // Don't display the slow messages in debug, it'll always be slow...
+    // Limit how often the messages are displayed.
+    if (m_speed_lost_time_timestamp.GetTimeSeconds() >= 2.0f)
+    {
+      AddOSDMessage(
+        SmallString::FromFormat("System too %s, lost %.2f ms", sleep_time < 0 ? "slow" : "fast",
+                                static_cast<double>(std::abs(sleep_time) - GetMaxSimulationVarianceTime()) / 1000000.0),
+        2.0f);
+      m_speed_lost_time_timestamp.Reset();
+    }
 #endif
     m_last_throttle_time = time - GetMaxSimulationVarianceTime();
   }

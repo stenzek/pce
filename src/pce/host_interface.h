@@ -129,6 +129,9 @@ public:
   virtual void AddUICallback(const Component* component, const String& label, UICallback callback);
   virtual void AddUIFileCallback(const Component* component, const String& label, UIFileCallback callback);
 
+  // Adds OSD messages, duration is in seconds.
+  void AddOSDMessage(const char* message, float duration = 2.0f);
+
 protected:
   struct ComponentUIElement
   {
@@ -156,6 +159,13 @@ protected:
     // TODO: Frames
   };
 
+  struct OSDMessage
+  {
+    String text;
+    Timer time;
+    float duration;
+  };
+
   // Implemented in derived classes.
   virtual void OnSystemInitialized();
   virtual void OnSystemReset();
@@ -181,6 +191,11 @@ protected:
   ComponentUIElement* GetOrCreateComponentUIElement(const Component* component);
   ComponentUIElement* GetComponentUIElement(const Component* component);
 
+  std::unique_ptr<System> m_system;
+  std::vector<ComponentUIElement> m_component_ui_elements;
+  std::deque<OSDMessage> m_osd_messages;
+  std::mutex m_osd_messages_lock;
+
 private:
   SimulationTime GetSimulationSliceTime() const;
   SimulationTime GetMaxSimulationVarianceTime() const;
@@ -191,11 +206,6 @@ private:
   void WaitForCallingThread();
   void ShutdownSystem();
 
-protected:
-  std::unique_ptr<System> m_system;
-  std::vector<ComponentUIElement> m_component_ui_elements;
-
-private:
   std::vector<std::pair<const void*, KeyboardCallback>> m_keyboard_callbacks;
   std::vector<std::pair<const void*, MousePositionChangeCallback>> m_mouse_position_change_callbacks;
   std::vector<std::pair<const void*, MouseButtonChangeCallback>> m_mouse_button_change_callbacks;
@@ -205,6 +215,7 @@ private:
   Timer m_throttle_timer;
   u64 m_last_throttle_time = 0;
   bool m_speed_limiter_enabled = true;
+  Timer m_speed_lost_time_timestamp;
 
   // Emulation speed tracking
   Timer m_speed_elapsed_real_time;

@@ -205,30 +205,23 @@ bool SDLHostInterface::CreateSystem(const char* filename, s32 save_state_index /
 
 void SDLHostInterface::ReportMessage(const char* message)
 {
-  m_last_message = message;
-  m_last_message_time.Reset();
+  AddOSDMessage(message, 3.0f);
 }
 
 void SDLHostInterface::OnSimulationStatsUpdate(const SimulationStats& stats)
 {
-  // Persist each message for only 3 seconds.
-  if (!m_last_message.IsEmpty() && m_last_message_time.GetTimeSeconds() >= 3.0f)
-    m_last_message.Clear();
-
   LargeString window_title;
 #if 0
-  window_title.Format("PCE | System: %s | CPU: %s (%.2f MHz, %s) | Speed: %.1f%% | VPS: %.1f%s%s",
+  window_title.Format("PCE | System: %s | CPU: %s (%.2f MHz, %s) | Speed: %.1f%% | VPS: %.1f",
                       m_system->GetTypeInfo()->GetTypeName(), m_system->GetCPU()->GetModelString(),
                       m_system->GetCPU()->GetFrequency() / 1000000.0f,
                       CPU::BackendTypeToString(m_system->GetCPU()->GetBackend()), stats.simulation_speed * 100.0f,
-                      m_display_renderer->GetPrimaryDisplayFramesPerSecond(), m_last_message.IsEmpty() ? "" : " | ",
-                      m_last_message.GetCharArray());
+                      m_display_renderer->GetPrimaryDisplayFramesPerSecond());
 #else
-  window_title.Format("PCE | CPU: %s (%.2f MHz, %s) | Speed: %.1f%% | VPS: %.1f%s%s",
-                      m_system->GetCPU()->GetModelString(), m_system->GetCPU()->GetFrequency() / 1000000.0f,
+  window_title.Format("PCE | CPU: %s (%.2f MHz, %s) | Speed: %.1f%% | VPS: %.1f", m_system->GetCPU()->GetModelString(),
+                      m_system->GetCPU()->GetFrequency() / 1000000.0f,
                       CPU::BackendTypeToString(m_system->GetCPU()->GetBackend()), stats.simulation_speed * 100.0f,
-                      m_display_renderer->GetPrimaryDisplayFramesPerSecond(), m_last_message.IsEmpty() ? "" : " | ",
-                      m_last_message.GetCharArray());
+                      m_display_renderer->GetPrimaryDisplayFramesPerSecond());
 #endif
 
   SDL_SetWindowTitle(m_window, window_title);
@@ -489,6 +482,7 @@ void SDLHostInterface::RenderImGui()
 {
   RenderMainMenuBar();
   RenderStatsWindow();
+  RenderOSDMessages();
   RenderActivityWindow();
 
   ImGui::Render();
@@ -640,7 +634,7 @@ void SDLHostInterface::RenderActivityWindow()
   }
   if (has_activity)
   {
-    ImGui::SetNextWindowPos(ImVec2(1.0f, 32.0f));
+    ImGui::SetNextWindowPos(ImVec2(10.0f, static_cast<float>(m_display_renderer->GetWindowHeight() - 40)));
     if (ImGui::Begin("Activity", nullptr,
                      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                        ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
@@ -710,6 +704,47 @@ void SDLHostInterface::RenderStatsWindow()
   }
 
   ImGui::End();
+}
+
+void SDLHostInterface::RenderOSDMessages()
+{
+  constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs |
+                                            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+                                            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNav |
+                                            ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing;
+
+  std::unique_lock<std::mutex> lock(m_osd_messages_lock);
+
+  auto iter = m_osd_messages.begin();
+  float position_x = 10.0f;
+  float position_y = 10.0f + 20.0f;
+  u32 index = 0;
+  while (iter != m_osd_messages.end())
+  {
+    const OSDMessage& msg = *iter;
+    const double time = msg.time.GetTimeSeconds();
+    const float time_remaining = static_cast<float>(msg.duration - time);
+    if (time_remaining <= 0.0f)
+    {
+      iter = m_osd_messages.erase(iter);
+      continue;
+    }
+
+    const float opacity = std::min(time_remaining, 1.0f);
+    ImGui::SetNextWindowPos(ImVec2(position_x, position_y));
+    ImGui::SetNextWindowSize(ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, opacity);
+
+    if (ImGui::Begin(SmallString::FromFormat("osd_%u", index++), nullptr, window_flags))
+    {
+      ImGui::TextUnformatted(msg.text);
+      position_y += ImGui::GetWindowSize().y + (4.0f * ImGui::GetIO().DisplayFramebufferScale.x);
+    }
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+    ++iter;
+  }
 }
 
 void SDLHostInterface::DoLoadState(u32 index)
