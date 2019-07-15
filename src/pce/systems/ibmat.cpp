@@ -18,8 +18,8 @@ IBMAT::IBMAT(float cpu_frequency /* = 2000000.0f */, u32 memory_size /* = 1024 *
              const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(type_info), m_low_bios_file_path("romimages/Bi286-l.bin"), m_high_bios_file_path("romimages/Bi286-h.bin")
 {
-  m_cpu = new CPU_X86::CPU("CPU", CPU_X86::MODEL_386, cpu_frequency);
   m_bus = new Bus(PHYSICAL_MEMORY_BITS);
+  m_cpu = CreateComponent<CPU_X86::CPU>("CPU", CPU_X86::MODEL_386, cpu_frequency);
   AllocatePhysicalMemory(memory_size, true, true, true);
   AddComponents();
 }

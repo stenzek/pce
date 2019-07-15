@@ -178,7 +178,7 @@ void DisplayRendererGL::RenderDisplays()
     const int viewport_width = int(dim.first);
     const int viewport_height = int(dim.second);
     const int viewport_y = ((window_height - viewport_height) / 2) + m_top_padding;
-    glViewport(viewport_x, viewport_y, viewport_width, viewport_height);
+    glViewport(viewport_x, m_window_height - viewport_height - viewport_y, viewport_width, viewport_height);
     static_cast<DisplayGL*>(display)->Render();
     viewport_x += dim.first;
   }
