@@ -119,6 +119,8 @@ set(SRCS
     systems/pcipc.cpp
     systems/pcipc.h
     system_config_parser.cpp
+    timing_event.cpp
+    timing_event.h
     thirdparty/dosbox/dbopl.cpp
     thirdparty/dosbox/dbopl.h
     types.cpp
@@ -170,6 +172,11 @@ endif()
 # Disable operators, since it breaks on xbyak.
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set_target_properties(pce PROPERTIES COMPILE_FLAGS "-fno-operator-names")
+endif()
+
+# Disable the SSA optimizer on MSVC, it takes forever to compile the interpreter otherwise.
+if(MSVC)
+  set_source_files_properties(cpu_x86/interpreter.cpp PROPERTIES COMPILE_FLAGS "/d2SSAOptimizer-")
 endif()
 
 target_include_directories(pce PRIVATE "${CMAKE_SOURCE_DIR}/dep/xbyak/xbyak")

@@ -37,3 +37,12 @@ if(MSVC)
   target_link_libraries(common d3d11.lib)
 endif()
 
+if(MSVC)
+  enable_language(ASM_MASM)
+  if(CMAKE_ASM_MASM_COMPILER_WORKS)
+    target_sources(common PRIVATE fastjmp.asm)
+  else()
+    message(ERROR "MASM assembler does not work")
+  endif()
+endif()
+
