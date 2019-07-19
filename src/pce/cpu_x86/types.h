@@ -3,6 +3,7 @@
 #include "YBaseLib/Common.h"
 #include "common/bitfield.h"
 #include "pce/types.h"
+#include "pce/bus.h"
 
 namespace CPU_X86 {
 
@@ -1080,6 +1081,12 @@ struct TASK_STATE_SEGMENT_32
 static_assert(sizeof(TASK_STATE_SEGMENT_32) == 0x68, "Size of TSS32 is correct");
 static_assert(((sizeof(TASK_STATE_SEGMENT_32) % sizeof(u32)) == 0), "Size of TSS32 is dword-aligned");
 #pragma pack(pop)
+
+static constexpr u32 PAGE_SIZE = 4096;
+static constexpr u32 PAGE_OFFSET_MASK = (PAGE_SIZE - 1);
+static constexpr u32 PAGE_MASK = ~PAGE_OFFSET_MASK;
+static constexpr u32 PAGE_SHIFT = 12;
+static_assert(PAGE_SIZE == Bus::MEMORY_PAGE_SIZE, "CPU page size matches bus memory size");
 
 union PAGE_DIRECTORY_ENTRY
 {

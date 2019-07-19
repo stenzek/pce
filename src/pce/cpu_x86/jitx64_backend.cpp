@@ -114,7 +114,7 @@ bool JitX64Backend::CompileBlock(BlockBase* block)
   for (size_t i = 0; i < block->instructions.size(); i++)
   {
     bool last_instr = (i == block->instructions.size() - 1);
-    if (!codegen.CompileInstruction(&block->instructions[i], last_instr))
+    if (!codegen.CompileInstruction(&block->instructions[i].instruction, last_instr))
       return false;
   }
 
@@ -158,7 +158,7 @@ void JitX64Backend::Dispatch()
     FlushCodeCache();
   }
 
-  m_current_block = static_cast<Block*>(GetNextBlock());
+  m_current_block = nullptr;// static_cast<Block*>(LookupNextBlock());
 
   if (m_current_block != nullptr)
     // InterpretCachedBlock(m_current_block);

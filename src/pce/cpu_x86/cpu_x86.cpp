@@ -25,7 +25,7 @@ END_OBJECT_PROPERTY_MAP()
 #ifdef Y_BUILD_CONFIG_RELEASE
 bool TRACE_EXECUTION = false;
 #else
-bool TRACE_EXECUTION = false;
+bool TRACE_EXECUTION = true;
 #endif
 u32 TRACE_EXECUTION_LAST_EIP = 0;
 
@@ -303,6 +303,8 @@ bool CPU::LoadState(BinaryReader& reader)
   m_effective_address = 0;
   std::memset(&idata, 0, sizeof(idata));
   m_execution_stats = {};
+
+  m_backend->FlushCodeCache();
 
   return !reader.GetErrorState();
 }
@@ -588,7 +590,7 @@ u16 CPU::FetchDirectInstructionWord(u32 address)
   CheckSegmentAccess<sizeof(u16), AccessType::Execute>(Segment_CS, address, true);
 
   // If it crosses a page, we have to fetch bytes instead.
-  if ((linear_address & CPU::PAGE_MASK) != ((linear_address + sizeof(u16) - 1) & CPU::PAGE_MASK))
+  if ((linear_address & PAGE_MASK) != ((linear_address + sizeof(u16) - 1) & PAGE_MASK))
   {
     u32 mask = (m_current_address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF;
     u8 lsb = FetchDirectInstructionByte(address);
@@ -608,7 +610,7 @@ u32 CPU::FetchDirectInstructionDWord(u32 address)
   CheckSegmentAccess<sizeof(u32), AccessType::Execute>(Segment_CS, address, true);
 
   // If it crosses a page, we have to fetch words instead.
-  if ((linear_address & CPU::PAGE_MASK) != ((linear_address + sizeof(u32) - 1) & CPU::PAGE_MASK))
+  if ((linear_address & PAGE_MASK) != ((linear_address + sizeof(u32) - 1) & PAGE_MASK))
   {
     u32 mask = (m_current_address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF;
     u16 lsb = FetchDirectInstructionWord(address);

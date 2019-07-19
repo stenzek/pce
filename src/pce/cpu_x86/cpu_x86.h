@@ -37,10 +37,6 @@ class CPU : public ::CPU
 
 public:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
-  static constexpr u32 PAGE_SIZE = 4096;
-  static constexpr u32 PAGE_OFFSET_MASK = (PAGE_SIZE - 1);
-  static constexpr u32 PAGE_MASK = ~PAGE_OFFSET_MASK;
-  static constexpr u32 PAGE_SHIFT = 12;
   static constexpr size_t TLB_ENTRY_COUNT = 8192;
 
 #pragma pack(push, 1)

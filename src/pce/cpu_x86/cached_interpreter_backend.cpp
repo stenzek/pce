@@ -23,12 +23,11 @@ void CachedInterpreterBackend::Reset()
 
 void CachedInterpreterBackend::Execute()
 {
-  BlockKey key;
-
   // We'll jump back here when an instruction is aborted.
   fastjmp_set(&m_jmp_buf);
   m_current_block = nullptr;
 
+  BlockKey block_key;
   while (m_system->ShouldRunCPU())
   {
     if (m_cpu->m_halted)
@@ -52,19 +51,59 @@ void CachedInterpreterBackend::Execute()
       // Execute code.
       if (!m_current_block)
       {
-        // No next block, try to get one.
-        m_current_block = static_cast<Block*>(GetNextBlock());
-        if (!m_current_block)
+        if (GetBlockKeyForCurrentState(&block_key))
         {
-          // No luck. Fall back to interpreter.
+          // Look for block in the cache.
+          auto iter = m_blocks.find(block_key);
+          if (iter != m_blocks.end())
+          {
+            // Can it be executed as-is?
+            m_current_block = static_cast<Block*>(iter->second);
+            if (!m_current_block)
+            {
+              // Not a valid block.
+              InterpretUncachedBlock();
+              m_cpu->CommitPendingCycles();
+              continue;
+            }
+            else if (!CanExecuteBlock(m_current_block))
+            {
+              // Block needs to be recompiled.
+              if (!RecompileBlock(m_current_block))
+              {
+                // Recompiling failed.
+                InterpretUncachedBlock();
+                m_cpu->CommitPendingCycles();
+                continue;
+              }
+            }
+            else
+            {
+              // Block can be executed.
+              ExecuteBlock(m_current_block);
+            }
+          }
+          else
+          {
+            // Block needs to be compiled.
+            if (!CompileBlock(block_key))
+            {
+              // No luck. Fall back to interpreter.
+              InterpretUncachedBlock();
+              m_cpu->CommitPendingCycles();
+              continue;
+            }
+          }
+        }
+        else
+        {
+          // We need to fault or something. Not likely.
           InterpretUncachedBlock();
           m_cpu->CommitPendingCycles();
           continue;
         }
       }
 
-      // Execute the block.
-      ExecuteBlock(m_current_block);
       m_cpu->CommitPendingCycles();
 
       // Fix up delayed block destroying.
@@ -76,6 +115,7 @@ void CachedInterpreterBackend::Execute()
         continue;
       }
 
+#if 0
       // Block chaining?
       if (!m_cpu->HasExternalInterrupt() && previous_block->IsLinkable())
       {
@@ -110,18 +150,19 @@ void CachedInterpreterBackend::Execute()
             if (!m_current_block)
             {
               // Link the previous block to this new block if we find a new block.
-              m_current_block = static_cast<Block*>(GetNextBlock());
+              m_current_block = static_cast<Block*>(LookupNextBlock());
               if (m_current_block)
                 LinkBlockBase(previous_block, m_current_block);
             }
           }
         }
       }
+#endif
     }
 
     // Current block should be cleared after executing, in case of external reset.
     m_current_block = nullptr;
-    
+
     // Run pending events.
     m_system->RunEvents();
   }
@@ -130,9 +171,32 @@ void CachedInterpreterBackend::Execute()
 void CachedInterpreterBackend::AbortCurrentInstruction()
 {
   // Since we won't return to the dispatcher, clean up the block here.
-  if (m_current_block && m_current_block->IsDestroyPending())
+  if (m_current_block)
   {
-    DestroyBlock(m_current_block);
+    if (m_current_block->IsDestroyPending())
+    {
+      DestroyBlock(m_current_block);
+    }
+    else if (!m_current_block->IsCompiled())
+    {
+      if (m_current_block->PreviouslyFailedCompilation())
+      {
+        // The block previously failed compilation, and failed again.
+        // No point trying any more.
+        m_blocks[m_current_block->key] = nullptr;
+        UnlinkBlockBase(m_current_block);
+        RemoveBlockPhysicalMappings(m_current_block);
+        DestroyBlock(m_current_block);
+      }
+      else
+      {
+        // If the block wasn't compiled, set the invalid flag.
+        // We want to try recompiling it again the next time it's executed, as it might be the case where the block spans
+        // a page, and after faulting the next page will be resident.
+        m_current_block->flags |= BlockFlags::Invalidated;
+      }
+    }
+
     m_current_block = nullptr;
   }
 
@@ -171,20 +235,13 @@ bool CachedInterpreterBackend::CompileBlock(BlockBase* block)
 
   Block* cblock = static_cast<Block*>(block);
   cblock->entries.reserve(cblock->instructions.size());
-  for (const Instruction& instruction : cblock->instructions)
+  for (const BlockBase::InstructionEntry& entry : cblock->instructions)
   {
-    auto handler = Interpreter::GetInterpreterHandlerForInstruction(&instruction);
-    if (!handler)
-    {
-      String disassembled;
-      Decoder::DisassembleToString(&instruction, &disassembled);
-      Log_ErrorPrintf("Failed to get handler for instruction '%s'", disassembled.GetCharArray());
-      return false;
-    }
-
-    cblock->entries.push_back({handler, instruction.data, static_cast<u8>(instruction.length)});
+    cblock->entries.push_back(
+      {entry.interpreter_handler, entry.instruction.data, static_cast<u8>(entry.instruction.length)});
   }
 
+  cblock->flags |= BlockFlags::Compiled;
   return true;
 }
 
@@ -207,6 +264,29 @@ void CachedInterpreterBackend::FlushBlock(BlockBase* block, bool defer_destroy /
 void CachedInterpreterBackend::DestroyBlock(BlockBase* block)
 {
   delete static_cast<Block*>(block);
+}
+
+bool CachedInterpreterBackend::CompileBlock(const BlockKey key)
+{
+  // Insert the partially-compiled block in the map, so we can invalidate it for SMC.
+  Block* block = new Block(key);
+  InsertBlock(block);
+  m_current_block = block;
+
+  // Try to compile the block.
+  Log_DebugPrintf("Attempting to compile block %08X", key.eip_physical_address);
+  if (CompileBlock(block))
+    return true;
+
+  Log_WarningPrintf("Failed to compile block %08X", key.eip_physical_address);
+
+  // Replace the entry in the map with a null pointer, so we don't compile it again.
+  m_current_block = nullptr;
+  m_blocks[key] = nullptr;
+  RemoveBlockPhysicalMappings(block);
+  UnlinkBlockBase(block);
+  DestroyBlock(block);
+  return false;
 }
 
 void CachedInterpreterBackend::ExecuteBlock(BlockBase* block)

@@ -20,7 +20,7 @@ i430FX::i430FX(CPU_X86::Model model /* = CPU_X86::MODEL_PENTIUM */, float cpu_fr
     m_ram_size(memory_size)
 {
   m_bus = new PCIBus(PHYSICAL_MEMORY_BITS);
-  m_cpu = CreateComponent<CPU_X86::CPU>("CPU", model, cpu_frequency);
+  m_cpu = CreateComponent<CPU_X86::CPU>("CPU", model, cpu_frequency, CPU::BackendType::CachedInterpreter);
   AddComponents();
 }
 

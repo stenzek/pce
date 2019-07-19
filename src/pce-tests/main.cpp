@@ -7,7 +7,7 @@ int main(int argc, char** argv)
 #ifdef Y_BUILD_CONFIG_RELEASE
   LOGLEVEL filter_level = LOGLEVEL_INFO;
 #else
-  LOGLEVEL filter_level = LOGLEVEL_PROFILE;
+  LOGLEVEL filter_level = LOGLEVEL_TRACE;
 #endif
   Log::GetInstance().SetFilterLevel(filter_level);
   Log::GetInstance().SetConsoleOutputParams(true, nullptr, filter_level);

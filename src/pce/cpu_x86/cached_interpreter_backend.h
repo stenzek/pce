@@ -41,6 +41,7 @@ protected:
   void FlushBlock(BlockBase* block, bool defer_destroy = false) override;
   void DestroyBlock(BlockBase* block) override;
 
+  bool CompileBlock(const BlockKey key);
   void ExecuteBlock(BlockBase* block);
 
 #ifdef Y_COMPILER_MSVC

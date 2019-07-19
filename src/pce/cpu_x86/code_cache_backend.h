@@ -39,9 +39,12 @@ protected:
   virtual void DestroyBlock(BlockBase* block) = 0;
 
   /// Returns a code block ready for execution based on the current state, otherwise fall back to the interpreter.
-  BlockBase* GetNextBlock();
+  BlockBase* LookupBlock(const BlockKey key);
 
-  /// Compiles the base portion of a block (retrieves/decodes the instruction stream).
+  /// Recompiles the specified block if it has been invalidated.
+  bool RecompileBlock(BlockBase* block);
+
+  /// Trace-compiles the block for the given key. After returning, the block has already been interpreted.
   bool CompileBlockBase(BlockBase* block);
 
   /// Inserts the block into the block map.

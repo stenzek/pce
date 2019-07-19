@@ -54,10 +54,11 @@ enum class BlockFlags : u32
   Linkable = (1 << 1),
   CrossesPage = (1 << 2),
 
-  Decoding = (1 << 3),
-  BackgroundCompiling = (1 << 4),   // Only used by recompiler backends.
+  Compiled = (1 << 3),            // If missing, the block has not been completely compiled, so don't execute it.
+  BackgroundCompiling = (1 << 4), // Only used by recompiler backends.
   Invalidated = (1 << 5),
   DestroyPending = (1 << 6),
+  PreviouslyFailedCompilation = (1 << 7), // The block previously failed compilation.
 };
 IMPLEMENT_ENUM_CLASS_BITWISE_OPERATORS(BlockFlags);
 
@@ -65,7 +66,12 @@ struct BlockBase
 {
   BlockBase(const BlockKey key_);
 
-  std::vector<Instruction> instructions;
+  struct InstructionEntry
+  {
+    Instruction instruction;
+    void (*interpreter_handler)(CPU*);
+  };
+  std::vector<InstructionEntry> instructions;
   std::vector<BlockBase*> link_predecessors;
   std::vector<BlockBase*> link_successors;
   CycleCount total_cycles = 0;
@@ -75,7 +81,7 @@ struct BlockBase
   u32 next_page_physical_address = 0;
   BlockFlags flags = BlockFlags::None;
 
-  PhysicalMemoryAddress GetPhysicalPageAddress() const { return (key.eip_physical_address & CPU::PAGE_MASK); }
+  PhysicalMemoryAddress GetPhysicalPageAddress() const { return (key.eip_physical_address & PAGE_MASK); }
   PhysicalMemoryAddress GetNextPhysicalPageAddress() const { return next_page_physical_address; }
 
   bool IsValid() const { return (flags & BlockFlags::Invalidated) == BlockFlags::None; }
@@ -88,6 +94,10 @@ struct BlockBase
   bool CrossesPage() const { return (flags & BlockFlags::CrossesPage) != BlockFlags::None; }
 
   bool IsDestroyPending() const { return (flags & BlockFlags::DestroyPending) != BlockFlags::None; }
+
+  bool IsCompiled() const { return (flags & BlockFlags::Compiled) != BlockFlags::None; }
+
+  bool PreviouslyFailedCompilation() const { return (flags & BlockFlags::PreviouslyFailedCompilation) != BlockFlags::None; }
 };
 
 bool IsExitBlockInstruction(const Instruction* instruction);
