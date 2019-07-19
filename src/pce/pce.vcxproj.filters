@@ -189,6 +189,9 @@
       <Filter>cpu_x86</Filter>
     </ClCompile>
     <ClCompile Include="timing_event.cpp" />
+    <ClCompile Include="cpu_x86\code_cache_types.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -411,6 +414,9 @@
       <Filter>hw</Filter>
     </ClInclude>
     <ClInclude Include="timing_event.h" />
+    <ClInclude Include="cpu_x86\code_cache_types.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="hw">

@@ -19,6 +19,8 @@ set(SRCS
     cpu_x86/cached_interpreter_backend.h
     cpu_x86/code_cache_backend.cpp
     cpu_x86/code_cache_backend.h
+    cpu_x86/code_cache_types.cpp
+    cpu_x86/code_cache_types.h
     cpu_x86/cpu_x86.cpp
     cpu_x86/cpu_x86.h
     cpu_x86/cycles.cpp

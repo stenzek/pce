@@ -70,7 +70,7 @@ void CachedInterpreterBackend::Execute()
       // Fix up delayed block destroying.
       Block* previous_block = m_current_block;
       m_current_block = nullptr;
-      if (previous_block->destroy_pending)
+      if (previous_block->IsDestroyPending())
       {
         FlushBlock(previous_block);
         continue;
@@ -130,7 +130,7 @@ void CachedInterpreterBackend::Execute()
 void CachedInterpreterBackend::AbortCurrentInstruction()
 {
   // Since we won't return to the dispatcher, clean up the block here.
-  if (m_current_block && m_current_block->destroy_pending)
+  if (m_current_block && m_current_block->IsDestroyPending())
   {
     DestroyBlock(m_current_block);
     m_current_block = nullptr;
@@ -159,7 +159,7 @@ void CachedInterpreterBackend::FlushCodeCache()
   CodeCacheBackend::FlushCodeCache();
 }
 
-CodeCacheBackend::BlockBase* CachedInterpreterBackend::AllocateBlock(const BlockKey key)
+BlockBase* CachedInterpreterBackend::AllocateBlock(const BlockKey key)
 {
   return new Block(key);
 }

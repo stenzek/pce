@@ -3,6 +3,7 @@
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cpu_x86.h"
 #include "pce/cpu_x86/instruction.h"
+#include "pce/cpu_x86/code_cache_types.h"
 #include <unordered_map>
 
 namespace CPU_X86 {
@@ -22,76 +23,6 @@ public:
   virtual void FlushCodeCache() override;
 
 protected:
-  struct BlockKey
-  {
-    union
-    {
-      struct
-      {
-        u32 eip_physical_address;
-        u32 cs_size : 1;
-        u32 cs_granularity : 1;
-        u32 ss_size : 1;
-        u32 v8086_mode : 1;
-        u32 pad : 28;
-      };
-
-      u64 qword;
-    };
-
-    bool operator==(const BlockKey& key) const
-    {
-      // return (std::memcmp(this, &key, sizeof(key)) == 0);
-      return (qword == key.qword);
-    }
-
-    bool operator!=(const BlockKey& key) const
-    {
-      // return (std::memcmp(this, &key, sizeof(key)) != 0);
-      return (qword != key.qword);
-    }
-  };
-
-  struct BlockKeyHash
-  {
-    size_t operator()(const BlockKey& key) const
-    {
-      return std::hash<u64>()(key.qword);
-      // return size_t(key.qword);
-    }
-
-    size_t operator()(const BlockKey& lhs, const BlockKey& rhs) const { return lhs.qword < rhs.qword; }
-  };
-
-  struct BlockBase
-  {
-    BlockBase(const BlockKey key_) : key(key_) {}
-
-    std::vector<Instruction> instructions;
-    std::vector<BlockBase*> link_predecessors;
-    std::vector<BlockBase*> link_successors;
-    CycleCount total_cycles = 0;
-    Bus::CodeHashType code_hash;
-    BlockKey key = {};
-    u32 code_length = 0;
-    u32 next_page_physical_address = 0;
-    bool invalidated = false;
-    bool linkable = false;
-    bool crosses_page = false;
-    bool destroy_pending = false;
-
-    bool IsLinkable() const { return (linkable); }
-
-    PhysicalMemoryAddress GetPhysicalPageAddress() const { return (key.eip_physical_address & CPU::PAGE_MASK); }
-    PhysicalMemoryAddress GetNextPhysicalPageAddress() const { return next_page_physical_address; }
-
-    // Returns true if a block crosses a virtual memory page.
-    bool CrossesPage() const { return crosses_page; }
-  };
-
-  static bool IsExitBlockInstruction(const Instruction* instruction);
-  static bool IsLinkableExitInstruction(const Instruction* instruction);
-
   /// Allocates storage for a block.
   virtual BlockBase* AllocateBlock(const BlockKey key) = 0;
 

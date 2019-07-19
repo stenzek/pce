@@ -113,13 +113,13 @@ bool CodeCacheBackend::GetBlockKeyForCurrentState(BlockKey* key)
 bool CodeCacheBackend::CanExecuteBlock(BlockBase* block)
 {
   // If the block is invalidated, we should check if the code changed.
-  if (block->invalidated)
+  if (block->IsInvalidated())
   {
     Bus::CodeHashType new_hash = GetBlockCodeHash(block);
     if (block->code_hash == new_hash)
     {
       Log_DebugPrintf("Block %08X is invalidated - hash matches, revalidating", block->key.eip_physical_address);
-      block->invalidated = false;
+      block->flags &= ~BlockFlags::Invalidated;
       AddBlockPhysicalMappings(block);
     }
     else
@@ -129,7 +129,7 @@ bool CodeCacheBackend::CanExecuteBlock(BlockBase* block)
       ResetBlock(block);
       if (CompileBlock(block))
       {
-        block->invalidated = false;
+        block->flags &= ~BlockFlags::Invalidated;
         AddBlockPhysicalMappings(block);
         return true;
       }
@@ -159,7 +159,7 @@ bool CodeCacheBackend::CanExecuteBlock(BlockBase* block)
   return true;
 }
 
-CodeCacheBackend::BlockBase* CodeCacheBackend::GetNextBlock()
+BlockBase* CodeCacheBackend::GetNextBlock()
 {
   BlockKey key;
   if (!GetBlockKeyForCurrentState(&key))
@@ -213,8 +213,7 @@ void CodeCacheBackend::ResetBlock(BlockBase* block)
   block->code_hash = 0;
   block->code_length = 0;
   block->next_page_physical_address = 0;
-  block->linkable = false;
-  block->destroy_pending = false;
+  block->flags = BlockFlags::None;
 }
 
 void CodeCacheBackend::FlushBlock(BlockBase* block, bool defer_destroy /* = false */)
@@ -232,11 +231,11 @@ void CodeCacheBackend::FlushBlock(BlockBase* block, bool defer_destroy /* = fals
   UnlinkBlockBase(block);
 
   // This lookup may fail, if the block has been invalidated.
-  if (!block->invalidated)
+  if (block->IsValid())
     RemoveBlockPhysicalMappings(block);
 
   if (defer_destroy)
-    block->destroy_pending = true;
+    block->flags |= BlockFlags::DestroyPending;
   else
     DestroyBlock(block);
 }
@@ -244,7 +243,7 @@ void CodeCacheBackend::FlushBlock(BlockBase* block, bool defer_destroy /* = fals
 void CodeCacheBackend::InvalidateBlock(BlockBase* block)
 {
   Log_DebugPrintf("Invalidating block %08X", block->key.eip_physical_address);
-  block->invalidated = true;
+  block->flags |= BlockFlags::Invalidated;
   RemoveBlockPhysicalMappings(block);
 }
 
@@ -313,87 +312,7 @@ void CodeCacheBackend::RemoveBlockPhysicalMappings(BlockBase* block)
 #undef REMOVE_PAGE
 }
 
-bool CodeCacheBackend::IsExitBlockInstruction(const Instruction* instruction)
-{
-  switch (instruction->operation)
-  {
-    case Operation_JMP_Near:
-    case Operation_JMP_Far:
-    case Operation_LOOP:
-    case Operation_Jcc:
-    case Operation_JCXZ:
-    case Operation_CALL_Near:
-    case Operation_CALL_Far:
-    case Operation_RET_Near:
-    case Operation_RET_Far:
-    case Operation_INT:
-    case Operation_INT3:
-    case Operation_INTO:
-    case Operation_IRET:
-    case Operation_HLT:
-    case Operation_INVLPG:
-    case Operation_BOUND:
-      return true;
 
-      // STI strictly shouldn't be an issue, but if a block has STI..CLI in the same block,
-      // the interrupt flag will never be checked, resulting in hangs.
-    case Operation_STI:
-      return true;
-
-    case Operation_MOV_CR:
-    {
-      // Changing CR0 changes processor behavior, and changing CR3 modifies page mappings.
-      if (instruction->operands[0].mode == OperandMode_ModRM_ControlRegister)
-      {
-        const u8 cr_index = instruction->data.GetModRM_Reg();
-        if (cr_index == 0 || cr_index == 3 || cr_index == 4)
-          return true;
-      }
-    }
-    break;
-
-    case Operation_MOV_Sreg:
-    {
-      // Since we use SS as a block key, mov ss, <val> should exit the block.
-      if (instruction->operands[0].mode == OperandMode_ModRM_SegmentReg &&
-          instruction->data.GetModRM_Reg() == Segment_SS)
-      {
-        return true;
-      }
-    }
-    break;
-
-    case Operation_MOV_DR:
-    {
-      // Enabling debug registers should disable the code cache backend.
-      if (instruction->operands[0].mode == OperandMode_ModRM_DebugRegister && instruction->data.GetModRM_Reg() >= 3)
-        return true;
-    }
-    break;
-  }
-
-  return false;
-}
-
-bool CodeCacheBackend::IsLinkableExitInstruction(const Instruction* instruction)
-{
-  switch (instruction->operation)
-  {
-    case Operation_JMP_Near:
-    case Operation_Jcc:
-    case Operation_JCXZ:
-    case Operation_LOOP:
-    case Operation_CALL_Near:
-    case Operation_RET_Near:
-    case Operation_INVLPG:
-      return true;
-
-    default:
-      break;
-  }
-
-  return false;
-}
 
 bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 {
@@ -556,7 +475,9 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 
     if (IsExitBlockInstruction(instruction))
     {
-      block->linkable = IsLinkableExitInstruction(instruction);
+      if (IsLinkableExitInstruction(instruction))
+        block->flags |= BlockFlags::Linkable;
+
       break;
     }
   }
@@ -591,8 +512,9 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 
   // Does this block cross a page boundary?
   const VirtualMemoryAddress eip_linear_address = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP);
-  block->crosses_page =
-    ((eip_linear_address & CPU::PAGE_MASK) != ((eip_linear_address + (block->code_length - 1)) & CPU::PAGE_MASK));
+  if ((eip_linear_address & CPU::PAGE_MASK) != ((eip_linear_address + (block->code_length - 1)) & CPU::PAGE_MASK))
+    block->flags |= BlockFlags::CrossesPage;
+
   if (block->CrossesPage())
   {
     if (!m_cpu->TranslateLinearAddress(&block->next_page_physical_address,

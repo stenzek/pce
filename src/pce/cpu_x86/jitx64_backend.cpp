@@ -62,7 +62,7 @@ void JitX64Backend::Execute()
 void JitX64Backend::AbortCurrentInstruction()
 {
   // Since we won't return to the dispatcher, clean up the block here.
-  if (m_current_block->destroy_pending)
+  if (m_current_block->IsDestroyPending())
   {
     DestroyBlock(m_current_block);
     m_current_block = nullptr;
@@ -87,7 +87,7 @@ void JitX64Backend::FlushCodeCache()
   m_code_space->Reset();
 }
 
-CodeCacheBackend::BlockBase* JitX64Backend::AllocateBlock(const BlockKey key)
+BlockBase* JitX64Backend::AllocateBlock(const BlockKey key)
 {
   return new Block(key);
 }
