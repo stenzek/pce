@@ -17,6 +17,11 @@ class InterruptController;
 
 namespace CPU_X86 {
 
+namespace Recompiler {
+class Backend;
+class CodeGenerator;
+}
+
 class Backend;
 class DebuggerInterface;
 
@@ -32,8 +37,8 @@ class CPU : public ::CPU
   friend class CachedInterpreterBackend;
   friend class Interpreter;
   friend class InterpreterBackend;
-  friend class JitX64Backend;
-  friend class JitX64CodeGenerator;
+  friend Recompiler::Backend;
+  friend Recompiler::CodeGenerator;
 
 public:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');

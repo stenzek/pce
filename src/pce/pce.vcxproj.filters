@@ -55,16 +55,7 @@
     <ClCompile Include="cpu_x86\cached_interpreter_backend.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
-    <ClCompile Include="cpu_x86\jitx64_backend.cpp">
-      <Filter>cpu_x86</Filter>
-    </ClCompile>
-    <ClCompile Include="cpu_x86\jitx64_codegen.cpp">
-      <Filter>cpu_x86</Filter>
-    </ClCompile>
     <ClCompile Include="cpu_x86\code_cache_backend.cpp">
-      <Filter>cpu_x86</Filter>
-    </ClCompile>
-    <ClCompile Include="cpu_x86\jitx64_code.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
     <ClCompile Include="bus.cpp" />
@@ -198,6 +189,18 @@
     <ClCompile Include="hw\vga_base.cpp">
       <Filter>hw</Filter>
     </ClCompile>
+    <ClCompile Include="cpu_x86\recompiler_code_generator.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\recompiler_code_generator_x64.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\recompiler_code_generator_x64.dasc.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
+    <ClCompile Include="cpu_x86\recompiler_backend.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -267,16 +270,7 @@
     <ClInclude Include="cpu_x86\cached_interpreter_backend.h">
       <Filter>cpu_x86</Filter>
     </ClInclude>
-    <ClInclude Include="cpu_x86\jitx64_backend.h">
-      <Filter>cpu_x86</Filter>
-    </ClInclude>
-    <ClInclude Include="cpu_x86\jitx64_codegen.h">
-      <Filter>cpu_x86</Filter>
-    </ClInclude>
     <ClInclude Include="cpu_x86\code_cache_backend.h">
-      <Filter>cpu_x86</Filter>
-    </ClInclude>
-    <ClInclude Include="cpu_x86\jitx64_code.h">
       <Filter>cpu_x86</Filter>
     </ClInclude>
     <ClInclude Include="bus.h" />
@@ -431,6 +425,15 @@
     </ClInclude>
     <ClInclude Include="hw\vga_base.inl">
       <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\recompiler_code_generator.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\recompiler_types.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\recompiler_backend.h">
+      <Filter>cpu_x86</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

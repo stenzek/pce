@@ -1,65 +1,52 @@
-#include "pce/cpu_x86/jitx64_backend.h"
+#include "pce/cpu_x86/recompiler_backend.h"
 #include "YBaseLib/Log.h"
+#include "common/jit_code_buffer.h"
 #include "pce/cpu_x86/debugger_interface.h"
-#include "pce/cpu_x86/jitx64_code.h"
-#include "pce/cpu_x86/jitx64_codegen.h"
+#include "pce/cpu_x86/recompiler_code_generator.h"
 #include "pce/system.h"
 #include "xbyak.h"
 #include <array>
 #include <cstdint>
 #include <cstdio>
-Log_SetChannel(CPUX86::Interpreter);
+Log_SetChannel(CPU_X86::Recompiler::Backend);
 
 // TODO: Block leaking on invalidation
 // TODO: Remove physical references when block is destroyed
 
-namespace CPU_X86 {
+namespace CPU_X86::Recompiler {
 
 extern bool TRACE_EXECUTION;
 extern u32 TRACE_EXECUTION_LAST_EIP;
 
-JitX64Backend::JitX64Backend(CPU* cpu) : CodeCacheBackend(cpu), m_code_space(std::make_unique<JitX64Code>()) {}
+Backend::Backend(CPU* cpu) : CodeCacheBackend(cpu), m_code_space(std::make_unique<JitCodeBuffer>()) {}
 
-JitX64Backend::~JitX64Backend() {}
+Backend::~Backend() {}
 
-void JitX64Backend::Reset()
+void Backend::Reset()
 {
   CodeCacheBackend::Reset();
 }
 
-void JitX64Backend::Execute()
+void Backend::Execute()
 {
   // We'll jump back here when an instruction is aborted.
   fastjmp_set(&m_jmp_buf);
 
-  while (m_system->ShouldRunCPU())
+  // Assume each instruction takes a single cycle
+  // This is totally wrong, but whatever
+  while (!m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
   {
-    if (m_cpu->m_halted)
-    {
-      m_cpu->m_pending_cycles += m_cpu->m_execution_downcount;
-      m_cpu->m_execution_downcount = 0;
-      m_cpu->CommitPendingCycles();
-      m_system->RunEvents();
-      continue;
-    }
+    // Check for external interrupts.
+    if (m_cpu->HasExternalInterrupt())
+      m_cpu->DispatchExternalInterrupt();
 
-    while (m_cpu->m_execution_downcount > 0)
-    {
-      // Check for external interrupts.
-      if (m_cpu->HasExternalInterrupt())
-        m_cpu->DispatchExternalInterrupt();
+    Dispatch();
 
-      Dispatch();
-
-      m_cpu->CommitPendingCycles();
-    }
-
-    // Run pending events.
-    m_system->RunEvents();
+    m_cpu->CommitPendingCycles();
   }
 }
 
-void JitX64Backend::AbortCurrentInstruction()
+void Backend::AbortCurrentInstruction()
 {
   // Since we won't return to the dispatcher, clean up the block here.
   if (m_current_block->IsDestroyPending())
@@ -73,11 +60,11 @@ void JitX64Backend::AbortCurrentInstruction()
   fastjmp_jmp(&m_jmp_buf);
 }
 
-void JitX64Backend::BranchTo(u32 new_EIP) {}
+void Backend::BranchTo(u32 new_EIP) {}
 
-void JitX64Backend::BranchFromException(u32 new_EIP) {}
+void Backend::BranchFromException(u32 new_EIP) {}
 
-void JitX64Backend::FlushCodeCache()
+void Backend::FlushCodeCache()
 {
   // Prevent the current block from being flushed.
   if (m_current_block)
@@ -87,12 +74,16 @@ void JitX64Backend::FlushCodeCache()
   m_code_space->Reset();
 }
 
-BlockBase* JitX64Backend::AllocateBlock(const BlockKey key)
+<<<<<<< HEAD
+BlockBase* RecompilerBackend::AllocateBlock(const BlockKey key)
+=======
+CodeCacheBackend::BlockBase* Backend::AllocateBlock(const BlockKey key)
+>>>>>>> wip
 {
   return new Block(key);
 }
 
-bool JitX64Backend::CompileBlock(BlockBase* block)
+bool Backend::CompileBlock(BlockBase* block)
 {
   if (!CompileBlockBase(block))
     return false;
@@ -109,7 +100,11 @@ bool JitX64Backend::CompileBlock(BlockBase* block)
   }
 
   // JitX64CodeGenerator codegen(this, reinterpret_cast<void*>(block->code_pointer), block->code_size);
-  JitX64CodeGenerator codegen(this, m_code_space->GetFreeCodePointer(), m_code_space->GetFreeCodeSpace());
+  CodeGenerator codegen(this, static_cast<Block*>(block));
+  if (!codegen.CompileBlock())
+    return false;
+
+  codegen.
   // for (const Instruction& instruction : block->instructions)
   for (size_t i = 0; i < block->instructions.size(); i++)
   {
@@ -126,14 +121,14 @@ bool JitX64Backend::CompileBlock(BlockBase* block)
   return true;
 }
 
-void JitX64Backend::ResetBlock(BlockBase* block)
+void Backend::ResetBlock(BlockBase* block)
 {
   static_cast<Block*>(block)->code_pointer = nullptr;
   static_cast<Block*>(block)->code_size = 0;
   CodeCacheBackend::ResetBlock(block);
 }
 
-void JitX64Backend::FlushBlock(BlockBase* block, bool defer_destroy /* = false */)
+void Backend::FlushBlock(BlockBase* block, bool defer_destroy /* = false */)
 {
   // Defer flush to after execution.
   if (m_current_block == block)
@@ -142,12 +137,12 @@ void JitX64Backend::FlushBlock(BlockBase* block, bool defer_destroy /* = false *
   CodeCacheBackend::FlushBlock(block, defer_destroy);
 }
 
-void JitX64Backend::DestroyBlock(BlockBase* block)
+void Backend::DestroyBlock(BlockBase* block)
 {
   delete static_cast<Block*>(block);
 }
 
-void JitX64Backend::Dispatch()
+void Backend::Dispatch()
 {
   // Block flush pending?
   if (m_code_buffer_overflow)
@@ -177,4 +172,4 @@ void JitX64Backend::Dispatch()
   }
 }
 
-} // namespace CPU_X86
+} // namespace CPU_X86::Recompiler

@@ -92,5 +92,7 @@ struct BlockBase
 
 bool IsExitBlockInstruction(const Instruction* instruction);
 bool IsLinkableExitInstruction(const Instruction* instruction);
+bool CanInstructionFault(const Instruction* instruction);
+bool OperandIsESP(const Instruction* instruction, const Instruction::Operand& operand);
 
 } // namespace CPU_X86
