@@ -411,7 +411,6 @@ void System::RunEvents()
     return;
   }
 
-  m_last_event_run_time = m_simulation_time;
   m_running_events = true;
 
   while (remaining_time > 0)
@@ -420,6 +419,7 @@ void System::RunEvents()
     // we run at a slice that is the length of the lowest next event time.
     SimulationTime time = std::min(remaining_time, m_events.front()->GetDownCount());
     remaining_time -= time;
+    m_last_event_run_time += time;
 
     // Apply downcount to all events.
     // This will result in a negative downcount for those events which are late.
@@ -471,6 +471,7 @@ void System::RunEvents()
     UpdateCPUDowncount();
   }
 
+  DebugAssert(m_last_event_run_time == m_simulation_time);
   m_running_events = false;
 }
 
