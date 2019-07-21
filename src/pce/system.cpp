@@ -141,6 +141,10 @@ bool System::LoadState(BinaryReader& reader)
     return false;
   }
 
+  // Global state
+  if (!reader.SafeReadInt64(&m_simulation_time) || !reader.SafeReadInt64(&m_last_event_run_time))
+    return false;
+
   // Load system (this class) state
   if (!LoadComponentStateHelper(reader, [&]() { return LoadSystemState(reader); }))
     return false;
@@ -163,6 +167,10 @@ bool System::SaveState(BinaryWriter& writer)
   {
     return false;
   }
+
+  // Global state
+  if (!writer.SafeWriteInt64(m_simulation_time) || !writer.SafeWriteInt64(m_last_event_run_time))
+    return false;
 
   // Save system (this class) state
   if (!SaveComponentStateHelper(writer, [&]() { return SaveSystemState(writer); }))
@@ -482,9 +490,6 @@ bool System::LoadEventsState(BinaryReader& reader)
     return false;
   }
 
-  if (!reader.SafeReadInt64(&m_simulation_time) || !reader.SafeReadInt64(&m_last_event_run_time))
-    return false;
-
   // Load timestamps for the clock events.
   // Any oneshot events should be recreated by the load state method, so we can fix up their times here.
   u32 event_count;
@@ -532,9 +537,6 @@ bool System::LoadEventsState(BinaryReader& reader)
 bool System::SaveEventsState(BinaryWriter& writer)
 {
   if (!writer.SafeWriteUInt32(EVENTS_SERIALIZATION_ID))
-    return false;
-
-  if (!writer.SafeWriteInt64(m_simulation_time) || !writer.SafeWriteInt64(m_last_event_run_time))
     return false;
 
   // Event count placeholder.
