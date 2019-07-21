@@ -5,6 +5,7 @@
 #include "pce/hw/adlib.h"
 #include "pce/hw/ata_cdrom.h"
 #include "pce/hw/ata_hdd.h"
+#include "pce/hw/bochs_vga.h"
 #include "pce/hw/cdrom.h"
 #include "pce/hw/cga.h"
 #include "pce/hw/ds12887.h"
@@ -24,6 +25,7 @@
 #include "pce/hw/serial_mouse.h"
 #include "pce/hw/soundblaster.h"
 #include "pce/hw/vga.h"
+#include "pce/hw/vga_base.h"
 #include "pce/hw/voodoo.h"
 #include "pce/hw/xt_ide.h"
 #include "pce/hw/xt_ppi.h"
@@ -82,6 +84,8 @@ void RegisterAllTypes()
 #ifdef ENABLE_VOODOO
   REGISTER_HW_TYPE(Voodoo);
 #endif
+  REGISTER_HW_TYPE(VGABase);
+  REGISTER_HW_TYPE(BochsVGA);
   REGISTER_HW_TYPE(XT_IDE);
   REGISTER_HW_TYPE(XT_PPI);
 

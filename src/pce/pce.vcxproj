@@ -50,6 +50,7 @@
     <ClCompile Include="dma_controller.cpp" />
     <ClCompile Include="hw\adlib.cpp" />
     <ClCompile Include="hw\ata_device.cpp" />
+    <ClCompile Include="hw\bochs_vga.cpp" />
     <ClCompile Include="hw\cdrom.cpp" />
     <ClCompile Include="hw\et4000.cpp" />
     <ClCompile Include="hw\floppy.cpp" />
@@ -59,6 +60,7 @@
     <ClCompile Include="hw\pci_bus.cpp" />
     <ClCompile Include="hw\pci_device.cpp" />
     <ClCompile Include="hw\pci_ide.cpp" />
+    <ClCompile Include="hw\vga_base.cpp" />
     <ClCompile Include="hw\voodoo.cpp" />
     <ClCompile Include="hw\xt_ide.cpp" />
     <ClCompile Include="hw\ymf262.cpp" />
@@ -126,6 +128,7 @@
     <ClInclude Include="debugger_interface.h" />
     <ClInclude Include="dma_controller.h" />
     <ClInclude Include="hw\adlib.h" />
+    <ClInclude Include="hw\bochs_vga.h" />
     <ClInclude Include="hw\cdrom.h" />
     <ClInclude Include="hw\et4000.h" />
     <ClInclude Include="hw\floppy.h" />
@@ -136,6 +139,8 @@
     <ClInclude Include="hw\pci_bus.h" />
     <ClInclude Include="hw\pci_device.h" />
     <ClInclude Include="hw\pci_ide.h" />
+    <ClInclude Include="hw\vga_base.h" />
+    <ClInclude Include="hw\vga_base.inl" />
     <ClInclude Include="hw\voodoo.h" />
     <ClInclude Include="hw\xt_ide.h" />
     <ClInclude Include="hw\ymf262.h" />

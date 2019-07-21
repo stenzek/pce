@@ -192,6 +192,12 @@
     <ClCompile Include="cpu_x86\code_cache_types.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
+    <ClCompile Include="hw\bochs_vga.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
+    <ClCompile Include="hw\vga_base.cpp">
+      <Filter>hw</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -416,6 +422,15 @@
     <ClInclude Include="timing_event.h" />
     <ClInclude Include="cpu_x86\code_cache_types.h">
       <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\bochs_vga.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\vga_base.h">
+      <Filter>hw</Filter>
+    </ClInclude>
+    <ClInclude Include="hw\vga_base.inl">
+      <Filter>hw</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
