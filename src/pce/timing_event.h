@@ -64,6 +64,12 @@ public:
   // Changing active state.
   void SetActive(bool active);
 
+  // Directly alters the downcount of the event.
+  void SetDowncount(SimulationTime downcount);
+
+  // Directly alters the interval of the event.
+  void SetInterval(CycleCount interval);
+
 private:
   System* m_system;
   String m_name;

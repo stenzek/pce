@@ -142,3 +142,17 @@ void TimingEvent::SetActive(bool active)
       Deactivate();
   }
 }
+
+void TimingEvent::SetDowncount(SimulationTime downcount)
+{
+  if (!m_active)
+    Activate();
+
+  m_downcount = downcount + m_system->GetPendingEventTime();
+  m_system->SortEvents();
+}
+
+void TimingEvent::SetInterval(CycleCount interval)
+{
+  m_interval = interval;
+}
