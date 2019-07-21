@@ -2,6 +2,7 @@
 #include "types.h"
 
 class DisplayRenderer;
+class String;
 
 class DisplayTiming
 {
@@ -81,9 +82,18 @@ public:
   bool InHorizontalSync(SimulationTime time) const;
   bool InVerticalSync(SimulationTime time) const;
   u32 GetCurrentLine(SimulationTime time) const;
+  SimulationTime GetTimeUntilVSync(SimulationTime time) const;
 
   // Writes frequency information to the log.
-  void LogFrequencies(const char* what) const;
+  void ToString(String* str) const;
+
+  // Tests whether frequencies and dimensions match.
+  bool FrequenciesMatch(const DisplayTiming& timing) const;
+
+  // Copy operator.
+  DisplayTiming& operator=(const DisplayTiming& timing);
+
+  // TODO: Serialization, clock update to prevent wrap-around.
 
 private:
   void UpdateHorizontalFrequency();

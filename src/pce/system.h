@@ -136,15 +136,6 @@ public:
   std::unique_ptr<TimingEvent> CreateNanosecondEvent(const char* name, SimulationTime ns, TimingEventCallback callback,
                                                      bool activate);
 
-  // Calculates the difference between the specified timestamps, accounting for overflow.
-  static SimulationTime GetSimulationTimeDifference(SimulationTime prev, SimulationTime now)
-  {
-    if (prev <= now)
-      return now - prev;
-    else
-      return (std::numeric_limits<SimulationTime>::max() - prev) + now;
-  }
-
   // Helper for reading a file to a buffer.
   // TODO: Find a better place for this.. result is pair<ptr, size>.
   static std::pair<std::unique_ptr<byte[]>, u32> ReadFileToBuffer(const char* filename, u32 offset, u32 expected_size);

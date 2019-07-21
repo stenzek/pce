@@ -67,6 +67,15 @@ constexpr SimulationTime SimulationTimeToMicroseconds(SimulationTime us)
   return us / INT64_C(1000);
 }
 
+// Calculates the difference between the specified timestamps, accounting for signed overflow.
+constexpr SimulationTime GetSimulationTimeDifference(SimulationTime prev, SimulationTime now)
+{
+  if (prev <= now)
+    return now - prev;
+  else
+    return (std::numeric_limits<SimulationTime>::max() - prev) + now;
+}
+
 // Zero-extending helper
 template<typename TReturn, typename TValue>
 constexpr TReturn ZeroExtend(TValue value)

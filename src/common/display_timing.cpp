@@ -1,6 +1,5 @@
 #include "display_timing.h"
-#include "YBaseLib/Log.h"
-Log_SetChannel(DisplayTiming);
+#include "YBaseLib/String.h"
 
 DisplayTiming::DisplayTiming() = default;
 
@@ -11,10 +10,7 @@ void DisplayTiming::ResetClock(SimulationTime start_time)
 
 SimulationTime DisplayTiming::GetTime(SimulationTime time) const
 {
-  if (m_clock_start_time <= time)
-    return time - m_clock_start_time;
-  else
-    return (std::numeric_limits<SimulationTime>::max() - m_clock_start_time) + time;
+  return GetSimulationTimeDifference(m_clock_start_time, time);
 }
 
 s32 DisplayTiming::GetTimeInFrame(SimulationTime time) const
@@ -176,10 +172,67 @@ u32 DisplayTiming::GetCurrentLine(SimulationTime time) const
   return static_cast<u32>(time_in_frame / m_horizontal_total_duration);
 }
 
-void DisplayTiming::LogFrequencies(const char* what) const
+SimulationTime DisplayTiming::GetTimeUntilVSync(SimulationTime time) const
 {
-  Log_InfoPrintf("%s: horizontal frequency %.3f Khz, vertical frequency %.3f hz", what, m_horizontal_frequency / 1000.0,
-                 m_vertical_frequency);
+  if (!m_clock_enable || !IsValid())
+    return 0;
+
+  const s32 time_in_frame = GetTimeInFrame(time);
+  if (time_in_frame < m_vertical_sync_start_time)
+    return m_vertical_sync_start_time - time_in_frame;
+  else
+    return (m_vertical_total_duration - time_in_frame) + m_vertical_sync_start_time;
+}
+
+void DisplayTiming::ToString(String* str) const
+{
+  const s32 horizontal_sync_start = m_horizontal_visible + m_horizontal_front_porch;
+  const s32 vertical_sync_start = m_vertical_visible + m_vertical_front_porch;
+  str->Format("%dx%d | %.3f KHz, %u Total, %d-%d Sync | %.3fhz, %d Total, %d-%d Sync", m_horizontal_visible,
+              m_vertical_visible, m_horizontal_frequency / 1000.0, m_horizontal_total, horizontal_sync_start,
+              horizontal_sync_start + m_horizontal_sync_length, m_vertical_frequency, m_vertical_total,
+              vertical_sync_start, vertical_sync_start + m_vertical_sync_length);
+}
+
+bool DisplayTiming::FrequenciesMatch(const DisplayTiming& timing) const
+{
+  return std::tie(m_pixel_clock, m_horizontal_visible, m_horizontal_front_porch, m_horizontal_sync_length,
+                  m_horizontal_back_porch, m_horizontal_frequency, m_vertical_visible, m_vertical_front_porch,
+                  m_vertical_sync_length, m_vertical_back_porch, m_vertical_frequency) ==
+         std::tie(timing.m_pixel_clock, timing.m_horizontal_visible, timing.m_horizontal_front_porch,
+                  timing.m_horizontal_sync_length, timing.m_horizontal_back_porch, timing.m_horizontal_frequency,
+                  timing.m_vertical_visible, timing.m_vertical_front_porch, timing.m_vertical_sync_length,
+                  timing.m_vertical_back_porch, timing.m_vertical_frequency);
+}
+
+DisplayTiming& DisplayTiming::operator=(const DisplayTiming& timing)
+{
+  m_clock_start_time = timing.m_clock_start_time;
+  m_horizontal_visible = timing.m_horizontal_visible;
+  m_horizontal_front_porch = timing.m_horizontal_front_porch;
+  m_horizontal_sync_length = timing.m_horizontal_sync_length;
+  m_horizontal_back_porch = timing.m_horizontal_back_porch;
+  m_vertical_visible = timing.m_vertical_visible;
+  m_vertical_front_porch = timing.m_vertical_front_porch;
+  m_vertical_sync_length = timing.m_vertical_sync_length;
+  m_vertical_back_porch = timing.m_vertical_back_porch;
+  m_horizontal_total = timing.m_horizontal_total;
+  m_vertical_total = timing.m_vertical_total;
+  m_pixel_clock = timing.m_pixel_clock;
+  m_horizontal_frequency = timing.m_horizontal_frequency;
+  m_vertical_frequency = timing.m_vertical_frequency;
+  m_horizontal_pixel_duration = timing.m_horizontal_pixel_duration;
+  m_horizontal_active_duration = timing.m_horizontal_active_duration;
+  m_horizontal_sync_start_time = timing.m_horizontal_sync_start_time;
+  m_horizontal_sync_end_time = timing.m_horizontal_sync_end_time;
+  m_horizontal_total_duration = timing.m_horizontal_total_duration;
+  m_vertical_active_duration = timing.m_vertical_active_duration;
+  m_vertical_sync_start_time = timing.m_vertical_sync_start_time;
+  m_vertical_sync_end_time = timing.m_vertical_sync_end_time;
+  m_vertical_total_duration = timing.m_vertical_total_duration;
+  m_clock_enable = timing.m_clock_enable;
+  m_valid = timing.m_valid;
+  return *this;
 }
 
 void DisplayTiming::UpdateHorizontalFrequency()
