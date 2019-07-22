@@ -1074,7 +1074,7 @@ s16 SoundBlaster::DecodeDACOutputSample(s16 last_sample)
     required_bytes += sizeof(u8);
   if (m_dac_state.fifo.size() < required_bytes)
   {
-    Log_WarningPrintf("FIFO empty and sample requested");
+    Log_DevPrintf("FIFO empty and sample requested");
     return last_sample;
   }
 
