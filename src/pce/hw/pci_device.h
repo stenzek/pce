@@ -144,6 +144,8 @@ protected:
   void SetConfigSpaceDWord(u8 function, u8 byte_offset, u32 value);
 
   PhysicalMemoryAddress GetMemoryRegionBaseAddress(u8 function, MemoryRegion region) const;
+  bool IsPCIMemoryActive(u8 function) const;
+  bool IsPCIIOActive(u8 function) const;
 
   // Memory region change notifications.
   virtual void ResetConfigSpace(u8 function);

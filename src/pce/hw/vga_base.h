@@ -1,6 +1,7 @@
 #pragma once
 #include "common/bitfield.h"
 #include "common/display_timing.h"
+#include "common/display.h"
 #include "pce/component.h"
 #include "pce/system.h"
 #include <array>
@@ -8,7 +9,6 @@
 #include <optional>
 #include <string>
 
-class Display;
 class ByteStream;
 class MMIO;
 
@@ -22,6 +22,7 @@ class VGABase : public Component
 
 public:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('V', 'G', 'A', 'B');
+  static constexpr Display::FramebufferFormat BASE_FRAMEBUFFER_FORMAT = Display::FramebufferFormat::RGBX8;
 
   enum : u32
   {
@@ -399,7 +400,7 @@ protected:
   void HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value);
   void HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value);
 
-  void GetVGAMemoryMapping(u32* base_address, u32* size);
+  void GetVGAMemoryMapping(PhysicalMemoryAddress* base_address, u32* size);
   virtual void UpdateVGAMemoryMapping();
 
   // palette used when rendering
@@ -426,6 +427,7 @@ protected:
     u8 row_scan_counter;
     u8 cursor_start_line;
     u8 cursor_end_line;
+    bool graphics_mode;
   } m_render_latch = {};
 
 private:

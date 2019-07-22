@@ -56,6 +56,7 @@ public:
 
   u32 GetFramebufferWidth() const { return m_framebuffer_width; }
   u32 GetFramebufferHeight() const { return m_framebuffer_height; }
+  FramebufferFormat GetFramebufferFormat() const { return m_framebuffer_format; }
 
   void ClearFramebuffer();
   void ResizeFramebuffer(u32 width, u32 height);

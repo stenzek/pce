@@ -44,7 +44,7 @@ bool VGABase::Initialize(System* system, Bus* bus)
   if (!m_display)
     return false;
   m_display->SetDisplayAspectRatio(4, 3);
-  m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGBX8);
+  m_display->ChangeFramebufferFormat(BASE_FRAMEBUFFER_FORMAT);
   m_display_event = m_system->CreateNanosecondEvent("VGA Render", 1, std::bind(&VGABase::Render, this), true);
   return true;
 }
@@ -661,7 +661,7 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
   }
 }
 
-void VGABase::GetVGAMemoryMapping(u32* base_address, u32* size)
+void VGABase::GetVGAMemoryMapping(PhysicalMemoryAddress* base_address, u32* size)
 {
   switch (m_graphics_registers.memory_map_select)
   {
@@ -873,6 +873,8 @@ void VGABase::LatchStartAddress()
     m_render_latch.render_height /= 2;
     m_render_latch.line_compare /= 2;
   }
+
+  m_render_latch.graphics_mode = m_graphics_registers.graphics_mode_enable;
 }
 
 void VGABase::Render()
@@ -909,7 +911,7 @@ void VGABase::Render()
   }
 
   // If video is not enabled,
-  if (m_graphics_registers.graphics_mode_enable)
+  if (m_render_latch.graphics_mode)
     RenderGraphicsMode();
   else
     RenderTextMode();

@@ -192,6 +192,18 @@ PhysicalMemoryAddress PCIDevice::GetMemoryRegionBaseAddress(u8 function, MemoryR
     return cs.dwords[base] & UINT32_C(0xFFFFFFFC);
 }
 
+bool PCIDevice::IsPCIMemoryActive(u8 function) const
+{
+  DebugAssert(function < m_num_functions);
+  return m_config_space[function].header.command.enable_memory_space;
+}
+
+bool PCIDevice::IsPCIIOActive(u8 function) const
+{
+  DebugAssert(function < m_num_functions);
+  return m_config_space[function].header.command.enable_io_space;
+}
+
 void PCIDevice::ResetConfigSpace(u8 function)
 {
   auto& cs = m_config_space[function];
@@ -363,7 +375,7 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
         cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFF0)) | (cs.dwords[offset / 4] & 0xF));
 
         // Last byte? Call the update handler.
-        if ((offset & 3) == 3 && m_config_space[function].header.command.enable_io_space)
+        if ((offset & 3) == 3 && m_config_space[function].header.command.enable_memory_space)
           OnMemoryRegionChanged(function, region, true);
       }
       else
@@ -373,8 +385,8 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
         PhysicalMemoryAddress base_address = cs.dwords[offset / 4] & UINT32_C(0xFFFFFFFC);
         base_address = Common::AlignDown(base_address, mr.size);
         cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFFC)) | (cs.dwords[offset / 4] & 0x3));
-        if ((offset & 3) == 3 && m_config_space[function].header.command.enable_memory_space)
-          OnMemoryRegionChanged(function, region, false);
+        if ((offset & 3) == 3 && m_config_space[function].header.command.enable_io_space)
+          OnMemoryRegionChanged(function, region, true);
       }
     }
     break;
