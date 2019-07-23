@@ -2,9 +2,9 @@
 #include "pce/hw/pci_device.h"
 
 namespace HW {
-class i82437FX final : public PCIDevice
+class i82437FX final : public Component, public PCIDevice
 {
-  DECLARE_OBJECT_TYPE_INFO(i82437FX, PCIDevice);
+  DECLARE_OBJECT_TYPE_INFO(i82437FX, Component);
   DECLARE_OBJECT_NO_FACTORY(i82437FX);
   DECLARE_OBJECT_PROPERTY_MAP(i82437FX);
 

@@ -5,15 +5,8 @@
 #include "pce/hw/pci_bus.h"
 Log_SetChannel(PCIDevice);
 
-DEFINE_OBJECT_TYPE_INFO(PCIDevice);
-BEGIN_OBJECT_PROPERTY_MAP(PCIDevice)
-PROPERTY_TABLE_MEMBER_UINT("PCIBusNumber", 0, offsetof(PCIDevice, m_pci_bus_number), nullptr, 0)
-PROPERTY_TABLE_MEMBER_UINT("PCIDeviceNumber", 0, offsetof(PCIDevice, m_pci_device_number), nullptr, 0)
-END_OBJECT_PROPERTY_MAP()
-
-PCIDevice::PCIDevice(const String& identifier, u8 num_functions /* = 1 */,
-                     const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_num_functions(num_functions)
+PCIDevice::PCIDevice(Component* parent_component, u8 num_functions)
+  : m_parent_component(parent_component), m_num_pci_functions(num_functions)
 {
   m_config_space.resize(num_functions);
   for (u8 i = 0; i < num_functions; i++)
@@ -22,7 +15,7 @@ PCIDevice::PCIDevice(const String& identifier, u8 num_functions /* = 1 */,
 
 PCIDevice::~PCIDevice() = default;
 
-void PCIDevice::SetLocation(u32 pci_bus_number, u32 pci_device_number)
+void PCIDevice::SetPCILocation(u32 pci_bus_number, u32 pci_device_number)
 {
   m_pci_bus_number = pci_bus_number;
   m_pci_device_number = pci_device_number;
@@ -30,19 +23,18 @@ void PCIDevice::SetLocation(u32 pci_bus_number, u32 pci_device_number)
 
 PCIBus* PCIDevice::GetPCIBus() const
 {
-  return static_cast<PCIBus*>(m_bus);
+  return m_parent_component->GetBus()->SafeCast<PCIBus>();
 }
 
-bool PCIDevice::Initialize(System* system, Bus* bus)
+bool PCIDevice::Initialize()
 {
-  if (!BaseClass::Initialize(system, bus))
-    return false;
-
-  PCIBus* pci_bus = bus->SafeCast<PCIBus>();
+  PCIBus* pci_bus = m_parent_component->GetBus()->SafeCast<PCIBus>();
   if (!pci_bus)
   {
-    Log_ErrorPrintf("Attempting to initialize PCI device '%s' (%s) on non-PCI bus (%s)", m_identifier.GetCharArray(),
-                    m_type_info->GetTypeName(), bus->GetTypeInfo()->GetTypeName());
+    Log_ErrorPrintf("Attempting to initialize PCI device '%s' (%s) on non-PCI bus (%s)",
+                    m_parent_component->GetIdentifier().GetCharArray(),
+                    m_parent_component->GetTypeInfo()->GetTypeName(),
+                    m_parent_component->GetBus()->GetTypeInfo()->GetTypeName());
     return false;
   }
 
@@ -51,16 +43,17 @@ bool PCIDevice::Initialize(System* system, Bus* bus)
   {
     if (!pci_bus->GetNextFreePCIDeviceNumber(&m_pci_bus_number, &m_pci_device_number))
     {
-      Log_ErrorPrintf("No free PCI slots in bus for '%s' (%s)", m_identifier.GetCharArray(),
-                      m_type_info->GetTypeName());
+      Log_ErrorPrintf("No free PCI slots in bus for '%s' (%s)", m_parent_component->GetIdentifier().GetCharArray(),
+                      m_parent_component->GetTypeInfo()->GetTypeName());
       return false;
     }
   }
 
   if (!pci_bus->AssignPCIDevice(m_pci_bus_number, m_pci_device_number, this))
   {
-    Log_ErrorPrintf("Failed to assign PCI device '%s' (%s) to bus %u/device %u", m_identifier.GetCharArray(),
-                    m_type_info->GetTypeName(), m_pci_bus_number, m_pci_device_number);
+    Log_ErrorPrintf("Failed to assign PCI device '%s' (%s) to bus %u/device %u",
+                    m_parent_component->GetIdentifier().GetCharArray(),
+                    m_parent_component->GetTypeInfo()->GetTypeName(), m_pci_bus_number, m_pci_device_number);
     return false;
   }
 
@@ -69,7 +62,7 @@ bool PCIDevice::Initialize(System* system, Bus* bus)
 
 void PCIDevice::Reset()
 {
-  for (u8 i = 0; i < m_num_functions; i++)
+  for (u8 i = 0; i < m_num_pci_functions; i++)
     ResetConfigSpace(i);
 }
 
@@ -80,11 +73,11 @@ bool PCIDevice::LoadState(BinaryReader& reader)
     return false;
 
   u32 num_functions;
-  if (!reader.SafeReadUInt32(&num_functions) || num_functions != m_num_functions)
+  if (!reader.SafeReadUInt32(&num_functions) || num_functions != m_num_pci_functions)
     return false;
 
   bool result = true;
-  for (u8 i = 0; i < m_num_functions; i++)
+  for (u8 i = 0; i < m_num_pci_functions; i++)
   {
     result &= reader.SafeReadBytes(m_config_space[i].bytes, sizeof(m_config_space[i].bytes));
     if (result)
@@ -109,9 +102,9 @@ bool PCIDevice::SaveState(BinaryWriter& writer)
 {
   bool result = true;
   result &= writer.SafeWriteUInt32(SERIALIZATION_ID);
-  result &= writer.SafeWriteUInt32(m_num_functions);
+  result &= writer.SafeWriteUInt32(m_num_pci_functions);
 
-  for (u32 i = 0; i < m_num_functions; i++)
+  for (u32 i = 0; i < m_num_pci_functions; i++)
     result &= writer.SafeWriteBytes(m_config_space[i].bytes, sizeof(m_config_space[i].bytes));
 
   return result;
@@ -119,13 +112,13 @@ bool PCIDevice::SaveState(BinaryWriter& writer)
 
 void PCIDevice::InitPCIID(u8 function, u16 vendor_id, u16 device_id)
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   m_config_space[function].dwords[0] = ZeroExtend32(vendor_id) | (ZeroExtend32(device_id) << 16);
 }
 
 void PCIDevice::InitPCIClass(u8 function, u8 class_code, u8 subclass_code, u8 prog_if, u8 rev_id)
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   m_config_space[function].dwords[2] = (ZeroExtend32(rev_id) | (ZeroExtend32(prog_if) << 8) |
                                         (ZeroExtend32(subclass_code) << 16) | (ZeroExtend32(class_code) << 24));
 }
@@ -133,7 +126,7 @@ void PCIDevice::InitPCIClass(u8 function, u8 class_code, u8 subclass_code, u8 pr
 void PCIDevice::InitPCIMemoryRegion(u8 function, MemoryRegion region, PhysicalMemoryAddress default_address, u32 size,
                                     bool io, bool prefetchable)
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   DebugAssert(!io || region != MemoryRegion_ExpansionROM);
 
   m_config_space[function].memory_regions[region].default_address = default_address;
@@ -144,43 +137,43 @@ void PCIDevice::InitPCIMemoryRegion(u8 function, MemoryRegion region, PhysicalMe
 
 u8 PCIDevice::GetConfigSpaceByte(u8 function, u8 byte_offset) const
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   return m_config_space[function].bytes[byte_offset];
 }
 
 u16 PCIDevice::GetConfigSpaceWord(u8 function, u8 byte_offset) const
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   return m_config_space[function].words[byte_offset / 2];
 }
 
 u32 PCIDevice::GetConfigSpaceDWord(u8 function, u8 byte_offset) const
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   return m_config_space[function].dwords[byte_offset / 4];
 }
 
 void PCIDevice::SetConfigSpaceByte(u8 function, u8 byte_offset, u8 value)
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   m_config_space[function].bytes[byte_offset] = value;
 }
 
 void PCIDevice::SetConfigSpaceWord(u8 function, u8 byte_offset, u16 value)
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   m_config_space[function].words[byte_offset / 2] = value;
 }
 
 void PCIDevice::SetConfigSpaceDWord(u8 function, u8 byte_offset, u32 value)
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   m_config_space[function].dwords[byte_offset / 4] = value;
 }
 
 PhysicalMemoryAddress PCIDevice::GetMemoryRegionBaseAddress(u8 function, MemoryRegion region) const
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
 
   const auto& cs = m_config_space[function];
   const auto& mr = cs.memory_regions[region];
@@ -194,13 +187,13 @@ PhysicalMemoryAddress PCIDevice::GetMemoryRegionBaseAddress(u8 function, MemoryR
 
 bool PCIDevice::IsPCIMemoryActive(u8 function) const
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   return m_config_space[function].header.command.enable_memory_space;
 }
 
 bool PCIDevice::IsPCIIOActive(u8 function) const
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   return m_config_space[function].header.command.enable_io_space;
 }
 
@@ -244,14 +237,14 @@ void PCIDevice::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool act
 
 u8 PCIDevice::ReadConfigSpace(u8 function, u8 offset)
 {
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   return m_config_space[function].bytes[offset];
 }
 
 void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
 {
   // TODO: Perhaps make this DWORD-based...
-  DebugAssert(function < m_num_functions);
+  DebugAssert(function < m_num_pci_functions);
   auto& cs = m_config_space[function];
   const u8 old_value = cs.bytes[offset];
   switch (offset)
@@ -392,8 +385,8 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
     break;
 
     default:
-      Log_DebugPrintf("Unknown PCI config space write for '%s': %02X <- %02X", m_identifier.GetCharArray(), offset,
-                      value);
+      Log_DebugPrintf("Unknown PCI config space write for '%s': %02X <- %02X",
+                      m_parent_component->GetIdentifier().GetCharArray(), offset, value);
       cs.bytes[offset] = value;
       break;
   }

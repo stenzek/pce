@@ -11,7 +11,7 @@ BEGIN_OBJECT_PROPERTY_MAP(i82437FX)
 END_OBJECT_PROPERTY_MAP()
 
 i82437FX::i82437FX(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier)
+  : BaseClass(identifier, type_info), PCIDevice(this, 1)
 {
   InitPCIID(0, 0x8086, 0x122D);
   InitPCIClass(0, 0x06, 0x00, 0x00, 0x02);
@@ -21,7 +21,7 @@ i82437FX::~i82437FX() = default;
 
 bool i82437FX::Initialize(System* system, Bus* bus)
 {
-  if (!BaseClass::Initialize(system, bus))
+  if (!BaseClass::Initialize(system, bus) || !PCIDevice::Initialize())
     return false;
 
   return true;
@@ -30,11 +30,12 @@ bool i82437FX::Initialize(System* system, Bus* bus)
 void i82437FX::Reset()
 {
   BaseClass::Reset();
+  PCIDevice::Reset();
 }
 
 void i82437FX::ResetConfigSpace(u8 function)
 {
-  BaseClass::ResetConfigSpace(function);
+  PCIDevice::ResetConfigSpace(function);
   if (function > 0)
     return;
 
@@ -77,7 +78,7 @@ void i82437FX::ResetConfigSpace(u8 function)
 
 bool i82437FX::LoadState(BinaryReader& reader)
 {
-  if (!PCIDevice::LoadState(reader))
+  if (!BaseClass::LoadState(reader) || !PCIDevice::LoadState(reader))
     return false;
 
   for (u8 i = 0; i < NUM_PAM_REGISTERS; i++)
@@ -88,7 +89,7 @@ bool i82437FX::LoadState(BinaryReader& reader)
 
 bool i82437FX::SaveState(BinaryWriter& writer)
 {
-  return PCIDevice::SaveState(writer);
+  return BaseClass::SaveState(writer) && PCIDevice::SaveState(writer);
 }
 
 u8 i82437FX::ReadConfigSpace(u8 function, u8 offset)

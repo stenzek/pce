@@ -78,7 +78,7 @@ template<typename T, typename... Args>
 T* PCIPC::CreatePCIDevice(u32 pci_bus_number, u32 pci_device_number, const String& identifier, Args... args)
 {
   T* component = new T(identifier, args...);
-  component->SetLocation(pci_bus_number, pci_device_number);
+  component->SetPCILocation(pci_bus_number, pci_device_number);
   AddComponent(component);
   return component;
 }

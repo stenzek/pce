@@ -18,7 +18,7 @@ PROPERTY_TABLE_MEMBER_STRING("BIOSImage", 0, offsetof(BochsVGA, m_bios_file_path
 END_OBJECT_PROPERTY_MAP()
 
 BochsVGA::BochsVGA(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), PCIDevice(identifier, 1, type_info),
+  : BaseClass(identifier, type_info), PCIDevice(this, 1),
     m_bios_file_path("romimages\\VGABIOS-lgpl-latest")
 {
   m_vram_size = VBE_DISPI_TOTAL_VIDEO_MEMORY_BYTES;
@@ -37,7 +37,7 @@ BochsVGA::~BochsVGA()
 
 bool BochsVGA::Initialize(System* system, Bus* bus)
 {
-  if (!BaseClass::Initialize(system, bus) || !PCIDevice::Initialize(system, bus))
+  if (!BaseClass::Initialize(system, bus) || !PCIDevice::Initialize())
     return false;
 
   if (!LoadBIOSROM())

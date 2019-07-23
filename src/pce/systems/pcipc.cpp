@@ -116,7 +116,7 @@ void PCIPC::IOReadPCIType1ConfigDataByte(u16 port, u8* value)
   const u8 offset = (reg << 2) | idx;
 
   PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
-  if (!dev || function >= dev->GetNumFunctions())
+  if (!dev || function >= dev->GetNumPCIFunctions())
   {
     Log_TracePrintf("Missing bus %u device %u function %u (%u/%u/%u)", bus, device, function, reg, idx,
                     (reg * 4) + idx);
@@ -140,7 +140,7 @@ void PCIPC::IOWritePCIType1ConfigDataByte(u16 port, u8 value)
   const u8 offset = (reg << 2) | idx;
 
   PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
-  if (!dev || function >= dev->GetNumFunctions())
+  if (!dev || function >= dev->GetNumPCIFunctions())
   {
     Log_TracePrintf("Missing bus %u device %u function %u 0x%02X <- 0x%02X", bus, device, function, reg, idx,
                     (reg * 4) + idx, value);
@@ -164,7 +164,7 @@ void PCIPC::IOReadPCIType2ConfigData(u16 port, u8* value)
   const u8 offset = Truncate8(port);
 
   PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
-  if (!dev || function >= dev->GetNumFunctions())
+  if (!dev || function >= dev->GetNumPCIFunctions())
   {
     Log_TracePrintf("Missing bus %u device %u function %u 0x%02X", bus, device, function, offset);
     *value = 0xFF;
@@ -185,7 +185,7 @@ void PCIPC::IOWritePCIType2ConfigData(u16 port, u8 value)
   const u8 offset = Truncate8(port);
 
   PCIDevice* dev = GetPCIBus()->GetPCIDevice(bus, device);
-  if (!dev || function >= dev->GetNumFunctions())
+  if (!dev || function >= dev->GetNumPCIFunctions())
   {
     Log_TracePrintf("Missing bus %u device %u function %u 0x%02X <- 0x%02X", bus, device, function, offset, value);
     return;

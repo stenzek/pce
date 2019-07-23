@@ -18,7 +18,7 @@ END_OBJECT_PROPERTY_MAP()
 
 PCIIDE::PCIIDE(const String& identifier, Model model /* = Model::PIIX */,
                const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, 2, type_info), PCIDevice(identifier, 1, PCIDevice::StaticTypeInfo()), m_model(model)
+  : BaseClass(identifier, 2, type_info), PCIDevice(this, 1), m_model(model)
 {
   switch (model)
   {
@@ -40,7 +40,7 @@ PCIIDE::~PCIIDE() = default;
 
 bool PCIIDE::Initialize(System* system, Bus* bus)
 {
-  if (!BaseClass::Initialize(system, bus) || !PCIDevice::Initialize(system, bus))
+  if (!BaseClass::Initialize(system, bus) || !PCIDevice::Initialize())
     return false;
 
   return true;

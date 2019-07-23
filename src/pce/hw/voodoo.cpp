@@ -20,7 +20,7 @@ PROPERTY_TABLE_MEMBER_BOOL("PrimaryDisplay", 0, offsetof(Voodoo, m_primary_displ
 END_OBJECT_PROPERTY_MAP()
 
 Voodoo::Voodoo(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, 1, type_info)
+  : BaseClass(identifier, type_info), PCIDevice(this, 1)
 {
 }
 
@@ -50,7 +50,7 @@ bool Voodoo::Initialize(System* system, Bus* bus)
       return false;
   }
 
-  if (!BaseClass::Initialize(system, bus))
+  if (!BaseClass::Initialize(system, bus) || !PCIDevice::Initialize())
     return false;
 
   m_display = system->GetHostInterface()->CreateDisplay(
@@ -70,6 +70,7 @@ bool Voodoo::Initialize(System* system, Bus* bus)
 void Voodoo::Reset()
 {
   BaseClass::Reset();
+  PCIDevice::Reset();
 
   // TODO:
   m_device->reset();
@@ -77,17 +78,17 @@ void Voodoo::Reset()
 
 bool Voodoo::LoadState(BinaryReader& reader)
 {
-  return BaseClass::LoadState(reader);
+  return BaseClass::LoadState(reader) && PCIDevice::LoadState(reader);
 }
 
 bool Voodoo::SaveState(BinaryWriter& writer)
 {
-  return BaseClass::SaveState(writer);
+  return BaseClass::SaveState(writer) && PCIDevice::SaveState(writer);
 }
 
 void Voodoo::ResetConfigSpace(u8 function)
 {
-  BaseClass::ResetConfigSpace(function);
+  PCIDevice::ResetConfigSpace(function);
 
   if (function > 0)
     return;
@@ -152,7 +153,7 @@ u8 Voodoo::ReadConfigSpace(u8 function, u8 offset)
       break;
 
     default:
-      value = BaseClass::ReadConfigSpace(function, offset);
+      value = PCIDevice::ReadConfigSpace(function, offset);
       break;
   }
 
@@ -194,14 +195,14 @@ void Voodoo::WriteConfigSpace(u8 function, u8 offset, u8 value)
       break;
 
     default:
-      BaseClass::WriteConfigSpace(function, offset, value);
+      PCIDevice::WriteConfigSpace(function, offset, value);
       break;
   }
 }
 
 void Voodoo::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active)
 {
-  BaseClass::OnMemoryRegionChanged(function, region, active);
+  PCIDevice::OnMemoryRegionChanged(function, region, active);
 
   switch (region)
   {

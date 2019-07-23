@@ -5,31 +5,30 @@
 
 class PCIBus;
 
-class PCIDevice : public Component
+class PCIDevice
 {
-  DECLARE_OBJECT_TYPE_INFO(PCIDevice, Component);
-  DECLARE_OBJECT_NO_FACTORY(PCIDevice);
-  DECLARE_OBJECT_PROPERTY_MAP(PCIDevice);
-
 public:
   static constexpr u32 NUM_CONFIG_REGISTERS = 64;
 
-  PCIDevice(const String& identifier, u8 num_functions = 1, const ObjectTypeInfo* type_info = &s_type_info);
+  PCIDevice(Component* parent_component, u8 num_functions);
   ~PCIDevice();
 
   u32 GetPCIBusNumber() const { return m_pci_bus_number; }
   u32 GetPCIDeviceNumber() const { return m_pci_device_number; }
-  u8 GetNumFunctions() const { return m_num_functions; }
-  void SetLocation(u32 pci_bus_number, u32 pci_device_number);
+  u8 GetNumPCIFunctions() const { return m_num_pci_functions; }
+  void SetPCILocation(u32 pci_bus_number, u32 pci_device_number);
+
+  // Returns the owning component of this PCI device.
+  Component* GetParentComponent() const { return m_parent_component; }
 
   // Returns the PCI bus which this device is attached to.
   PCIBus* GetPCIBus() const;
 
-  virtual bool Initialize(System* system, Bus* bus) override;
-  virtual void Reset() override;
+  bool Initialize();
+  void Reset();
 
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  bool LoadState(BinaryReader& reader);
+  bool SaveState(BinaryWriter& writer);
 
   virtual u8 ReadConfigSpace(u8 function, u8 offset);
   virtual void WriteConfigSpace(u8 function, u8 offset, u8 value);
@@ -152,12 +151,15 @@ protected:
   virtual void OnCommandRegisterChanged(u8 function);
   virtual void OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active);
 
-  u32 m_pci_bus_number = 0xFFFFFFFFu;
-  u32 m_pci_device_number = 0xFFFFFFFFu;
-  u8 m_num_functions = 0;
+private:
+  static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('P', 'C', 'I', '-');
 
+  Component* m_parent_component;
+
+protected:
   std::vector<ConfigSpaceData> m_config_space;
 
-private:
-  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('P', 'C', 'I', '-');
+  u32 m_pci_bus_number = 0xFFFFFFFFu;
+  u32 m_pci_device_number = 0xFFFFFFFFu;
+  u8 m_num_pci_functions = 0;
 };

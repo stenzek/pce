@@ -9,9 +9,9 @@ class TimingEvent;
 class voodoo_device;
 
 namespace HW {
-class Voodoo final : public PCIDevice
+class Voodoo final : public Component, private PCIDevice
 {
-  DECLARE_OBJECT_TYPE_INFO(Voodoo, PCIDevice);
+  DECLARE_OBJECT_TYPE_INFO(Voodoo, Component);
   DECLARE_GENERIC_COMPONENT_FACTORY(Voodoo);
   DECLARE_OBJECT_PROPERTY_MAP(Voodoo);
 

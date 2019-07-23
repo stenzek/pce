@@ -41,8 +41,9 @@ bool PCIBus::AssignPCIDevice(u32 pci_bus_number, u32 pci_device_number, PCIDevic
   if (pci_bus_number >= NUM_PCI_BUSES || pci_device_number >= NUM_PCI_DEVICES_PER_BUS)
     return false;
 
-  Log_DevPrintf("Assigning device '%s' (%s) to bus number %u, device number %u", device->GetIdentifier().GetCharArray(),
-                device->GetTypeInfo()->GetTypeName(), pci_bus_number, pci_device_number);
+  Log_DevPrintf("Assigning device '%s' (%s) to bus number %u, device number %u",
+                device->GetParentComponent()->GetIdentifier().GetCharArray(),
+                device->GetParentComponent()->GetTypeInfo()->GetTypeName(), pci_bus_number, pci_device_number);
   m_pci_devices[pci_bus_number][pci_device_number] = device;
   return true;
 }

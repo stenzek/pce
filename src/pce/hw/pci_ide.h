@@ -6,7 +6,7 @@ class ByteStream;
 
 namespace HW {
 
-class PCIIDE : public HDC, public PCIDevice
+class PCIIDE : public HDC, private PCIDevice
 {
   DECLARE_OBJECT_TYPE_INFO(PCIIDE, HDC);
   DECLARE_GENERIC_COMPONENT_FACTORY(PCIIDE);
