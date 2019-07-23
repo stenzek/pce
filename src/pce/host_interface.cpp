@@ -348,6 +348,7 @@ void HostInterface::OnSimulationStatsUpdate(const SimulationStats& stats) {}
 void HostInterface::OnSystemDestroy()
 {
   // Clear all callbacks, as they will no longer be valid.
+  m_throttle_event.reset();
   m_keyboard_callbacks.clear();
   m_mouse_position_change_callbacks.clear();
   m_mouse_button_change_callbacks.clear();
