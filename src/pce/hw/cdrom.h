@@ -2,6 +2,7 @@
 #include "YBaseLib/String.h"
 #include "common/bitfield.h"
 #include "../component.h"
+#include <memory>
 #include <vector>
 
 class ByteStream;

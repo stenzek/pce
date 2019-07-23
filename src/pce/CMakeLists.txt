@@ -48,6 +48,8 @@ set(SRCS
     hw/ata_device.h
     hw/ata_hdd.cpp
     hw/ata_hdd.h
+    hw/bochs_vga.cpp
+    hw/bochs_vga.h
     hw/cdrom.cpp
     hw/cdrom.h
     hw/cga.cpp
@@ -90,6 +92,8 @@ set(SRCS
     hw/soundblaster.h
     hw/vga.cpp
     hw/vga.h
+    hw/vga_base.cpp
+    hw/vga_base.h
     hw/xt_ide.cpp
     hw/xt_ide.h
     hw/xt_ppi.cpp

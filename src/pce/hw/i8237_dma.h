@@ -3,6 +3,7 @@
 #include "../component.h"
 #include "../dma_controller.h"
 #include "../types.h"
+#include <memory>
 
 class TimingEvent;
 

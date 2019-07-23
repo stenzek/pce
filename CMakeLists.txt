@@ -26,6 +26,15 @@ if(WIN32)
       link_directories("${CMAKE_CURRENT_SOURCE_DIR}/dep/msvc/lib32")
     endif()
   endif()
+
+  if(ENABLE_SDL_FRONTEND)
+    set(SDL2_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dep/msvc/include/SDL")
+    set(SDL2_LIBRARIES "SDL2")
+  endif()
+else()
+  if(ENABLE_SDL_FRONTEND)
+    find_package(SDL2 REQUIRED)
+  endif()
 endif()
 
 

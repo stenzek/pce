@@ -6,6 +6,7 @@
 #include "common/bitfield.h"
 #include "floppy.h"
 #include <array>
+#include <memory>
 
 class ByteStream;
 class InterruptController;

@@ -1,5 +1,6 @@
 #pragma once
 #include "ata_device.h"
+#include <memory>
 
 class HDDImage;
 class TimingEvent;

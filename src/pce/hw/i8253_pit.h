@@ -3,6 +3,7 @@
 #include "pce/component.h"
 #include "pce/types.h"
 #include <array>
+#include <memory>
 
 class TimingEvent;
 
