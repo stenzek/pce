@@ -232,9 +232,9 @@ void i8259_PIC::ConnectIOPorts(Bus* bus)
 {
   // Command ports read latched data and have a complex write handler for initialization
   bus->ConnectIOPortRead(IOPORT_MASTER_COMMAND, this,
-                         std::bind(&i8259_PIC::CommandPortReadHandler, this, MASTER_PIC, std::placeholders::_2));
+                         std::bind(&i8259_PIC::CommandPortReadHandler, this, MASTER_PIC));
   bus->ConnectIOPortRead(IOPORT_SLAVE_COMMAND, this,
-                         std::bind(&i8259_PIC::CommandPortReadHandler, this, SLAVE_PIC, std::placeholders::_2));
+                         std::bind(&i8259_PIC::CommandPortReadHandler, this, SLAVE_PIC));
   bus->ConnectIOPortWrite(IOPORT_MASTER_COMMAND, this,
                           std::bind(&i8259_PIC::CommandPortWriteHandler, this, MASTER_PIC, std::placeholders::_2));
   bus->ConnectIOPortWrite(IOPORT_SLAVE_COMMAND, this,
@@ -249,10 +249,11 @@ void i8259_PIC::ConnectIOPorts(Bus* bus)
                           std::bind(&i8259_PIC::DataPortWriteHandler, this, SLAVE_PIC, std::placeholders::_2));
 }
 
-void i8259_PIC::CommandPortReadHandler(u32 pic_index, u8* value)
+u8 i8259_PIC::CommandPortReadHandler(u32 pic_index)
 {
-  PICState* pic = &m_state[pic_index];
-  *value = pic->read_isr ? pic->in_service_register : pic->request_register;
+  const PICState* pic = &m_state[pic_index];
+  const u8 value = pic->read_isr ? pic->in_service_register : pic->request_register;
+  return value;
 }
 
 void i8259_PIC::CommandPortWriteHandler(u32 pic_index, u8 value)

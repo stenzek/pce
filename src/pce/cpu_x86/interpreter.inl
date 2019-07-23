@@ -2472,8 +2472,7 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
 
     cpu->CommitPendingCycles();
 
-    u8 value;
-    cpu->m_bus->ReadIOPortByte(port_number, &value);
+    const u8 value = cpu->m_bus->ReadIOPortByte(port_number);
     WriteByteOperand<dst_mode, dst_constant>(cpu, value);
   }
   else if (actual_size == OperandSize_16)
@@ -2486,8 +2485,7 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
 
     cpu->CommitPendingCycles();
 
-    u16 value;
-    cpu->m_bus->ReadIOPortWord(port_number, &value);
+    const u16 value = cpu->m_bus->ReadIOPortWord(port_number);
     WriteWordOperand<dst_mode, dst_constant>(cpu, value);
   }
   else if (actual_size == OperandSize_32)
@@ -2500,8 +2498,7 @@ void Interpreter::Execute_Operation_IN(CPU* cpu)
 
     cpu->CommitPendingCycles();
 
-    u32 value;
-    cpu->m_bus->ReadIOPortDWord(port_number, &value);
+    const u32 value = cpu->m_bus->ReadIOPortDWord(port_number);
     WriteDWordOperand<dst_mode, dst_constant>(cpu, value);
   }
 }
@@ -5192,8 +5189,7 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
 
       cpu->CommitPendingCycles();
 
-      u8 value;
-      cpu->m_bus->ReadIOPortByte(port_number, &value);
+      const u8 value = cpu->m_bus->ReadIOPortByte(port_number);
       cpu->WriteMemoryByte(Segment_ES, dst_address, value);
       data_size = sizeof(u8);
     }
@@ -5207,8 +5203,7 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
 
       cpu->CommitPendingCycles();
 
-      u16 value;
-      cpu->m_bus->ReadIOPortWord(port_number, &value);
+      const u16 value = cpu->m_bus->ReadIOPortWord(port_number);
       cpu->WriteMemoryWord(Segment_ES, dst_address, value);
       data_size = sizeof(u16);
     }
@@ -5222,8 +5217,7 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
 
       cpu->CommitPendingCycles();
 
-      u32 value;
-      cpu->m_bus->ReadIOPortDWord(port_number, &value);
+      const u32 value = cpu->m_bus->ReadIOPortDWord(port_number);
       cpu->WriteMemoryDWord(Segment_ES, dst_address, value);
       data_size = sizeof(u32);
     }

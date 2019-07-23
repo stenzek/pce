@@ -42,10 +42,10 @@ protected:
 private:
   void ConnectPCIBusIOPorts();
 
-  void IOReadPCIType1ConfigDataByte(u16 port, u8* value);
+  u8 IOReadPCIType1ConfigDataByte(u16 port);
   void IOWritePCIType1ConfigDataByte(u16 port, u8 value);
 
-  void IOReadPCIType2ConfigData(u16 port, u8* value);
+  u8 IOReadPCIType2ConfigData(u16 port);
   void IOWritePCIType2ConfigData(u16 port, u8 value);
 
   union PCIConfigType1Address

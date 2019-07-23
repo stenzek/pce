@@ -43,9 +43,9 @@ bool i8042_PS2::Initialize(System* system, Bus* bus)
   m_mouse_report_event = system->CreateFrequencyEvent("Mouse Report", float(DEFAULT_MOUSE_SAMPLE_RATE),
                                                       std::bind(&i8042_PS2::OnMouseReportEvent, this), false);
 
-  bus->ConnectIOPortRead(0x60, this, std::bind(&i8042_PS2::IOReadDataPort, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x60, this, std::bind(&i8042_PS2::IOReadDataPort, this));
   bus->ConnectIOPortWrite(0x60, this, std::bind(&i8042_PS2::IOWriteDataPort, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(0x64, this, std::bind(&i8042_PS2::IOReadStatusRegister, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x64, this, std::bind(&i8042_PS2::IOReadStatusRegister, this));
   bus->ConnectIOPortWrite(0x64, this, std::bind(&i8042_PS2::IOWriteCommandRegister, this, std::placeholders::_2));
 
   m_system->GetHostInterface()->AddKeyboardCallback(
@@ -191,12 +191,12 @@ bool i8042_PS2::SaveState(BinaryWriter& writer)
   return true;
 }
 
-void i8042_PS2::IOReadStatusRegister(u8* value)
+u8 i8042_PS2::IOReadStatusRegister()
 {
-  *value = m_status_register.raw;
+  return m_status_register.raw;
 }
 
-void i8042_PS2::IOReadDataPort(u8* value)
+u8 i8042_PS2::IOReadDataPort()
 {
   // Lower interrupts after read
   if (m_status_register.mouse_buffer_status)
@@ -210,10 +210,11 @@ void i8042_PS2::IOReadDataPort(u8* value)
     m_interrupt_controller->LowerInterrupt(PORT_1_IRQ);
   }
 
-  *value = m_output_buffer;
+  const u8 value = m_output_buffer;
   m_status_register.output_buffer_status = false;
   m_status_register.mouse_buffer_status = false;
   UpdateEvents();
+  return value;
 }
 
 void i8042_PS2::IOWriteDataPort(u8 value)

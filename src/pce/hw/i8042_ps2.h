@@ -54,9 +54,9 @@ private:
 
   void SoftReset();
 
-  void IOReadDataPort(u8* value);
+  u8 IOReadDataPort();
   void IOWriteDataPort(u8 value);
-  void IOReadStatusRegister(u8* value);
+  u8 IOReadStatusRegister();
   void IOWriteCommandRegister(u8 value);
 
   void OnHostKeyboardEvent(GenScanCode scancode, bool key_down);

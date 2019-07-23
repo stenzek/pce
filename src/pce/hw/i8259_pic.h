@@ -69,7 +69,7 @@ private:
   };
 
   void ConnectIOPorts(Bus* bus);
-  void CommandPortReadHandler(u32 pic_index, u8* value);
+  u8 CommandPortReadHandler(u32 pic_index);
   void CommandPortWriteHandler(u32 pic_index, u8 value);
   void DataPortWriteHandler(u32 pic_index, u8 value);
   void UpdateInterruptRequest();

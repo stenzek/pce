@@ -84,15 +84,15 @@ bool ALi1429::SaveSystemState(BinaryWriter& writer)
 
 void ALi1429::ConnectSystemIOPorts()
 {
-  m_bus->ConnectIOPortRead(0x0022, this, std::bind(&ALi1429::IOReadALI1429IndexRegister, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0022, this, std::bind(&ALi1429::IOReadALI1429IndexRegister, this));
   m_bus->ConnectIOPortWrite(0x0022, this,
                             std::bind(&ALi1429::IOWriteALI1429IndexRegister, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x0023, this, std::bind(&ALi1429::IOReadALI1429DataRegister, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0023, this, std::bind(&ALi1429::IOReadALI1429DataRegister, this));
   m_bus->ConnectIOPortWrite(0x0023, this, std::bind(&ALi1429::IOWriteALI1429DataRegister, this, std::placeholders::_2));
   // System control ports
-  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&ALi1429::IOReadSystemControlPortA, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&ALi1429::IOReadSystemControlPortA, this));
   m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&ALi1429::IOWriteSystemControlPortA, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&ALi1429::IOReadSystemControlPortB, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&ALi1429::IOReadSystemControlPortB, this));
   m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&ALi1429::IOWriteSystemControlPortB, this, std::placeholders::_2));
 
   // Connect the keyboard controller output port to the lower 2 bits of system control port A.
@@ -100,14 +100,14 @@ void ALi1429::ConnectSystemIOPorts()
     if (!pulse)
       value &= ~u8(0x01);
     IOWriteSystemControlPortA(value & 0x03);
-    IOReadSystemControlPortA(&value);
+    value = IOReadSystemControlPortA();
     m_keyboard_controller->SetOutputPort(value);
   });
 }
 
-void ALi1429::IOReadALI1429IndexRegister(u8* value)
+u8 ALi1429::IOReadALI1429IndexRegister()
 {
-  *value = m_ali1429_index_register;
+  return m_ali1429_index_register;
 }
 
 void ALi1429::IOWriteALI1429IndexRegister(u8 value)
@@ -115,9 +115,9 @@ void ALi1429::IOWriteALI1429IndexRegister(u8 value)
   m_ali1429_index_register = value;
 }
 
-void ALi1429::IOReadALI1429DataRegister(u8* value)
+u8 ALi1429::IOReadALI1429DataRegister()
 {
-  *value = m_ali1429_registers[m_ali1429_index_register];
+  return m_ali1429_registers[m_ali1429_index_register];
 }
 
 void ALi1429::IOWriteALI1429DataRegister(u8 value)
@@ -155,9 +155,9 @@ void ALi1429::UpdateShadowRAM()
   }
 }
 
-void ALi1429::IOReadSystemControlPortA(u8* value)
+u8 ALi1429::IOReadSystemControlPortA()
 {
-  *value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
+  return (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
 }
 
 void ALi1429::IOWriteSystemControlPortA(u8 value)
@@ -195,18 +195,19 @@ void ALi1429::IOWriteSystemControlPortA(u8 value)
   }
 }
 
-void ALi1429::IOReadSystemControlPortB(u8* value)
+u8 ALi1429::IOReadSystemControlPortB()
 {
-  *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
-           (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
-           (BoolToUInt8(m_refresh_bit) << 4) |                    // Triggers with each memory refresh
-           (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
+  const u8 value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
+                   (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
+                   (BoolToUInt8(m_refresh_bit) << 4) |                    // Triggers with each memory refresh
+                   (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
 
   // Seems that we can get away with faking this every read.
   // The refresh controller steps one refresh address every 15 microseconds. Each refresh cycle
   // requires eight clock cycles to refresh all of the system's dynamic memory; 256 refresh cycles
   // are required every 4 milliseconds, but the system hardware refreshes every 3.84ms.
   m_refresh_bit ^= true;
+  return value;
 }
 
 void ALi1429::IOWriteSystemControlPortB(u8 value)

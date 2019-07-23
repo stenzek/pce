@@ -121,19 +121,18 @@ void PCIIDE::ConnectIOPorts(Bus* bus)
     for (u8 channel = 0; channel < 2; channel++)
     {
       bus->ConnectIOPortRead(bm_base + (channel * 8) + 0, base_class_ptr,
-                             std::bind(&PCIIDE::IOReadBusMasterCommandRegister, this, channel, std::placeholders::_2));
+                             std::bind(&PCIIDE::IOReadBusMasterCommandRegister, this, channel));
       bus->ConnectIOPortWrite(
         bm_base + (channel * 8) + 0, base_class_ptr,
         std::bind(&PCIIDE::IOWriteBusMasterCommandRegister, this, channel, std::placeholders::_2));
       bus->ConnectIOPortRead(bm_base + (channel * 8) + 2, base_class_ptr,
-                             std::bind(&PCIIDE::IOReadBusMasterStatusRegister, this, channel, std::placeholders::_2));
+                             std::bind(&PCIIDE::IOReadBusMasterStatusRegister, this, channel));
       bus->ConnectIOPortWrite(bm_base + (channel * 8) + 2, base_class_ptr,
                               std::bind(&PCIIDE::IOWriteBusMasterStatusRegister, this, channel, std::placeholders::_2));
       for (u8 offset = 0; offset < 4; offset++)
       {
-        bus->ConnectIOPortRead(
-          bm_base + (channel * 8) + 4 + offset, base_class_ptr,
-          std::bind(&PCIIDE::IOReadBusMasterPRDTAddress, this, channel, offset, std::placeholders::_2));
+        bus->ConnectIOPortRead(bm_base + (channel * 8) + 4 + offset, base_class_ptr,
+                               std::bind(&PCIIDE::IOReadBusMasterPRDTAddress, this, channel, offset));
         bus->ConnectIOPortWrite(
           bm_base + (channel * 8) + 4 + offset, base_class_ptr,
           std::bind(&PCIIDE::IOWriteBusMasterPRDTAddress, this, channel, offset, std::placeholders::_2));
@@ -193,19 +192,19 @@ void PCIIDE::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active
   ConnectIOPorts(BaseClass::m_bus);
 }
 
-void PCIIDE::IOReadBusMasterCommandRegister(u8 channel, u8* value)
+u8 PCIIDE::IOReadBusMasterCommandRegister(u8 channel)
 {
-  *value = m_dma_state[channel].command.bits;
+  return m_dma_state[channel].command.bits;
 }
 
-void PCIIDE::IOReadBusMasterStatusRegister(u8 channel, u8* value)
+u8 PCIIDE::IOReadBusMasterStatusRegister(u8 channel)
 {
-  *value = m_dma_state[channel].status.bits;
+  return m_dma_state[channel].status.bits;
 }
 
-void PCIIDE::IOReadBusMasterPRDTAddress(u8 channel, u8 offset, u8* value)
+u8 PCIIDE::IOReadBusMasterPRDTAddress(u8 channel, u8 offset)
 {
-  *value = Truncate8(m_dma_state[channel].prdt_address >> (offset * 8));
+  return Truncate8(m_dma_state[channel].prdt_address >> (offset * 8));
 }
 
 void PCIIDE::IOWriteBusMasterCommandRegister(u8 channel, u8 value)

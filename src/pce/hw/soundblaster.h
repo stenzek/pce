@@ -123,7 +123,7 @@ private:
   bool IsStereo() const { return (m_dsp_version >= DSP_VERSION_SBPRO); }
   bool Has16BitDMA() const { return (m_dsp_version >= DSP_VERSION_SB16); }
 
-  void IOPortRead(u16 port, u8* value);
+  u8 IOPortRead(u16 port);
   void IOPortWrite(u16 port, u8 value);
 
   void RaiseInterrupt(bool is_16_bit);

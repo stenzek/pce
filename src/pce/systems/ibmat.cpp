@@ -73,10 +73,11 @@ void IBMAT::ConnectSystemIOPorts()
   m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&IBMAT::IOWriteSystemControlPortA, this, std::placeholders::_2));
 
   //     // NFI what this is...
-  m_bus->ConnectIOPortRead(0x0061, this, [](u32 port, u8* value) {
+  m_bus->ConnectIOPortRead(0x0061, this, [](u32 port) {
     static u8 refresh_request_bit = 0x00;
-    *value = refresh_request_bit;
+    const u8 value = refresh_request_bit;
     refresh_request_bit ^= 0x10;
+    return value;
   });
 }
 

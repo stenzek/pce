@@ -73,9 +73,9 @@ protected:
   void OnCommandRegisterChanged(u8 function) override;
   void OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active) override;
 
-  void IOReadBusMasterCommandRegister(u8 channel, u8* value);
-  void IOReadBusMasterStatusRegister(u8 channel, u8* value);
-  void IOReadBusMasterPRDTAddress(u8 channel, u8 offset, u8* value);
+  u8 IOReadBusMasterCommandRegister(u8 channel);
+  u8 IOReadBusMasterStatusRegister(u8 channel);
+  u8 IOReadBusMasterPRDTAddress(u8 channel, u8 offset);
 
   void IOWriteBusMasterCommandRegister(u8 channel, u8 value);
   void IOWriteBusMasterStatusRegister(u8 channel, u8 value);

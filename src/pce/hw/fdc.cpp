@@ -872,15 +872,15 @@ void FDC::TransitionToResultPhase()
 
 void FDC::ConnectIOPorts(Bus* bus)
 {
-  bus->ConnectIOPortRead(0x03F0, this, std::bind(&FDC::IOReadStatusRegisterA, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(0x03F1, this, std::bind(&FDC::IOReadStatusRegisterB, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(0x03F2, this, std::bind(&FDC::IOReadDigitalOutputRegister, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x03F0, this, std::bind(&FDC::IOReadStatusRegisterA, this));
+  bus->ConnectIOPortRead(0x03F1, this, std::bind(&FDC::IOReadStatusRegisterB, this));
+  bus->ConnectIOPortRead(0x03F2, this, std::bind(&FDC::IOReadDigitalOutputRegister, this));
   bus->ConnectIOPortWrite(0x03F2, this, std::bind(&FDC::IOWriteDigitalOutputRegister, this, std::placeholders::_2));
   bus->ConnectIOPortReadToPointer(0x03F4, this, &m_MSR.bits);
   bus->ConnectIOPortWrite(0x03F4, this, std::bind(&FDC::IOWriteDataRateSelectRegister, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(0x03F5, this, std::bind(&FDC::IOReadFIFO, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x03F5, this, std::bind(&FDC::IOReadFIFO, this));
   bus->ConnectIOPortWrite(0x03F5, this, std::bind(&FDC::IOWriteFIFO, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(0x03F7, this, std::bind(&FDC::IOReadDigitalInputRegister, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x03F7, this, std::bind(&FDC::IOReadDigitalInputRegister, this));
   bus->ConnectIOPortWrite(0x03F7, this,
                           std::bind(&FDC::IOWriteConfigurationControlRegister, this, std::placeholders::_2));
 
@@ -908,7 +908,7 @@ void FDC::LowerInterrupt()
   m_interrupt_controller->LowerInterrupt(6);
 }
 
-void FDC::IOReadStatusRegisterA(u8* value)
+u8 FDC::IOReadStatusRegisterA()
 {
   // 0x80 - interrupt pending
   // 0x40 - dma request
@@ -919,13 +919,14 @@ void FDC::IOReadStatusRegisterA(u8* value)
   // 0x02 - write protect
   // 0x01 - direction == 0
   const DriveState* ds = GetCurrentDrive();
-  *value = (BoolToUInt8(m_interrupt_pending) << 7) | (BoolToUInt8(m_dma->GetDMAState(DMA_CHANNEL)) << 6) |
+  const u8 value = (BoolToUInt8(m_interrupt_pending) << 7) | (BoolToUInt8(m_dma->GetDMAState(DMA_CHANNEL)) << 6) |
            (BoolToUInt8(ds->step_latch) << 5) | (BoolToUInt8(ds->current_cylinder == 0) << 4) |
            (BoolToUInt8(ds->current_head == 0) << 3) | (BoolToUInt8(ds->current_sector == 0) << 2) |
            (BoolToUInt8(ds->write_protect) << 1) | (BoolToUInt8(ds->direction) << 0);
+  return value;
 }
 
-void FDC::IOReadStatusRegisterB(u8* value)
+u8 FDC::IOReadStatusRegisterB()
 {
   // 0x80 - no second drive
   // 0x40 - not ds1
@@ -936,31 +937,31 @@ void FDC::IOReadStatusRegisterB(u8* value)
   // 0x02 - not ds3
   // 0x01 - not ds2
   const DriveState* ds = GetCurrentDrive();
-  *value = (BoolToUInt8(IsDrivePresent(1)) << 7) | (BoolToUInt8(GetCurrentDriveIndex() != 1) << 6) |
+  const u8 value = (BoolToUInt8(IsDrivePresent(1)) << 7) | (BoolToUInt8(GetCurrentDriveIndex() != 1) << 6) |
            (BoolToUInt8(GetCurrentDriveIndex() != 0) << 5) | (BoolToUInt8(ds->data_was_written) << 4) |
            (BoolToUInt8(ds->data_was_read) << 3) | (BoolToUInt8(ds->data_was_written) << 2) |
            (BoolToUInt8(GetCurrentDriveIndex() != 3) << 1) | (BoolToUInt8(GetCurrentDriveIndex() != 2) << 0);
+  return value;
 }
 
-void FDC::IOReadDigitalInputRegister(u8* value)
+u8 FDC::IOReadDigitalInputRegister()
 {
+  // Bit 7 - not disk change
+  // Bit 3 - interrupt enable
+  // Bit 2 - CCR?
+  // Bit 1-0 - Data rate select
   u8 bits = 0b01111000;
   bits |= BoolToUInt8(m_disk_change_flag) << 7;
   bits |= (m_data_rate_index & 0x03) << 1;
   if (data_rates[m_data_rate_index] >= 500)
     bits |= 0x01; // High density
 
-  // Bit 7 - not disk change
-  // Bit 3 - interrupt enable
-  // Bit 2 - CCR?
-  // Bit 1-0 - Data rate select
-  *value = bits;
-
   // Clear step bit of current drive
   GetCurrentDrive()->step_latch = false;
+  return bits;
 }
 
-void FDC::IOReadDigitalOutputRegister(u8* value)
+u8 FDC::IOReadDigitalOutputRegister()
 {
   // Bit 7 - Motor on disk 3 enable
   // Bit 6 - Motor on disk 2 enable
@@ -969,7 +970,7 @@ void FDC::IOReadDigitalOutputRegister(u8* value)
   // Bit 3 - Interrupt enable
   // Bit 2 - Reset
   // Bit 1-0 - Drive select
-  *value = m_DOR.bits;
+  return m_DOR.bits;
 }
 
 void FDC::IOWriteDigitalOutputRegister(u8 value)
@@ -1026,21 +1027,17 @@ void FDC::IOWriteConfigurationControlRegister(u8 value)
   m_data_rate_index = value & 0x03;
 }
 
-void FDC::IOReadFIFO(u8* value)
+u8 FDC::IOReadFIFO()
 {
   // Are we in a DMA transfer? Ignore if so.
   if (InReset() || IsDMATransferInProgress())
-  {
-    *value = 0xFF;
-    return;
-  }
+    return 0xFF;
 
   // If a transfer is in progress, this is a PIO transfer.
   if (m_current_transfer.active)
   {
     Panic("TODO: Handle PIO writes.");
-    *value = 0xFF;
-    return;
+    return 0xFF;
   }
 
   // Reading results back.
@@ -1048,11 +1045,10 @@ void FDC::IOReadFIFO(u8* value)
   {
     // Bad read
     Log_WarningPrintf("Bad floppy data read");
-    *value = 0;
-    return;
+    return 0xFF;
   }
 
-  *value = m_fifo[m_fifo_result_position++];
+  const u8 value = m_fifo[m_fifo_result_position++];
 
   // Interrupt is lowered after the first byte is read.
   LowerInterrupt();
@@ -1060,6 +1056,8 @@ void FDC::IOReadFIFO(u8* value)
   // Flags are cleared after result is read in its entirety.
   if (m_fifo_result_position == m_fifo_result_size)
     TransitionToCommandPhase();
+
+  return value;
 }
 
 void FDC::IOWriteFIFO(u8 value)

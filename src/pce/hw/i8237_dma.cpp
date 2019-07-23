@@ -170,58 +170,58 @@ void i8237_DMA::SetDMAState(u32 channel_index, bool request)
 void i8237_DMA::ConnectIOPorts()
 {
   // What a mess
-  m_bus->ConnectIOPortRead(0x00, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 0, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x00, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 0));
   m_bus->ConnectIOPortWrite(0x00, this, std::bind(&i8237_DMA::IOWriteStartAddress, this, 0, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x87, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 0, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x87, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 0));
   m_bus->ConnectIOPortWrite(0x87, this, std::bind(&i8237_DMA::IOWritePageAddress, this, 0, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x01, this, std::bind(&i8237_DMA::IOReadCount, this, 0, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x01, this, std::bind(&i8237_DMA::IOReadCount, this, 0));
   m_bus->ConnectIOPortWrite(0x01, this, std::bind(&i8237_DMA::IOWriteCount, this, 0, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x02, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 1, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x02, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 1));
   m_bus->ConnectIOPortWrite(0x02, this, std::bind(&i8237_DMA::IOWriteStartAddress, this, 1, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x83, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 1, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x83, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 1));
   m_bus->ConnectIOPortWrite(0x83, this, std::bind(&i8237_DMA::IOWritePageAddress, this, 1, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03, this, std::bind(&i8237_DMA::IOReadCount, this, 1, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03, this, std::bind(&i8237_DMA::IOReadCount, this, 1));
   m_bus->ConnectIOPortWrite(0x03, this, std::bind(&i8237_DMA::IOWriteCount, this, 1, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x04, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 2, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x04, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 2));
   m_bus->ConnectIOPortWrite(0x04, this, std::bind(&i8237_DMA::IOWriteStartAddress, this, 2, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x81, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 2, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x81, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 2));
   m_bus->ConnectIOPortWrite(0x81, this, std::bind(&i8237_DMA::IOWritePageAddress, this, 2, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x05, this, std::bind(&i8237_DMA::IOReadCount, this, 2, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x05, this, std::bind(&i8237_DMA::IOReadCount, this, 2));
   m_bus->ConnectIOPortWrite(0x05, this, std::bind(&i8237_DMA::IOWriteCount, this, 2, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x06, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 3, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x06, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 3));
   m_bus->ConnectIOPortWrite(0x06, this, std::bind(&i8237_DMA::IOWriteStartAddress, this, 3, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x82, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 3, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x82, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 3));
   m_bus->ConnectIOPortWrite(0x82, this, std::bind(&i8237_DMA::IOWritePageAddress, this, 3, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x07, this, std::bind(&i8237_DMA::IOReadCount, this, 3, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x07, this, std::bind(&i8237_DMA::IOReadCount, this, 3));
   m_bus->ConnectIOPortWrite(0x07, this, std::bind(&i8237_DMA::IOWriteCount, this, 3, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0xC0, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 4, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0xC0, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 4));
   m_bus->ConnectIOPortWrite(0xC0, this, std::bind(&i8237_DMA::IOWriteStartAddress, this, 4, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x8F, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 4, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x8F, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 4));
   m_bus->ConnectIOPortWrite(0x8F, this, std::bind(&i8237_DMA::IOWritePageAddress, this, 4, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0xC2, this, std::bind(&i8237_DMA::IOReadCount, this, 4, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0xC2, this, std::bind(&i8237_DMA::IOReadCount, this, 4));
   m_bus->ConnectIOPortWrite(0xC2, this, std::bind(&i8237_DMA::IOWriteCount, this, 4, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0xC4, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 5, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0xC4, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 5));
   m_bus->ConnectIOPortWrite(0xC4, this, std::bind(&i8237_DMA::IOWriteStartAddress, this, 5, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x8B, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 5, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x8B, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 5));
   m_bus->ConnectIOPortWrite(0x8B, this, std::bind(&i8237_DMA::IOWritePageAddress, this, 5, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0xC6, this, std::bind(&i8237_DMA::IOReadCount, this, 5, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0xC6, this, std::bind(&i8237_DMA::IOReadCount, this, 5));
   m_bus->ConnectIOPortWrite(0xC6, this, std::bind(&i8237_DMA::IOWriteCount, this, 5, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0xC8, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 6, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0xC8, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 6));
   m_bus->ConnectIOPortWrite(0xC8, this, std::bind(&i8237_DMA::IOWriteStartAddress, this, 6, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x89, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 6, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x89, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 6));
   m_bus->ConnectIOPortWrite(0x89, this, std::bind(&i8237_DMA::IOWritePageAddress, this, 6, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0xCA, this, std::bind(&i8237_DMA::IOReadCount, this, 6, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0xCA, this, std::bind(&i8237_DMA::IOReadCount, this, 6));
   m_bus->ConnectIOPortWrite(0xCA, this, std::bind(&i8237_DMA::IOWriteCount, this, 6, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0xCC, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 7, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0xCC, this, std::bind(&i8237_DMA::IOReadStartAddress, this, 7));
   m_bus->ConnectIOPortWrite(0xCC, this, std::bind(&i8237_DMA::IOWriteStartAddress, this, 7, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x8A, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 7, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x8A, this, std::bind(&i8237_DMA::IOReadPageAddress, this, 7));
   m_bus->ConnectIOPortWrite(0x8A, this, std::bind(&i8237_DMA::IOWritePageAddress, this, 7, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0xCE, this, std::bind(&i8237_DMA::IOReadCount, this, 7, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0xCE, this, std::bind(&i8237_DMA::IOReadCount, this, 7));
   m_bus->ConnectIOPortWrite(0xCE, this, std::bind(&i8237_DMA::IOWriteCount, this, 7, std::placeholders::_2));
 
   // Command/reset registers
-  m_bus->ConnectIOPortRead(0x08, this, std::bind(&i8237_DMA::IOReadStatus, this, 0, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0xD0, this, std::bind(&i8237_DMA::IOReadStatus, this, 4, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x08, this, std::bind(&i8237_DMA::IOReadStatus, this, 0));
+  m_bus->ConnectIOPortRead(0xD0, this, std::bind(&i8237_DMA::IOReadStatus, this, 4));
   m_bus->ConnectIOPortWrite(0x0A, this, std::bind(&i8237_DMA::IOWriteSingleMask, this, 0, std::placeholders::_2));
   m_bus->ConnectIOPortWrite(0xD4, this, std::bind(&i8237_DMA::IOWriteSingleMask, this, 4, std::placeholders::_2));
   m_bus->ConnectIOPortWrite(0x0B, this, std::bind(&i8237_DMA::IOWriteMode, this, 0, std::placeholders::_2));
@@ -407,17 +407,19 @@ void i8237_DMA::Transfer(u32 channel_index, size_t count)
   }
 }
 
-void i8237_DMA::IOReadStartAddress(u32 channel_index, u8* value)
+u8 i8237_DMA::IOReadStartAddress(u32 channel_index)
 {
   Channel* channel = &m_channels[channel_index];
   u32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
 
+  u8 value;
   if (m_flipflops[controller_index])
-    *value = ((channel->address >> 8) & 0xFF);
+    value = ((channel->address >> 8) & 0xFF);
   else
-    *value = (channel->address & 0xFF);
+    value = (channel->address & 0xFF);
 
   m_flipflops[controller_index] ^= true;
+  return value;
 }
 
 void i8237_DMA::IOWriteStartAddress(u32 channel_index, u8 value)
@@ -438,17 +440,19 @@ void i8237_DMA::IOWriteStartAddress(u32 channel_index, u8 value)
   Log_DebugPrintf("DMA channel %u start address = 0x%04X", channel_index, channel->start_address);
 }
 
-void i8237_DMA::IOReadCount(u32 channel_index, u8* value)
+u8 i8237_DMA::IOReadCount(u32 channel_index)
 {
   Channel* channel = &m_channels[channel_index];
   u32 controller_index = channel_index / NUM_CHANNELS_PER_CONTROLLER;
 
+  u8 value;
   if (m_flipflops[controller_index])
-    *value = ((channel->bytes_remaining >> 8) & 0xFF);
+    value = ((channel->bytes_remaining >> 8) & 0xFF);
   else
-    *value = (channel->bytes_remaining & 0xFF);
+    value = (channel->bytes_remaining & 0xFF);
 
   m_flipflops[controller_index] ^= true;
+  return value;
 }
 
 void i8237_DMA::IOWriteCount(u32 channel_index, u8 value)
@@ -470,9 +474,9 @@ void i8237_DMA::IOWriteCount(u32 channel_index, u8 value)
   RescheduleTickEvent();
 }
 
-void i8237_DMA::IOReadPageAddress(u32 channel_index, u8* value)
+u8 i8237_DMA::IOReadPageAddress(u32 channel_index)
 {
-  *value = m_channels[channel_index].page_address;
+  return m_channels[channel_index].page_address;
 }
 
 void i8237_DMA::IOWritePageAddress(u32 channel_index, u8 value)
@@ -483,7 +487,7 @@ void i8237_DMA::IOWritePageAddress(u32 channel_index, u8 value)
   m_channels[channel_index].page_address = u8(value & 0xFF);
 }
 
-void i8237_DMA::IOReadStatus(u32 base_channel, u8* value)
+u8 i8237_DMA::IOReadStatus(u32 base_channel)
 {
   m_tick_event->InvokeEarly();
 
@@ -494,7 +498,7 @@ void i8237_DMA::IOReadStatus(u32 base_channel, u8* value)
       bitmask |= (1 << i);
   }
 
-  *value = bitmask;
+  return bitmask;
 }
 
 void i8237_DMA::IOWriteMode(u32 base_channel, u8 value)
@@ -530,7 +534,7 @@ void i8237_DMA::IOWriteSingleMask(u32 base_channel, u8 value)
   RescheduleTickEvent();
 }
 
-void i8237_DMA::IOReadMultiMask(u32 base_channel, u8* value)
+u8 i8237_DMA::IOReadMultiMask(u32 base_channel)
 {
   u8 bitmask = 0;
   for (u32 i = 0; i < NUM_CHANNELS_PER_CONTROLLER; i++)
@@ -539,7 +543,7 @@ void i8237_DMA::IOReadMultiMask(u32 base_channel, u8* value)
       bitmask |= (1 << i);
   }
 
-  *value = bitmask;
+  return bitmask;
 }
 
 void i8237_DMA::IOWriteMultiMask(u32 base_channel, u8 value)

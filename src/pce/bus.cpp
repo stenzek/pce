@@ -279,77 +279,54 @@ void Bus::DisconnectIOPorts(const void* owner)
   m_ioport_owners.erase(iter);
 }
 
-void Bus::ReadIOPortByte(u16 port, u8* value)
+u8 Bus::ReadIOPortByte(u16 port)
 {
-  *value = 0xFF;
-
   const IOPortConnection* conn = m_ioport_handlers[port];
-  if (!conn)
-  {
-    Log_DebugPrintf("Unknown IO port 0x%04X (read)", port);
-    return;
-  }
-
-  do
+  while (conn)
   {
     const IOPortConnection* current = conn;
     conn = conn->next;
     if (current->read_byte_handler)
-      current->read_byte_handler(port, value);
-  } while (conn);
-
-  // Log_TracePrintf("Read from ioport 0x%04X: 0x%02X", port, *value);
+      return current->read_byte_handler(port);
+  }
+  
+  Log_DebugPrintf("Unknown IO port 0x%04X (read)", port);
+  return 0xFF;
 }
 
-void Bus::ReadIOPortWord(u16 port, u16* value)
+u16 Bus::ReadIOPortWord(u16 port)
 {
-  // If this port does not support 16-bit IO, write as two 8-bit ports.
   const IOPortConnection* conn = m_ioport_handlers[port];
-  if (!conn || !conn->read_word_handler)
-  {
-    u8 b0, b1;
-    ReadIOPortByte(port + 0, &b0);
-    ReadIOPortByte(port + 1, &b1);
-    *value = ZeroExtend16(b0) | (ZeroExtend16(b1) << 8);
-    return;
-  }
-
-  *value = 0xFFFF;
-  do
+  while (conn)
   {
     const IOPortConnection* current = conn;
     conn = conn->next;
     if (current->read_word_handler)
-      current->read_word_handler(port, value);
-  } while (conn);
-
-  // Log_TracePrintf("Read from ioport 0x%04X: 0x%04X", port, ZeroExtend32(*value));
-}
-
-void Bus::ReadIOPortDWord(u16 port, u32* value)
-{
-  // If this port does not support 32-bit IO, write as two 16-bit ports, which will
-  // turn into 2 8-bit ports.
-  const IOPortConnection* conn = m_ioport_handlers[port];
-  if (!conn || !conn->read_dword_handler)
-  {
-    u16 b0, b1;
-    ReadIOPortWord(port + 0, &b0);
-    ReadIOPortWord(port + 2, &b1);
-    *value = ZeroExtend32(b0) | (ZeroExtend32(b1) << 16);
-    return;
+      return current->read_word_handler(port);
   }
 
-  *value = UINT32_C(0xFFFFFFFF);
-  do
+  // If this port does not support 16-bit IO, write as two 8-bit ports.
+  const u8 b0 = ReadIOPortByte(port + 0);
+  const u8 b1 = ReadIOPortByte(port + 1);
+  return ZeroExtend16(b0) | (ZeroExtend16(b1) << 8);
+}
+
+u32 Bus::ReadIOPortDWord(u16 port)
+{
+  const IOPortConnection* conn = m_ioport_handlers[port];
+  while (conn)
   {
     const IOPortConnection* current = conn;
     conn = conn->next;
     if (current->read_dword_handler)
-      current->read_dword_handler(port, value);
-  } while (conn);
+      return current->read_dword_handler(port);
+  }
 
-  // Log_TracePrintf("Read from ioport 0x%04X: 0x%04X", port, ZeroExtend32(*value));
+  // If this port does not support 32-bit IO, write as two 16-bit ports, which will
+  // turn into 2 8-bit ports.
+  const u16 b0 = ReadIOPortWord(port + 0);
+  const u16 b1 = ReadIOPortWord(port + 2);
+  return ZeroExtend32(b0) | (ZeroExtend32(b1) << 16);
 }
 
 void Bus::WriteIOPortByte(u16 port, u8 value)
@@ -419,7 +396,7 @@ void Bus::WriteIOPortDWord(u16 port, u32 value)
 
 void Bus::ConnectIOPortReadToPointer(u16 port, const void* owner, const u8* var)
 {
-  IOPortReadByteHandler read_handler = [var](u16 cb_port, u8* value) { *value = *var; };
+  IOPortReadByteHandler read_handler = [var](u16 cb_port) { return *var; };
 
   ConnectIOPortRead(port, owner, std::move(read_handler));
 }

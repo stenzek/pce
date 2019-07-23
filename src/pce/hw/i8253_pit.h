@@ -97,7 +97,7 @@ private:
 
   void ConnectIOPorts(Bus* bus);
 
-  void ReadDataPort(u32 channel_index, u8* value);
+  u8 ReadDataPort(u32 channel_index);
   void WriteDataPort(u32 channel_index, u8 value);
   void WriteCommandRegister(u8 value);
 

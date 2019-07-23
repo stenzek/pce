@@ -93,26 +93,26 @@ protected:
 
   void ConnectIOPorts(Bus* bus, u32 channel, u16 BAR0, u16 BAR1, u8 irq);
 
-  void IOReadStatusRegister(u32 channel, u8* value);
-  void IOReadAltStatusRegister(u32 channel, u8* value);
+  u8 IOReadStatusRegister(u32 channel);
+  u8 IOReadAltStatusRegister(u32 channel);
   void IOWriteCommandRegister(u32 channel, u8 value);
-  void IOReadErrorRegister(u32 channel, u8* value);
+  u8 IOReadErrorRegister(u32 channel);
 
   void IOWriteControlRegister(u32 channel, u8 value);
-  void IOReadDriveSelectRegister(u32 channel, u8* value);
+  u8 IOReadDriveSelectRegister(u32 channel);
   void IOWriteDriveSelectRegister(u32 channel, u8 value);
 
-  void IOReadDataRegisterByte(u32 channel, u8* value);
-  void IOReadDataRegisterWord(u32 channel, u16* value);
-  void IOReadDataRegisterDWord(u32 channel, u32* value);
+  u8 IOReadDataRegisterByte(u32 channel);
+  u16 IOReadDataRegisterWord(u32 channel);
+  u32 IOReadDataRegisterDWord(u32 channel);
   void IOWriteDataRegisterByte(u32 channel, u8 value);
   void IOWriteDataRegisterWord(u32 channel, u16 value);
   void IOWriteDataRegisterDWord(u32 channel, u32 value);
 
-  void IOReadCommandBlockSectorCount(u32 channel, u8* value);
-  void IOReadCommandBlockSectorNumber(u32 channel, u8* value);
-  void IOReadCommandBlockCylinderLow(u32 channel, u8* value);
-  void IOReadCommandBlockCylinderHigh(u32 channel, u8* value);
+  u8 IOReadCommandBlockSectorCount(u32 channel);
+  u8 IOReadCommandBlockSectorNumber(u32 channel);
+  u8 IOReadCommandBlockCylinderLow(u32 channel);
+  u8 IOReadCommandBlockCylinderHigh(u32 channel);
 
   void IOWriteCommandBlockFeatures(u32 channel, u8 value);
   void IOWriteCommandBlockSectorCount(u32 channel, u8 value);

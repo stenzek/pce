@@ -180,11 +180,11 @@ void VGABase::ConnectIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x03B2, this, &m_crtc_index_register);
   m_bus->ConnectIOPortReadToPointer(0x03B4, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03B4, this, &m_crtc_index_register);
-  m_bus->ConnectIOPortRead(0x03B1, this, [this](u16, u8* value) { IOCRTCDataRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03B1, this, [this](u16) { return IOCRTCDataRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03B1, this, [this](u16, u8 value) { IOCRTCDataRegisterWrite(value); });
-  m_bus->ConnectIOPortRead(0x03B3, this, [this](u16, u8* value) { IOCRTCDataRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03B3, this, [this](u16) { return IOCRTCDataRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03B3, this, [this](u16, u8 value) { IOCRTCDataRegisterWrite(value); });
-  m_bus->ConnectIOPortRead(0x03B5, this, [this](u16, u8* value) { IOCRTCDataRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03B5, this, [this](u16) { return IOCRTCDataRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03B5, this, [this](u16, u8 value) { IOCRTCDataRegisterWrite(value); });
   m_bus->ConnectIOPortReadToPointer(0x03D0, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03D0, this, &m_crtc_index_register);
@@ -192,18 +192,18 @@ void VGABase::ConnectIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x03D2, this, &m_crtc_index_register);
   m_bus->ConnectIOPortReadToPointer(0x03D4, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03D4, this, &m_crtc_index_register);
-  m_bus->ConnectIOPortRead(0x03D1, this, [this](u16, u8* value) { IOCRTCDataRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03D1, this, [this](u16) { return IOCRTCDataRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03D1, this, [this](u16, u8 value) { IOCRTCDataRegisterWrite(value); });
-  m_bus->ConnectIOPortRead(0x03D3, this, [this](u16, u8* value) { IOCRTCDataRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03D3, this, [this](u16) { return IOCRTCDataRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03D3, this, [this](u16, u8 value) { IOCRTCDataRegisterWrite(value); });
-  m_bus->ConnectIOPortRead(0x03D5, this, [this](u16, u8* value) { IOCRTCDataRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03D5, this, [this](u16) { return IOCRTCDataRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03D5, this, [this](u16, u8 value) { IOCRTCDataRegisterWrite(value); });
-  m_bus->ConnectIOPortRead(0x03C2, this, [this](u16, u8* value) { IOReadStatusRegister0(value); });
-  m_bus->ConnectIOPortRead(0x03BA, this, [this](u16, u8* value) { IOReadStatusRegister1(value); });
-  m_bus->ConnectIOPortRead(0x03DA, this, [this](u16, u8* value) { IOReadStatusRegister1(value); });
+  m_bus->ConnectIOPortRead(0x03C2, this, [this](u16) { return IOReadStatusRegister0(); });
+  m_bus->ConnectIOPortRead(0x03BA, this, [this](u16) { return IOReadStatusRegister1(); });
+  m_bus->ConnectIOPortRead(0x03DA, this, [this](u16) { return IOReadStatusRegister1(); });
   m_bus->ConnectIOPortReadToPointer(0x03CE, this, &m_graphics_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03CE, this, &m_graphics_index_register);
-  m_bus->ConnectIOPortRead(0x03CF, this, [this](u16, u8* value) { IOGraphicsRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03CF, this, [this](u16) { return IOGraphicsRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03CF, this, [this](u16, u8 value) { IOGraphicsRegisterWrite(value); });
   m_bus->ConnectIOPortReadToPointer(0x03CC, this, &m_misc_output_register.bits);
   m_bus->ConnectIOPortWrite(0x03C2, this, [this](u16, u8 value) { IOMiscOutputRegisterWrite(value); });
@@ -212,16 +212,16 @@ void VGABase::ConnectIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x03DA, this, &m_feature_control_register.bits);
   m_bus->ConnectIOPortReadToPointer(0x03C0, this, &m_attribute_index_register);
   m_bus->ConnectIOPortWrite(0x03C0, this, [this](u16, u8 value) { IOAttributeAddressDataWrite(value); });
-  m_bus->ConnectIOPortRead(0x03C1, this, [this](u16, u8* value) { IOAttributeDataRead(value); });
+  m_bus->ConnectIOPortRead(0x03C1, this, [this](u16) { return IOAttributeDataRead(); });
   m_bus->ConnectIOPortReadToPointer(0x03C4, this, &m_sequencer_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03C4, this, &m_sequencer_index_register);
-  m_bus->ConnectIOPortRead(0x03C5, this, [this](u16, u8* value) { IOSequencerDataRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03C5, this, [this](u16) { return IOSequencerDataRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03C5, this, [this](u16, u8 value) { IOSequencerDataRegisterWrite(value); });
-  m_bus->ConnectIOPortRead(0x03C7, this, [this](u16, u8* value) { IODACStateRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03C7, this, [this](u16) { return IODACStateRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03C7, this, [this](u16, u8 value) { IODACReadAddressWrite(value); });
-  m_bus->ConnectIOPortRead(0x03C8, this, [this](u16, u8* value) { IODACWriteAddressRead(value); });
+  m_bus->ConnectIOPortRead(0x03C8, this, [this](u16) { return IODACWriteAddressRead(); });
   m_bus->ConnectIOPortWrite(0x03C8, this, [this](u16, u8 value) { IODACWriteAddressWrite(value); });
-  m_bus->ConnectIOPortRead(0x03C9, this, [this](u16, u8* value) { IODACDataRegisterRead(value); });
+  m_bus->ConnectIOPortRead(0x03C9, this, [this](u16) { return IODACDataRegisterRead(); });
   m_bus->ConnectIOPortWrite(0x03C9, this, [this](u16, u8 value) { IODACDataRegisterWrite(value); });
   m_bus->ConnectIOPortReadToPointer(0x46E8, this, &m_vga_adapter_enable.bits);
   m_bus->ConnectIOPortWrite(0x46E8, this, [this](u16, u8 value) { IOVGAAdapterEnableWrite(value); });
@@ -234,15 +234,12 @@ void VGABase::DisconnectIOPorts()
   m_bus->DisconnectIOPorts(this);
 }
 
-void VGABase::IOCRTCDataRegisterRead(u8* value)
+u8 VGABase::IOCRTCDataRegisterRead()
 {
   if (m_crtc_index_register >= NUM_CRTC_REGISTERS)
-  {
-    *value = 0;
-    return;
-  }
+    return 0;
 
-  *value = m_crtc_register_index[m_crtc_index_register];
+  return m_crtc_register_index[m_crtc_index_register];
 }
 
 void VGABase::IOCRTCDataRegisterWrite(u8 value)
@@ -267,15 +264,12 @@ void VGABase::CRTCTimingChanged()
   m_crtc_timing_changed = true;
 }
 
-void VGABase::IOGraphicsRegisterRead(u8* value)
+u8 VGABase::IOGraphicsRegisterRead()
 {
   if (m_graphics_index_register >= NUM_GRAPHICS_REGISTERS)
-  {
-    *value = 0;
-    return;
-  }
+    return 0;
 
-  *value = m_graphics_register_index[m_graphics_index_register];
+  return m_graphics_register_index[m_graphics_index_register];
 }
 
 void VGABase::IOGraphicsRegisterWrite(u8 value)
@@ -301,7 +295,7 @@ void VGABase::IOMiscOutputRegisterWrite(u8 value)
   CRTCTimingChanged();
 }
 
-void VGABase::IOReadStatusRegister0(u8* value)
+u8 VGABase::IOReadStatusRegister0()
 {
   union
   {
@@ -311,10 +305,10 @@ void VGABase::IOReadStatusRegister0(u8* value)
 
   val.switch_sense = true;
 
-  *value = val.bits;
+  return val.bits;
 }
 
-void VGABase::IOReadStatusRegister1(u8* value)
+u8 VGABase::IOReadStatusRegister1()
 {
   union
   {
@@ -327,25 +321,22 @@ void VGABase::IOReadStatusRegister1(u8* value)
   val.display_disabled = !ss.display_active;
   val.vertical_retrace = ss.vsync_active;
 
-  *value = val.bits;
-
   m_attribute_register_flipflop = false;
+
+  return val.bits;
 }
 
-void VGABase::IOAttributeAddressRead(u8* value)
+u8 VGABase::IOAttributeAddressRead()
 {
-  *value = m_attribute_index_register;
+  return m_attribute_index_register;
 }
 
-void VGABase::IOAttributeDataRead(u8* value)
+u8 VGABase::IOAttributeDataRead()
 {
   if (m_attribute_index_register >= NUM_ATTRIBUTE_REGISTERS)
-  {
-    *value = 0;
-    return;
-  }
+    return 0;
 
-  *value = m_attribute_register_index[m_attribute_index_register];
+  return m_attribute_register_index[m_attribute_index_register];
 }
 
 void VGABase::IOAttributeAddressDataWrite(u8 value)
@@ -370,15 +361,12 @@ void VGABase::IOAttributeAddressDataWrite(u8 value)
   m_attribute_register_index[m_attribute_index_register] = value;
 }
 
-void VGABase::IOSequencerDataRegisterRead(u8* value)
+u8 VGABase::IOSequencerDataRegisterRead()
 {
   if (m_sequencer_index_register >= NUM_SEQUENCER_REGISTERS)
-  {
-    *value = 0;
-    return;
-  }
+    return 0;
 
-  *value = m_sequencer_register_index[m_sequencer_index_register];
+  return m_sequencer_register_index[m_sequencer_index_register];
 }
 
 void VGABase::IOSequencerDataRegisterWrite(u8 value)
@@ -395,10 +383,11 @@ void VGABase::IOSequencerDataRegisterWrite(u8 value)
     CRTCTimingChanged();
 }
 
-void VGABase::IODACStateRegisterRead(u8* value) // 3c7
+u8 VGABase::IODACStateRegisterRead() // 3c7
 {
-  *value = m_dac_state_register;
+  const u8 value = m_dac_state_register;
   m_dac_state_register = 0;
+  return value;
 }
 
 void VGABase::IODACReadAddressWrite(u8 value) // 3c7
@@ -408,10 +397,11 @@ void VGABase::IODACReadAddressWrite(u8 value) // 3c7
   m_dac_state_register &= 0b00;
 }
 
-void VGABase::IODACWriteAddressRead(u8* value) // 3c8
+u8 VGABase::IODACWriteAddressRead() // 3c8
 {
-  *value = m_dac_write_address;
+  const u8 value = m_dac_write_address;
   m_dac_state_register = 0;
+  return value;
 }
 
 void VGABase::IODACWriteAddressWrite(u8 value) // 3c8
@@ -422,11 +412,11 @@ void VGABase::IODACWriteAddressWrite(u8 value) // 3c8
   m_dac_state_register |= 0b11;
 }
 
-void VGABase::IODACDataRegisterRead(u8* value) // 3c9
+u8 VGABase::IODACDataRegisterRead() // 3c9
 {
-  u32 color_value = m_dac_palette[m_dac_read_address];
-  u8 shift = m_dac_color_index * 8;
-  *value = u8((color_value >> shift) & 0xFF);
+  const u32 color_value = m_dac_palette[m_dac_read_address];
+  const u8 shift = m_dac_color_index * 8;
+  const u8 value = u8((color_value >> shift) & 0xFF);
 
   m_dac_color_index++;
   if (m_dac_color_index >= 3)
@@ -436,6 +426,7 @@ void VGABase::IODACDataRegisterRead(u8* value) // 3c9
   }
 
   m_dac_state_register = 0;
+  return value;
 }
 
 void VGABase::IODACDataRegisterWrite(u8 value) // 3c9

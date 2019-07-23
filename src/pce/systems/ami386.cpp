@@ -79,9 +79,9 @@ bool AMI386::SaveSystemState(BinaryWriter& writer)
 void AMI386::ConnectSystemIOPorts()
 {
   // System control ports
-  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&AMI386::IOReadSystemControlPortA, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&AMI386::IOReadSystemControlPortA, this));
   m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&AMI386::IOWriteSystemControlPortA, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&AMI386::IOReadSystemControlPortB, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&AMI386::IOReadSystemControlPortB, this));
   m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&AMI386::IOWriteSystemControlPortB, this, std::placeholders::_2));
 
   // Connect the keyboard controller output port to the lower 2 bits of system control port A.
@@ -89,14 +89,15 @@ void AMI386::ConnectSystemIOPorts()
     // We're doing something wrong here, the BIOS resets the CPU almost immediately after booting?
     value &= ~u8(0x01);
     IOWriteSystemControlPortA(value & 0x03);
-    IOReadSystemControlPortA(&value);
+    value = IOReadSystemControlPortA();
     m_keyboard_controller->SetOutputPort(value);
   });
 }
 
-void AMI386::IOReadSystemControlPortA(u8* value)
+u8 AMI386::IOReadSystemControlPortA()
 {
-  *value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
+  const u8 value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
+  return value;
 }
 
 void AMI386::IOWriteSystemControlPortA(u8 value)
@@ -134,18 +135,19 @@ void AMI386::IOWriteSystemControlPortA(u8 value)
   }
 }
 
-void AMI386::IOReadSystemControlPortB(u8* value)
+u8 AMI386::IOReadSystemControlPortB()
 {
-  *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
-           (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
-           (BoolToUInt8(m_refresh_bit) << 4) |                    // Triggers with each memory refresh
-           (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
+  const u8 value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
+                   (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
+                   (BoolToUInt8(m_refresh_bit) << 4) |                    // Triggers with each memory refresh
+                   (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
 
   // Seems that we can get away with faking this every read.
   // The refresh controller steps one refresh address every 15 microseconds. Each refresh cycle
   // requires eight clock cycles to refresh all of the system's dynamic memory; 256 refresh cycles
   // are required every 4 milliseconds, but the system hardware refreshes every 3.84ms.
   m_refresh_bit ^= true;
+  return value;
 }
 
 void AMI386::IOWriteSystemControlPortB(u8 value)

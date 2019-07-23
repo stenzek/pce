@@ -18,8 +18,7 @@ PROPERTY_TABLE_MEMBER_STRING("BIOSImage", 0, offsetof(BochsVGA, m_bios_file_path
 END_OBJECT_PROPERTY_MAP()
 
 BochsVGA::BochsVGA(const String& identifier, const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), PCIDevice(this, 1),
-    m_bios_file_path("romimages\\VGABIOS-lgpl-latest")
+  : BaseClass(identifier, type_info), PCIDevice(this, 1), m_bios_file_path("romimages\\VGABIOS-lgpl-latest")
 {
   m_vram_size = VBE_DISPI_TOTAL_VIDEO_MEMORY_BYTES;
 
@@ -125,12 +124,10 @@ void BochsVGA::ConnectIOPorts()
 {
   BaseClass::ConnectIOPorts();
 
-  BaseClass::m_bus->ConnectIOPortReadWord(VBE_DISPI_IOPORT_INDEX, this,
-                                          [this](u16, u16* value) { *value = m_vbe_index_register; });
+  BaseClass::m_bus->ConnectIOPortReadWord(VBE_DISPI_IOPORT_INDEX, this, [this](u16) { return m_vbe_index_register; });
   BaseClass::m_bus->ConnectIOPortWriteWord(VBE_DISPI_IOPORT_INDEX, this,
                                            [this](u16, u16 value) { m_vbe_index_register = value; });
-  BaseClass::m_bus->ConnectIOPortReadWord(VBE_DISPI_IOPORT_DATA, this,
-                                          [this](u16, u16* value) { *value = IOReadVBEDataRegister(); });
+  BaseClass::m_bus->ConnectIOPortReadWord(VBE_DISPI_IOPORT_DATA, this, [this](u16) { return IOReadVBEDataRegister(); });
   BaseClass::m_bus->ConnectIOPortWriteWord(VBE_DISPI_IOPORT_DATA, this,
                                            [this](u16, u16 value) { IOWriteVBEDataRegister(value); });
 }
@@ -527,7 +524,7 @@ void BochsVGA::Render8BPP()
     m_display->CopyPalette(0, Truncate32(m_dac_palette.size()), m_dac_palette.data());
   else
     SetOutputPalette256();
-  
+
   // Direct copy indices to framebuffer.
   m_display->CopyToFramebuffer(&m_vram[m_render_latch.start_address], m_render_latch.pitch);
 }

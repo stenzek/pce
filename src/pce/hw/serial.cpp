@@ -234,7 +234,7 @@ void Serial::SetClearToSend(bool enabled)
 
 void Serial::ConnectIOPorts(Bus* bus)
 {
-  auto read_func = std::bind(&Serial::HandleIORead, this, std::placeholders::_1, std::placeholders::_2);
+  auto read_func = std::bind(&Serial::HandleIORead, this, std::placeholders::_1);
   auto write_func = std::bind(&Serial::HandleIOWrite, this, std::placeholders::_1, std::placeholders::_2);
   for (u16 offset = 0; offset <= 7; offset++)
   {
@@ -243,30 +243,28 @@ void Serial::ConnectIOPorts(Bus* bus)
   }
 }
 
-void Serial::HandleIORead(u16 address, u8* value)
+u8 Serial::HandleIORead(u16 address)
 {
   u16 offset = Truncate16(address - m_base_io_address);
   // Log_DevPrintf("serial read offset %u", offset);
 
   // MSB/LSB of divisor
   if (offset <= 1 && m_line_control_register.divisor_access_latch)
-  {
-    *value = Truncate8((offset == 0) ? m_clock_divider : (m_clock_divider >> 8));
-    return;
-  }
+    return Truncate8((offset == 0) ? m_clock_divider : (m_clock_divider >> 8));
 
   switch (offset)
   {
       // Data register
     case 0:
     {
+      u8 value;
       size_t waiting_size;
       if (IsFifoEnabled())
       {
-        if (!ReadFromFifo(m_input_fifo, m_input_fifo_size, value))
+        if (!ReadFromFifo(m_input_fifo, m_input_fifo_size, &value))
         {
           Log_WarningPrintf("FIFO empty when read. Setting to zero.");
-          *value = 0;
+          value = 0;
         }
 
         waiting_size = m_input_fifo_size;
@@ -276,7 +274,7 @@ void Serial::HandleIORead(u16 address, u8* value)
         // if (m_line_status_register.empty_receive_register)
         // Log_WarningPrintf("Receive register empty when read.");
 
-        *value = m_data_receive_buffer;
+        value = m_data_receive_buffer;
         m_data_receive_buffer = 0;
         waiting_size = 0;
       }
@@ -292,18 +290,17 @@ void Serial::HandleIORead(u16 address, u8* value)
 
       // Transfer data again on the next tick.
       UpdateTransmitEvent();
+      return value;
     }
-    break;
 
       // Interrupt enable register
     case 1:
-      *value = m_interrupt_enable_register.bits;
-      break;
+      return m_interrupt_enable_register.bits;
 
       // Interrupt identification register
     case 2:
     {
-      *value = m_interrupt_identification_register.bits;
+      const u8 value = m_interrupt_identification_register.bits;
 
       // Apparently we should clear the interrupt here?
       switch (m_interrupt_identification_register.type)
@@ -327,32 +324,31 @@ void Serial::HandleIORead(u16 address, u8* value)
         default:
           break;
       }
+
+      return value;
     }
-    break;
 
       // Line control register
     case 3:
-      *value = m_line_control_register.bits;
-      break;
+      return m_line_control_register.bits;
 
       // Modem control register
     case 4:
-      *value = m_modem_control_register.bits;
-      break;
+      return m_modem_control_register.bits;
 
       // Line status register
     case 5:
-      *value = m_line_status_register.bits;
-      break;
+      return m_line_status_register.bits;
 
       // Modem status register
     case 6:
     {
       // Loopback enabled?
+      u8 value;
       if (!m_modem_control_register.loopback_mode)
       {
         // Clear delta bits while we're at it.
-        *value = m_modem_status_register.bits;
+        value = m_modem_status_register.bits;
         m_modem_status_register.delta_clear_to_send = false;
         m_modem_status_register.delta_data_set_ready = false;
         m_modem_status_register.delta_data_carrier_detect = false;
@@ -371,19 +367,18 @@ void Serial::HandleIORead(u16 address, u8* value)
         temp.delta_data_set_ready = m_modem_status_register.delta_data_set_ready ^ temp.data_set_ready;
         temp.trailing_edge_ring_indicator = m_modem_status_register.trailing_edge_ring_indicator ^ temp.ring_indicator;
         temp.delta_data_carrier_detect = m_modem_status_register.carrier_detect ^ temp.carrier_detect;
-        *value = temp.bits;
+        value = temp.bits;
       }
+      return value;
     }
-
-    break;
 
       // Scratch register
     case 7:
-      *value = (m_model >= Model_16550) ? m_scratch_register : 0;
-      break;
-  }
+      return (m_model >= Model_16550) ? m_scratch_register : 0;
 
-  Log_DebugPrintf("serial read offset %u -> 0x%02X", offset, ZeroExtend32(*value));
+    default:
+      return 0xFF;
+  }
 }
 
 void Serial::HandleIOWrite(u16 address, u8 value)

@@ -184,11 +184,11 @@ void ET4000::ConnectIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x03B2, this, &m_crtc_index_register);
   m_bus->ConnectIOPortReadToPointer(0x03B4, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03B4, this, &m_crtc_index_register);
-  m_bus->ConnectIOPortRead(0x03B1, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03B1, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03B1, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03B3, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03B3, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03B3, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03B5, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03B5, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03B5, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
   m_bus->ConnectIOPortReadToPointer(0x03D0, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03D0, this, &m_crtc_index_register);
@@ -196,20 +196,20 @@ void ET4000::ConnectIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x03D2, this, &m_crtc_index_register);
   m_bus->ConnectIOPortReadToPointer(0x03D4, this, &m_crtc_index_register);
   m_bus->ConnectIOPortWriteToPointer(0x03D4, this, &m_crtc_index_register);
-  m_bus->ConnectIOPortRead(0x03D1, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03D1, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03D1, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03D3, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03D3, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03D3, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03D5, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03D5, this, std::bind(&ET4000::IOCRTCDataRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03D5, this, std::bind(&ET4000::IOCRTCDataRegisterWrite, this, std::placeholders::_2));
   m_bus->ConnectIOPortReadToPointer(0x03C2, this, &m_st0);
-  m_bus->ConnectIOPortRead(0x03BA, this, std::bind(&ET4000::IOReadStatusRegister1, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03DA, this, std::bind(&ET4000::IOReadStatusRegister1, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03BA, this, std::bind(&ET4000::IOReadStatusRegister1, this));
+  m_bus->ConnectIOPortRead(0x03DA, this, std::bind(&ET4000::IOReadStatusRegister1, this));
   m_bus->ConnectIOPortReadToPointer(0x03CD, this, &m_segment_select_register.bits);
   m_bus->ConnectIOPortWriteToPointer(0x03CD, this, &m_segment_select_register.bits);
   m_bus->ConnectIOPortReadToPointer(0x03CE, this, &m_graphics_address_register);
   m_bus->ConnectIOPortWriteToPointer(0x03CE, this, &m_graphics_address_register);
-  m_bus->ConnectIOPortRead(0x03CF, this, std::bind(&ET4000::IOGraphicsDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03CF, this, std::bind(&ET4000::IOGraphicsDataRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03CF, this, std::bind(&ET4000::IOGraphicsDataRegisterWrite, this, std::placeholders::_2));
   m_bus->ConnectIOPortReadToPointer(0x03CC, this, &m_misc_output_register.bits);
   m_bus->ConnectIOPortWrite(0x03C2, this, std::bind(&ET4000::IOMiscOutputRegisterWrite, this, std::placeholders::_2));
@@ -220,21 +220,21 @@ void ET4000::ConnectIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x46E8, this, &m_vga_adapter_enable.bits);
   m_bus->ConnectIOPortReadToPointer(0x03C3, this, &m_vga_adapter_enable.bits);
   m_bus->ConnectIOPortWriteToPointer(0x03C3, this, &m_vga_adapter_enable.bits);
-  m_bus->ConnectIOPortRead(0x03C0, this, std::bind(&ET4000::IOAttributeAddressRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C0, this, std::bind(&ET4000::IOAttributeAddressRead, this));
   m_bus->ConnectIOPortWrite(0x03C0, this, std::bind(&ET4000::IOAttributeAddressDataWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03C1, this, std::bind(&ET4000::IOAttributeDataRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C1, this, std::bind(&ET4000::IOAttributeDataRead, this));
   m_bus->ConnectIOPortReadToPointer(0x03C4, this, &m_sequencer_address_register);
   m_bus->ConnectIOPortWriteToPointer(0x03C4, this, &m_sequencer_address_register);
-  m_bus->ConnectIOPortRead(0x03C5, this, std::bind(&ET4000::IOSequencerDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C5, this, std::bind(&ET4000::IOSequencerDataRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03C5, this,
                             std::bind(&ET4000::IOSequencerDataRegisterWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03C6, this, std::bind(&ET4000::IODACMaskRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C6, this, std::bind(&ET4000::IODACMaskRead, this));
   m_bus->ConnectIOPortWrite(0x03C6, this, std::bind(&ET4000::IODACMaskWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03C7, this, std::bind(&ET4000::IODACStateRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C7, this, std::bind(&ET4000::IODACStateRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03C7, this, std::bind(&ET4000::IODACReadAddressWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03C8, this, std::bind(&ET4000::IODACWriteAddressRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C8, this, std::bind(&ET4000::IODACWriteAddressRead, this));
   m_bus->ConnectIOPortWrite(0x03C8, this, std::bind(&ET4000::IODACWriteAddressWrite, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x03C9, this, std::bind(&ET4000::IODACDataRegisterRead, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x03C9, this, std::bind(&ET4000::IODACDataRegisterRead, this));
   m_bus->ConnectIOPortWrite(0x03C9, this, std::bind(&ET4000::IODACDataRegisterWrite, this, std::placeholders::_2));
 }
 
@@ -260,7 +260,7 @@ void ET4000::Render()
     RenderTextMode();
 }
 
-void ET4000::IOReadStatusRegister1(u8* value)
+u8 ET4000::IOReadStatusRegister1()
 {
   ScanoutInfo si = GetScanoutInfo();
 
@@ -269,33 +269,35 @@ void ET4000::IOReadStatusRegister1(u8* value)
   st1.vertical_blank = si.in_vertical_blank;
   st1.vertical_blank_n = !si.in_vertical_blank;
   st1.display_feedback_test = 0x3; // Connected to output of attribute controller
-  *value = st1.bits;
 
   // Reset the attribute register flip-flop
   m_crtc_registers.attribute_register_flipflop = false;
+
+  return st1.bits;
 }
 
-void ET4000::IOCRTCDataRegisterRead(u8* value)
+u8 ET4000::IOCRTCDataRegisterRead()
 {
   if (m_crtc_index_register >= countof(m_crtc_registers.index))
   {
     Log_ErrorPrintf("Out-of-range CRTC register read: %u", u32(m_crtc_index_register));
-    *value = 0;
-    return;
+    return 0;
   }
 
   // Always a byte value
-  u32 register_index = m_crtc_index_register;
+  const u32 register_index = m_crtc_index_register;
 
+  u8 value;
   // Can only read C-F
   // Not true?
   // if (register_index >= 0xC && register_index <= 0xF)
-  *value = m_crtc_registers.index[register_index];
+  value = m_crtc_registers.index[register_index];
   // else
   //*value = 0;
 
   Log_TracePrintf("CRTC register read: %u -> 0x%02X", u32(register_index),
                   u32(m_graphics_registers.index[register_index]));
+  return value;
 }
 
 void ET4000::IOCRTCDataRegisterWrite(u8 value)
@@ -315,20 +317,21 @@ void ET4000::IOCRTCDataRegisterWrite(u8 value)
     RecalculateEventTiming();
 }
 
-void ET4000::IOGraphicsDataRegisterRead(u8* value)
+u8 ET4000::IOGraphicsDataRegisterRead()
 {
   if (m_graphics_address_register >= countof(m_graphics_registers.index))
   {
     Log_ErrorPrintf("Out-of-range graphics register read: %u", u32(m_graphics_address_register));
-    *value = 0;
-    return;
+    return 0;
   }
 
   u8 register_index = m_graphics_address_register;
-  *value = m_graphics_registers.index[register_index];
+  const u8 value = m_graphics_registers.index[register_index];
 
   Log_TracePrintf("Graphics register read: %u -> 0x%02X", u32(register_index),
                   u32(m_graphics_registers.index[register_index]));
+
+  return value;
 }
 
 void ET4000::IOGraphicsDataRegisterWrite(u8 value)
@@ -371,25 +374,26 @@ void ET4000::IOMiscOutputRegisterWrite(u8 value)
   RecalculateEventTiming();
 }
 
-void ET4000::IOAttributeAddressRead(u8* value)
+u8 ET4000::IOAttributeAddressRead()
 {
-  *value = m_attribute_address_register;
+  return m_attribute_address_register;
 }
 
-void ET4000::IOAttributeDataRead(u8* value)
+u8 ET4000::IOAttributeDataRead()
 {
   if (m_attribute_address_register >= countof(m_attribute_registers.index))
   {
     Log_ErrorPrintf("Out-of-range attribute register read: %u", u32(m_attribute_address_register));
-    *value = 0;
-    return;
+    return 0;
   }
 
-  u8 register_index = m_attribute_address_register;
-  *value = m_attribute_registers.index[register_index];
+  const u8 register_index = m_attribute_address_register;
+  const u8 value = m_attribute_registers.index[register_index];
 
   Log_TracePrintf("Attribute register read: %u -> 0x%02X", u32(register_index),
-                  u32(m_attribute_registers.index[register_index]));
+                  u32(value));
+
+  return value;
 }
 
 void ET4000::IOAttributeAddressDataWrite(u8 value)
@@ -429,20 +433,20 @@ void ET4000::IOAttributeAddressDataWrite(u8 value)
     m_attribute_registers.index[register_index] &= 0x3F;
 }
 
-void ET4000::IOSequencerDataRegisterRead(u8* value)
+u8 ET4000::IOSequencerDataRegisterRead()
 {
   if (m_sequencer_address_register >= countof(m_sequencer_registers.index))
   {
     Log_ErrorPrintf("Out-of-range sequencer register read: %u", u32(m_sequencer_address_register));
-    *value = 0;
-    return;
+    return 0;
   }
 
-  u8 register_index = m_sequencer_address_register;
-  *value = m_sequencer_registers.index[register_index];
+  const u8 register_index = m_sequencer_address_register;
+  const u8 value = m_sequencer_registers.index[register_index];
 
   Log_TracePrintf("Sequencer register read: %u -> 0x%02X", u32(register_index),
-                  u32(m_sequencer_registers.index[register_index]));
+                  u32(value));
+  return value;
 }
 
 void ET4000::IOSequencerDataRegisterWrite(u8 value)
@@ -465,17 +469,18 @@ void ET4000::IOSequencerDataRegisterWrite(u8 value)
     RecalculateEventTiming();
 }
 
-void ET4000::IODACMaskRead(u8* value) // 3c6
+u8 ET4000::IODACMaskRead() // 3c6
 {
   if (m_dac_state_register == 4)
   {
-    *value = m_dac_ctrl;
+    const u8 value = m_dac_ctrl;
     m_dac_state_register = 0;
-    return;
+    return value;
   }
 
-  *value = m_dac_mask;
+  const u8 value = m_dac_mask;
   m_dac_state_register++;
+  return value;
 }
 
 void ET4000::IODACMaskWrite(u8 value) // 3c6
@@ -491,10 +496,11 @@ void ET4000::IODACMaskWrite(u8 value) // 3c6
   m_dac_state_register = 0;
 }
 
-void ET4000::IODACStateRegisterRead(u8* value) // 3c7
+u8 ET4000::IODACStateRegisterRead() // 3c7
 {
-  *value = m_dac_status_register;
+  const u8 value = m_dac_status_register;
   m_dac_state_register = 0;
+  return value;
 }
 
 void ET4000::IODACReadAddressWrite(u8 value) // 3c7
@@ -504,10 +510,11 @@ void ET4000::IODACReadAddressWrite(u8 value) // 3c7
   m_dac_state_register = 0;
 }
 
-void ET4000::IODACWriteAddressRead(u8* value) // 3c8
+u8 ET4000::IODACWriteAddressRead() // 3c8
 {
-  *value = m_dac_write_address;
+  const u8 value = m_dac_write_address;
   m_dac_state_register = 0;
+  return value;
 }
 
 void ET4000::IODACWriteAddressWrite(u8 value) // 3c8
@@ -518,13 +525,13 @@ void ET4000::IODACWriteAddressWrite(u8 value) // 3c8
   m_dac_state_register = 0;
 }
 
-void ET4000::IODACDataRegisterRead(u8* value) // 3c9
+u8 ET4000::IODACDataRegisterRead() // 3c9
 {
-  u32 color_value = m_dac_palette[m_dac_read_address];
-  u8 shift = m_dac_color_index * 8;
-  *value = u8((color_value >> shift) & 0xFF);
+  const u32 color_value = m_dac_palette[m_dac_read_address];
+  const u8 shift = m_dac_color_index * 8;
+  const u8 value = u8((color_value >> shift) & 0xFF);
 
-  Log_TracePrintf("DAC palette read %u/%u: %u", u32(m_dac_read_address), u32(m_dac_color_index), u32(*value));
+  Log_TracePrintf("DAC palette read %u/%u: %u", u32(m_dac_read_address), u32(m_dac_color_index), u32(value));
 
   m_dac_color_index++;
   if (m_dac_color_index >= 3)
@@ -535,6 +542,7 @@ void ET4000::IODACDataRegisterRead(u8* value) // 3c9
 
   m_dac_status_register = 3;
   m_dac_state_register = 0;
+  return value;
 }
 
 void ET4000::IODACDataRegisterWrite(u8 value) // 3c9

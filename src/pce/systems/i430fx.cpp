@@ -89,13 +89,13 @@ bool i430FX::SaveSystemState(BinaryWriter& writer)
 void i430FX::ConnectSystemIOPorts()
 {
   // System control ports
-  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&i430FX::IOReadSystemControlPortA, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0092, this, std::bind(&i430FX::IOReadSystemControlPortA, this));
   m_bus->ConnectIOPortWrite(0x0092, this, std::bind(&i430FX::IOWriteSystemControlPortA, this, std::placeholders::_2));
-  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&i430FX::IOReadSystemControlPortB, this, std::placeholders::_2));
+  m_bus->ConnectIOPortRead(0x0061, this, std::bind(&i430FX::IOReadSystemControlPortB, this));
   m_bus->ConnectIOPortWrite(0x0061, this, std::bind(&i430FX::IOWriteSystemControlPortB, this, std::placeholders::_2));
 
   // Dummy I/O delay port
-  m_bus->ConnectIOPortRead(0x00EB, this, [](u32, u8* value) { *value = 0xFF; });
+  m_bus->ConnectIOPortRead(0x00EB, this, [](u32) { return u8(0xFF); });
   m_bus->ConnectIOPortWrite(0x00EB, this, [](u32, u8 value) {});
 
   // Connect the keyboard controller output port to the lower 2 bits of system control port A.
@@ -103,14 +103,15 @@ void i430FX::ConnectSystemIOPorts()
     if (!pulse)
       value &= ~u8(0x01);
     IOWriteSystemControlPortA(value & 0x03);
-    IOReadSystemControlPortA(&value);
+    value = IOReadSystemControlPortA();
     m_keyboard_controller->SetOutputPort(value);
   });
 }
 
-void i430FX::IOReadSystemControlPortA(u8* value)
+u8 i430FX::IOReadSystemControlPortA()
 {
-  *value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
+  const u8 value = (BoolToUInt8(m_cmos_lock) << 3) | (BoolToUInt8(GetA20State()) << 1);
+  return value;
 }
 
 void i430FX::IOWriteSystemControlPortA(u8 value)
@@ -148,7 +149,7 @@ void i430FX::IOWriteSystemControlPortA(u8 value)
   }
 }
 
-void i430FX::IOReadSystemControlPortB(u8* value)
+u8 i430FX::IOReadSystemControlPortB()
 {
   // http://qlibdos32.sourceforge.net/tutor/tutor-port61h.php
   // http://www.ee.hacettepe.edu.tr/~alkar/ELE336/w9-hacettepe[2016].pdf
@@ -156,10 +157,11 @@ void i430FX::IOReadSystemControlPortB(u8* value)
   const SimulationTime num_refresh_cycles = GetSimulationTime() / 15085;
   const u8 refresh_bit = Truncate8(num_refresh_cycles & 1);
 
-  *value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
-           (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
-           (BoolToUInt8(refresh_bit) << 4) |                      // Triggers with each memory refresh
-           (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
+  const u8 value = (BoolToUInt8(m_timer->GetChannelGateInput(2)) << 0) |  // Timer 2 gate input
+                   (BoolToUInt8(m_speaker->IsOutputEnabled()) << 1) |     // Speaker data status
+                   (BoolToUInt8(refresh_bit) << 4) |                      // Triggers with each memory refresh
+                   (BoolToUInt8(m_timer->GetChannelOutputState(2)) << 5); // Raw timer 2 output
+  return value;
 }
 
 void i430FX::IOWriteSystemControlPortB(u8 value)

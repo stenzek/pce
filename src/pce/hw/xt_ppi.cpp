@@ -153,12 +153,12 @@ void XT_PPI::ConnectIOPorts(Bus* bus)
 {
   for (u16 i = 0x60; i <= 0x63; i++)
   {
-    bus->ConnectIOPortRead(i, this, std::bind(&XT_PPI::IORead, this, std::placeholders::_1, std::placeholders::_2));
+    bus->ConnectIOPortRead(i, this, std::bind(&XT_PPI::IORead, this, std::placeholders::_1));
     bus->ConnectIOPortWrite(i, this, std::bind(&XT_PPI::IOWrite, this, std::placeholders::_1, std::placeholders::_2));
   }
 }
 
-void XT_PPI::IORead(u32 port, u8* value)
+u8 XT_PPI::IORead(u32 port)
 {
   switch (port)
   {
@@ -167,37 +167,35 @@ void XT_PPI::IORead(u32 port, u8* value)
     {
       // Not keyboard data?
       if (!m_control_register.port_a_input)
-      {
-        *value = m_port_a;
-        break;
-      }
+        return m_port_a;
 
       // Keyboard data
       Log_DebugPrintf("Read data port, size = %u, value = 0x%02X", m_output_buffer_pos, u32(m_output_buffer[0]));
 
+      u8 value;
       if (m_output_buffer_pos == 0)
       {
         // Buffer is empty and read happened..
-        *value = m_output_buffer[0];
+        value = m_output_buffer[0];
       }
       else
       {
-        *value = m_output_buffer[0];
+        value = m_output_buffer[0];
         RemoveKeyboardBufferBytes(1);
       }
+
+      return value;
     }
-    break;
 
       // Port B
     case 0x61:
     {
       // Port B can be configured as an input too.
       if (m_control_register.port_b_input)
-        *value = m_port_b.bits;
+        return m_port_b.bits;
       else
-        *value = 0;
+        return 0;
     }
-    break;
 
       // Port C
     case 0x62:
@@ -222,14 +220,12 @@ void XT_PPI::IORead(u32 port, u8* value)
         out_value.switch_3 = m_switches[2];
         out_value.switch_4 = m_switches[3];
       }
-      *value = out_value.bits;
+      return out_value.bits;
     }
-    break;
-
+    
       // Control Register
     case 0x63:
-      *value = m_control_register.bits;
-      break;
+      return m_control_register.bits;
   }
 }
 

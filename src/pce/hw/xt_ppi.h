@@ -53,7 +53,7 @@ private:
   bool AppendToOutputBuffer(u8 data);
   void ConnectIOPorts(Bus* bus);
 
-  void IORead(u32 port, u8* value);
+  u8 IORead(u32 port);
   void IOWrite(u32 port, u8 value);
 
   InterruptController* m_interrupt_controller;

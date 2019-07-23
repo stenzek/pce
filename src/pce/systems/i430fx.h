@@ -53,9 +53,9 @@ protected:
   void AddComponents();
   void SetCMOSVariables();
 
-  void IOReadSystemControlPortA(u8* value);
+  u8 IOReadSystemControlPortA();
   void IOWriteSystemControlPortA(u8 value);
-  void IOReadSystemControlPortB(u8* value);
+  u8 IOReadSystemControlPortB();
   void IOWriteSystemControlPortB(u8 value);
   void UpdateKeyboardControllerOutputPort();
 

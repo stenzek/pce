@@ -103,7 +103,7 @@ protected:
   };
 
   void ConnectIOPorts(Bus* bus);
-  void IOReadDataPort(u8* value);
+  u8 IOReadDataPort();
   void IOWriteDataPort(u8 value);
 
   void UpdateRTCFrequency();

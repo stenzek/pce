@@ -54,14 +54,14 @@ private:
   void SetCMOSVariables();
   void UpdateShadowRAM();
 
-  void IOReadALI1429IndexRegister(u8* value);
+  u8 IOReadALI1429IndexRegister();
   void IOWriteALI1429IndexRegister(u8 value);
-  void IOReadALI1429DataRegister(u8* value);
+  u8 IOReadALI1429DataRegister();
   void IOWriteALI1429DataRegister(u8 value);
 
-  void IOReadSystemControlPortA(u8* value);
+  u8 IOReadSystemControlPortA();
   void IOWriteSystemControlPortA(u8 value);
-  void IOReadSystemControlPortB(u8* value);
+  u8 IOReadSystemControlPortB();
   void IOWriteSystemControlPortB(u8 value);
   void UpdateKeyboardControllerOutputPort();
 

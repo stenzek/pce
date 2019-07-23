@@ -228,11 +228,11 @@ void DS12887::ConnectIOPorts(Bus* bus)
 {
   bus->ConnectIOPortReadToPointer(IOPORT_INDEX_REGISTER, this, &m_index_register);
   bus->ConnectIOPortWriteToPointer(IOPORT_INDEX_REGISTER, this, &m_index_register);
-  bus->ConnectIOPortRead(IOPORT_DATA_PORT, this, std::bind(&DS12887::IOReadDataPort, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(IOPORT_DATA_PORT, this, std::bind(&DS12887::IOReadDataPort, this));
   bus->ConnectIOPortWrite(IOPORT_DATA_PORT, this, std::bind(&DS12887::IOWriteDataPort, this, std::placeholders::_2));
 }
 
-void DS12887::IOReadDataPort(u8* value)
+u8 DS12887::IOReadDataPort()
 {
   const u8 index = m_index_register & m_index_register_mask;
   if (index < RTC_REGISTER_STATUS_REGISTER_A || index == RTC_REGISTER_CENTURY)
@@ -241,11 +241,11 @@ void DS12887::IOReadDataPort(u8* value)
     UpdateClock();
   }
 
-  *value = m_data[index];
+  const u8 value = m_data[index];
 
 #ifdef Y_BUILD_CONFIG_DEBUG
   if (index >= RTC_REGISTER_STATUS_REGISTER_A && index != RTC_REGISTER_CENTURY)
-    Log_DebugPrintf("Read register 0x%02X, value=0x%02X", ZeroExtend32(index), ZeroExtend32(*value));
+    Log_DebugPrintf("Read register 0x%02X, value=0x%02X", ZeroExtend32(index), ZeroExtend32(value));
 #endif
 
   if (index == RTC_REGISTER_STATUS_REGISTER_C)
@@ -256,6 +256,8 @@ void DS12887::IOReadDataPort(u8* value)
     UpdateInterruptState();
     m_rtc_interrupt_event->SetActive(true);
   }
+
+  return value;
 }
 
 void DS12887::IOWriteDataPort(u8 value)

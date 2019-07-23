@@ -140,11 +140,11 @@ void CGA::ConnectIOPorts(Bus* bus)
   bus->ConnectIOPortWriteToPointer(0x03D0, this, &m_crtc_index_register);
   bus->ConnectIOPortReadToPointer(0x03D2, this, &m_crtc_index_register);
   bus->ConnectIOPortWriteToPointer(0x03D2, this, &m_crtc_index_register);
-  bus->ConnectIOPortRead(0x03D1, this, std::bind(&CGA::CRTDataRegisterRead, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x03D1, this, std::bind(&CGA::CRTDataRegisterRead, this));
   bus->ConnectIOPortWrite(0x03D1, this, std::bind(&CGA::CRTDataRegisterWrite, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(0x03D3, this, std::bind(&CGA::CRTDataRegisterRead, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x03D3, this, std::bind(&CGA::CRTDataRegisterRead, this));
   bus->ConnectIOPortWrite(0x03D3, this, std::bind(&CGA::CRTDataRegisterWrite, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(0x03D5, this, std::bind(&CGA::CRTDataRegisterRead, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x03D5, this, std::bind(&CGA::CRTDataRegisterRead, this));
   bus->ConnectIOPortWrite(0x03D5, this, std::bind(&CGA::CRTDataRegisterWrite, this, std::placeholders::_2));
   bus->ConnectIOPortReadToPointer(0x03D4, this, &m_crtc_index_register);
   bus->ConnectIOPortWriteToPointer(0x03D4, this, &m_crtc_index_register);
@@ -152,7 +152,7 @@ void CGA::ConnectIOPorts(Bus* bus)
   bus->ConnectIOPortWrite(0x03D8, this, std::bind(&CGA::ModeControlRegisterWrite, this, std::placeholders::_2));
   bus->ConnectIOPortReadToPointer(0x03D9, this, &m_color_control_register.raw);
   bus->ConnectIOPortWrite(0x03D9, this, std::bind(&CGA::ColorControlRegisterWrite, this, std::placeholders::_2));
-  bus->ConnectIOPortRead(0x03DA, this, std::bind(&CGA::StatusRegisterRead, this, std::placeholders::_2));
+  bus->ConnectIOPortRead(0x03DA, this, std::bind(&CGA::StatusRegisterRead, this));
 
   // CGA is never removed from the system, so don't bother cleaning up the MMIO
   MMIO* mmio_B8000 = MMIO::CreateDirect(0x000B8000, sizeof(m_vram), m_vram);
@@ -424,7 +424,7 @@ void CGA::ColorControlRegisterWrite(u8 value)
   m_color_control_register.raw = value;
 }
 
-void CGA::StatusRegisterRead(u8* value)
+u8 CGA::StatusRegisterRead()
 {
   m_line_event->InvokeEarly();
 
@@ -452,16 +452,16 @@ void CGA::StatusRegisterRead(u8* value)
 
   sr.light_pen_switch_status = false;
   sr.light_pen_trigger_set = false;
-  *value = sr.raw;
+  return sr.raw;
 }
 
-void CGA::CRTDataRegisterRead(u8* value)
+u8 CGA::CRTDataRegisterRead()
 {
   // Can only read C-F
   if (m_crtc_index_register >= 0xC && m_crtc_index_register <= 0xF)
-    *value = m_crtc_registers.index[m_crtc_index_register];
+    return m_crtc_registers.index[m_crtc_index_register];
   else
-    *value = 0;
+    return 0;
 }
 
 void CGA::CRTDataRegisterWrite(u8 value)

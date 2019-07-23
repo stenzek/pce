@@ -70,9 +70,9 @@ public:
   void MirrorRegion(PhysicalMemoryAddress start, u32 size, PhysicalMemoryAddress mirror_start);
 
   // IO port read/write callbacks
-  using IOPortReadByteHandler = std::function<void(u16 port, u8* value)>;
-  using IOPortReadWordHandler = std::function<void(u16 port, u16* value)>;
-  using IOPortReadDWordHandler = std::function<void(u16 port, u32* value)>;
+  using IOPortReadByteHandler = std::function<u8(u16 port)>;
+  using IOPortReadWordHandler = std::function<u16(u16 port)>;
+  using IOPortReadDWordHandler = std::function<u32(u16 port)>;
   using IOPortWriteByteHandler = std::function<void(u16 port, u8 value)>;
   using IOPortWriteWordHandler = std::function<void(u16 port, u16 value)>;
   using IOPortWriteDWordHandler = std::function<void(u16 port, u32 value)>;
@@ -95,9 +95,9 @@ public:
   void ConnectIOPortWriteToPointer(u16 port, const void* owner, u8* var);
 
   // IO port handler accessors (mainly for CPU)
-  void ReadIOPortByte(u16 port, u8* value);
-  void ReadIOPortWord(u16 port, u16* value);
-  void ReadIOPortDWord(u16 port, u32* value);
+  u8 ReadIOPortByte(u16 port);
+  u16 ReadIOPortWord(u16 port);
+  u32 ReadIOPortDWord(u16 port);
   void WriteIOPortByte(u16 port, u8 value);
   void WriteIOPortWord(u16 port, u16 value);
   void WriteIOPortDWord(u16 port, u32 value);

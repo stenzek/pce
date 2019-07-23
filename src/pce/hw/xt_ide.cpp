@@ -75,41 +75,35 @@ void XT_IDE::ConnectIOPorts(Bus* bus)
   //   });
   //   bus->ConnectIOPortReadToPointer(Truncate16(m_io_base + 0x1), this, &m_data_high);
   //   bus->ConnectIOPortWriteToPointer(Truncate16(m_io_base + 0x1), this, &m_data_high);
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x0), this,
-                         [this](u16, u8* value) { IOReadDataRegisterByte(0, value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x0), this, [this](u16) { return IOReadDataRegisterByte(0); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x0), this,
                           [this](u16, u8 value) { IOWriteDataRegisterByte(0, value); });
 
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x2), this, [this](u16, u8* value) { IOReadErrorRegister(0, value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x2), this, [this](u16) { return IOReadErrorRegister(0); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x2), this,
                           [this](u16, u8 value) { IOWriteCommandBlockFeatures(0, value); });
 
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x4), this,
-                         [this](u16, u8* value) { IOReadCommandBlockSectorCount(0, value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x4), this, [this](u16) { return IOReadCommandBlockSectorCount(0); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x4), this,
                           [this](u16, u8 value) { IOWriteCommandBlockSectorCount(0, value); });
 
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x6), this,
-                         [this](u16, u8* value) { IOReadCommandBlockSectorNumber(0, value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x6), this, [this](u16) { return IOReadCommandBlockSectorNumber(0); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x6), this,
                           [this](u16, u8 value) { IOWriteCommandBlockSectorNumber(0, value); });
 
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x8), this,
-                         [this](u16, u8* value) { IOReadCommandBlockCylinderLow(0, value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0x8), this, [this](u16) { return IOReadCommandBlockCylinderLow(0); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0x8), this,
                           [this](u16, u8 value) { IOWriteCommandBlockCylinderLow(0, value); });
 
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0xA), this,
-                         [this](u16, u8* value) { IOReadCommandBlockCylinderHigh(0, value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0xA), this, [this](u16) { return IOReadCommandBlockCylinderHigh(0); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0xA), this,
                           [this](u16, u8 value) { IOWriteCommandBlockCylinderHigh(0, value); });
 
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0xC), this,
-                         [this](u16, u8* value) { IOReadDriveSelectRegister(0, value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0xC), this, [this](u16) { return IOReadDriveSelectRegister(0); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0xC), this,
                           [this](u16, u8 value) { IOWriteDriveSelectRegister(0, value); });
 
-  bus->ConnectIOPortRead(Truncate16(m_io_base + 0xE), this, [this](u16, u8* value) { IOReadStatusRegister(0, value); });
+  bus->ConnectIOPortRead(Truncate16(m_io_base + 0xE), this, [this](u16) { return IOReadStatusRegister(0); });
   bus->ConnectIOPortWrite(Truncate16(m_io_base + 0xE), this,
                           [this](u16, u8 value) { IOWriteCommandRegister(0, value); });
 

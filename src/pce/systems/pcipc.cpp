@@ -65,11 +65,11 @@ void PCIPC::ConnectPCIBusIOPorts()
 {
   if (m_config_access_type == PCIConfigSpaceAccessType::Type1)
   {
-    m_bus->ConnectIOPortReadDWord(0x0CF8, this, [this](u16, u32* value) { *value = m_pci_config_type1_address.bits; });
+    m_bus->ConnectIOPortReadDWord(0x0CF8, this, [this](u16) { return m_pci_config_type1_address.bits; });
     m_bus->ConnectIOPortWriteDWord(0x0CF8, this, [this](u16, u32 value) { m_pci_config_type1_address.bits = value; });
 
     auto read_func =
-      std::bind(&PCIPC::IOReadPCIType1ConfigDataByte, this, std::placeholders::_1, std::placeholders::_2);
+      std::bind(&PCIPC::IOReadPCIType1ConfigDataByte, this, std::placeholders::_1);
     auto write_func =
       std::bind(&PCIPC::IOWritePCIType1ConfigDataByte, this, std::placeholders::_1, std::placeholders::_2);
     for (u16 i = 0x0CFC; i <= 0x0CFF; i++)
@@ -86,7 +86,7 @@ void PCIPC::ConnectPCIBusIOPorts()
     m_bus->ConnectIOPortWriteToPointer(0x0CFA, this, &m_pci_config_type2_bus);
 
     // Accessors.
-    auto read_func = std::bind(&PCIPC::IOReadPCIType2ConfigData, this, std::placeholders::_1, std::placeholders::_2);
+    auto read_func = std::bind(&PCIPC::IOReadPCIType2ConfigData, this, std::placeholders::_1);
     auto write_func = std::bind(&PCIPC::IOWritePCIType2ConfigData, this, std::placeholders::_1, std::placeholders::_2);
     for (u16 i = 0; i < 0x1000; i++)
     {
@@ -100,13 +100,10 @@ void PCIPC::ConnectPCIBusIOPorts()
   }
 }
 
-void PCIPC::IOReadPCIType1ConfigDataByte(u16 port, u8* value)
+u8 PCIPC::IOReadPCIType1ConfigDataByte(u16 port)
 {
   if (!m_pci_config_type1_address.enable)
-  {
-    *value = 0xFF;
-    return;
-  }
+    return 0xFF;
 
   const u8 function = m_pci_config_type1_address.function;
   const u8 bus = m_pci_config_type1_address.bus;
@@ -120,11 +117,10 @@ void PCIPC::IOReadPCIType1ConfigDataByte(u16 port, u8* value)
   {
     Log_TracePrintf("Missing bus %u device %u function %u (%u/%u/%u)", bus, device, function, reg, idx,
                     (reg * 4) + idx);
-    *value = 0xFF;
-    return;
+    return 0xFF;
   }
 
-  *value = dev->ReadConfigSpace(function, offset);
+  return dev->ReadConfigSpace(function, offset);
 }
 
 void PCIPC::IOWritePCIType1ConfigDataByte(u16 port, u8 value)
@@ -150,13 +146,10 @@ void PCIPC::IOWritePCIType1ConfigDataByte(u16 port, u8 value)
   dev->WriteConfigSpace(function, offset, value);
 }
 
-void PCIPC::IOReadPCIType2ConfigData(u16 port, u8* value)
+u8 PCIPC::IOReadPCIType2ConfigData(u16 port)
 {
   if (!m_pci_config_type2_address.key)
-  {
-    *value = 0xFF;
-    return;
-  }
+    return 0xFF;
 
   const u8 function = m_pci_config_type2_address.function;
   const u8 bus = m_pci_config_type2_bus;
@@ -167,11 +160,10 @@ void PCIPC::IOReadPCIType2ConfigData(u16 port, u8* value)
   if (!dev || function >= dev->GetNumPCIFunctions())
   {
     Log_TracePrintf("Missing bus %u device %u function %u 0x%02X", bus, device, function, offset);
-    *value = 0xFF;
-    return;
+    return 0xFF;
   }
 
-  *value = dev->ReadConfigSpace(function, offset);
+  return dev->ReadConfigSpace(function, offset);
 }
 
 void PCIPC::IOWritePCIType2ConfigData(u16 port, u8 value)

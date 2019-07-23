@@ -71,7 +71,7 @@ private:
     BitField<u8, bool, 7, 1> vertical_blank_n;
     u8 bits = 0;
   };
-  void IOReadStatusRegister1(u8* value);
+  u8 IOReadStatusRegister1();
 
   // CRTC registers
   union
@@ -277,11 +277,11 @@ private:
   } m_segment_select_register;
 
   // 03D1/3/5: CRT data register
-  void IOCRTCDataRegisterRead(u8* value);
+  u8 IOCRTCDataRegisterRead();
   void IOCRTCDataRegisterWrite(u8 value);
 
   // 03CE/03CF: VGA Graphics Registers
-  void IOGraphicsDataRegisterRead(u8* value);
+  u8 IOGraphicsDataRegisterRead();
   void IOGraphicsDataRegisterWrite(u8 value);
 
   // Graphics Registers
@@ -407,8 +407,8 @@ private:
   u8 m_attribute_address_register = 0;
   bool m_atc_palette_access = false;
 
-  void IOAttributeAddressRead(u8* value);
-  void IOAttributeDataRead(u8* value);
+  u8 IOAttributeAddressRead();
+  u8 IOAttributeDataRead();
   void IOAttributeAddressDataWrite(u8 value);
 
   // 03C4/03C5: Sequencer Registers (also known as TS)
@@ -476,7 +476,7 @@ private:
     u32 GetCharacterWidth() const { return clocking_mode.dot_mode ? 8 : 9; }
   } m_sequencer_registers;
   u8 m_sequencer_address_register = 0;
-  void IOSequencerDataRegisterRead(u8* value);
+  u8 IOSequencerDataRegisterRead();
   void IOSequencerDataRegisterWrite(u8 value);
 
   // 03C7/03C8/03C9: DAC/color registers
@@ -489,13 +489,13 @@ private:
   u8 m_dac_write_address = 0;
   u8 m_dac_read_address = 0;
   u8 m_dac_color_index = 0;
-  void IODACMaskRead(u8* value);
+  u8 IODACMaskRead();
   void IODACMaskWrite(u8 value);
-  void IODACStateRegisterRead(u8* value);
+  u8 IODACStateRegisterRead();
   void IODACReadAddressWrite(u8 value);
-  void IODACWriteAddressRead(u8* value);
+  u8 IODACWriteAddressRead();
   void IODACWriteAddressWrite(u8 value);
-  void IODACDataRegisterRead(u8* value);
+  u8 IODACDataRegisterRead();
   void IODACDataRegisterWrite(u8 value);
 
   // 03D8/03B8: 6845 compatibility registers

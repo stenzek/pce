@@ -92,7 +92,7 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
   // Present in all sound blaster models
   for (u32 port_offset : {0x06, 0x08, 0x09, 0x0A, 0x0C, 0x0E, 0x0F})
     bus->ConnectIOPortRead(Truncate16(m_io_base + port_offset), this,
-                           std::bind(&SoundBlaster::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));
+                           std::bind(&SoundBlaster::IOPortRead, this, std::placeholders::_1));
   for (u32 port_offset : {0x06, 0x08, 0x09, 0x0C})
     bus->ConnectIOPortWrite(Truncate16(m_io_base + port_offset), this,
                             std::bind(&SoundBlaster::IOPortWrite, this, std::placeholders::_1, std::placeholders::_2));
@@ -102,7 +102,7 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
   {
     for (u32 port_offset : {0x04, 0x05})
       bus->ConnectIOPortRead(Truncate16(m_io_base + port_offset), this,
-                             std::bind(&SoundBlaster::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));
+                             std::bind(&SoundBlaster::IOPortRead, this, std::placeholders::_1));
     for (u32 port_offset : {0x04, 0x05})
       bus->ConnectIOPortWrite(
         Truncate16(m_io_base + port_offset), this,
@@ -113,7 +113,7 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
   {
     for (u32 port_offset : {0x00, 0x01, 0x02, 0x03})
       bus->ConnectIOPortRead(Truncate16(m_io_base + port_offset), this,
-                             std::bind(&SoundBlaster::IOPortRead, this, std::placeholders::_1, std::placeholders::_2));
+                             std::bind(&SoundBlaster::IOPortRead, this, std::placeholders::_1));
     for (u32 port_offset : {0x00, 0x01, 0x02, 0x03})
       bus->ConnectIOPortWrite(
         Truncate16(m_io_base + port_offset), this,
@@ -121,8 +121,8 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
   }
 
   // Also connect up the adlib ports at the hardwired locations
-  bus->ConnectIOPortRead(0x0388, this, [this](u16, u8* value) { *value = m_ymf262.ReadAddressPort(0); });
-  bus->ConnectIOPortRead(0x0389, this, [this](u16, u8* value) { *value = m_ymf262.ReadDataPort(0); });
+  bus->ConnectIOPortRead(0x0388, this, [this](u16) { return m_ymf262.ReadAddressPort(0); });
+  bus->ConnectIOPortRead(0x0389, this, [this](u16) { return m_ymf262.ReadDataPort(0); });
   bus->ConnectIOPortWrite(0x0388, this, [this](u16, u8 value) { m_ymf262.WriteAddressPort(0, value); });
   bus->ConnectIOPortWrite(0x0389, this, [this](u16, u8 value) { m_ymf262.WriteDataPort(0, value); });
 
@@ -319,55 +319,46 @@ bool SoundBlaster::SaveState(BinaryWriter& writer)
   return !writer.InErrorState();
 }
 
-void SoundBlaster::IOPortRead(u16 port, u8* value)
+u8 SoundBlaster::IOPortRead(u16 port)
 {
   switch (port & 0x0F)
   {
       // mixer index
     case 0x04:
-      *value = ReadMixerIndexPort();
-      break;
+      return ReadMixerIndexPort();
 
       // mixer data
     case 0x05:
-      *value = ReadMixerDataPort();
-      break;
+      return ReadMixerDataPort();
 
       // reset
     case 0x06:
-      *value = 0xFF;
-      break;
+      return 0xFF;
 
       // Adlib status
     case 0x08:
-      *value = m_ymf262.ReadAddressPort(0);
-      break;
+      return m_ymf262.ReadAddressPort(0);
 
       // DSP read data
     case 0x0A:
-      *value = ReadDSPDataPort();
-      break;
+      return ReadDSPDataPort();
 
       // DSP write data status, 0xff - not ready to write, 0x7f - ready to write
     case 0x0C:
-      *value = ReadDSPDataWriteStatusPort();
-      break;
+      return ReadDSPDataWriteStatusPort();
 
       // DSP data available status, and lower IRQ. 0xff - has data, 0x7f - no data
     case 0x0E:
-      *value = ReadDSPDataAvailableStatusPort();
-      break;
+      return ReadDSPDataAvailableStatusPort();
 
       // ACK 16-bit interrupt
     case 0x0F:
       LowerInterrupt(true);
-      *value = 0xFF;
-      break;
+      return 0xFF;
 
     default:
       Log_ErrorPrintf("Unknown read port offset: 0x%X", port & 0x0F);
-      *value = 0xFF;
-      break;
+      return 0xFF;
   }
 }
 

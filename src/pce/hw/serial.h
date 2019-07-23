@@ -93,7 +93,7 @@ private:
   };
 
   void ConnectIOPorts(Bus* bus);
-  void HandleIORead(u16 address, u8* value);
+  u8 HandleIORead(u16 address);
   void HandleIOWrite(u16 address, u8 value);
 
   bool IsFifoEnabled() const { return m_interrupt_identification_register.fifo_enabled; }

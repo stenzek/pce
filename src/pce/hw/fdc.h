@@ -223,15 +223,15 @@ protected:
   void RaiseInterrupt();
   void LowerInterrupt();
 
-  void IOReadStatusRegisterA(u8* value);
-  void IOReadStatusRegisterB(u8* value);
+  u8 IOReadStatusRegisterA();
+  u8 IOReadStatusRegisterB();
 
-  void IOReadDigitalInputRegister(u8* value);
-  void IOReadDigitalOutputRegister(u8* value);
+  u8 IOReadDigitalInputRegister();
+  u8 IOReadDigitalOutputRegister();
   void IOWriteDigitalOutputRegister(u8 value);
   void IOWriteDataRateSelectRegister(u8 value);
   void IOWriteConfigurationControlRegister(u8 value);
-  void IOReadFIFO(u8* value);
+  u8 IOReadFIFO();
   void IOWriteFIFO(u8 value);
 
   void EndTransfer(u32 drive, u8 st0_bits, u8 st1_bits, u8 st2_bits);

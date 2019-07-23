@@ -90,7 +90,7 @@ private:
     BitField<u8, bool, 2, 1> light_pen_switch_status;
     BitField<u8, bool, 3, 1> vblank;
   };
-  void StatusRegisterRead(u8* value);
+  u8 StatusRegisterRead();
 
   // CRTC registers
   union
@@ -123,7 +123,7 @@ private:
   u8 m_crtc_index_register = 0;
 
   // 03D1/3/5: CRT data register
-  void CRTDataRegisterRead(u8* value);
+  u8 CRTDataRegisterRead();
   void CRTDataRegisterWrite(u8 value);
 
   // Timing

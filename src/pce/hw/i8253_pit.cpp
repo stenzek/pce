@@ -180,15 +180,15 @@ void i8253_PIT::SetChannelOutputChangeCallback(size_t channel_index, ChannelOutp
 void i8253_PIT::ConnectIOPorts(Bus* bus)
 {
   bus->ConnectIOPortRead(IOPORT_CHANNEL_0_DATA, this,
-                         std::bind(&i8253_PIT::ReadDataPort, this, 0, std::placeholders::_2));
+                         std::bind(&i8253_PIT::ReadDataPort, this, 0));
   bus->ConnectIOPortWrite(IOPORT_CHANNEL_0_DATA, this,
                           std::bind(&i8253_PIT::WriteDataPort, this, 0, std::placeholders::_2));
   bus->ConnectIOPortRead(IOPORT_CHANNEL_1_DATA, this,
-                         std::bind(&i8253_PIT::ReadDataPort, this, 1, std::placeholders::_2));
+                         std::bind(&i8253_PIT::ReadDataPort, this, 1));
   bus->ConnectIOPortWrite(IOPORT_CHANNEL_1_DATA, this,
                           std::bind(&i8253_PIT::WriteDataPort, this, 1, std::placeholders::_2));
   bus->ConnectIOPortRead(IOPORT_CHANNEL_2_DATA, this,
-                         std::bind(&i8253_PIT::ReadDataPort, this, 2, std::placeholders::_2));
+                         std::bind(&i8253_PIT::ReadDataPort, this, 2));
   bus->ConnectIOPortWrite(IOPORT_CHANNEL_2_DATA, this,
                           std::bind(&i8253_PIT::WriteDataPort, this, 2, std::placeholders::_2));
   bus->ConnectIOPortWrite(IOPORT_COMMAND_REGISTER, this,
@@ -222,7 +222,7 @@ CycleCount i8253_PIT::GetFrequencyFromReloadValue(Channel* channel) const
     return channel->reload_value;
 }
 
-void i8253_PIT::ReadDataPort(u32 channel_index, u8* value)
+u8 i8253_PIT::ReadDataPort(u32 channel_index)
 {
   Channel* channel = &m_channels[channel_index];
   DebugAssert(channel_index < NUM_CHANNELS);
@@ -237,26 +237,23 @@ void i8253_PIT::ReadDataPort(u32 channel_index, u8* value)
   switch (channel->read_mode)
   {
     case ChannelAccessModeLSBOnly:
-      *value = Truncate8(channel->read_latch_value);
       channel->read_latch_needs_update = true;
-      break;
+      return Truncate8(channel->read_latch_value);
 
     case ChannelAccessModeMSBOnly:
-      *value = Truncate8(channel->read_latch_value >> 8);
       channel->read_latch_needs_update = true;
+      return Truncate8(channel->read_latch_value >> 8);
       break;
 
     case ChannelAccessModeMSB:
-      *value = Truncate8(channel->read_latch_value >> 8);
       channel->read_mode = ChannelAccessModeLSB;
       channel->read_latch_needs_update = true;
-      break;
+      return Truncate8(channel->read_latch_value >> 8);
 
     case ChannelAccessModeLSB:
     default:
-      *value = Truncate8(channel->read_latch_value);
       channel->read_mode = ChannelAccessModeMSB;
-      break;
+      return Truncate8(channel->read_latch_value);
   }
 }
 

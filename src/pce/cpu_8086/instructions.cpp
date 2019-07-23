@@ -1560,14 +1560,12 @@ public:
     const u16 port_number = ReadZeroExtendedWordOperand<src_size, src_mode, src_constant>(cpu);
     if constexpr (dst_size == OperandSize_8)
     {
-      u8 value;
-      cpu->m_bus->ReadIOPortByte(port_number, &value);
+      const u8 value = cpu->m_bus->ReadIOPortByte(port_number);
       WriteByteOperand<dst_mode, dst_constant>(cpu, value);
     }
     else if constexpr (dst_size == OperandSize_16)
     {
-      u16 value;
-      cpu->m_bus->ReadIOPortWord(port_number, &value);
+      const u16 value = cpu->m_bus->ReadIOPortWord(port_number);
       WriteWordOperand<dst_mode, dst_constant>(cpu, value);
     }
 

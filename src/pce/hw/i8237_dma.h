@@ -90,16 +90,16 @@ private:
 
   void Transfer(u32 channel_index, size_t count);
 
-  void IOReadStartAddress(u32 channel_index, u8* value);
+  u8 IOReadStartAddress(u32 channel_index);
   void IOWriteStartAddress(u32 channel_index, u8 value);
-  void IOReadCount(u32 channel_index, u8* value);
+  u8 IOReadCount(u32 channel_index);
   void IOWriteCount(u32 channel_index, u8 value);
-  void IOReadPageAddress(u32 channel_index, u8* value);
+  u8 IOReadPageAddress(u32 channel_index);
   void IOWritePageAddress(u32 channel_index, u8 value);
-  void IOReadStatus(u32 base_channel, u8* value);
+  u8 IOReadStatus(u32 base_channel);
   void IOWriteMode(u32 base_channel, u8 value);
   void IOWriteSingleMask(u32 base_channel, u8 value);
-  void IOReadMultiMask(u32 base_channel, u8* value);
+  u8 IOReadMultiMask(u32 base_channel);
   void IOWriteMultiMask(u32 base_channel, u8 value);
   void IOWriteFlipFlopReset(u32 base_channel, u8 value);
   void IOWriteMasterReset(u32 base_channel, u8 value);

@@ -304,7 +304,7 @@ protected:
   bool m_crtc_timing_changed = false;
 
   // 03D1/3/5: CRT data register
-  virtual void IOCRTCDataRegisterRead(u8* value);
+  virtual u8 IOCRTCDataRegisterRead();
   virtual void IOCRTCDataRegisterWrite(u8 value);
   void CRTCTimingChanged();
 
@@ -318,7 +318,7 @@ protected:
   u8 m_graphics_index_register = 0;
 
   // 03CE/03CF: VGA Graphics Registers
-  virtual void IOGraphicsRegisterRead(u8* value);
+  virtual u8 IOGraphicsRegisterRead();
   virtual void IOGraphicsRegisterWrite(u8 value);
 
   // 03CC/03C2: Miscellaneous Output Register
@@ -335,8 +335,8 @@ protected:
   } m_misc_output_register;
   virtual void IOMiscOutputRegisterWrite(u8 value);
 
-  virtual void IOReadStatusRegister0(u8* value);
-  virtual void IOReadStatusRegister1(u8* value);
+  virtual u8 IOReadStatusRegister0();
+  virtual u8 IOReadStatusRegister1();
 
   // 03CA/03DA: Feature Control Register
   union
@@ -355,8 +355,8 @@ protected:
   u8 m_attribute_index_register = 0;
   bool m_attribute_register_flipflop = false;
   bool m_output_enable = false;
-  virtual void IOAttributeAddressRead(u8* value);
-  virtual void IOAttributeDataRead(u8* value);
+  virtual u8 IOAttributeAddressRead();
+  virtual u8 IOAttributeDataRead();
   virtual void IOAttributeAddressDataWrite(u8 value);
 
   // 03C4/03C5: Sequencer Registers (also known as TS)
@@ -367,7 +367,7 @@ protected:
   };
   std::array<u8, NUM_SEQUENCER_REGISTERS> m_sequencer_register_mask{};
   u8 m_sequencer_index_register = 0;
-  virtual void IOSequencerDataRegisterRead(u8* value);
+  virtual u8 IOSequencerDataRegisterRead();
   virtual void IOSequencerDataRegisterWrite(u8 value);
 
   // 03C7/03C8/03C9: DAC/color registers
@@ -378,11 +378,11 @@ protected:
   u8 m_dac_read_address = 0;
   u8 m_dac_color_index = 0;
   u8 m_dac_color_mask = 0x3F;
-  virtual void IODACStateRegisterRead(u8* value);
+  virtual u8 IODACStateRegisterRead();
   virtual void IODACReadAddressWrite(u8 value);
-  virtual void IODACWriteAddressRead(u8* value);
+  virtual u8 IODACWriteAddressRead();
   virtual void IODACWriteAddressWrite(u8 value);
-  virtual void IODACDataRegisterRead(u8* value);
+  virtual u8 IODACDataRegisterRead();
   virtual void IODACDataRegisterWrite(u8 value);
 
   // 46E8/03C3: VGA adapter enable
