@@ -95,7 +95,7 @@ void VGA::UpdateVGAMemoryMapping()
   }
 
   MMIO::Handlers handlers;
-  handlers.read_byte = [this](u32 offset, u8* value) { HandleVGAVRAMRead(0, offset, value); };
+  handlers.read_byte = [this](u32 offset) { return HandleVGAVRAMRead(0, offset); };
   handlers.write_byte = [this](u32 offset, u8 value) { HandleVGAVRAMWrite(0, offset, value); };
 
   m_vram_mmio = MMIO::CreateComplex(start_address, size, std::move(handlers), false);

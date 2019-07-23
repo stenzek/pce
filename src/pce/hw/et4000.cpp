@@ -614,13 +614,12 @@ bool ET4000::MapToVRAMOffset(u32* offset)
   }
 }
 
-void ET4000::HandleVRAMRead(u32 offset, u8* value)
+u8 ET4000::HandleVRAMRead(u32 offset)
 {
   if (!MapToVRAMOffset(&offset))
   {
     // Out-of-range for the current mapping mode
-    *value = 0xFF;
-    return;
+    return 0xFF;
   }
 
   // 64K segment/bank select.
@@ -661,12 +660,12 @@ void ET4000::HandleVRAMRead(u32 offset, u8* value)
       (m_latch ^ mask16[m_graphics_registers.color_compare]) & mask16[m_graphics_registers.color_dont_care];
     u8 ret = Truncate8(compare_result) | Truncate8(compare_result >> 8) | Truncate8(compare_result >> 16) |
              Truncate8(compare_result >> 24);
-    *value = ~ret;
+    return ~ret;
   }
   else
   {
     // Read mode 0 - return specified plane
-    *value = Truncate8(m_latch >> (8 * read_plane));
+    return Truncate8(m_latch >> (8 * read_plane));
   }
 }
 
@@ -841,20 +840,18 @@ bool ET4000::LoadBIOSROM()
 
 void ET4000::RegisterVRAMMMIO()
 {
-  auto read_byte_handler = [this](u32 base, u32 offset, u8* value) { HandleVRAMRead(base + offset, value); };
-  auto read_word_handler = [this](u32 base, u32 offset, u16* value) {
-    u8 b0, b1;
-    HandleVRAMRead(base + offset + 0, &b0);
-    HandleVRAMRead(base + offset + 1, &b1);
-    *value = (u16(b1) << 8) | (u16(b0));
+  auto read_byte_handler = [this](u32 base, u32 offset) { return HandleVRAMRead(base + offset); };
+  auto read_word_handler = [this](u32 base, u32 offset) {
+    const u8 b0 = HandleVRAMRead(base + offset + 0);
+    const u8 b1 = HandleVRAMRead(base + offset + 1);
+    return (u16(b1) << 8) | (u16(b0));
   };
-  auto read_dword_handler = [this](u32 base, u32 offset, u32* value) {
-    u8 b0, b1, b2, b3;
-    HandleVRAMRead(base + offset + 0, &b0);
-    HandleVRAMRead(base + offset + 1, &b1);
-    HandleVRAMRead(base + offset + 2, &b2);
-    HandleVRAMRead(base + offset + 3, &b3);
-    *value = (u32(b3) << 24) | (u32(b2) << 16) | (u32(b1) << 8) | (u32(b0));
+  auto read_dword_handler = [this](u32 base, u32 offset) {
+    const u8 b0 = HandleVRAMRead(base + offset + 0);
+    const u8 b1 = HandleVRAMRead(base + offset + 1);
+    const u8 b2 = HandleVRAMRead(base + offset + 2);
+    const u8 b3 = HandleVRAMRead(base + offset + 3);
+    return (u32(b3) << 24) | (u32(b2) << 16) | (u32(b1) << 8) | (u32(b0));
   };
   auto write_byte_handler = [this](u32 base, u32 offset, u8 value) { HandleVRAMWrite(base + offset, value); };
   auto write_word_handler = [this](u32 base, u32 offset, u16 value) {
@@ -869,9 +866,9 @@ void ET4000::RegisterVRAMMMIO()
   };
 
   MMIO::Handlers handlers;
-  handlers.read_byte = std::bind(read_byte_handler, 0, std::placeholders::_1, std::placeholders::_2);
-  handlers.read_word = std::bind(read_word_handler, 0, std::placeholders::_1, std::placeholders::_2);
-  handlers.read_dword = std::bind(read_dword_handler, 0, std::placeholders::_1, std::placeholders::_2);
+  handlers.read_byte = std::bind(read_byte_handler, 0, std::placeholders::_1);
+  handlers.read_word = std::bind(read_word_handler, 0, std::placeholders::_1);
+  handlers.read_dword = std::bind(read_dword_handler, 0, std::placeholders::_1);
   handlers.write_byte = std::bind(write_byte_handler, 0, std::placeholders::_1, std::placeholders::_2);
   handlers.write_word = std::bind(write_word_handler, 0, std::placeholders::_1, std::placeholders::_2);
   handlers.write_dword = std::bind(write_dword_handler, 0, std::placeholders::_1, std::placeholders::_2);
@@ -882,20 +879,26 @@ void ET4000::RegisterVRAMMMIO()
 
   // BIOS region
   handlers = {};
-  handlers.read_byte = [this](u32 offset, u8* value) {
-    *value = IsBIOSAddressMapped(offset, 1) ? m_bios_rom[offset] : 0xFF;
+  handlers.read_byte = [this](u32 offset) {
+    return IsBIOSAddressMapped(offset, 1) ? m_bios_rom[offset] : 0xFF;
   };
-  handlers.read_word = [this](u32 offset, u16* value) {
+  handlers.read_word = [this](u32 offset) {
     if (IsBIOSAddressMapped(offset, 2))
     {
-      std::memcpy(value, &m_bios_rom[offset], 2);
+      u16 value;
+      std::memcpy(&value, &m_bios_rom[offset], sizeof(value));
+      return value;
     }
+    return u16(0xFFFF);
   };
-  handlers.read_dword = [this](u32 offset, u32* value) {
+  handlers.read_dword = [this](u32 offset) {
     if (IsBIOSAddressMapped(offset, 4))
     {
-      std::memcpy(value, &m_bios_rom[offset], 4);
+      u32 value;
+      std::memcpy(&value, &m_bios_rom[offset], sizeof(u32));
+      return value;
     }
+    return u32(UINT32_C(0xFFFFFFFF));
   };
   handlers.IgnoreWrites();
   m_bios_mmio = MMIO::CreateComplex(0xC0000, 0x8000, std::move(handlers), true);

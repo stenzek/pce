@@ -227,10 +227,10 @@ void Voodoo::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active
         // 32-bit MMIO. TODO: Handle other widths.
         static constexpr u32 OFFSET_MASK = (MEMORY_REGION_SIZE / 4) - 1;
         MMIO::Handlers handlers;
-        handlers.read_byte = std::bind(&Voodoo::HandleBusByteRead, this, std::placeholders::_1, std::placeholders::_2);
-        handlers.read_word = std::bind(&Voodoo::HandleBusWordRead, this, std::placeholders::_1, std::placeholders::_2);
+        handlers.read_byte = std::bind(&Voodoo::HandleBusByteRead, this, std::placeholders::_1);
+        handlers.read_word = std::bind(&Voodoo::HandleBusWordRead, this, std::placeholders::_1);
         handlers.read_dword =
-          std::bind(&Voodoo::HandleBusDWordRead, this, std::placeholders::_1, std::placeholders::_2);
+          std::bind(&Voodoo::HandleBusDWordRead, this, std::placeholders::_1);
         handlers.write_byte =
           std::bind(&Voodoo::HandleBusByteWrite, this, std::placeholders::_1, std::placeholders::_2);
         handlers.write_word =
@@ -258,10 +258,11 @@ void Voodoo::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active
   }
 }
 
-void Voodoo::HandleBusByteRead(u32 offset, u8* val)
+u8 Voodoo::HandleBusByteRead(u32 offset)
 {
   const u32 dwval = m_device->voodoo_r((offset >> 2) & MEMORY_REGION_DWORD_MASK);
-  *val = Truncate8(dwval >> ((offset & 3) * 8));
+  const u8 val = Truncate8(dwval >> ((offset & 3) * 8));
+  return val;
 }
 
 void Voodoo::HandleBusByteWrite(u32 offset, u8 val)
@@ -270,19 +271,21 @@ void Voodoo::HandleBusByteWrite(u32 offset, u8 val)
                      UINT32_C(0x000000FF) << ((offset & 3) * 8));
 }
 
-void Voodoo::HandleBusWordRead(u32 offset, u16* val)
+u16 Voodoo::HandleBusWordRead(u32 offset)
 {
+  u16 val;
   if ((offset & 1) == 0)
   {
     const u32 dwval = m_device->voodoo_r((offset >> 2) & MEMORY_REGION_DWORD_MASK);
-    *val = ((offset & 3) == 0) ? Truncate16(dwval) : Truncate16(dwval >> 16);
+    val = ((offset & 3) == 0) ? Truncate16(dwval) : Truncate16(dwval >> 16);
   }
   else
   {
     // byte access unsupported?
     Log_WarningPrintf("unaligned word access %08X", offset);
-    *val = UINT16_C(0xFFFF);
+    val = UINT16_C(0xFFFF);
   }
+  return val;
 }
 
 void Voodoo::HandleBusWordWrite(u32 offset, u16 val)
@@ -293,26 +296,28 @@ void Voodoo::HandleBusWordWrite(u32 offset, u16 val)
     m_device->voodoo_w((offset >> 2) & MEMORY_REGION_DWORD_MASK, ZeroExtend32(val) << 16, UINT32_C(0xFFFF0000));
 }
 
-void Voodoo::HandleBusDWordRead(u32 offset, u32* val)
+u32 Voodoo::HandleBusDWordRead(u32 offset)
 {
+  u32 val;
   if ((offset & 3) == 0)
   {
     // aligned access.
-    *val = m_device->voodoo_r((offset >> 2) & MEMORY_REGION_DWORD_MASK);
+    val = m_device->voodoo_r((offset >> 2) & MEMORY_REGION_DWORD_MASK);
   }
   else if ((offset & 1) == 0)
   {
     // word-aligned access.
     const u32 low = m_device->voodoo_r((offset >> 2) & MEMORY_REGION_DWORD_MASK);
     const u32 high = m_device->voodoo_r(((offset >> 2) + 1) & MEMORY_REGION_DWORD_MASK);
-    *val = (low >> 16) | (high << 16);
+    val = (low >> 16) | (high << 16);
   }
   else
   {
     // byte access unsupported?
     Log_WarningPrintf("unaligned access %08X", offset);
-    *val = UINT32_C(0xFFFFFFFF);
+    val = UINT32_C(0xFFFFFFFF);
   }
+  return val;
 }
 
 void Voodoo::HandleBusDWordWrite(u32 offset, u32 val)

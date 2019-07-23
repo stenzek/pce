@@ -510,7 +510,7 @@ private:
   u8 m_vram[VRAM_SIZE];
   MMIO* m_vram_mmio = nullptr;
   bool MapToVRAMOffset(u32* offset);
-  void HandleVRAMRead(u32 offset, u8* value);
+  u8 HandleVRAMRead(u32 offset);
   void HandleVRAMWrite(u32 offset, u8 value);
   bool IsBIOSAddressMapped(u32 offset, u32 size);
   bool LoadBIOSROM();

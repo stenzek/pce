@@ -465,7 +465,7 @@ static constexpr std::array<u32, 16> mask16 = {
   0xff000000, 0xff0000ff, 0xff00ff00, 0xff00ffff, 0xffff0000, 0xffff00ff, 0xffffff00, 0xffffffff,
 };
 
-void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
+u8 VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset)
 {
   u8 read_plane;
   u32 latch_linear_address;
@@ -476,8 +476,7 @@ void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
     read_plane = Truncate8(offset & 3);
     latch_linear_address = (segment_base + ((offset & ~uint32(3)) << 2)) & m_vram_mask;
     std::memcpy(&m_latch, &m_vram[latch_linear_address], sizeof(m_latch));
-    *value = Truncate8(m_latch >> (8 * read_plane));
-    return;
+    return Truncate8(m_latch >> (8 * read_plane));
   }
   else
   {
@@ -508,12 +507,12 @@ void VGABase::HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value)
       (m_latch ^ mask16[m_graphics_registers.color_compare]) & mask16[m_graphics_registers.color_dont_care];
     u8 ret = Truncate8(compare_result) | Truncate8(compare_result >> 8) | Truncate8(compare_result >> 16) |
              Truncate8(compare_result >> 24);
-    *value = ~ret;
+    return ~ret;
   }
   else
   {
     // Read mode 0 - return specified plane
-    *value = Truncate8(m_latch >> (8 * read_plane));
+    return Truncate8(m_latch >> (8 * read_plane));
   }
 }
 

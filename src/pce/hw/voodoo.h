@@ -41,11 +41,11 @@ protected:
   void WriteConfigSpace(u8 function, u8 offset, u8 value) override;
   void OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active) override;
 
-  void HandleBusByteRead(u32 offset, u8* val);
+  u8 HandleBusByteRead(u32 offset);
   void HandleBusByteWrite(u32 offset, u8 val);
-  void HandleBusWordRead(u32 offset, u16* val);
+  u16 HandleBusWordRead(u32 offset);
   void HandleBusWordWrite(u32 offset, u16 val);
-  void HandleBusDWordRead(u32 offset, u32* val);
+  u32 HandleBusDWordRead(u32 offset);
   void HandleBusDWordWrite(u32 offset, u32 val);
 
   Type m_type = Type::Voodoo2;

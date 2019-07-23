@@ -30,13 +30,13 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
 
     // Pass to MMIO
     if constexpr (std::is_same<T, u8>::value)
-      page.mmio_handler->ReadByte(address, reinterpret_cast<u8*>(&value));
+      value = page.mmio_handler->ReadByte(address);
     else if constexpr (std::is_same<T, u16>::value)
-      page.mmio_handler->ReadWord(address, reinterpret_cast<u16*>(&value));
+      value = page.mmio_handler->ReadWord(address);
     else if constexpr (std::is_same<T, u32>::value)
-      page.mmio_handler->ReadDWord(address, reinterpret_cast<u32*>(&value));
+      value = page.mmio_handler->ReadDWord(address);
     else if constexpr (std::is_same<T, u64>::value)
-      page.mmio_handler->ReadQWord(address, reinterpret_cast<u64*>(&value));
+      value = page.mmio_handler->ReadQWord(address);
     else
       value = static_cast<T>(-1);
   }

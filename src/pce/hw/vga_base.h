@@ -394,7 +394,7 @@ protected:
   } m_vga_adapter_enable;
   virtual void IOVGAAdapterEnableWrite(u8 value);
 
-  void HandleVGAVRAMRead(u32 segment_base, u32 offset, u8* value);
+  u8 HandleVGAVRAMRead(u32 segment_base, u32 offset);
   void HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value);
 
   void GetVGAMemoryMapping(PhysicalMemoryAddress* base_address, u32* size);

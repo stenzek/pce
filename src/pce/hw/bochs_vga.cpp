@@ -162,8 +162,8 @@ void BochsVGA::UpdateVGAMemoryMapping()
     if (m_vbe_bpp <= 4)
     {
       // 4bpp modes use the regular VGA latches.
-      handlers.read_byte = [this](u32 offset, u8* value) {
-        HandleVGAVRAMRead(ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE, offset, value);
+      handlers.read_byte = [this](u32 offset) {
+        return HandleVGAVRAMRead(ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE, offset);
       };
       handlers.write_byte = [this](u32 offset, u8 value) {
         HandleVGAVRAMWrite(ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE, offset, value);
@@ -172,14 +172,18 @@ void BochsVGA::UpdateVGAMemoryMapping()
     else
     {
       // Other modes are mapped directly to VRAM.
-      handlers.read_byte = [this](u32 offset, u8* value) {
-        std::memcpy(value, &m_vram[ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE + offset], sizeof(*value));
+      handlers.read_byte = [this](u32 offset) {
+        return m_vram[ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE + offset];
       };
-      handlers.read_word = [this](u32 offset, u16* value) {
-        std::memcpy(value, &m_vram[ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE + offset], sizeof(*value));
+      handlers.read_word = [this](u32 offset) {
+        u16 value;
+        std::memcpy(&value, &m_vram[ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE + offset], sizeof(value));
+        return value;
       };
-      handlers.read_dword = [this](u32 offset, u32* value) {
-        std::memcpy(value, &m_vram[ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE + offset], sizeof(*value));
+      handlers.read_dword = [this](u32 offset) {
+        u32 value;
+        std::memcpy(&value, &m_vram[ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE + offset], sizeof(value));
+        return value;
       };
       handlers.write_byte = [this](u32 offset, u8 value) {
         std::memcpy(&m_vram[ZeroExtend32(m_vbe_bank) * VBE_DISPI_BANK_SIZE + offset], &value, sizeof(value));
@@ -203,7 +207,7 @@ void BochsVGA::UpdateVGAMemoryMapping()
     GetVGAMemoryMapping(&start_address, &size);
 
     MMIO::Handlers handlers;
-    handlers.read_byte = [this](u32 offset, u8* value) { HandleVGAVRAMRead(0, offset, value); };
+    handlers.read_byte = [this](u32 offset) { return HandleVGAVRAMRead(0, offset); };
     handlers.write_byte = [this](u32 offset, u8 value) { HandleVGAVRAMWrite(0, offset, value); };
 
     m_vga_mmio = MMIO::CreateComplex(start_address, size, std::move(handlers), false);
