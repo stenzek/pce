@@ -52,9 +52,8 @@ public:
   virtual bool SaveState(BinaryWriter& writer) override;
 
   // Helper functions
-  static inline u32 Convert6BitColorTo8Bit(u32 color);
-  static inline u32 ConvertBGR555ToRGB24(u16 color);
-  static inline u32 ConvertBGR565ToRGB24(u16 color);
+  inline constexpr u32 Convert6BitColorTo8Bit(u32 color);
+  inline constexpr u32 Convert8BitColorTo6Bit(u32 color);
 
 protected:
   // Register definitions
