@@ -38,6 +38,10 @@ void InterpreterBackend::Execute()
       if (linear_address == 0xFFE53DC6)
         TRACE_EXECUTION = true;
 #endif
+#if 0
+      if (m_cpu->ReadTSC() == 0x1A2BF1E2)
+        TRACE_EXECUTION = true;
+#endif
 
       if (TRACE_EXECUTION)
       {

@@ -549,7 +549,7 @@ protected:
   bool HasIOPermissions(u32 port_number, u32 port_count, bool raise_exceptions);
 
   // Checks permissions for the specified interrupt against the interrupt bitmap in enhanced V8086 mode.
-  bool IsVMEInterruptBitSet(u8 port_number);
+  bool IsVMEInterruptBitSet(u8 interrupt);
 
   // Temporary: TODO move to debugger interface
   void DumpPageTable();

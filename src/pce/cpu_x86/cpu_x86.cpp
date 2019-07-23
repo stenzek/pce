@@ -2947,6 +2947,14 @@ void CPU::SetupV86ModeInterruptCall(u8 interrupt, u32 return_EIP)
   PushWord(m_registers.CS);
   PushWord(Truncate16(return_EIP));
 
+  // Clear interrupt flag if set (stop recursive interrupts)
+  m_registers.EFLAGS.TF = false;
+  m_registers.EFLAGS.RF = false;
+  if (GetIOPL() == 3)
+    m_registers.EFLAGS.IF = false;
+  else
+    m_registers.EFLAGS.VIF = false;
+
   // Resume code execution at interrupt entry point
   LoadSegmentRegister(Segment_CS, isr_segment_selector);
   BranchFromException(isr_EIP);
@@ -3763,27 +3771,28 @@ bool CPU::HasIOPermissions(u32 port_number, u32 port_count, bool raise_exception
   return true;
 }
 
-bool CPU::IsVMEInterruptBitSet(u8 port_number)
+bool CPU::IsVMEInterruptBitSet(u8 interrupt)
 {
   // Check TSS validity
   if ((offsetof(TASK_STATE_SEGMENT_32, IOPB_offset) + (sizeof(u16) - 1)) > m_tss_location.limit)
-    return true;
+    return false;
 
   // Get IOPB offset
   u16 iopb_offset;
-  LinearMemoryAddress iopb_offset_address = m_tss_location.base_address + offsetof(TASK_STATE_SEGMENT_32, IOPB_offset);
-  SafeReadMemoryWord(iopb_offset_address, &iopb_offset, AccessFlags::UseSupervisorPrivileges);
-  if (iopb_offset < 32)
-  {
-    // TODO: Is this correct?
-    return true;
-  }
-
-  const u8 byte_number = port_number / 8;
-  const u8 bit_mask = (1u << (port_number % 8));
-  u8 permission_bit;
-  SafeReadMemoryByte(m_tss_location.base_address + ZeroExtend32(iopb_offset - 32 + byte_number), &permission_bit,
+  SafeReadMemoryWord(m_tss_location.base_address + offsetof(TASK_STATE_SEGMENT_32, IOPB_offset), &iopb_offset,
                      AccessFlags::UseSupervisorPrivileges);
+  if (iopb_offset < 32)
+    return false;
+
+  // Compute offset to permission byte
+  const u8 byte_number = interrupt / 8;
+  const u8 bit_mask = (1u << (interrupt % 8));
+  const u32 offset = ZeroExtend32(iopb_offset) - 32 + byte_number;
+  if (offset > m_tss_location.limit)
+    return false;
+
+  u8 permission_bit;
+  SafeReadMemoryByte(m_tss_location.base_address + offset, &permission_bit, AccessFlags::UseSupervisorPrivileges);
 
   // The bit *not* being set enables VME behavior.
   return ((permission_bit & bit_mask) == 0);
