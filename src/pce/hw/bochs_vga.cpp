@@ -426,7 +426,7 @@ void BochsVGA::UpdateFramebufferFormat()
   if (m_vbe_bpp <= 4)
     m_display->ChangeFramebufferFormat(BASE_FRAMEBUFFER_FORMAT);
   else if (m_vbe_bpp <= 8)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGBX8);
+    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::C8RGBX8);
   else if (m_vbe_bpp <= 15)
     m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGB555);
   else if (m_vbe_bpp <= 16)
@@ -523,56 +523,19 @@ void BochsVGA::RenderGraphicsMode()
 void BochsVGA::Render8BPP()
 {
   // Use DAC palette directly if in 8-bit mode.
-  const u32* palette = m_dac_palette.data();
-  if (!m_vbe_enable.dac_8bit)
-  {
+  if (m_vbe_enable.dac_8bit)
+    m_display->CopyPalette(0, Truncate32(m_dac_palette.size()), m_dac_palette.data());
+  else
     SetOutputPalette256();
-    palette = m_output_palette.data();
-  }
-
-  const u32 fb_stride = m_display->GetFramebufferStride();
-  byte* fb_ptr = m_display->GetFramebufferPointer();
-
-  const u8* vram_ptr = m_vram.data() + m_render_latch.start_address;
-  for (u32 row = 0; row < m_render_latch.render_height; row++)
-  {
-    byte* fb_row_ptr = fb_ptr;
-    const u8* vram_row_ptr = vram_ptr;
-    for (u32 col = 0; col < m_render_latch.render_width; col++)
-    {
-      const u32 palette_entry = palette[*vram_row_ptr++];
-      std::memcpy(fb_row_ptr, &palette_entry, sizeof(palette_entry));
-      fb_row_ptr += sizeof(palette_entry);
-    }
-
-    fb_ptr += fb_stride;
-    vram_ptr += m_render_latch.pitch;
-  }
+  
+  // Direct copy indices to framebuffer.
+  m_display->CopyToFramebuffer(&m_vram[m_render_latch.start_address], m_render_latch.pitch);
 }
 
 void BochsVGA::RenderDirect()
 {
-  const u32 fb_stride = m_display->GetFramebufferStride();
-  const u32 copy_stride = std::min(fb_stride, m_render_latch.pitch);
-
-  // If the pitch matches, just copy it directly.
-  if (m_render_latch.pitch == fb_stride)
-  {
-    std::memcpy(m_display->GetFramebufferPointer(), &m_vram[m_render_latch.start_address],
-                copy_stride * m_render_latch.render_height);
-  }
-  else
-  {
-    // Copy the lines direct to the output framebuffer.
-    byte* fb_ptr = m_display->GetFramebufferPointer();
-    u32 current_address = m_render_latch.start_address;
-    for (u32 row = 0; row < m_render_latch.render_height; row++)
-    {
-      std::memcpy(fb_ptr, &m_vram[current_address], copy_stride);
-      current_address += m_render_latch.pitch;
-      fb_ptr += fb_stride;
-    }
-  }
+  // Direct copy to framebuffer.
+  m_display->CopyToFramebuffer(&m_vram[m_render_latch.start_address], m_render_latch.pitch);
 }
 
 } // namespace HW

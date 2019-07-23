@@ -16,6 +16,11 @@ public:
     // Priority for primary display. The display with the highest priority will be shown.
     DEFAULT_PRIORITY = 1
   };
+  enum : u32
+  {
+    // Number of colours in paletted modes.
+    PALETTE_SIZE = 256
+  };
   enum class Type : u8
   {
     Primary,
@@ -31,6 +36,7 @@ public:
     RGB555,
     BGR565,
     BGR555,
+    C8RGBX8, // 8-bit palette, 32-bit colours
   };
 
   Display(DisplayRenderer* renderer, const String& name, Type type, u8 priority);
@@ -75,8 +81,16 @@ public:
   u32 GetFramebufferStride() const { return m_back_buffers[0].stride; }
   void SetPixel(u32 x, u32 y, u8 r, u8 g, u8 b);
   void SetPixel(u32 x, u32 y, u32 rgb);
-  void CopyFrame(const void* pixels, u32 stride);
+  void CopyToFramebuffer(const void* pixels, u32 stride);
   void RepeatFrame();
+
+  // Update palette.
+  const u32* GetPalettePointer() const { return m_back_buffers[0].palette; }
+  void SetPaletteEntry(u8 index, u32 value) const { m_back_buffers[0].palette[index] = value; }
+  void CopyPalette(u8 start_index, u32 num_entries, const u32* entries);
+
+  // Returns true if the specified format is a paletted format.
+  static constexpr bool IsPaletteFormat(FramebufferFormat format) { return (format == FramebufferFormat::C8RGBX8); }
 
 protected:
   static constexpr u32 NUM_BACK_BUFFERS = 2;
@@ -84,6 +98,7 @@ protected:
   struct Framebuffer
   {
     byte* data = nullptr;
+    u32* palette = nullptr;
     u32 width = 0;
     u32 height = 0;
     u32 stride = 0;

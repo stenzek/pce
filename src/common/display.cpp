@@ -83,6 +83,7 @@ void Display::SwapFramebuffer()
   {
     std::lock_guard<std::mutex> guard(m_buffer_lock);
     std::swap(m_back_buffers[0].data, m_back_buffers[1].data);
+    std::swap(m_back_buffers[0].palette, m_back_buffers[1].palette);
     std::swap(m_back_buffers[0].width, m_back_buffers[1].width);
     std::swap(m_back_buffers[0].height, m_back_buffers[1].height);
     std::swap(m_back_buffers[0].stride, m_back_buffers[1].stride);
@@ -108,6 +109,7 @@ bool Display::UpdateFrontbuffer()
     return false;
 
   std::swap(m_front_buffer.data, m_back_buffers[1].data);
+  std::swap(m_front_buffer.palette, m_back_buffers[1].palette);
   std::swap(m_front_buffer.width, m_back_buffers[1].width);
   std::swap(m_front_buffer.height, m_back_buffers[1].height);
   std::swap(m_front_buffer.stride, m_back_buffers[1].stride);
@@ -146,14 +148,28 @@ void Display::AllocateFramebuffer(Framebuffer* fbuf)
       case FramebufferFormat::BGR565:
         fbuf->stride = m_framebuffer_width * 2;
         break;
+
+      case FramebufferFormat::C8RGBX8:
+        fbuf->stride = m_framebuffer_width;
+        break;
     }
 
     fbuf->data = new byte[fbuf->stride * m_framebuffer_height];
+    Y_memzero(fbuf->data, fbuf->stride * m_framebuffer_height);
+
+    if (IsPaletteFormat(m_framebuffer_format))
+    {
+      fbuf->palette = new u32[PALETTE_SIZE];
+      Y_memzero(fbuf->palette, sizeof(u32) * PALETTE_SIZE);
+    }
   }
 }
 
 void Display::DestroyFramebuffer(Framebuffer* fbuf)
 {
+  delete[] fbuf->palette;
+  fbuf->palette = nullptr;
+
   delete[] fbuf->data;
   fbuf->data = nullptr;
   fbuf->width = 0;
@@ -213,10 +229,14 @@ void Display::SetPixel(u32 x, u32 y, u32 rgb)
     case FramebufferFormat::BGR565:
       std::memcpy(&m_back_buffers[0].data[y * m_back_buffers[0].stride + x * 2], &rgb, 2);
       break;
+
+    case FramebufferFormat::C8RGBX8:
+      m_back_buffers[0].data[y * m_back_buffers[0].stride + x] = Truncate8(rgb);
+      break;
   }
 }
 
-void Display::CopyFrame(const void* pixels, u32 stride)
+void Display::CopyToFramebuffer(const void* pixels, u32 stride)
 {
   if (stride == m_back_buffers[0].stride)
   {
@@ -239,6 +259,12 @@ void Display::RepeatFrame()
 {
   // Don't change the framebuffer.
   AddFrameRendered();
+}
+
+void Display::CopyPalette(u8 start_index, u32 num_entries, const u32* entries)
+{
+  DebugAssert(IsPaletteFormat(m_framebuffer_format) && (ZeroExtend32(start_index) + num_entries) <= PALETTE_SIZE);
+  std::copy_n(entries, num_entries, &m_back_buffers[0].palette[start_index]);
 }
 
 void Display::AddFrameRendered()
@@ -474,6 +500,24 @@ void Display::CopyFramebufferToRGBA8Buffer(const Framebuffer* fbuf, void* dst, u
           u32 ocol = ConvertBGR565ToRGBX8888(icol);
           std::memcpy(dst_row_ptr, &ocol, sizeof(ocol));
           dst_row_ptr += sizeof(ocol);
+        }
+
+        src_ptr += fbuf->stride;
+        dst_ptr += dst_stride;
+      }
+    }
+    break;
+
+    case FramebufferFormat::C8RGBX8:
+    {
+      for (u32 row = 0; row < fbuf->height; row++)
+      {
+        const byte* src_row_ptr = src_ptr;
+        byte* dst_row_ptr = dst_ptr;
+        for (u32 col = 0; col < fbuf->width; col++)
+        {
+          std::memcpy(dst_row_ptr, &fbuf->palette[ZeroExtend32(*src_row_ptr++)], sizeof(u32));
+          dst_row_ptr += sizeof(u32);
         }
 
         src_ptr += fbuf->stride;

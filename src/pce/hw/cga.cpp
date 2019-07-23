@@ -398,7 +398,7 @@ void CGA::FlushFrame()
       m_display->ResizeDisplay();
     }
 
-    m_display->CopyFrame(m_current_frame.data(), m_current_frame_width * sizeof(u32));
+    m_display->CopyToFramebuffer(m_current_frame.data(), m_current_frame_width * sizeof(u32));
     m_display->SwapFramebuffer();
   }
 

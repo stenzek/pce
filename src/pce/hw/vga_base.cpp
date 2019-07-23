@@ -720,6 +720,7 @@ void VGABase::SetOutputPalette256()
 {
   for (u32 i = 0; i < 256; i++)
   {
+    m_display->SetPaletteEntry(Truncate8(i), Convert6BitColorTo8Bit(m_dac_palette[i]));
     m_output_palette[i] = Convert6BitColorTo8Bit(m_dac_palette[i]);
   }
 }
