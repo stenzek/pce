@@ -28,6 +28,7 @@ public:
     BGR8,
     BGRX8,
     RGB565,
+    RGB555,
     BGR565,
     BGR555,
   };

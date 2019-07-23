@@ -141,6 +141,7 @@ void Display::AllocateFramebuffer(Framebuffer* fbuf)
         break;
 
       case FramebufferFormat::RGB565:
+      case FramebufferFormat::RGB555:
       case FramebufferFormat::BGR555:
       case FramebufferFormat::BGR565:
         fbuf->stride = m_framebuffer_width * 2;
@@ -192,24 +193,26 @@ void Display::SetPixel(u32 x, u32 y, u32 rgb)
   switch (m_framebuffer_format)
   {
     case FramebufferFormat::RGB8:
-    {
+    case FramebufferFormat::BGR8:
       std::memcpy(&m_back_buffers[0].data[y * m_back_buffers[0].stride + x * 3], &rgb, 3);
-    }
-    break;
+      break;
 
     case FramebufferFormat::RGBX8:
-    {
+    case FramebufferFormat::BGRX8:
       rgb |= 0xFF000000;
       std::memcpy(&m_back_buffers[0].data[y * m_back_buffers[0].stride + x * 4], &rgb, 4);
-    }
-    break;
+      break;
 
-    case FramebufferFormat::RGB565:
-    {
+    case FramebufferFormat::RGB555:
+    case FramebufferFormat::BGR555:
+      rgb &= 0x7FFF;
       std::memcpy(&m_back_buffers[0].data[y * m_back_buffers[0].stride + x * 2], &rgb, 2);
       break;
-    }
-    break;
+
+    case FramebufferFormat::RGB565:
+    case FramebufferFormat::BGR565:
+      std::memcpy(&m_back_buffers[0].data[y * m_back_buffers[0].stride + x * 2], &rgb, 2);
+      break;
   }
 }
 
@@ -250,6 +253,20 @@ void Display::AddFrameRendered()
     m_frames_rendered = 0;
     m_frame_counter_timer.Reset();
   }
+}
+
+inline u32 ConvertRGB555ToRGBX8888(u16 color)
+{
+  u8 r = Truncate8(color & 31);
+  u8 g = Truncate8((color >> 5) & 31);
+  u8 b = Truncate8((color >> 10) & 31);
+
+  // 00012345 -> 1234545
+  b = (b << 3) | (b >> 3);
+  g = (g << 3) | (g >> 3);
+  r = (r << 3) | (r >> 3);
+
+  return UINT32_C(0xFF000000) | ZeroExtend32(r) | (ZeroExtend32(g) << 8) | (ZeroExtend32(b) << 16);
 }
 
 inline u32 ConvertRGB565ToRGBX8888(u16 color)
@@ -371,6 +388,28 @@ void Display::CopyFramebufferToRGBA8Buffer(const Framebuffer* fbuf, void* dst, u
           *(row_dst_ptr++) =
             (pix & UINT32_C(0xFF00FF00)) | ((pix & UINT32_C(0xFF)) << 16) | ((pix >> 16) & UINT32_C(0xFF));
         }
+        src_ptr += fbuf->stride;
+        dst_ptr += dst_stride;
+      }
+    }
+    break;
+
+    case FramebufferFormat::RGB555:
+    {
+      for (u32 row = 0; row < fbuf->height; row++)
+      {
+        const byte* src_row_ptr = src_ptr;
+        byte* dst_row_ptr = dst_ptr;
+        for (u32 col = 0; col < fbuf->width; col++)
+        {
+          u16 icol;
+          std::memcpy(&icol, src_row_ptr, sizeof(icol));
+          src_row_ptr += sizeof(icol);
+          u32 ocol = ConvertRGB555ToRGBX8888(icol);
+          std::memcpy(dst_row_ptr, &ocol, sizeof(ocol));
+          dst_row_ptr += sizeof(ocol);
+        }
+
         src_ptr += fbuf->stride;
         dst_ptr += dst_stride;
       }
