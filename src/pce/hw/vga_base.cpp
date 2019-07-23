@@ -132,7 +132,6 @@ bool VGABase::LoadState(BinaryReader& reader)
   reader.SafeReadUInt8(&m_dac_read_address);
   reader.SafeReadUInt8(&m_dac_color_index);
   reader.SafeReadUInt8(&m_dac_color_mask);
-  reader.SafeReadBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   reader.SafeReadUInt8(&m_cursor_counter);
   reader.SafeReadBool(&m_cursor_state);
 
@@ -167,7 +166,6 @@ bool VGABase::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(m_dac_read_address);
   writer.WriteUInt8(m_dac_color_index);
   writer.WriteUInt8(m_dac_color_mask);
-  writer.WriteBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   writer.WriteUInt8(m_cursor_counter);
   writer.WriteBool(m_cursor_state);
 
@@ -702,7 +700,7 @@ void VGABase::SetOutputPalette16()
     for (u32 i = 0; i < 16; i++)
     {
       const u32 index = base_index + ZeroExtend32(m_attribute_registers.palette[i] & 0x0F);
-      m_output_palette[i] = Convert6BitColorTo8Bit(m_dac_palette[index]);
+      m_display->SetPaletteEntry(Truncate8(i), Convert6BitColorTo8Bit(m_dac_palette[index]));
     }
   }
   else
@@ -711,7 +709,7 @@ void VGABase::SetOutputPalette16()
     for (u32 i = 0; i < 16; i++)
     {
       const u32 index = base_index + ZeroExtend32(m_attribute_registers.palette[i] & 0x3F);
-      m_output_palette[i] = Convert6BitColorTo8Bit(m_dac_palette[index]);
+      m_display->SetPaletteEntry(Truncate8(i), Convert6BitColorTo8Bit(m_dac_palette[index]));
     }
   }
 }
@@ -719,10 +717,7 @@ void VGABase::SetOutputPalette16()
 void VGABase::SetOutputPalette256()
 {
   for (u32 i = 0; i < 256; i++)
-  {
     m_display->SetPaletteEntry(Truncate8(i), Convert6BitColorTo8Bit(m_dac_palette[i]));
-    m_output_palette[i] = Convert6BitColorTo8Bit(m_dac_palette[i]);
-  }
 }
 
 void VGABase::GetDisplayTiming(DisplayTiming& timing) const
@@ -981,6 +976,86 @@ u32 VGABase::CRTCWrapAddress(u32 base_address, u32 address_counter, u32 row_scan
   return address;
 }
 
+static void DrawTextGlyph(u8* fb_ptr, u32 fb_stride, const u8* glyph, u32 character_width, u32 character_height,
+                          u8 fg_color_index, u8 bg_color_index, bool dup9)
+{
+  const u8 colors[2] = {bg_color_index, fg_color_index};
+
+  u8* fb_row_ptr = fb_ptr;
+  if (character_width == 8)
+  {
+    for (u32 row = 0; row < character_height; row++)
+    {
+      const u8 source_row = *glyph;
+      u8* fb_col_ptr = fb_row_ptr;
+      *fb_col_ptr++ = colors[(source_row >> 7) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 6) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 5) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 4) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 3) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 2) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 1) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 0) & 1];
+
+      // Have to read the second plane, so offset by 4
+      glyph += 4;
+
+      fb_row_ptr += fb_stride;
+    }
+  }
+  else if (character_width == 9)
+  {
+    for (u32 row = 0; row < character_height; row++)
+    {
+      const u8 source_row = *glyph;
+      u8* fb_col_ptr = fb_row_ptr;
+      *fb_col_ptr++ = colors[(source_row >> 7) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 6) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 5) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 4) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 3) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 2) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 1) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 0) & 1];
+      *fb_col_ptr++ = dup9 ? colors[(source_row >> 0) & 1] : bg_color_index;
+
+      // Have to read the second plane, so offset by 4
+      glyph += 4;
+
+      fb_row_ptr += fb_stride;
+    }
+  }
+  else if (character_width == 16)
+  {
+    for (u32 row = 0; row < character_height; row++)
+    {
+      const u8 source_row = *glyph;
+      u8* fb_col_ptr = fb_row_ptr;
+      *fb_col_ptr++ = colors[(source_row >> 7) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 7) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 6) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 6) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 5) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 5) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 4) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 4) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 3) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 3) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 2) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 2) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 1) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 1) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 0) & 1];
+      *fb_col_ptr++ = colors[(source_row >> 0) & 1];
+
+      // Have to read the second plane, so offset by 4
+      glyph += 4;
+
+      fb_row_ptr += fb_stride;
+    }
+  }
+}
+
 void VGABase::RenderTextMode()
 {
   const u32 character_columns = m_render_latch.render_width / m_render_latch.character_width;
@@ -1031,12 +1106,13 @@ void VGABase::RenderTextMode()
 
   // TODO: This is wrong, it should support smooth scrolling of text!!
   u32 row_scan_counter = m_render_latch.row_scan_counter;
-  u32 fb_x = 0, fb_y = 0;
+  u8* fb_ptr = m_display->GetFramebufferPointer();
+  const u32 fb_stride = m_display->GetFramebufferStride();
 
   for (u32 row = 0; row < character_rows; row++)
   {
     u32 address_counter = m_render_latch.start_address + (m_render_latch.pitch * row);
-    fb_x = 0;
+    u8* fb_row_ptr = fb_ptr;
 
     for (u32 col = 0; col < character_columns; col++)
     {
@@ -1049,30 +1125,17 @@ void VGABase::RenderTextMode()
       u8 attribute = Truncate8(all_planes >> 8);
 
       // Grab foreground and background colours
-      u32 foreground_color = m_output_palette[(attribute & 0xF)];
-      u32 background_color = m_output_palette[(attribute >> 4) & 0xF];
+      const u8 fg_color_index = (attribute & 0xF);
+      const u8 bg_color_index = (attribute >> 4) & 0xF;
 
       // Offset into font table to get glyph, bit 4 determines the font to use
       // 32 bytes per character in the font bitmap, 4 bytes per plane, data in plane 2.
       const u8* glyph = font_base_pointers[(attribute >> 3) & 0x01] + (character * 32 * 4) + 2;
 
       // Actually draw the character
-      int32 dup9 = (character >= 0xC0 && character <= 0xDF) ? 1 : 0;
-      switch (m_render_latch.character_width)
-      {
-        default:
-        case 8:
-          DrawTextGlyph8(fb_x, fb_y, glyph, m_render_latch.character_height, foreground_color, background_color, -1);
-          break;
-
-        case 9:
-          DrawTextGlyph8(fb_x, fb_y, glyph, m_render_latch.character_height, foreground_color, background_color, dup9);
-          break;
-
-        case 16:
-          DrawTextGlyph16(fb_x, fb_y, glyph, m_render_latch.character_height, foreground_color, background_color);
-          break;
-      }
+      const bool dup9 = (character >= 0xC0 && character <= 0xDF);
+      DrawTextGlyph(fb_row_ptr, fb_stride, glyph, m_render_latch.character_width, m_render_latch.character_height,
+                    fg_color_index, bg_color_index, dup9);
 
       // To draw the cursor, we simply overwrite the pixels. Easier than branching in the character draw routine.
       if (current_address == m_render_latch.cursor_address)
@@ -1080,73 +1143,22 @@ void VGABase::RenderTextMode()
         // On the standard VGA, the cursor color is obtained from the foreground color of the character that the
         // cursor is superimposing. On the standard VGA there is no way to modify this behavior.
         // TODO: How is dup9 handled here?
+        u8* fb_cursor_ptr = fb_row_ptr + (m_render_latch.cursor_start_line * fb_stride);
         for (u8 cursor_line = m_render_latch.cursor_start_line; cursor_line < m_render_latch.cursor_end_line;
              cursor_line++)
         {
+          u8* fb_cursor_row_ptr = fb_cursor_ptr;
           for (u32 i = 0; i < m_render_latch.character_width; i++)
-            m_display->SetPixel(fb_x + i, fb_y + cursor_line, foreground_color);
+            *(fb_cursor_row_ptr++) = fg_color_index;
+
+          fb_cursor_ptr += fb_stride;
         }
       }
 
-      fb_x += m_render_latch.character_width;
+      fb_row_ptr += m_render_latch.character_width;
     }
 
-    fb_y += m_render_latch.character_height;
-  }
-}
-
-void VGABase::DrawTextGlyph8(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color, s32 dup9)
-{
-  const u32 colors[2] = {bg_color, fg_color};
-
-  for (u32 row = 0; row < rows; row++)
-  {
-    u8 source_row = *glyph;
-    m_display->SetPixel(fb_x + 0, fb_y + row, colors[(source_row >> 7) & 1]);
-    m_display->SetPixel(fb_x + 1, fb_y + row, colors[(source_row >> 6) & 1]);
-    m_display->SetPixel(fb_x + 2, fb_y + row, colors[(source_row >> 5) & 1]);
-    m_display->SetPixel(fb_x + 3, fb_y + row, colors[(source_row >> 4) & 1]);
-    m_display->SetPixel(fb_x + 4, fb_y + row, colors[(source_row >> 3) & 1]);
-    m_display->SetPixel(fb_x + 5, fb_y + row, colors[(source_row >> 2) & 1]);
-    m_display->SetPixel(fb_x + 6, fb_y + row, colors[(source_row >> 1) & 1]);
-    m_display->SetPixel(fb_x + 7, fb_y + row, colors[(source_row >> 0) & 1]);
-
-    if (dup9 == 0)
-      m_display->SetPixel(fb_x + 8, fb_y + row, bg_color);
-    else if (dup9 > 0)
-      m_display->SetPixel(fb_x + 8, fb_y + row, colors[(source_row >> 0) & 1]);
-
-    // Have to read the second plane, so offset by 4
-    glyph += 4;
-  }
-}
-
-void VGABase::DrawTextGlyph16(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color)
-{
-  const u32 colors[2] = {bg_color, fg_color};
-
-  for (u32 row = 0; row < rows; row++)
-  {
-    u8 source_row = *glyph;
-    m_display->SetPixel(fb_x + 0, fb_y + row, colors[(source_row >> 7) & 1]);
-    m_display->SetPixel(fb_x + 1, fb_y + row, colors[(source_row >> 7) & 1]);
-    m_display->SetPixel(fb_x + 2, fb_y + row, colors[(source_row >> 6) & 1]);
-    m_display->SetPixel(fb_x + 3, fb_y + row, colors[(source_row >> 6) & 1]);
-    m_display->SetPixel(fb_x + 4, fb_y + row, colors[(source_row >> 5) & 1]);
-    m_display->SetPixel(fb_x + 5, fb_y + row, colors[(source_row >> 5) & 1]);
-    m_display->SetPixel(fb_x + 6, fb_y + row, colors[(source_row >> 4) & 1]);
-    m_display->SetPixel(fb_x + 7, fb_y + row, colors[(source_row >> 4) & 1]);
-    m_display->SetPixel(fb_x + 8, fb_y + row, colors[(source_row >> 3) & 1]);
-    m_display->SetPixel(fb_x + 9, fb_y + row, colors[(source_row >> 3) & 1]);
-    m_display->SetPixel(fb_x + 10, fb_y + row, colors[(source_row >> 2) & 1]);
-    m_display->SetPixel(fb_x + 11, fb_y + row, colors[(source_row >> 2) & 1]);
-    m_display->SetPixel(fb_x + 12, fb_y + row, colors[(source_row >> 1) & 1]);
-    m_display->SetPixel(fb_x + 13, fb_y + row, colors[(source_row >> 1) & 1]);
-    m_display->SetPixel(fb_x + 14, fb_y + row, colors[(source_row >> 0) & 1]);
-    m_display->SetPixel(fb_x + 15, fb_y + row, colors[(source_row >> 0) & 1]);
-
-    // Have to read the second plane, so offset by 4
-    glyph += 4;
+    fb_ptr += m_render_latch.character_height * fb_stride;
   }
 }
 
@@ -1179,6 +1191,8 @@ void VGABase::RenderGraphicsMode()
   u32 row_scan_counter = m_render_latch.row_scan_counter;
 
   // Draw lines
+  u8* fb_ptr = m_display->GetFramebufferPointer();
+  const u32 fb_stride = m_display->GetFramebufferStride();
   for (u32 scanline = 0; scanline < render_height; scanline++)
   {
     if (scanline == line_compare)
@@ -1191,6 +1205,7 @@ void VGABase::RenderGraphicsMode()
     }
 
     u32 address_counter = pitch * row_counter;
+    u8* fb_row_ptr = fb_ptr;
 
     // 4 or 16 color mode?
     if (!shift_256)
@@ -1207,26 +1222,17 @@ void VGABase::RenderGraphicsMode()
           u8 pl1 = Truncate8((all_planes >> 8) & 0xFF);
           u8 pl2 = Truncate8((all_planes >> 16) & 0xFF);
           u8 pl3 = Truncate8((all_planes >> 24) & 0xFF);
-          u8 index;
 
           // One pixel per input pixel
-          index = ((pl0 >> 6) & 3) | (((pl2 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl0 >> 4) & 3) | (((pl2 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl0 >> 2) & 3) | (((pl2 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl0 >> 0) & 3) | (((pl2 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          *fb_row_ptr++ = ((pl0 >> 6) & 3) | (((pl2 >> 6) & 3) << 2);
+          *fb_row_ptr++ = ((pl0 >> 4) & 3) | (((pl2 >> 6) & 3) << 2);
+          *fb_row_ptr++ = ((pl0 >> 2) & 3) | (((pl2 >> 6) & 3) << 2);
+          *fb_row_ptr++ = ((pl0 >> 0) & 3) | (((pl2 >> 6) & 3) << 2);
 
-          index = ((pl1 >> 6) & 3) | (((pl3 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl1 >> 4) & 3) | (((pl3 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl1 >> 2) & 3) | (((pl3 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl1 >> 0) & 3) | (((pl3 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          *fb_row_ptr++ = ((pl1 >> 6) & 3) | (((pl3 >> 6) & 3) << 2);
+          *fb_row_ptr++ = ((pl1 >> 4) & 3) | (((pl3 >> 6) & 3) << 2);
+          *fb_row_ptr++ = ((pl1 >> 2) & 3) | (((pl3 >> 6) & 3) << 2);
+          *fb_row_ptr++ = ((pl1 >> 0) & 3) | (((pl3 >> 6) & 3) << 2);
         }
       }
       else
@@ -1243,20 +1249,15 @@ void VGABase::RenderGraphicsMode()
           u8 pl2 = Truncate8((all_planes >> 16) & 0xFF);
           u8 pl3 = Truncate8((all_planes >> 24) & 0xFF);
 
-          u8 indices[8] = {
-            u8(((pl0 >> 7) & 1u) | (((pl1 >> 7) & 1u) << 1) | (((pl2 >> 7) & 1u) << 2) | (((pl3 >> 7) & 1u) << 3)),
-            u8(((pl0 >> 6) & 1u) | (((pl1 >> 6) & 1u) << 1) | (((pl2 >> 6) & 1u) << 2) | (((pl3 >> 6) & 1u) << 3)),
-            u8(((pl0 >> 5) & 1u) | (((pl1 >> 5) & 1u) << 1) | (((pl2 >> 5) & 1u) << 2) | (((pl3 >> 5) & 1u) << 3)),
-            u8(((pl0 >> 4) & 1u) | (((pl1 >> 4) & 1u) << 1) | (((pl2 >> 4) & 1u) << 2) | (((pl3 >> 4) & 1u) << 3)),
-            u8(((pl0 >> 3) & 1u) | (((pl1 >> 3) & 1u) << 1) | (((pl2 >> 3) & 1u) << 2) | (((pl3 >> 3) & 1u) << 3)),
-            u8(((pl0 >> 2) & 1u) | (((pl1 >> 2) & 1u) << 1) | (((pl2 >> 2) & 1u) << 2) | (((pl3 >> 2) & 1u) << 3)),
-            u8(((pl0 >> 1) & 1u) | (((pl1 >> 1) & 1u) << 1) | (((pl2 >> 1) & 1u) << 2) | (((pl3 >> 1) & 1u) << 3)),
-            u8(((pl0 >> 0) & 1u) | (((pl1 >> 0) & 1u) << 1) | (((pl2 >> 0) & 1u) << 2) | (((pl3 >> 0) & 1u) << 3))};
-
           for (u32 subindex = 0; col < (int32)render_width && subindex < 8;)
           {
             if (col >= 0 && col < (int32)render_width)
-              m_display->SetPixel(col, scanline, m_output_palette[indices[subindex]]);
+              *fb_row_ptr++ = (pl0 >> 7) | ((pl1 >> 7) << 1) | ((pl2 >> 7) << 2) | ((pl3 >> 7) << 3);
+
+            pl0 <<= 1;
+            pl1 <<= 1;
+            pl2 <<= 1;
+            pl3 <<= 1;
 
             col++;
             subindex++;
@@ -1275,13 +1276,10 @@ void VGABase::RenderGraphicsMode()
 
         for (u32 i = 0; i < 4; i++)
         {
-          u8 index = Truncate8(indices);
-          u32 color = m_output_palette[index];
-          indices >>= 8;
-
           if (col >= 0)
-            m_display->SetPixel(col, scanline, color);
+            *fb_row_ptr++ = Truncate8(indices);
 
+          indices >>= 8;
           col++;
         }
       }
@@ -1294,10 +1292,9 @@ void VGABase::RenderGraphicsMode()
         u32 indices = ReadVRAMPlanes(start_address, address_counter, row_scan_counter);
         address_counter++;
 
-        m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 0) & 0xFF]);
-        m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 8) & 0xFF]);
-        m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 16) & 0xFF]);
-        m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 24) & 0xFF]);
+        std::memcpy(fb_row_ptr, &indices, sizeof(indices));
+        fb_row_ptr += sizeof(indices);
+        col += 4;
       }
 
       // Slow loop to handle misaligned buffer when panning
@@ -1308,15 +1305,12 @@ void VGABase::RenderGraphicsMode()
 
         for (u32 i = 0; i < 4; i++)
         {
-          u8 index = Truncate8(indices);
-          u32 color = m_output_palette[index];
-          indices >>= 8;
-
           if (col < static_cast<s32>(render_width))
-            m_display->SetPixel(col, scanline, color);
+            *fb_row_ptr++ = Truncate8(indices);
           else
             break;
 
+          indices >>= 8;
           col++;
         }
       }
@@ -1328,6 +1322,8 @@ void VGABase::RenderGraphicsMode()
       row_scan_counter = 0;
       row_counter++;
     }
+
+    fb_ptr += fb_stride;
   }
 }
 } // namespace HW

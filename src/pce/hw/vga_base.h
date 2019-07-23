@@ -1,7 +1,7 @@
 #pragma once
 #include "common/bitfield.h"
-#include "common/display_timing.h"
 #include "common/display.h"
+#include "common/display_timing.h"
 #include "pce/component.h"
 #include "pce/system.h"
 #include <array>
@@ -22,7 +22,7 @@ class VGABase : public Component
 
 public:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('V', 'G', 'A', 'B');
-  static constexpr Display::FramebufferFormat BASE_FRAMEBUFFER_FORMAT = Display::FramebufferFormat::RGBX8;
+  static constexpr Display::FramebufferFormat BASE_FRAMEBUFFER_FORMAT = Display::FramebufferFormat::C8RGBX8;
 
   enum : u32
   {
@@ -270,9 +270,6 @@ protected:
   u32 ReadVRAMPlanes(u32 base_address, u32 address_counter, u32 row_scan_counter) const;
   u32 CRTCWrapAddress(u32 base_address, u32 address_counter, u32 row_scan_counter) const;
 
-  void DrawTextGlyph8(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color, s32 dup9);
-  void DrawTextGlyph16(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color);
-
   std::unique_ptr<Display> m_display;
   std::unique_ptr<TimingEvent> m_display_event;
   DisplayTiming m_display_timing;
@@ -406,7 +403,6 @@ protected:
   // palette used when rendering
   void SetOutputPalette16();
   void SetOutputPalette256();
-  std::array<u32, 256> m_output_palette;
 
   // Cursor state for text modes
   u8 m_cursor_counter = 0;
