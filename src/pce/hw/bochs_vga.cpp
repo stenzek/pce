@@ -64,6 +64,7 @@ void BochsVGA::Reset()
 
   CRTCTimingChanged();
   UpdateVGAMemoryMapping();
+  UpdateFramebufferFormat();
 }
 
 bool BochsVGA::LoadState(BinaryReader& reader)
@@ -88,6 +89,7 @@ bool BochsVGA::LoadState(BinaryReader& reader)
 
   CRTCTimingChanged();
   UpdateVGAMemoryMapping();
+  UpdateFramebufferFormat();
   return true;
 }
 
@@ -276,10 +278,12 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
     break;
 
     case VBE_DISPI_INDEX_XRES:
+      Log_DebugPrintf("X Resolution = %u", ZeroExtend32(value));
       m_vbe_width = value;
       break;
 
     case VBE_DISPI_INDEX_YRES:
+      Log_DebugPrintf("Y Resolution = %u", ZeroExtend32(value));
       m_vbe_height = value;
       break;
 
@@ -291,6 +295,7 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
         return;
       }
 
+      Log_DebugPrintf("BPP = %u", ZeroExtend32(value));
       m_vbe_bpp = value;
       if (m_vbe_enable.enable)
       {
@@ -343,18 +348,22 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
     break;
 
     case VBE_DISPI_INDEX_VIRT_WIDTH:
+      Log_DebugPrintf("Virtual Width = %u", ZeroExtend32(value));
       m_vbe_virt_width = value;
       break;
 
     case VBE_DISPI_INDEX_VIRT_HEIGHT:
+      Log_DebugPrintf("Virtual Height = %u", ZeroExtend32(value));
       m_vbe_virt_height = value;
       break;
 
     case VBE_DISPI_INDEX_X_OFFSET:
+      Log_DebugPrintf("Offset X = %u", ZeroExtend32(value));
       m_vbe_offset_x = value;
       break;
 
     case VBE_DISPI_INDEX_Y_OFFSET:
+      Log_DebugPrintf("Offset Y = %u", ZeroExtend32(value));
       m_vbe_offset_y = value;
       break;
 
