@@ -4717,14 +4717,14 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
     if (ALUOp_Sub8(&eflags, cpu->m_registers.AL, dest) == 0)
     {
       // ZF should be set by the ALU op
-      Assert(cpu->m_registers.EFLAGS.ZF);
+      DebugAssert(eflags & Flag_ZF);
       WriteByteOperand<dst_mode, dst_constant>(cpu, source);
     }
     else
     {
       // ZF should be clear by the ALU op
       // Even if the test passes the write is still issued
-      Assert(!cpu->m_registers.EFLAGS.ZF);
+      DebugAssert(!(eflags & Flag_ZF));
       WriteByteOperand<dst_mode, dst_constant>(cpu, dest);
       cpu->m_registers.AL = dest;
     }
@@ -4738,14 +4738,14 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
     if (ALUOp_Sub16(&eflags, cpu->m_registers.AX, dest) == 0)
     {
       // ZF should be set by the ALU op
-      Assert(cpu->m_registers.EFLAGS.ZF);
+      DebugAssert(eflags & Flag_ZF);
       WriteWordOperand<dst_mode, dst_constant>(cpu, source);
     }
     else
     {
       // ZF should be clear by the ALU op
       // Even if the test passes the write is still issued
-      Assert(!cpu->m_registers.EFLAGS.ZF);
+      DebugAssert(!(eflags & Flag_ZF));
       WriteWordOperand<dst_mode, dst_constant>(cpu, dest);
       cpu->m_registers.AX = dest;
     }
@@ -4759,14 +4759,14 @@ void Interpreter::Execute_Operation_CMPXCHG(CPU* cpu)
     if (ALUOp_Sub32(&eflags, cpu->m_registers.EAX, dest) == 0)
     {
       // ZF should be set by the ALU op
-      Assert(cpu->m_registers.EFLAGS.ZF);
+      DebugAssert(eflags & Flag_ZF);
       WriteDWordOperand<dst_mode, dst_constant>(cpu, source);
     }
     else
     {
       // ZF should be clear by the ALU op
       // Even if the test passes the write is still issued
-      Assert(!cpu->m_registers.EFLAGS.ZF);
+      DebugAssert(!(eflags & Flag_ZF));
       WriteDWordOperand<dst_mode, dst_constant>(cpu, dest);
       cpu->m_registers.EAX = dest;
     }
