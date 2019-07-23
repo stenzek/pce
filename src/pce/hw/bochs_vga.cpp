@@ -407,6 +407,8 @@ void BochsVGA::UpdateFramebufferFormat()
     m_display->ChangeFramebufferFormat(BASE_FRAMEBUFFER_FORMAT);
   else if (m_vbe_bpp <= 8)
     m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGBX8);
+  else if (m_vbe_bpp <= 15)
+    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGB555);
   else if (m_vbe_bpp <= 16)
     m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGB565);
   else if (m_vbe_bpp <= 24)
@@ -448,16 +450,15 @@ void BochsVGA::LatchStartAddress()
     return;
   }
 
-  const u32 bpp = ZeroExtend32(m_vbe_bpp);
-  const u32 virt_width = ZeroExtend32(m_vbe_virt_width);
+  const u32 bytes_per_pixel = (ZeroExtend32(m_vbe_bpp) + 7) / 8;
 
   m_render_latch = {};
   m_render_latch.graphics_mode = true;
   m_render_latch.render_width = ZeroExtend32(m_vbe_width);
   m_render_latch.render_height = ZeroExtend32(m_vbe_height);
-  m_render_latch.pitch = (bpp * virt_width) / 8;
+  m_render_latch.pitch = bytes_per_pixel * ZeroExtend32(m_vbe_virt_width);
   m_render_latch.start_address =
-    ZeroExtend32(m_vbe_offset_y) * ((bpp * virt_width) / 8) + ((ZeroExtend32(m_vbe_offset_x) * bpp) / 8);
+    (ZeroExtend32(m_vbe_offset_y) * m_render_latch.pitch) + (ZeroExtend32(m_vbe_offset_x) * bytes_per_pixel);
 
   if ((m_render_latch.start_address + (m_render_latch.pitch * m_render_latch.render_height)) > m_vram_size)
   {
@@ -527,8 +528,6 @@ void BochsVGA::Render8BPP()
     fb_ptr += fb_stride;
     vram_ptr += m_render_latch.pitch;
   }
-
-  m_display->SwapFramebuffer();
 }
 
 void BochsVGA::RenderDirect()
@@ -554,8 +553,6 @@ void BochsVGA::RenderDirect()
       fb_ptr += fb_stride;
     }
   }
-
-  m_display->SwapFramebuffer();
 }
 
 } // namespace HW

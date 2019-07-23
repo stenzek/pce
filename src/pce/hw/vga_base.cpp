@@ -915,6 +915,8 @@ void VGABase::Render()
     RenderGraphicsMode();
   else
     RenderTextMode();
+
+  m_display->SwapFramebuffer();
 }
 
 u32 VGABase::ReadVRAMPlanes(u32 base_address, u32 address_counter, u32 row_scan_counter) const
@@ -1087,8 +1089,6 @@ void VGABase::RenderTextMode()
 
     fb_y += m_render_latch.character_height;
   }
-
-  m_display->SwapFramebuffer();
 }
 
 void VGABase::DrawTextGlyph8(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color, s32 dup9)
@@ -1325,7 +1325,5 @@ void VGABase::RenderGraphicsMode()
       row_counter++;
     }
   }
-
-  m_display->SwapFramebuffer();
 }
 } // namespace HW
