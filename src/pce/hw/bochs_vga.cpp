@@ -335,6 +335,26 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
           }
         }
       }
+
+      if (m_vbe_enable.dac_8bit != old_dac_8bit)
+      {
+        if (m_vbe_enable.dac_8bit)
+        {
+          // Convert 6 bit palette -> 8 bit. 00123456 -> 12345656.
+          for (u32& entry : m_dac_palette)
+            entry = Convert6BitColorTo8Bit(entry);
+
+          m_dac_color_mask = 0xFF;
+        }
+        else
+        {
+          // Convert 8 bit palette -> 6 bit.
+          for (u32& entry : m_dac_palette)
+            entry = Convert8BitColorTo6Bit(entry);
+
+          m_dac_color_mask = 0x3F;
+        }
+      }
     }
     break;
 

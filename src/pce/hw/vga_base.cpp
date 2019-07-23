@@ -95,6 +95,7 @@ void VGABase::Reset()
   m_dac_read_address = 0;
   m_dac_write_address = 0;
   m_dac_color_index = 0;
+  m_dac_color_mask = 0x3F;
   for (size_t i = 0; i < m_dac_palette.size(); i++)
     m_dac_palette[i] = 0xFFFFFFFF;
 
@@ -130,6 +131,7 @@ bool VGABase::LoadState(BinaryReader& reader)
   reader.SafeReadUInt8(&m_dac_write_address);
   reader.SafeReadUInt8(&m_dac_read_address);
   reader.SafeReadUInt8(&m_dac_color_index);
+  reader.SafeReadUInt8(&m_dac_color_mask);
   reader.SafeReadBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   reader.SafeReadUInt8(&m_cursor_counter);
   reader.SafeReadBool(&m_cursor_state);
@@ -164,6 +166,7 @@ bool VGABase::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(m_dac_write_address);
   writer.WriteUInt8(m_dac_read_address);
   writer.WriteUInt8(m_dac_color_index);
+  writer.WriteUInt8(m_dac_color_mask);
   writer.WriteBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   writer.WriteUInt8(m_cursor_counter);
   writer.WriteBool(m_cursor_state);
@@ -442,7 +445,7 @@ void VGABase::IODACDataRegisterWrite(u8 value) // 3c9
   Log_TracePrintf("DAC palette write %u/%u: %u", u32(m_dac_write_address), u32(m_dac_color_index), u32(value));
 
   // Mask away higher bits
-  value &= 0x3F;
+  value &= m_dac_color_mask;
 
   u32 color_value = m_dac_palette[m_dac_write_address];
   u8 shift = m_dac_color_index * 8;

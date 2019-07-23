@@ -380,6 +380,7 @@ protected:
   u8 m_dac_write_address = 0;
   u8 m_dac_read_address = 0;
   u8 m_dac_color_index = 0;
+  u8 m_dac_color_mask = 0x3F;
   virtual void IODACStateRegisterRead(u8* value);
   virtual void IODACReadAddressWrite(u8 value);
   virtual void IODACWriteAddressRead(u8* value);
