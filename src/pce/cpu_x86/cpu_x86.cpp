@@ -2782,6 +2782,9 @@ void CPU::InterruptReturn(OperandSize operand_size)
     // CPL must be zero to change V8086 state
     if (GetCPL() == 0 && (return_EFLAGS & Flag_VM) != 0)
     {
+      // EIP is masked, ESP is not.
+      return_EIP &= 0xFFFF;
+
       // Entering V8086 mode
       Log_DebugPrintf("Entering V8086 mode, EFLAGS = %08X, CS:IP = %04X:%04X", return_EFLAGS, ZeroExtend32(return_CS),
                       return_EIP);
