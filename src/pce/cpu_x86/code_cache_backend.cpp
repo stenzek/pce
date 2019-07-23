@@ -145,9 +145,9 @@ bool CodeCacheBackend::CanExecuteBlock(BlockBase* block)
   {
     const u32 eip_linear_address = m_cpu->CalculateLinearAddress(Segment_CS, m_cpu->m_registers.EIP);
     PhysicalMemoryAddress next_page_physical_address;
-    if (!m_cpu->TranslateLinearAddress(&next_page_physical_address,
-                                       ((eip_linear_address + CPU::PAGE_SIZE) & CPU::PAGE_MASK),
-                                       AccessFlags::Normal | AccessFlags::NoPageFaults) ||
+    if (!m_cpu->TranslateLinearAddress(
+          &next_page_physical_address, ((eip_linear_address + CPU::PAGE_SIZE) & CPU::PAGE_MASK),
+          AddAccessTypeToFlags(AccessType::Execute, AccessFlags::Normal | AccessFlags::NoPageFaults)) ||
         next_page_physical_address != block->next_page_physical_address)
     {
       // Can't execute this block, fallback to interpreter.
@@ -311,8 +311,6 @@ void CodeCacheBackend::RemoveBlockPhysicalMappings(BlockBase* block)
 
 #undef REMOVE_PAGE
 }
-
-
 
 bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 {
@@ -517,12 +515,8 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
 
   if (block->CrossesPage())
   {
-    if (!m_cpu->TranslateLinearAddress(&block->next_page_physical_address,
-                                       ((eip_linear_address + CPU::PAGE_SIZE) & CPU::PAGE_MASK),
-                                       AccessFlags::Normal | AccessFlags::NoPageFaults))
-    {
-      Panic("Failed to translate next page address of spanning block");
-    }
+    DebugAssert(callback.first_physical_page == (block->key.eip_physical_address & CPU::PAGE_MASK));
+    block->next_page_physical_address = callback.last_physical_page;
   }
 
   // Hash the code block to check invalidation.
