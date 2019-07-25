@@ -2173,60 +2173,56 @@ void Interpreter::Execute_Operation_RCL(CPU* cpu)
   // the 5 least-significant bits.
   if (actual_size == OperandSize_8)
   {
-    u8 value = ReadByteOperand<val_mode, val_constant>(cpu);
-    u8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
-    if (rotate_count == 0)
+    const u8 operand = ReadByteOperand<val_mode, val_constant>(cpu);
+    const u8 count = (ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F) % 9;
+    if (count == 0)
       return;
 
-    u8 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
-    for (u8 i = 0; i < rotate_count; i++)
-    {
-      u8 save_value = value;
-      value = (save_value << 1) | carry;
-      carry = (save_value >> 7);
-    }
-    WriteByteOperand<val_mode, val_constant>(cpu, value);
+    const u8 carry_in = Truncate8(cpu->m_registers.EFLAGS.bits) & u8(1);
+    const u8 carry_out = (operand >> (8 - count)) & u8(1);
+    const u8 result = (operand << count) | (carry_in << (count - 1)) | (operand >> (9 - count));
+    const u32 new_eflags = (cpu->m_registers.EFLAGS.bits & ~(Flag_OF | Flag_CF)) |
+                           (ZeroExtend32((result >> 7) ^ carry_out) << 11) | // OF
+                           ZeroExtend32(carry_out);                          // CF
 
-    SET_FLAG(&cpu->m_registers, CF, (carry != 0));
-    SET_FLAG(&cpu->m_registers, OF, (((value >> 7) ^ carry) != 0));
+    WriteByteOperand<val_mode, val_constant>(cpu, result);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
   else if (actual_size == OperandSize_16)
   {
-    u16 value = ReadWordOperand<val_mode, val_constant>(cpu);
-    u8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
-    if (rotate_count == 0)
+    const u16 operand = ReadWordOperand<val_mode, val_constant>(cpu);
+    const u8 count = (ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F) % 17;
+    if (count == 0)
       return;
 
-    u16 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
-    for (u8 i = 0; i < rotate_count; i++)
-    {
-      u16 save_value = value;
-      value = (save_value << 1) | carry;
-      carry = (save_value >> 15);
-    }
-    WriteWordOperand<val_mode, val_constant>(cpu, value);
+    const u16 carry_in = Truncate16(cpu->m_registers.EFLAGS.bits) & u16(1);
+    const u16 carry_out = (operand >> (16 - count)) & u16(1);
+    const u16 result = (operand << count) | (carry_in << (count - 1)) | (operand >> (17 - count));
+    const u32 new_eflags = (cpu->m_registers.EFLAGS.bits & ~(Flag_OF | Flag_CF)) |
+                           (ZeroExtend32((result >> 15) ^ carry_out) << 11) | // OF
+                           ZeroExtend32(carry_out);                           // CF
 
-    SET_FLAG(&cpu->m_registers, CF, (carry != 0));
-    SET_FLAG(&cpu->m_registers, OF, (((value >> 15) ^ carry) != 0));
+    WriteWordOperand<val_mode, val_constant>(cpu, result);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
   else if (actual_size == OperandSize_32)
   {
-    u32 value = ReadDWordOperand<val_mode, val_constant>(cpu);
-    u8 rotate_count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
-    if (rotate_count == 0)
+    const u32 operand = ReadDWordOperand<val_mode, val_constant>(cpu);
+    const u8 count = ReadByteOperand<count_mode, count_constant>(cpu) & 0x1F;
+    if (count == 0)
       return;
 
-    u32 carry = (cpu->m_registers.EFLAGS.CF) ? 1 : 0;
-    for (u8 i = 0; i < rotate_count; i++)
-    {
-      u32 save_value = value;
-      value = (save_value << 1) | carry;
-      carry = (save_value >> 31);
-    }
-    WriteDWordOperand<val_mode, val_constant>(cpu, value);
+    // Note: conditional needed here because the shift count is masked by 0x1F on the host, so shr 32 -> shr 0.
+    const u32 carry_in = cpu->m_registers.EFLAGS.bits & u32(1);
+    const u32 carry_out = (operand >> (32 - count)) & u32(1);
+    const u32 result =
+      (operand << count) | (carry_in << (count - 1)) | ((count > 1) ? (operand >> (33 - count)) : u32(0));
+    const u32 new_eflags = (cpu->m_registers.EFLAGS.bits & ~(Flag_OF | Flag_CF)) |
+                           (ZeroExtend32((result >> 31) ^ carry_out) << 11) | // OF
+                           ZeroExtend32(carry_out);                           // CF
 
-    SET_FLAG(&cpu->m_registers, CF, (carry != 0));
-    SET_FLAG(&cpu->m_registers, OF, (((value >> 31) ^ carry) != 0));
+    WriteDWordOperand<val_mode, val_constant>(cpu, result);
+    cpu->m_registers.EFLAGS.bits = new_eflags;
   }
 }
 
