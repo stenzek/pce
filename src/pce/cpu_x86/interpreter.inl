@@ -2866,18 +2866,24 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
     static_assert(op1_size != OperandSize_8 || (op2_mode == OperandMode_None && op3_mode == OperandMode_None),
                   "8-bit source only has one operand form");
 
-    u16 lhs = SignExtend16(cpu->m_registers.AL);
-    u16 rhs = SignExtend16(ReadByteOperand<op1_mode, op1_constant>(cpu));
-    u16 result = u16(s16(lhs) * s16(rhs));
-    u8 truncated_result = Truncate8(result);
+    const u16 lhs = SignExtend16(cpu->m_registers.AL);
+    const u16 rhs = SignExtend16(ReadByteOperand<op1_mode, op1_constant>(cpu));
+    const u16 result = u16(s16(lhs) * s16(rhs));
+    const u8 truncated_result = Truncate8(result);
 
     cpu->m_registers.AX = result;
 
+    const bool of_cf = (SignExtend16(truncated_result) != result);
+
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/SF/ZF/PF
+      BoolToUInt32(of_cf) |                                                                 // CF
+      (BoolToUInt32(of_cf) << 11) |                                                         // OF
+      SignFlag(truncated_result) |                                                          // SF
+      ZeroFlag(truncated_result) |                                                          // ZF
+      ParityFlag(truncated_result);                                                         // PF
+
     cpu->AddCyclesRM(CYCLES_IMUL_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
-    cpu->m_registers.EFLAGS.OF = cpu->m_registers.EFLAGS.CF = (SignExtend16(truncated_result) != result);
-    cpu->m_registers.EFLAGS.SF = IsSign(truncated_result);
-    cpu->m_registers.EFLAGS.ZF = IsZero(truncated_result);
-    cpu->m_registers.EFLAGS.PF = IsParity(truncated_result);
   }
   else if (actual_size == OperandSize_16)
   {
@@ -2920,10 +2926,15 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       cpu->m_registers.AX = truncated_result;
     }
 
-    cpu->m_registers.EFLAGS.OF = cpu->m_registers.EFLAGS.CF = (SignExtend32(truncated_result) != result);
-    cpu->m_registers.EFLAGS.SF = IsSign(truncated_result);
-    cpu->m_registers.EFLAGS.ZF = IsZero(truncated_result);
-    cpu->m_registers.EFLAGS.PF = IsParity(truncated_result);
+    const bool of_cf = (SignExtend32(truncated_result) != result);
+
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/SF/ZF/PF
+      BoolToUInt32(of_cf) |                                                                 // CF
+      (BoolToUInt32(of_cf) << 11) |                                                         // OF
+      SignFlag(truncated_result) |                                                          // SF
+      ZeroFlag(truncated_result) |                                                          // ZF
+      ParityFlag(truncated_result);                                                         // PF
   }
   else if (actual_size == OperandSize_32)
   {
@@ -2966,10 +2977,15 @@ void Interpreter::Execute_Operation_IMUL(CPU* cpu)
       cpu->m_registers.EAX = truncated_result;
     }
 
-    cpu->m_registers.EFLAGS.OF = cpu->m_registers.EFLAGS.CF = (SignExtend64(truncated_result) != result);
-    cpu->m_registers.EFLAGS.SF = IsSign(truncated_result);
-    cpu->m_registers.EFLAGS.ZF = IsZero(truncated_result);
-    cpu->m_registers.EFLAGS.PF = IsParity(truncated_result);
+    const bool of_cf = (SignExtend64(truncated_result) != result);
+
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/SF/ZF/PF
+      BoolToUInt32(of_cf) |                                                                 // CF
+      (BoolToUInt32(of_cf) << 11) |                                                         // OF
+      SignFlag(truncated_result) |                                                          // SF
+      ZeroFlag(truncated_result) |                                                          // ZF
+      ParityFlag(truncated_result);                                                         // PF
   }
 }
 
