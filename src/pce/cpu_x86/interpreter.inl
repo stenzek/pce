@@ -2772,7 +2772,7 @@ void Interpreter::Execute_Operation_NEG(CPU* cpu)
                        (static_cast<u32>(sub_value ^ new_value) & Flag_AF) |                 // AF
                        SignFlag(new_value) |                                                 // SF
                        ZeroFlag(new_value) |                                                 // ZF
-                       ParityFlag(new_value);
+                       ParityFlag(new_value);                                                // PF
 
     WriteDWordOperand<val_mode, val_constant>(cpu, new_value);
     cpu->m_registers.EFLAGS.bits = eflags;
@@ -2789,43 +2789,64 @@ void Interpreter::Execute_Operation_MUL(CPU* cpu)
   // otherwise, they are set to 1. The SF, ZF, AF, and PF flags are undefined.
   if (actual_size == OperandSize_8)
   {
-    u16 lhs = ZeroExtend16(cpu->m_registers.AL);
-    u16 rhs = ZeroExtend16(ReadByteOperand<val_mode, val_constant>(cpu));
-    u16 result = lhs * rhs;
+    const u16 lhs = ZeroExtend16(cpu->m_registers.AL);
+    const u16 rhs = ZeroExtend16(ReadByteOperand<val_mode, val_constant>(cpu));
+    const u16 result = lhs * rhs;
     cpu->m_registers.AX = result;
-    SET_FLAG(&cpu->m_registers, OF, (cpu->m_registers.AH != 0));
-    SET_FLAG(&cpu->m_registers, CF, (cpu->m_registers.AH != 0));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AL));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AL));
-    SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AL));
+
+    const bool of_cf = (cpu->m_registers.AH != 0);
+    const u8 al = cpu->m_registers.AL;
+
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/SF/ZF/PF
+      BoolToUInt32(of_cf) |                                                                 // CF
+      (BoolToUInt32(of_cf) << 11) |                                                         // OF
+      SignFlag(al) |                                                                        // SF
+      ZeroFlag(al) |                                                                        // ZF
+      ParityFlag(al);                                                                       // PF
+
     cpu->AddCyclesRM(CYCLES_MUL_8_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
   else if (actual_size == OperandSize_16)
   {
-    u32 lhs = ZeroExtend32(cpu->m_registers.AX);
-    u32 rhs = ZeroExtend32(ReadWordOperand<val_mode, val_constant>(cpu));
-    u32 result = lhs * rhs;
+    const u32 lhs = ZeroExtend32(cpu->m_registers.AX);
+    const u32 rhs = ZeroExtend32(ReadWordOperand<val_mode, val_constant>(cpu));
+    const u32 result = lhs * rhs;
     cpu->m_registers.AX = u16(result & 0xFFFF);
     cpu->m_registers.DX = u16(result >> 16);
-    SET_FLAG(&cpu->m_registers, OF, (cpu->m_registers.DX != 0));
-    SET_FLAG(&cpu->m_registers, CF, (cpu->m_registers.DX != 0));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.AX));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.AX));
-    SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.AX));
+
+    const bool of_cf = (cpu->m_registers.DX != 0);
+    const u16 ax = cpu->m_registers.AX;
+
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/SF/ZF/PF
+      BoolToUInt32(of_cf) |                                                                 // CF
+      (BoolToUInt32(of_cf) << 11) |                                                         // OF
+      SignFlag(ax) |                                                                        // SF
+      ZeroFlag(ax) |                                                                        // ZF
+      ParityFlag(ax);                                                                       // PF
+
     cpu->AddCyclesRM(CYCLES_MUL_16_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
   else if (actual_size == OperandSize_32)
   {
-    u64 lhs = ZeroExtend64(cpu->m_registers.EAX);
-    u64 rhs = ZeroExtend64(ReadDWordOperand<val_mode, val_constant>(cpu));
-    u64 result = lhs * rhs;
+    const u64 lhs = ZeroExtend64(cpu->m_registers.EAX);
+    const u64 rhs = ZeroExtend64(ReadDWordOperand<val_mode, val_constant>(cpu));
+    const u64 result = lhs * rhs;
     cpu->m_registers.EAX = Truncate32(result);
     cpu->m_registers.EDX = Truncate32(result >> 32);
-    SET_FLAG(&cpu->m_registers, OF, (cpu->m_registers.EDX != 0));
-    SET_FLAG(&cpu->m_registers, CF, (cpu->m_registers.EDX != 0));
-    SET_FLAG(&cpu->m_registers, SF, IsSign(cpu->m_registers.EAX));
-    SET_FLAG(&cpu->m_registers, ZF, IsZero(cpu->m_registers.EAX));
-    SET_FLAG(&cpu->m_registers, PF, IsParity(cpu->m_registers.EAX));
+
+    const bool of_cf = (cpu->m_registers.EDX != 0);
+    const u32 eax = cpu->m_registers.EAX;
+
+    cpu->m_registers.EFLAGS.bits =
+      (cpu->m_registers.EFLAGS.bits & ~(Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF)) | // Modify CF/OF/SF/ZF/PF
+      BoolToUInt32(of_cf) |                                                                 // CF
+      (BoolToUInt32(of_cf) << 11) |                                                         // OF
+      SignFlag(eax) |                                                                       // SF
+      ZeroFlag(eax) |                                                                       // ZF
+      ParityFlag(eax);                                                                      // PF
+
     cpu->AddCyclesRM(CYCLES_MUL_32_RM_MEM, cpu->idata.ModRM_RM_IsReg());
   }
 }
