@@ -6,6 +6,7 @@
 #include "pce/types.h"
 
 #include <array>
+#include <tuple>
 
 namespace CPU_X86::Recompiler {
 
@@ -56,7 +57,12 @@ struct Value
   bool IsValid() const { return (flags & ValueFlags::Valid) != ValueFlags::None; }
   bool IsInHostRegister() const { return (flags & ValueFlags::InHostRegister) != ValueFlags::None; }
   bool IsScratch() const { return (flags & ValueFlags::Scratch) != ValueFlags::None; }
+
+  /// Removes the contents of this value. Use with care, as scratch/temporaries are not released.
   void Clear();
+
+  /// Releases the host register if needed, and clears the contents.
+  void ReleaseAndClear();
 
   static Value FromHostReg(RegisterCache* regcache, HostReg reg, OperandSize size)
   {
@@ -123,7 +129,7 @@ struct GuestRegData
   }
 
   void SetDirty() { state |= GuestRegState::Dirty; }
-  void ClearDirty() { state &= GuestRegState::Dirty; }
+  void ClearDirty() { state &= ~GuestRegState::Dirty; }
   void Invalidate() { *this = {}; }
 
   Value ToValue(RegisterCache* regcache, OperandSize size) const
@@ -141,6 +147,8 @@ public:
   RegisterCache(CodeGenerator& code_generator);
   ~RegisterCache();
 
+  u32 GetActiveCalleeSavedRegisterCount() const { return m_active_callee_saved_register_count; }
+
   //////////////////////////////////////////////////////////////////////////
   // Register Allocation
   //////////////////////////////////////////////////////////////////////////
@@ -150,9 +158,11 @@ public:
   void SetCPUPtrHostReg(HostReg reg);
 
   /// Returns true if the register is permitted to be used in the register cache.
-  bool IsUsableHostRegister(HostReg reg) const;
-
-  u32 GetActiveCalleeSavedRegisterCount() const { return m_active_callee_saved_register_count; }
+  bool IsUsableHostReg(HostReg reg) const;
+  bool IsHostRegInUse(HostReg reg) const;
+  bool HasFreeHostRegister() const;
+  u32 GetUsedHostRegisters() const;
+  u32 GetFreeHostRegisters() const;
 
   HostReg AllocateHostReg(HostRegState state = HostRegState::InUse);
   void FreeHostReg(HostReg reg);
@@ -180,16 +190,12 @@ public:
   Value ReadGuestRegister(Reg8 guest_reg, bool cache = true);
   Value ReadGuestRegister(Reg16 guest_reg, bool cache = true);
   Value ReadGuestRegister(Reg32 guest_reg, bool cache = true);
+  Value ReadGuestRegister(OperandSize guest_size, u8 guest_reg, bool cache = true);
 
   /// Creates a copy of value, and stores it to guest_reg.
   void WriteGuestRegister(Reg8 guest_reg, Value&& value);
   void WriteGuestRegister(Reg16 guest_reg, Value&& value);
   void WriteGuestRegister(Reg32 guest_reg, Value&& value);
-
-  /// Binds host_reg to guest_reg, ignoring any previously cached value.
-  // void BindHostRegToGuestReg(HostReg host_reg, Reg8 guest_reg);
-  // void BindHostRegToGuestReg(HostReg host_reg, Reg16 guest_reg);
-  // void BindHostRegToGuestReg(HostReg host_reg, Reg32 guest_reg);
 
   void FlushGuestRegister(Reg8 guest_reg, bool invalidate);
   void FlushGuestRegister(Reg16 guest_reg, bool invalidate);
@@ -202,6 +208,17 @@ public:
   bool EvictOneGuestRegister();
 
 private:
+  static constexpr u32 EncodeRegisterCode(u8 size, u8 reg) { return ((ZeroExtend16(size) << 8) | ZeroExtend16(reg)); }
+  static constexpr std::tuple<u8, u8> DecodeRegisterCode(u32 code)
+  {
+    return std::tuple<u8, u8>(Truncate8(code >> 8), Truncate8(code));
+  }
+  static constexpr u32 INVALID_REGISTER_CODE = UINT32_C(0xFFFFFFFF);
+
+  void ClearRegisterFromOrder(u8 size, u8 reg);
+  void PushRegisterToOrder(u8 size, u8 reg);
+  void AppendRegisterToOrder(u8 size, u8 reg);
+
   CodeGenerator& m_code_generator;
 
   HostReg m_cpu_ptr_host_register = {};
@@ -213,6 +230,9 @@ private:
   std::array<GuestRegData, Reg8_Count> m_guest_reg8_state{};
   std::array<GuestRegData, Reg16_Count> m_guest_reg16_state{};
   std::array<GuestRegData, Reg32_Count> m_guest_reg32_state{};
+
+  std::array<u32, HostReg_Count> m_guest_register_order{};
+  u32 m_guest_register_order_count = 0;
 };
 
 } // namespace CPU_X86::Recompiler

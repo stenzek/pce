@@ -201,6 +201,9 @@
     <ClCompile Include="cpu_x86\recompiler_register_cache.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
+    <ClCompile Include="cpu_x86\recompiler_thunks.cpp">
+      <Filter>cpu_x86</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -436,6 +439,9 @@
       <Filter>cpu_x86</Filter>
     </ClInclude>
     <ClInclude Include="cpu_x86\recompiler_types.h">
+      <Filter>cpu_x86</Filter>
+    </ClInclude>
+    <ClInclude Include="cpu_x86\recompiler_thunks.h">
       <Filter>cpu_x86</Filter>
     </ClInclude>
   </ItemGroup>

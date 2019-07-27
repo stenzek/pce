@@ -48,6 +48,7 @@
     <ClCompile Include="cpu_x86\recompiler_code_generator.cpp" />
     <ClCompile Include="cpu_x86\recompiler_code_generator_x64.cpp" />
     <ClCompile Include="cpu_x86\recompiler_register_cache.cpp" />
+    <ClCompile Include="cpu_x86\recompiler_thunks.cpp" />
     <ClCompile Include="dma_controller.cpp" />
     <ClCompile Include="hw\adlib.cpp" />
     <ClCompile Include="hw\ata_device.cpp" />
@@ -125,6 +126,7 @@
     <ClInclude Include="cpu_x86\recompiler_backend.h" />
     <ClInclude Include="cpu_x86\recompiler_code_generator.h" />
     <ClInclude Include="cpu_x86\recompiler_register_cache.h" />
+    <ClInclude Include="cpu_x86\recompiler_thunks.h" />
     <ClInclude Include="cpu_x86\recompiler_types.h" />
     <ClInclude Include="cpu_x86\types.h" />
     <ClInclude Include="debugger_interface.h" />

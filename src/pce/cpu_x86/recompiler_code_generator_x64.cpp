@@ -7,24 +7,77 @@ namespace CPU_X86::Recompiler {
 constexpr HostReg RCPUPTR = Xbyak::Operand::RBP;
 constexpr HostReg RRETURN = Xbyak::Operand::RAX;
 constexpr HostReg RARG1 = Xbyak::Operand::RCX;
-const u32 FUNCTION_CALL_SHADOW_SPACE = 16;
+constexpr HostReg RARG2 = Xbyak::Operand::RDX;
+constexpr HostReg RARG3 = Xbyak::Operand::R8;
+constexpr HostReg RARG4 = Xbyak::Operand::R9;
+const u32 FUNCTION_CALL_SHADOW_SPACE = 32;
 #else
 const u32 FUNCTION_CALL_SHADOW_SPACE = 0;
 #endif
 
+static const Xbyak::Reg8 GetHostReg8(HostReg reg)
+{
+  return Xbyak::Reg8(reg, reg >= Xbyak::Operand::SPL);
+}
+
+static const Xbyak::Reg16 GetHostReg16(HostReg reg)
+{
+  return Xbyak::Reg16(reg);
+}
+
+static const Xbyak::Reg32 GetHostReg32(HostReg reg)
+{
+  return Xbyak::Reg32(reg);
+}
+
+static const Xbyak::Reg64 GetHostReg64(HostReg reg)
+{
+  return Xbyak::Reg64(reg);
+}
+
 static const Xbyak::Reg64 GetCPUPtrReg()
 {
-  return Xbyak::Reg64(RCPUPTR);
+  return GetHostReg64(RCPUPTR);
+}
+
+const char* CodeGenerator::GetHostRegName(HostReg reg, OperandSize size /*= HostPointerSize*/)
+{
+  static constexpr std::array<const char*, HostReg_Count> reg8_names = {
+    {"al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil", "r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b"}};
+  static constexpr std::array<const char*, HostReg_Count> reg16_names = {
+    {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "r8w", "r9w", "r10w", "r11w", "r12w", "r13w", "r14w", "r15w"}};
+  static constexpr std::array<const char*, HostReg_Count> reg32_names = {{"eax", "ecx", "edx", "ebx", "esp", "ebp",
+                                                                          "esi", "edi", "r8d", "r9d", "r10d", "r11d",
+                                                                          "r12d", "r13d", "r14d", "r15d"}};
+  static constexpr std::array<const char*, HostReg_Count> reg64_names = {
+    {"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"}};
+  if (reg >= static_cast<HostReg>(HostReg_Count))
+    return "";
+
+  switch (size)
+  {
+    case OperandSize_8:
+      return reg8_names[reg];
+    case OperandSize_16:
+      return reg16_names[reg];
+    case OperandSize_32:
+      return reg32_names[reg];
+    case OperandSize_64:
+      return reg64_names[reg];
+    default:
+      return "";
+  }
 }
 
 void CodeGenerator::InitHostRegs()
 {
 #if defined(ABI_WIN64)
+  // TODO: function calls mess up the parameter registers if we use them.. fix it
   // allocate nonvolatile before volatile
   m_register_cache.SetHostRegAllocationOrder(
-    {Xbyak::Operand::RBX, /*Xbyak::Operand::RBP, */ Xbyak::Operand::RDI, Xbyak::Operand::RSI, Xbyak::Operand::RSP,
-     Xbyak::Operand::R12, Xbyak::Operand::R13, Xbyak::Operand::R14, Xbyak::Operand::R15, Xbyak::Operand::RCX,
-     Xbyak::Operand::RDX, Xbyak::Operand::R8, Xbyak::Operand::R9, Xbyak::Operand::R10, Xbyak::Operand::R11,
+    {Xbyak::Operand::RBX, /*Xbyak::Operand::RBP, */ Xbyak::Operand::RDI, Xbyak::Operand::RSI, /*Xbyak::Operand::RSP, */
+     Xbyak::Operand::R12, Xbyak::Operand::R13, Xbyak::Operand::R14, Xbyak::Operand::R15, /*Xbyak::Operand::RCX,
+     Xbyak::Operand::RDX, Xbyak::Operand::R8, Xbyak::Operand::R9, */Xbyak::Operand::R10, Xbyak::Operand::R11,
      /*Xbyak::Operand::RAX*/});
   m_register_cache.SetCallerSavedHostRegs({/*Xbyak::Operand::RAX,*/ Xbyak::Operand::RCX, Xbyak::Operand::RDX,
                                            Xbyak::Operand::R8, Xbyak::Operand::R9, Xbyak::Operand::R10,
@@ -41,7 +94,7 @@ void CodeGenerator::EmitBeginBlock()
 {
 #if defined(ABI_WIN64)
   m_emit.push(GetCPUPtrReg());
-  m_emit.mov(GetCPUPtrReg(), Xbyak::Reg64(RARG1));
+  m_emit.mov(GetCPUPtrReg(), GetHostReg64(RARG1));
 #else
 
 #endif
@@ -79,11 +132,10 @@ void CodeGenerator::EmitSignExtend(HostReg to_reg, OperandSize to_size, HostReg 
   {
     case OperandSize_16:
     {
-      const Xbyak::Reg16 dest(to_reg);
       switch (from_size)
       {
         case OperandSize_8:
-          m_emit.movsx(dest, Xbyak::Reg8(from_reg));
+          m_emit.movsx(GetHostReg16(to_reg), GetHostReg8(from_reg));
           return;
       }
     }
@@ -91,14 +143,13 @@ void CodeGenerator::EmitSignExtend(HostReg to_reg, OperandSize to_size, HostReg 
 
     case OperandSize_32:
     {
-      const Xbyak::Reg32 dest(to_reg);
       switch (from_size)
       {
         case OperandSize_8:
-          m_emit.movsx(dest, Xbyak::Reg8(from_reg));
+          m_emit.movsx(GetHostReg32(to_reg), GetHostReg8(from_reg));
           return;
         case OperandSize_16:
-          m_emit.movsx(dest, Xbyak::Reg16(from_reg));
+          m_emit.movsx(GetHostReg32(to_reg), GetHostReg16(from_reg));
           return;
       }
     }
@@ -114,11 +165,10 @@ void CodeGenerator::EmitZeroExtend(HostReg to_reg, OperandSize to_size, HostReg 
   {
     case OperandSize_16:
     {
-      const Xbyak::Reg16 dest(to_reg);
       switch (from_size)
       {
         case OperandSize_8:
-          m_emit.movzx(dest, Xbyak::Reg8(from_reg));
+          m_emit.movzx(GetHostReg16(to_reg), GetHostReg8(from_reg));
           return;
       }
     }
@@ -126,14 +176,13 @@ void CodeGenerator::EmitZeroExtend(HostReg to_reg, OperandSize to_size, HostReg 
 
     case OperandSize_32:
     {
-      const Xbyak::Reg32 dest(to_reg);
       switch (from_size)
       {
         case OperandSize_8:
-          m_emit.movzx(dest, Xbyak::Reg8(from_reg));
+          m_emit.movzx(GetHostReg32(to_reg), GetHostReg8(from_reg));
           return;
         case OperandSize_16:
-          m_emit.movzx(dest, Xbyak::Reg16(from_reg));
+          m_emit.movzx(GetHostReg32(to_reg), GetHostReg16(from_reg));
           return;
       }
     }
@@ -151,44 +200,153 @@ void CodeGenerator::EmitCopyValue(HostReg to_reg, const Value& value)
   {
     case OperandSize_8:
     {
-      const Xbyak::Reg8 dest(to_reg);
       if (value.IsConstant())
-        m_emit.mov(dest, value.constant_value);
+        m_emit.mov(GetHostReg8(to_reg), value.constant_value);
       else
-        m_emit.mov(dest, Xbyak::Reg8(value.host_reg));
+        m_emit.mov(GetHostReg8(to_reg), GetHostReg8(value.host_reg));
     }
     break;
 
     case OperandSize_16:
     {
-      const Xbyak::Reg16 dest(to_reg);
       if (value.IsConstant())
-        m_emit.mov(dest, value.constant_value);
+        m_emit.mov(GetHostReg16(to_reg), value.constant_value);
       else
-        m_emit.mov(dest, Xbyak::Reg16(value.host_reg));
+        m_emit.mov(GetHostReg16(to_reg), GetHostReg16(value.host_reg));
     }
     break;
 
     case OperandSize_32:
     {
-      const Xbyak::Reg32 dest(to_reg);
       if (value.IsConstant())
-        m_emit.mov(dest, value.constant_value);
+        m_emit.mov(GetHostReg32(to_reg), value.constant_value);
       else
-        m_emit.mov(dest, Xbyak::Reg32(value.host_reg));
+        m_emit.mov(GetHostReg32(to_reg), GetHostReg32(value.host_reg));
     }
     break;
 
     case OperandSize_64:
     {
-      const Xbyak::Reg64 dest(to_reg);
       if (value.IsConstant())
-        m_emit.mov(dest, value.constant_value);
+        m_emit.mov(GetHostReg64(to_reg), value.constant_value);
       else
-        m_emit.mov(dest, Xbyak::Reg64(value.host_reg));
+        m_emit.mov(GetHostReg64(to_reg), GetHostReg64(value.host_reg));
     }
     break;
   }
+}
+
+void CodeGenerator::EmitAdd(HostReg to_reg, const Value& value)
+{
+  DebugAssert(value.IsConstant() || value.IsInHostRegister());
+
+  switch (value.size)
+  {
+    case OperandSize_8:
+    {
+      if (value.IsConstant())
+        m_emit.add(GetHostReg8(to_reg), SignExtend32(Truncate8(value.constant_value)));
+      else
+        m_emit.add(GetHostReg8(to_reg), GetHostReg8(value.host_reg));
+    }
+    break;
+
+    case OperandSize_16:
+    {
+      if (value.IsConstant())
+        m_emit.add(GetHostReg16(to_reg), SignExtend32(Truncate16(value.constant_value)));
+      else
+        m_emit.add(GetHostReg16(to_reg), GetHostReg16(value.host_reg));
+    }
+    break;
+
+    case OperandSize_32:
+    {
+      if (value.IsConstant())
+        m_emit.add(GetHostReg32(to_reg), Truncate32(value.constant_value));
+      else
+        m_emit.add(GetHostReg32(to_reg), GetHostReg32(value.host_reg));
+    }
+    break;
+
+    case OperandSize_64:
+    {
+      if (value.IsConstant())
+      {
+        if (!Xbyak::inner::IsInInt32(value.constant_value))
+        {
+          Value temp = m_register_cache.AllocateScratch(OperandSize_64);
+          m_emit.mov(GetHostReg64(temp.host_reg), value.constant_value);
+          m_emit.add(GetHostReg64(to_reg), GetHostReg64(temp.host_reg));
+        }
+        else
+        {
+          m_emit.add(GetHostReg64(to_reg), Truncate32(value.constant_value));
+        }
+      }
+      else
+      {
+        m_emit.add(GetHostReg64(to_reg), GetHostReg64(value.host_reg));
+      }
+    }
+    break;
+  }
+}
+
+void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
+{
+  DebugAssert(value.IsConstant() || value.IsInHostRegister());
+
+  // We have to use CL for the shift amount :(
+  const bool save_cl = (!value.IsConstant() && m_register_cache.IsHostRegInUse(Xbyak::Operand::RCX) &&
+                        (!value.IsInHostRegister() || value.host_reg != Xbyak::Operand::RCX));
+  if (save_cl)
+    m_emit.push(m_emit.cl);
+
+  if (!value.IsConstant())
+    m_emit.mov(m_emit.cl, value.host_reg);
+
+  switch (value.size)
+  {
+    case OperandSize_8:
+    {
+      if (value.IsConstant())
+        m_emit.shl(GetHostReg8(to_reg), Truncate8(value.constant_value));
+      else
+        m_emit.shl(GetHostReg8(to_reg), m_emit.cl);
+    }
+    break;
+
+    case OperandSize_16:
+    {
+      if (value.IsConstant())
+        m_emit.shl(GetHostReg16(to_reg), Truncate8(value.constant_value));
+      else
+        m_emit.shl(GetHostReg16(to_reg), m_emit.cl);
+    }
+    break;
+
+    case OperandSize_32:
+    {
+      if (value.IsConstant())
+        m_emit.shl(GetHostReg32(to_reg), Truncate32(value.constant_value));
+      else
+        m_emit.shl(GetHostReg32(to_reg), m_emit.cl);
+    }
+    break;
+
+    case OperandSize_64:
+    {
+      if (value.IsConstant())
+        m_emit.shl(GetHostReg64(to_reg), Truncate32(value.constant_value));
+      else
+        m_emit.shl(GetHostReg64(to_reg), m_emit.cl);
+    }
+    break;
+  }
+
+  if (save_cl)
+    m_emit.pop(m_emit.cl);
 }
 
 void CodeGenerator::PrepareStackForCall(u32 num_parameters)
@@ -206,7 +364,7 @@ void CodeGenerator::PrepareStackForCall(u32 num_parameters)
 void CodeGenerator::RestoreStackAfterCall(u32 num_parameters)
 {
   const u32 num_callee_saved = m_register_cache.GetActiveCalleeSavedRegisterCount();
-  const u32 num_caller_saved = m_register_cache.PushCallerSavedRegisters();
+  const u32 num_caller_saved = m_register_cache.PopCallerSavedRegisters();
   const u32 current_offset = 8 + (num_callee_saved + num_caller_saved + num_parameters) * 8;
   const u32 aligned_offset = Common::AlignUp(current_offset + FUNCTION_CALL_SHADOW_SPACE, 16);
   const u32 adjust_size = aligned_offset - current_offset;
@@ -214,7 +372,7 @@ void CodeGenerator::RestoreStackAfterCall(u32 num_parameters)
     m_emit.add(m_emit.rsp, adjust_size);
 }
 
-void CodeGenerator::EmitFunctionCall(const void* ptr, const Value& arg1)
+void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1)
 {
   // we need a temporary for the function pointer
   const Value function_addr = m_register_cache.AllocateScratch(OperandSize_64);
@@ -233,17 +391,111 @@ void CodeGenerator::EmitFunctionCall(const void* ptr, const Value& arg1)
   // shadow space release
   RestoreStackAfterCall(1);
 
-  m_register_cache.PopCallerSavedRegisters();
+  // copy out return value if requested
+  if (return_value)
+  {
+    DebugAssert(return_value->IsInHostRegister());
+    EmitCopyValue(return_value->host_reg, Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
+  }
+}
+
+void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2)
+{
+  // we need a temporary for the function pointer
+  const Value function_addr = m_register_cache.AllocateScratch(OperandSize_64);
+  const Xbyak::Reg64 function_addr_reg(function_addr.host_reg);
+  m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
+
+  // shadow space allocate
+  PrepareStackForCall(3);
+
+  // push arguments
+  EmitCopyValue(RARG1, arg1);
+  EmitCopyValue(RARG2, arg2);
+
+  // actually call the function
+  m_emit.call(function_addr_reg);
+
+  // shadow space release
+  RestoreStackAfterCall(3);
+
+  // copy out return value if requested
+  if (return_value)
+  {
+    DebugAssert(return_value->IsInHostRegister());
+    EmitCopyValue(return_value->host_reg, Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
+  }
+}
+
+void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
+                                     const Value& arg3)
+{
+  // we need a temporary for the function pointer
+  const Value function_addr = m_register_cache.AllocateScratch(OperandSize_64);
+  const Xbyak::Reg64 function_addr_reg(function_addr.host_reg);
+  m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
+
+  // shadow space allocate
+  PrepareStackForCall(3);
+
+  // push arguments
+  EmitCopyValue(RARG1, arg1);
+  EmitCopyValue(RARG2, arg2);
+  EmitCopyValue(RARG3, arg3);
+
+  // actually call the function
+  m_emit.call(function_addr_reg);
+
+  // shadow space release
+  RestoreStackAfterCall(3);
+
+  // copy out return value if requested
+  if (return_value)
+  {
+    DebugAssert(return_value->IsInHostRegister());
+    EmitCopyValue(return_value->host_reg, Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
+  }
+}
+
+void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
+                                     const Value& arg3, const Value& arg4)
+{
+  // we need a temporary for the function pointer
+  const Value function_addr = m_register_cache.AllocateScratch(OperandSize_64);
+  const Xbyak::Reg64 function_addr_reg(function_addr.host_reg);
+  m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
+
+  // shadow space allocate
+  PrepareStackForCall(3);
+
+  // push arguments
+  EmitCopyValue(RARG1, arg1);
+  EmitCopyValue(RARG2, arg2);
+  EmitCopyValue(RARG3, arg3);
+  EmitCopyValue(RARG4, arg4);
+
+  // actually call the function
+  m_emit.call(function_addr_reg);
+
+  // shadow space release
+  RestoreStackAfterCall(3);
+
+  // copy out return value if requested
+  if (return_value)
+  {
+    DebugAssert(return_value->IsInHostRegister());
+    EmitCopyValue(return_value->host_reg, Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
+  }
 }
 
 void CodeGenerator::EmitPushHostReg(HostReg reg)
 {
-  m_emit.push(Xbyak::Reg64(reg));
+  m_emit.push(GetHostReg64(reg));
 }
 
 void CodeGenerator::EmitPopHostReg(HostReg reg)
 {
-  m_emit.pop(Xbyak::Reg64(reg));
+  m_emit.pop(GetHostReg64(reg));
 }
 
 void CodeGenerator::EmitLoadGuestRegister(HostReg host_reg, OperandSize guest_size, u8 guest_reg)
@@ -296,32 +548,20 @@ void CodeGenerator::EmitLoadCPUStructField(HostReg host_reg, OperandSize guest_s
   switch (guest_size)
   {
     case OperandSize_8:
-    {
-      const Xbyak::Reg8 dest_host_reg(host_reg);
-      m_emit.mov(dest_host_reg, m_emit.byte[GetCPUPtrReg() + offset]);
-    }
-    break;
+      m_emit.mov(GetHostReg8(host_reg), m_emit.byte[GetCPUPtrReg() + offset]);
+      break;
 
     case OperandSize_16:
-    {
-      const Xbyak::Reg16 dest_host_reg(host_reg);
-      m_emit.mov(dest_host_reg, m_emit.word[GetCPUPtrReg() + offset]);
-    }
-    break;
+      m_emit.mov(GetHostReg16(host_reg), m_emit.word[GetCPUPtrReg() + offset]);
+      break;
 
     case OperandSize_32:
-    {
-      const Xbyak::Reg32 dest_host_reg(host_reg);
-      m_emit.mov(dest_host_reg, m_emit.dword[GetCPUPtrReg() + offset]);
-    }
-    break;
+      m_emit.mov(GetHostReg32(host_reg), m_emit.dword[GetCPUPtrReg() + offset]);
+      break;
 
     case OperandSize_64:
-    {
-      const Xbyak::Reg64 dest_host_reg(host_reg);
-      m_emit.mov(dest_host_reg, m_emit.qword[GetCPUPtrReg() + offset]);
-    }
-    break;
+      m_emit.mov(GetHostReg64(host_reg), m_emit.qword[GetCPUPtrReg() + offset]);
+      break;
 
     default:
     {
@@ -341,7 +581,7 @@ void CodeGenerator::EmitStoreCPUStructField(u32 offset, const Value& value)
       if (value.IsConstant())
         m_emit.mov(m_emit.byte[GetCPUPtrReg() + offset], value.constant_value);
       else
-        m_emit.mov(m_emit.byte[GetCPUPtrReg() + offset], Xbyak::Reg8(value.host_reg));
+        m_emit.mov(m_emit.byte[GetCPUPtrReg() + offset], GetHostReg8(value.host_reg));
     }
     break;
 
@@ -350,7 +590,7 @@ void CodeGenerator::EmitStoreCPUStructField(u32 offset, const Value& value)
       if (value.IsConstant())
         m_emit.mov(m_emit.word[GetCPUPtrReg() + offset], value.constant_value);
       else
-        m_emit.mov(m_emit.word[GetCPUPtrReg() + offset], Xbyak::Reg16(value.host_reg));
+        m_emit.mov(m_emit.word[GetCPUPtrReg() + offset], GetHostReg16(value.host_reg));
     }
     break;
 
@@ -359,7 +599,7 @@ void CodeGenerator::EmitStoreCPUStructField(u32 offset, const Value& value)
       if (value.IsConstant())
         m_emit.mov(m_emit.dword[GetCPUPtrReg() + offset], value.constant_value);
       else
-        m_emit.mov(m_emit.dword[GetCPUPtrReg() + offset], Xbyak::Reg32(value.host_reg));
+        m_emit.mov(m_emit.dword[GetCPUPtrReg() + offset], GetHostReg32(value.host_reg));
     }
     break;
 
@@ -372,7 +612,7 @@ void CodeGenerator::EmitStoreCPUStructField(u32 offset, const Value& value)
         {
           Value temp = m_register_cache.AllocateScratch(OperandSize_64);
           EmitCopyValue(temp.host_reg, value);
-          m_emit.mov(m_emit.qword[GetCPUPtrReg() + offset], Xbyak::Reg64(temp.host_reg));
+          m_emit.mov(m_emit.qword[GetCPUPtrReg() + offset], GetHostReg64(temp.host_reg));
         }
         else
         {
@@ -381,7 +621,7 @@ void CodeGenerator::EmitStoreCPUStructField(u32 offset, const Value& value)
       }
       else
       {
-        m_emit.mov(m_emit.qword[GetCPUPtrReg() + offset], Xbyak::Reg64(value.host_reg));
+        m_emit.mov(m_emit.qword[GetCPUPtrReg() + offset], GetHostReg64(value.host_reg));
       }
     }
     break;
@@ -401,41 +641,51 @@ void CodeGenerator::EmitAddCPUStructField(u32 offset, const Value& value)
   {
     case OperandSize_8:
     {
-      if (value.IsConstant())
+      if (value.IsConstant() && value.constant_value == 1)
+        m_emit.inc(m_emit.byte[GetCPUPtrReg() + offset]);
+      else if (value.IsConstant())
         m_emit.add(m_emit.byte[GetCPUPtrReg() + offset], Truncate32(value.constant_value));
       else
-        m_emit.add(m_emit.byte[GetCPUPtrReg() + offset], Xbyak::Reg8(value.host_reg));
+        m_emit.add(m_emit.byte[GetCPUPtrReg() + offset], GetHostReg8(value.host_reg));
     }
     break;
 
     case OperandSize_16:
     {
-      if (value.IsConstant())
+      if (value.IsConstant() && value.constant_value == 1)
+        m_emit.inc(m_emit.word[GetCPUPtrReg() + offset]);
+      else if (value.IsConstant())
         m_emit.add(m_emit.word[GetCPUPtrReg() + offset], Truncate32(value.constant_value));
       else
-        m_emit.add(m_emit.word[GetCPUPtrReg() + offset], Xbyak::Reg16(value.host_reg));
+        m_emit.add(m_emit.word[GetCPUPtrReg() + offset], GetHostReg16(value.host_reg));
     }
     break;
 
     case OperandSize_32:
     {
-      if (value.IsConstant())
+      if (value.IsConstant() && value.constant_value == 1)
+        m_emit.inc(m_emit.dword[GetCPUPtrReg() + offset]);
+      else if (value.IsConstant())
         m_emit.add(m_emit.dword[GetCPUPtrReg() + offset], Truncate32(value.constant_value));
       else
-        m_emit.add(m_emit.dword[GetCPUPtrReg() + offset], Xbyak::Reg32(value.host_reg));
+        m_emit.add(m_emit.dword[GetCPUPtrReg() + offset], GetHostReg32(value.host_reg));
     }
     break;
 
     case OperandSize_64:
     {
-      if (value.IsConstant())
+      if (value.IsConstant() && value.constant_value == 1)
+      {
+        m_emit.inc(m_emit.qword[GetCPUPtrReg() + offset]);
+      }
+      else if (value.IsConstant())
       {
         // we need a temporary to load the value if it doesn't fit in 32-bits
         if (!Xbyak::inner::IsInInt32(value.constant_value))
         {
           Value temp = m_register_cache.AllocateScratch(OperandSize_64);
           EmitCopyValue(temp.host_reg, value);
-          m_emit.add(m_emit.qword[GetCPUPtrReg() + offset], Xbyak::Reg64(temp.host_reg));
+          m_emit.add(m_emit.qword[GetCPUPtrReg() + offset], GetHostReg64(temp.host_reg));
         }
         else
         {
@@ -444,7 +694,7 @@ void CodeGenerator::EmitAddCPUStructField(u32 offset, const Value& value)
       }
       else
       {
-        m_emit.add(m_emit.qword[GetCPUPtrReg() + offset], Xbyak::Reg64(value.host_reg));
+        m_emit.add(m_emit.qword[GetCPUPtrReg() + offset], GetHostReg64(value.host_reg));
       }
     }
     break;
@@ -456,11 +706,5 @@ void CodeGenerator::EmitAddCPUStructField(u32 offset, const Value& value)
     break;
   }
 }
-
-void CodeGenerator::EmitLoadGuestMemory(HostReg dest_reg, OperandSize size, const Value& address, Segment segment) {}
-
-void CodeGenerator::EmitStoreGuestMemory(const Value& value, const Value& address, Segment segment) {}
-
-
 
 } // namespace CPU_X86::Recompiler

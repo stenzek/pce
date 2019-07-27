@@ -18,6 +18,10 @@ using HostReg = Xbyak::Operand::Code;
 using CodeEmitter = Xbyak::CodeGenerator;
 constexpr u32 HostReg_Count = 16;
 constexpr OperandSize HostPointerSize = OperandSize_64;
+
+// A reasonable "maximum" number of bytes per instruction.
+constexpr u32 MaximumBytesPerInstruction = 128;
+
 #else
 using HostReg = void;
 using CodeEmitter = void;

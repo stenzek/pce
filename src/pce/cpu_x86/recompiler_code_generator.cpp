@@ -2,6 +2,7 @@
 #include "../system.h"
 #include "YBaseLib/Log.h"
 #include "debugger_interface.h"
+#include "decoder.h"
 #include "interpreter.h"
 Log_SetChannel(CPU_X86::Recompiler);
 
@@ -105,7 +106,13 @@ bool CodeGenerator::CompileBlock(const BlockBase* block, BlockFunctionType* out_
   const Instruction* instruction = m_block_start;
   while (instruction != m_block_end)
   {
-    if (!CompileInstruction(instruction))
+#ifndef Y_BUILD_CONFIG_RELEASE
+    SmallString disasm;
+    Decoder::DisassembleToString(instruction, &disasm);
+    Log_DebugPrintf("Compiling instruction '%08x: %s'", instruction->address, disasm.GetCharArray());
+#endif
+
+    if (!CompileInstruction(*instruction))
     {
       m_block_end = nullptr;
       m_block_start = nullptr;
@@ -117,10 +124,13 @@ bool CodeGenerator::CompileBlock(const BlockBase* block, BlockFunctionType* out_
   }
 
   // Re-sync instruction pointers.
+  m_register_cache.FlushAllGuestRegisters(true);
   SyncInstructionPointer();
   EmitEndBlock();
 
   FinalizeBlock(out_function_ptr, out_code_size);
+
+  DebugAssert(m_register_cache.GetUsedHostRegisters() == 0);
 
   m_block_end = nullptr;
   m_block_start = nullptr;
@@ -128,11 +138,30 @@ bool CodeGenerator::CompileBlock(const BlockBase* block, BlockFunctionType* out_
   return true;
 }
 
-bool CodeGenerator::CompileInstruction(const Instruction* instruction)
+bool CodeGenerator::CompileInstruction(const Instruction& instruction)
 {
-  bool result;
-  switch (instruction->operation)
+  if (IsInvalidInstruction(instruction))
   {
+    InstructionPrologue(instruction, true);
+    RaiseException(Interrupt_InvalidOpcode);
+    return true;
+  }
+
+  bool result;
+  switch (instruction.operation)
+  {
+    case Operation_NOP:
+      result = Compile_NOP(instruction);
+      break;
+
+    case Operation_LEA:
+      result = Compile_LEA(instruction);
+      break;
+
+    case Operation_MOV:
+      result = Compile_MOV(instruction);
+      break;
+
     default:
       result = Compile_Fallback(instruction);
       break;
@@ -140,7 +169,7 @@ bool CodeGenerator::CompileInstruction(const Instruction* instruction)
 
   // release temporary effective addresses
   for (Value& value : m_operand_memory_addresses)
-    value.Clear();
+    value.ReleaseAndClear();
 
   return result;
 }
@@ -204,28 +233,92 @@ Value CodeGenerator::ConvertValueSize(const Value& value, OperandSize size, bool
   return new_value;
 }
 
-void CodeGenerator::ConvertValueSizeInPlace(Value& value, OperandSize size, bool sign_extend)
+void CodeGenerator::ConvertValueSizeInPlace(Value* value, OperandSize size, bool sign_extend)
 {
   // We don't want to mess up the register cache value, so generate a new value if it's not scratch.
-  if (value.IsConstant() || !value.IsScratch())
+  if (value->IsConstant() || !value->IsScratch())
   {
-    value = ConvertValueSize(value, size, sign_extend);
+    *value = ConvertValueSize(*value, size, sign_extend);
     return;
   }
 
-  DebugAssert(value.IsInHostRegister() && value.IsScratch());
+  DebugAssert(value->IsInHostRegister() && value->IsScratch());
   if (sign_extend)
-    EmitSignExtend(value.host_reg, size, value.host_reg, value.size);
+    EmitSignExtend(value->host_reg, size, value->host_reg, value->size);
   else
-    EmitZeroExtend(value.host_reg, size, value.host_reg, value.size);
+    EmitZeroExtend(value->host_reg, size, value->host_reg, value->size);
 
-  value.size = size;
+  value->size = size;
 }
 
-Value CodeGenerator::ReadOperand(const Instruction* instruction, size_t index, OperandSize output_size,
+Value CodeGenerator::AddValues(const Value& lhs, const Value& rhs)
+{
+  DebugAssert(lhs.size == rhs.size);
+  if (lhs.IsConstant() && rhs.IsConstant())
+  {
+    // compile-time
+    u64 new_cv = lhs.constant_value + rhs.constant_value;
+    switch (lhs.size)
+    {
+      case OperandSize_8:
+        return Value::FromConstantU8(Truncate8(new_cv));
+
+      case OperandSize_16:
+        return Value::FromConstantU16(Truncate16(new_cv));
+
+      case OperandSize_32:
+        return Value::FromConstantU32(Truncate32(new_cv));
+
+      case OperandSize_64:
+        return Value::FromConstantU64(new_cv);
+
+      default:
+        return Value();
+    }
+  }
+
+  Value res = m_register_cache.AllocateScratch(lhs.size);
+  EmitCopyValue(res.host_reg, lhs);
+  EmitAdd(res.host_reg, rhs);
+  return res;
+}
+
+Value CodeGenerator::ShlValues(const Value& lhs, const Value& rhs)
+{
+  DebugAssert(lhs.size == rhs.size);
+  if (lhs.IsConstant() && rhs.IsConstant())
+  {
+    // compile-time
+    u64 new_cv = lhs.constant_value << rhs.constant_value;
+    switch (lhs.size)
+    {
+      case OperandSize_8:
+        return Value::FromConstantU8(Truncate8(new_cv));
+
+      case OperandSize_16:
+        return Value::FromConstantU16(Truncate16(new_cv));
+
+      case OperandSize_32:
+        return Value::FromConstantU32(Truncate32(new_cv));
+
+      case OperandSize_64:
+        return Value::FromConstantU64(new_cv);
+
+      default:
+        return Value();
+    }
+  }
+
+  Value res = m_register_cache.AllocateScratch(lhs.size);
+  EmitCopyValue(res.host_reg, lhs);
+  EmitShl(res.host_reg, rhs);
+  return res;
+}
+
+Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size,
                                  bool sign_extend)
 {
-  const Instruction::Operand* operand = &instruction->operands[index];
+  const Instruction::Operand* operand = &instruction.operands[index];
 
   auto MakeRegisterAccess = [&](uint32 reg) -> Value {
     switch (operand->size)
@@ -263,6 +356,21 @@ Value CodeGenerator::ReadOperand(const Instruction* instruction, size_t index, O
     }
   };
 
+  auto MakeMemoryAccess = [&]() -> Value {
+    // Memory stores can fault. Ensure all registers are flushed before.
+    m_register_cache.FlushAllGuestRegisters(false);
+
+    // we get the result back in eax, which we can use as a temporary.
+    Value val = m_register_cache.AllocateScratch(operand->size);
+    LoadSegmentMemory(&val, operand->size, m_operand_memory_addresses[index], instruction.GetMemorySegment());
+
+    // handle sign-extension
+    if (operand->size != output_size)
+      ConvertValueSizeInPlace(&val, output_size, sign_extend);
+
+    return val;
+  };
+
   switch (operand->mode)
   {
     case OperandMode_Immediate:
@@ -271,18 +379,18 @@ Value CodeGenerator::ReadOperand(const Instruction* instruction, size_t index, O
       {
         case OperandSize_8:
           DebugAssert(operand->size == OperandSize_8);
-          return Value::FromConstantU8(instruction->data.imm8);
+          return Value::FromConstantU8(instruction.data.imm8);
 
         case OperandSize_16:
         {
           switch (operand->size)
           {
             case OperandSize_8:
-              return Value::FromConstantU16(sign_extend ? SignExtend16(instruction->data.imm8) :
-                                                          ZeroExtend16(instruction->data.imm8));
+              return Value::FromConstantU16(sign_extend ? SignExtend16(instruction.data.imm8) :
+                                                          ZeroExtend16(instruction.data.imm8));
 
             default:
-              return Value::FromConstantU16(ZeroExtend16(instruction->data.imm16));
+              return Value::FromConstantU16(ZeroExtend16(instruction.data.imm16));
           }
         }
         break;
@@ -291,15 +399,15 @@ Value CodeGenerator::ReadOperand(const Instruction* instruction, size_t index, O
           switch (operand->size)
           {
             case OperandSize_8:
-              return Value::FromConstantU32(sign_extend ? SignExtend32(instruction->data.imm8) :
-                                                          ZeroExtend32(instruction->data.imm8));
+              return Value::FromConstantU32(sign_extend ? SignExtend32(instruction.data.imm8) :
+                                                          ZeroExtend32(instruction.data.imm8));
 
             case OperandSize_16:
-              return Value::FromConstantU32(sign_extend ? SignExtend32(instruction->data.imm16) :
-                                                          ZeroExtend32(instruction->data.imm16));
+              return Value::FromConstantU32(sign_extend ? SignExtend32(instruction.data.imm16) :
+                                                          ZeroExtend32(instruction.data.imm16));
 
             default:
-              return Value::FromConstantU32(ZeroExtend32(instruction->data.imm32));
+              return Value::FromConstantU32(ZeroExtend32(instruction.data.imm32));
           }
         }
         break;
@@ -325,25 +433,17 @@ Value CodeGenerator::ReadOperand(const Instruction* instruction, size_t index, O
     }
 
     case OperandMode_Memory:
+      return MakeMemoryAccess();
+
+    case OperandMode_ModRM_Reg:
+      return MakeRegisterAccess(instruction.GetModRM_Reg());
+
     case OperandMode_ModRM_RM:
     {
-      if (operand->mode == OperandMode_ModRM_RM && instruction->ModRM_RM_IsReg())
-        return MakeRegisterAccess(instruction->data.modrm_rm_register);
-
-      // Memory loads can fault. Ditch all the cached registers so we don't need to push them.
-      // The effective address should remain..
-      m_register_cache.FlushAllGuestRegisters(false);
-
-      // we get the result back in eax, which we can use as a temporary.
-      Value val = m_register_cache.AllocateScratch(operand->size);
-      EmitLoadGuestMemory(val.host_reg, operand->size, m_operand_memory_addresses[index],
-                          instruction->GetMemorySegment());
-
-      // handle sign-extension
-      if (operand->size != output_size)
-        ConvertValueSizeInPlace(val, output_size, sign_extend);
-
-      return val;
+      const Decoder::ModRMAddress* modrm =
+        Decoder::DecodeModRMAddress(instruction.GetAddressSize(), instruction.data.modrm);
+      return (modrm->addressing_mode == ModRMAddressingMode::Register) ? MakeRegisterAccess(modrm->base_register) :
+                                                                         MakeMemoryAccess();
     }
 
     default:
@@ -354,172 +454,184 @@ Value CodeGenerator::ReadOperand(const Instruction* instruction, size_t index, O
   return Value{};
 }
 
-void CodeGenerator::WriteOperand(const Instruction* instruction, size_t index, Value&& value)
+void CodeGenerator::WriteOperand(const Instruction& instruction, size_t index, Value&& value)
 {
-  const Instruction::Operand* operand = &instruction->operands[index];
+  const Instruction::Operand* operand = &instruction.operands[index];
+  auto MakeRegisterAccess = [&](u32 reg) {
+    switch (operand->size)
+    {
+      case OperandSize_8:
+        m_register_cache.WriteGuestRegister(static_cast<Reg8>(reg), std::move(value));
+        break;
+      case OperandSize_16:
+        m_register_cache.WriteGuestRegister(static_cast<Reg16>(reg), std::move(value));
+        break;
+      case OperandSize_32:
+        m_register_cache.WriteGuestRegister(static_cast<Reg32>(reg), std::move(value));
+        break;
+      default:
+        break;
+    }
+  };
+
+  auto MakeMemoryAccess = [&]() {
+    // Memory stores can fault. Ensure all registers are flushed before.
+    m_register_cache.FlushAllGuestRegisters(false);
+    StoreSegmentMemory(value, m_operand_memory_addresses[index], instruction.GetMemorySegment());
+  };
+
   switch (operand->mode)
   {
     case OperandMode_Register:
+      MakeRegisterAccess(static_cast<u32>(operand->reg32));
+      break;
+
+    case OperandMode_Memory:
+      MakeMemoryAccess();
+      break;
+
+    case OperandMode_ModRM_Reg:
+      MakeRegisterAccess(instruction.GetModRM_Reg());
+      break;
+
+    case OperandMode_ModRM_RM:
     {
-      switch (operand->size)
+      const Decoder::ModRMAddress* modrm =
+        Decoder::DecodeModRMAddress(instruction.GetAddressSize(), instruction.data.modrm);
+      if (modrm->addressing_mode == ModRMAddressingMode::Register)
+        MakeRegisterAccess(modrm->base_register);
+      else
+        MakeMemoryAccess();
+    }
+    break;
+
+    default:
+      Panic("Unhandled operand mode");
+      break;
+  }
+}
+
+void CodeGenerator::CalculateEffectiveAddress(const Instruction& instruction)
+{
+  for (size_t i = 0; i < countof(instruction.operands); i++)
+  {
+    m_operand_memory_addresses[i] = CalculateOperandMemoryAddress(instruction, i);
+    if (m_operand_memory_addresses[i].IsValid() && m_operand_memory_addresses[i].size != OperandSize_32)
+      ConvertValueSizeInPlace(&m_operand_memory_addresses[i], OperandSize_32, false);
+  }
+}
+
+Value CodeGenerator::CalculateOperandMemoryAddress(const Instruction& instruction, size_t index)
+{
+  const Instruction::Operand& operand = instruction.operands[index];
+  switch (operand.mode)
+  {
+    case OperandMode_Memory:
+    {
+      return instruction.Is32BitAddressSize() ? Value::FromConstantU32(instruction.data.disp32) :
+                                                Value::FromConstantU16(instruction.data.disp16);
+    }
+
+    case OperandMode_ModRM_RM:
+    {
+      const Decoder::ModRMAddress* modrm =
+        Decoder::DecodeModRMAddress(instruction.GetAddressSize(), instruction.data.modrm);
+      switch (modrm->addressing_mode)
       {
-        case OperandSize_8:
-          m_register_cache.WriteGuestRegister(operand->reg8, std::move(value));
-          return;
-        case OperandSize_16:
-          m_register_cache.WriteGuestRegister(operand->reg16, std::move(value));
-          return;
-        case OperandSize_32:
-          m_register_cache.WriteGuestRegister(operand->reg32, std::move(value));
-          return;
+        case ModRMAddressingMode::Direct:
+        {
+          return instruction.Is32BitAddressSize() ? Value::FromConstantU32(instruction.data.disp32) :
+                                                    Value::FromConstantU16(instruction.data.disp16);
+        }
+
+        case ModRMAddressingMode::Indirect:
+        {
+          return instruction.Is32BitAddressSize() ?
+                   m_register_cache.ReadGuestRegister(static_cast<Reg32>(modrm->base_register)) :
+                   m_register_cache.ReadGuestRegister(static_cast<Reg16>(modrm->base_register));
+        }
+
+        case ModRMAddressingMode::Indexed:
+        {
+          Value base_reg = instruction.Is32BitAddressSize() ?
+                             m_register_cache.ReadGuestRegister(static_cast<Reg32>(modrm->base_register)) :
+                             m_register_cache.ReadGuestRegister(static_cast<Reg16>(modrm->base_register));
+          Value displacement = instruction.Is32BitAddressSize() ? Value::FromConstantU32(instruction.data.disp32) :
+                                                                  Value::FromConstantU16(instruction.data.disp16);
+          return AddValues(std::move(base_reg), std::move(displacement));
+        }
+
+        case ModRMAddressingMode::BasedIndexed:
+        {
+          Value base_reg = instruction.Is32BitAddressSize() ?
+                             m_register_cache.ReadGuestRegister(static_cast<Reg32>(modrm->base_register)) :
+                             m_register_cache.ReadGuestRegister(static_cast<Reg16>(modrm->base_register));
+          Value index_reg = instruction.Is32BitAddressSize() ?
+                              m_register_cache.ReadGuestRegister(static_cast<Reg32>(modrm->index_register)) :
+                              m_register_cache.ReadGuestRegister(static_cast<Reg16>(modrm->index_register));
+          return AddValues(std::move(base_reg), std::move(index_reg));
+        }
+
+        case ModRMAddressingMode::BasedIndexedDisplacement:
+        {
+          Value base_reg = instruction.Is32BitAddressSize() ?
+                             m_register_cache.ReadGuestRegister(static_cast<Reg32>(modrm->base_register)) :
+                             m_register_cache.ReadGuestRegister(static_cast<Reg16>(modrm->base_register));
+          Value index_reg = instruction.Is32BitAddressSize() ?
+                              m_register_cache.ReadGuestRegister(static_cast<Reg32>(modrm->index_register)) :
+                              m_register_cache.ReadGuestRegister(static_cast<Reg16>(modrm->index_register));
+          Value displacement = instruction.Is32BitAddressSize() ? Value::FromConstantU32(instruction.data.disp32) :
+                                                                  Value::FromConstantU16(instruction.data.disp16);
+          return AddValues(AddValues(std::move(base_reg), std::move(index_reg)), std::move(displacement));
+        }
+        break;
+
+        case ModRMAddressingMode::SIB:
+        {
+          if (instruction.HasSIBBase())
+          {
+            Value val = m_register_cache.ReadGuestRegister(instruction.GetSIBBaseRegister());
+            if (instruction.HasSIBIndex())
+            {
+              Value sib_index = m_register_cache.ReadGuestRegister(instruction.GetSIBIndexRegister());
+              if (instruction.GetSIBScaling() != 0)
+                sib_index = ShlValues(std::move(sib_index), Value::FromConstantU32(instruction.data.GetSIBScaling()));
+
+              val = AddValues(std::move(val), std::move(sib_index));
+            }
+            if (instruction.data.disp32 != 0)
+              val = AddValues(std::move(val), Value::FromConstantU32(instruction.data.disp32));
+
+            return val;
+          }
+          else if (instruction.HasSIBIndex())
+          {
+            Value val = m_register_cache.ReadGuestRegister(instruction.GetSIBIndexRegister());
+            if (instruction.GetSIBScaling() != 0)
+              val = ShlValues(std::move(val), Value::FromConstantU32(instruction.data.GetSIBScaling()));
+
+            if (instruction.data.disp32 != 0)
+              val = AddValues(std::move(val), Value::FromConstantU32(instruction.data.disp32));
+
+            return val;
+          }
+          else
+          {
+            return Value::FromConstantU32(instruction.data.disp32);
+          }
+        }
+        break;
+
+        case ModRMAddressingMode::Register:
         default:
           break;
       }
     }
-    break;
 
-    case OperandMode_Memory:
-    case OperandMode_ModRM_RM:
-    {
-      if (operand->mode == OperandMode_ModRM_RM && instruction->ModRM_RM_IsReg())
-      {
-        switch (operand->size)
-        {
-          case OperandSize_8:
-            m_register_cache.WriteGuestRegister(static_cast<Reg8>(instruction->data.modrm_rm_register),
-                                                std::move(value));
-            break;
-          case OperandSize_16:
-            m_register_cache.WriteGuestRegister(static_cast<Reg16>(instruction->data.modrm_rm_register),
-                                                std::move(value));
-            break;
-          case OperandSize_32:
-            m_register_cache.WriteGuestRegister(static_cast<Reg32>(instruction->data.modrm_rm_register),
-                                                std::move(value));
-            break;
-          default:
-            break;
-        }
-        return;
-      }
-
-      // Memory writes can fault. Ditch all cached registers before continuing.
-      m_register_cache.FlushAllGuestRegisters(false);
-      EmitStoreGuestMemory(value, m_operand_memory_addresses[index], instruction->GetMemorySegment());
-      return;
-    }
+    default:
+      break;
   }
 
-  Panic("Unhandled operand mode");
-}
-
-void CodeGenerator::CalculateEffectiveAddress(const Instruction* instruction)
-{
-  for (size_t i = 0; i < countof(instruction->operands); i++)
-    m_operand_memory_addresses[i] = CalculateOperandMemoryAddress(instruction, i);
-}
-
-Value CodeGenerator::CalculateOperandMemoryAddress(const Instruction* instruction, size_t index)
-{
-#if 0
-  for (size_t i = 0; i < countof(instruction->operands); i++)
-  {
-    const Instruction::Operand* operand = &instruction->operands[i];
-    switch (operand->mode)
-    {
-      case AddressingMode_RegisterIndirect:
-        {
-          if (instruction->GetAddressSize() == AddressSize_16)
-            movzx(READDR32, word[RCPUPTR + CalculateRegisterOffset(operand->reg.reg16)]);
-          else
-            mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->reg.reg32)]);
-        }
-        break;
-      case AddressingMode_Indexed:
-        {
-          if (instruction->GetAddressSize() == AddressSize_16)
-          {
-            mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->indexed.reg.reg16)]);
-            if (operand->indexed.displacement != 0)
-              add(READDR16, uint32(operand->indexed.displacement));
-            movzx(READDR32, READDR16);
-          }
-          else
-          {
-            mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->indexed.reg.reg32)]);
-            if (operand->indexed.displacement != 0)
-              add(READDR32, uint32(operand->indexed.displacement));
-          }
-        }
-        break;
-      case AddressingMode_BasedIndexed:
-        {
-          if (instruction->GetAddressSize() == AddressSize_16)
-          {
-            mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.base.reg16)]);
-            add(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.index.reg16)]);
-            movzx(READDR32, READDR16);
-          }
-          else
-          {
-            mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.base.reg32)]);
-            add(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed.index.reg32)]);
-          }
-        }
-        break;
-      case AddressingMode_BasedIndexedDisplacement:
-        {
-          if (instruction->GetAddressSize() == AddressSize_16)
-          {
-            mov(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.base.reg16)]);
-            add(READDR16, word[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.index.reg16)]);
-            if (operand->based_indexed_displacement.displacement != 0)
-              add(READDR16, uint32(operand->based_indexed_displacement.displacement));
-            movzx(READDR32, READDR16);
-          }
-          else
-          {
-            mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.base.reg32)]);
-            add(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->based_indexed_displacement.index.reg32)]);
-            if (operand->based_indexed_displacement.displacement != 0)
-              add(READDR32, uint32(operand->based_indexed_displacement.displacement));
-          }
-        }
-        break;
-      case AddressingMode_SIB:
-        {
-          Assert(instruction->GetAddressSize() == AddressSize_32);
-          if (operand->sib.index.reg32 != Reg32_Count)
-          {
-            // This one is implemented in reverse, but should evaluate to the same results. This way we don't need a
-            // temporary.
-            mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->sib.index.reg32)]);
-            shl(READDR32, operand->sib.scale_shift);
-            if (operand->sib.base.reg32 != Reg32_Count)
-              add(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->sib.base.reg32)]);
-            if (operand->sib.displacement != 0)
-              add(READDR32, uint32(operand->sib.displacement));
-          }
-          else if (operand->sib.base.reg32 != Reg32_Count)
-          {
-            // No index.
-            mov(READDR32, dword[RCPUPTR + CalculateRegisterOffset(operand->sib.base.reg32)]);
-            if (operand->sib.displacement != 0)
-              add(READDR32, uint32(operand->sib.displacement));
-          }
-          else
-          {
-            // No base.
-            if (operand->sib.displacement == 0)
-              xor (READDR32, READDR32);
-            else
-              mov(READDR32, uint32(operand->sib.displacement));
-          }
-        }
-        break;
-    }
-  }
-#endif
   return Value();
 }
 
@@ -546,13 +658,90 @@ uint32 CodeGenerator::GetConstantOperand(const Instruction* instruction, size_t 
   }
 }
 
-void CodeGenerator::EmitInstructionPrologue(const Instruction* instruction, bool force_sync /* = false */)
+void CodeGenerator::LoadSegmentMemory(Value* dest_value, OperandSize size, const Value& address, Segment segment)
 {
-  if (!CanInstructionFault(instruction) && !force_sync)
+  DebugAssert(address.size == OperandSize_32);
+  switch (size)
+  {
+    case OperandSize_8:
+      EmitFunctionCall(dest_value, &Thunks::ReadSegmentMemoryByte, m_register_cache.GetCPUPtr(),
+                       Value::FromConstantU32(static_cast<u32>(segment)), address);
+      break;
+    case OperandSize_16:
+      EmitFunctionCall(dest_value, &Thunks::ReadSegmentMemoryWord, m_register_cache.GetCPUPtr(),
+                       Value::FromConstantU32(static_cast<u32>(segment)), address);
+      break;
+    case OperandSize_32:
+      EmitFunctionCall(dest_value, &Thunks::ReadSegmentMemoryDWord, m_register_cache.GetCPUPtr(),
+                       Value::FromConstantU32(static_cast<u32>(segment)), address);
+      break;
+    default:
+      break;
+  }
+}
+
+void CodeGenerator::StoreSegmentMemory(const Value& value, const Value& address, Segment segment)
+{
+  if (value.IsConstant())
+  {
+    if (address.IsConstant())
+    {
+      Log_DebugPrintf("Store constant value %08X to constant address %08X", Truncate32(value.constant_value),
+                      Truncate32(address.constant_value));
+    }
+    else
+    {
+      Log_DebugPrintf("Store constant value %08X to address in register %s", Truncate32(value.constant_value),
+                      GetHostRegName(address.host_reg));
+    }
+  }
+  else
+  {
+    if (address.IsConstant())
+    {
+      Log_DebugPrintf("Store register %s to constant address %08X", GetHostRegName(value.host_reg),
+                      Truncate32(address.constant_value));
+    }
+    else
+    {
+      Log_DebugPrintf("Store register %s to address in register %s", GetHostRegName(value.host_reg),
+                      GetHostRegName(address.host_reg));
+    }
+  }
+
+  DebugAssert(address.size == OperandSize_32);
+  switch (value.size)
+  {
+    case OperandSize_8:
+      EmitFunctionCall(nullptr, &Thunks::WriteSegmentMemoryByte, m_register_cache.GetCPUPtr(),
+                       Value::FromConstantU32(static_cast<u32>(segment)), address, value);
+      break;
+    case OperandSize_16:
+      EmitFunctionCall(nullptr, &Thunks::WriteSegmentMemoryWord, m_register_cache.GetCPUPtr(),
+                       Value::FromConstantU32(static_cast<u32>(segment)), address, value);
+      break;
+    case OperandSize_32:
+      EmitFunctionCall(nullptr, &Thunks::WriteSegmentMemoryDWord, m_register_cache.GetCPUPtr(),
+                       Value::FromConstantU32(static_cast<u32>(segment)), address, value);
+      break;
+    default:
+      break;
+  }
+}
+
+void CodeGenerator::RaiseException(u32 exception, const Value& ec /*= Value::FromConstantU32(0)*/)
+{
+  EmitFunctionCall(nullptr, &Thunks::RaiseException, m_register_cache.GetCPUPtr(), Value::FromConstantU32(exception),
+                   ec);
+}
+
+void CodeGenerator::InstructionPrologue(const Instruction& instruction, bool force_sync /* = false */)
+{
+  if (!CanInstructionFault(&instruction) && !force_sync)
   {
     // Defer updates for non-faulting instructions.
-    m_delayed_eip_add += instruction->length;
-    m_delayed_current_eip_add += instruction->length;
+    m_delayed_eip_add += instruction.length;
+    m_delayed_current_eip_add += instruction.length;
     m_delayed_cycles_add++;
     return;
   }
@@ -564,21 +753,23 @@ void CodeGenerator::EmitInstructionPrologue(const Instruction* instruction, bool
       EmitAddCPUStructField(offsetof(CPU, m_current_EIP), Value::FromConstantU32(m_delayed_current_eip_add));
 
     EmitAddCPUStructField(offsetof(CPU, m_registers.EIP),
-                          Value::FromConstantU32(m_delayed_eip_add + instruction->length));
+                          Value::FromConstantU32(m_delayed_eip_add + instruction.length));
   }
   else
   {
     if (m_delayed_current_eip_add > 0)
     {
-      EmitAddCPUStructField(offsetof(CPU, m_current_EIP), Value::FromConstantU16(Truncate16(m_delayed_current_eip_add)));
+      EmitAddCPUStructField(offsetof(CPU, m_current_EIP),
+                            Value::FromConstantU16(Truncate16(m_delayed_current_eip_add)));
     }
 
     EmitAddCPUStructField(offsetof(CPU, m_registers.EIP),
-                          Value::FromConstantU16(Truncate16(m_delayed_eip_add + instruction->length)));
+                          Value::FromConstantU16(Truncate16(m_delayed_eip_add + instruction.length)));
   }
 
   // Delay the add to current_EIP until the next instruction.
-  m_delayed_current_eip_add = instruction->length;
+  m_delayed_eip_add = 0;
+  m_delayed_current_eip_add = instruction.length;
 
   // Add pending cycles for this instruction.
   EmitAddCPUStructField(offsetof(CPU, m_pending_cycles), Value::FromConstantU64(m_delayed_cycles_add + 1));
@@ -618,21 +809,21 @@ void CodeGenerator::SyncCurrentESP()
   EmitStoreCPUStructField(offsetof(CPU, m_current_ESP), m_register_cache.ReadGuestRegister(Reg32_ESP, false));
 }
 
-bool CodeGenerator::Compile_Fallback(const Instruction* instruction)
+bool CodeGenerator::Compile_Fallback(const Instruction& instruction)
 {
-  EmitInstructionPrologue(instruction, true);
+  InstructionPrologue(instruction, true);
 
   // flush and invalidate all guest registers, since the fallback could change any of them
   m_register_cache.FlushAllGuestRegisters(true);
 
   // set up the instruction data
-  EmitStoreCPUStructField(offsetof(CPU, idata.bits64[0]), Value::FromConstantU64(instruction->data.bits64[0]));
-  EmitStoreCPUStructField(offsetof(CPU, idata.bits64[1]), Value::FromConstantU64(instruction->data.bits64[1]));
+  EmitStoreCPUStructField(offsetof(CPU, idata.bits64[0]), Value::FromConstantU64(instruction.data.bits64[0]));
+  EmitStoreCPUStructField(offsetof(CPU, idata.bits64[1]), Value::FromConstantU64(instruction.data.bits64[1]));
 
   // emit the function call
-  Interpreter::HandlerFunction handler = Interpreter::GetInterpreterHandlerForInstruction(instruction);
+  Interpreter::HandlerFunction handler = Interpreter::GetInterpreterHandlerForInstruction(&instruction);
   DebugAssert(handler);
-  EmitFunctionCall(handler, m_register_cache.GetCPUPtr());
+  EmitFunctionCall(nullptr, handler, m_register_cache.GetCPUPtr());
 
   // assume any instruction can manipulate esp
   SyncCurrentESP();
@@ -640,20 +831,32 @@ bool CodeGenerator::Compile_Fallback(const Instruction* instruction)
   return true;
 }
 
-bool CodeGenerator::Compile_NOP(const Instruction* instruction)
+bool CodeGenerator::Compile_NOP(const Instruction& instruction)
 {
-  EmitInstructionPrologue(instruction);
+  InstructionPrologue(instruction);
   return true;
 }
 
-bool CodeGenerator::Compile_LEA(const Instruction* instruction)
+bool CodeGenerator::Compile_LEA(const Instruction& instruction)
 {
-  return false;
+  InstructionPrologue(instruction);
+  CalculateEffectiveAddress(instruction);
+  WriteOperand(instruction, 0, std::move(m_operand_memory_addresses[1]));
+  return true;
 }
 
-bool CodeGenerator::Compile_MOV(const Instruction* instruction)
+bool CodeGenerator::Compile_MOV(const Instruction& instruction)
 {
-  return false;
+  DebugAssert(instruction.operands[0].size == instruction.operands[1].size);
+
+  InstructionPrologue(instruction);
+  CalculateEffectiveAddress(instruction);
+  WriteOperand(instruction, 0, ReadOperand(instruction, 1, instruction.operands[1].size, false));
+
+  if (OperandIsESP(&instruction, instruction.operands[0]))
+    SyncCurrentESP();
+
+  return true;
 }
 
 } // namespace CPU_X86::Recompiler

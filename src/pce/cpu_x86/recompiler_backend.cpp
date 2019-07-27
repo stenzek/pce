@@ -167,6 +167,7 @@ void Backend::FlushCodeCache()
     FlushBlock(m_current_block, true);
 
   CodeCacheBackend::FlushCodeCache();
+  m_code_space->Reset();
 }
 
 BlockBase* Backend::AllocateBlock(const BlockKey key)
@@ -180,6 +181,14 @@ bool Backend::CompileBlock(BlockBase* block)
     return false;
 
   Block* cblock = static_cast<Block*>(block);
+  if (m_code_space->GetFreeCodeSpace() < (cblock->instructions.size() * MaximumBytesPerInstruction))
+  {
+    Log_WarningPrintf("Code space is possibly insufficient for block %08X (%zu instructions), flushing",
+                      cblock->GetPhysicalAddress(), cblock->instructions.size());
+    m_code_buffer_overflow = true;
+    return false;
+  }
+
   CodeGenerator codegen(m_code_space.get());
   if (!codegen.CompileBlock(block, &cblock->code_pointer, &cblock->code_size))
   {
