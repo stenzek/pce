@@ -10,7 +10,7 @@
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
 #include "pce/cpu_x86/interpreter_backend.h"
-#include "pce/cpu_x86/jitx64_backend.h"
+#include "pce/cpu_x86/recompiler_backend.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 #include <cctype>
@@ -491,7 +491,7 @@ void CPU::CreateBackend()
 
 #if defined(Y_CPU_X64)
     case BackendType::Recompiler:
-      m_backend = std::make_unique<JitX64Backend>(this);
+      m_backend = std::make_unique<Recompiler::Backend>(this);
       break;
 #endif
 

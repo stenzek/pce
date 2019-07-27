@@ -1,27 +1,28 @@
-#include "cached_interpreter_backend.h"
+#include "recompiler_backend.h"
 #include "../bus.h"
 #include "../system.h"
 #include "YBaseLib/Log.h"
 #include "debugger_interface.h"
 #include "decoder.h"
 #include "interpreter.h"
-Log_SetChannel(CPU_X86::CachedInterpreterBackend);
+#include "recompiler_code_generator.h"
+Log_SetChannel(CPU_X86::Recompiler);
 
-namespace CPU_X86 {
+namespace CPU_X86::Recompiler {
 
 extern bool TRACE_EXECUTION;
 extern u32 TRACE_EXECUTION_LAST_EIP;
 
-CachedInterpreterBackend::CachedInterpreterBackend(CPU* cpu) : CodeCacheBackend(cpu) {}
+Backend::Backend(CPU* cpu) : CodeCacheBackend(cpu), m_code_space(std::make_unique<JitCodeBuffer>()) {}
 
-CachedInterpreterBackend::~CachedInterpreterBackend() {}
+Backend::~Backend() {}
 
-void CachedInterpreterBackend::Reset()
+void Backend::Reset()
 {
   CodeCacheBackend::Reset();
 }
 
-void CachedInterpreterBackend::Execute()
+void Backend::Execute()
 {
   BlockKey key;
 
@@ -42,6 +43,15 @@ void CachedInterpreterBackend::Execute()
 
     while (m_cpu->m_execution_downcount > 0)
     {
+      // Block flush pending?
+      if (m_code_buffer_overflow)
+      {
+        Log_ErrorPrint("Out of code space, flushing all blocks.");
+        m_code_buffer_overflow = false;
+        m_current_block = nullptr;
+        FlushCodeCache();
+      }
+
       // Check for external interrupts.
       if (m_cpu->HasExternalInterrupt())
       {
@@ -121,13 +131,13 @@ void CachedInterpreterBackend::Execute()
 
     // Current block should be cleared after executing, in case of external reset.
     m_current_block = nullptr;
-    
+
     // Run pending events.
     m_system->RunEvents();
   }
 }
 
-void CachedInterpreterBackend::AbortCurrentInstruction()
+void Backend::AbortCurrentInstruction()
 {
   // Since we won't return to the dispatcher, clean up the block here.
   if (m_current_block && m_current_block->IsDestroyPending())
@@ -140,17 +150,17 @@ void CachedInterpreterBackend::AbortCurrentInstruction()
   fastjmp_jmp(&m_jmp_buf);
 }
 
-void CachedInterpreterBackend::BranchTo(u32 new_EIP)
+void Backend::BranchTo(u32 new_EIP)
 {
   CodeCacheBackend::BranchTo(new_EIP);
 }
 
-void CachedInterpreterBackend::BranchFromException(u32 new_EIP)
+void Backend::BranchFromException(u32 new_EIP)
 {
   CodeCacheBackend::BranchFromException(new_EIP);
 }
 
-void CachedInterpreterBackend::FlushCodeCache()
+void Backend::FlushCodeCache()
 {
   // Prevent the current block from being flushed.
   if (m_current_block)
@@ -159,43 +169,36 @@ void CachedInterpreterBackend::FlushCodeCache()
   CodeCacheBackend::FlushCodeCache();
 }
 
-BlockBase* CachedInterpreterBackend::AllocateBlock(const BlockKey key)
+BlockBase* Backend::AllocateBlock(const BlockKey key)
 {
   return new Block(key);
 }
 
-bool CachedInterpreterBackend::CompileBlock(BlockBase* block)
+bool Backend::CompileBlock(BlockBase* block)
 {
   if (!CompileBlockBase(block))
     return false;
 
   Block* cblock = static_cast<Block*>(block);
-  cblock->entries.reserve(cblock->instructions.size());
-  for (const Instruction& instruction : cblock->instructions)
+  CodeGenerator codegen(m_code_space.get());
+  if (!codegen.CompileBlock(block, &cblock->code_pointer, &cblock->code_size))
   {
-    auto handler = Interpreter::GetInterpreterHandlerForInstruction(&instruction);
-    if (!handler)
-    {
-      String disassembled;
-      Decoder::DisassembleToString(&instruction, &disassembled);
-      Log_ErrorPrintf("Failed to get handler for instruction '%s'", disassembled.GetCharArray());
-      return false;
-    }
-
-    cblock->entries.push_back({handler, instruction.data, static_cast<u8>(instruction.length)});
+    Log_WarningPrintf("Failed to compile block at paddr %08X", block->key.eip_physical_address);
+    return false;
   }
 
   return true;
 }
 
-void CachedInterpreterBackend::ResetBlock(BlockBase* block)
+void Backend::ResetBlock(BlockBase* block)
 {
   Block* cblock = static_cast<Block*>(block);
   CodeCacheBackend::ResetBlock(cblock);
-  cblock->entries.clear();
+  cblock->code_pointer = nullptr;
+  cblock->code_size = 0;
 }
 
-void CachedInterpreterBackend::FlushBlock(BlockBase* block, bool defer_destroy /* = false */)
+void Backend::FlushBlock(BlockBase* block, bool defer_destroy /* = false */)
 {
   // Defer flush to after execution.
   if (m_current_block == block)
@@ -204,33 +207,16 @@ void CachedInterpreterBackend::FlushBlock(BlockBase* block, bool defer_destroy /
   CodeCacheBackend::FlushBlock(block, defer_destroy);
 }
 
-void CachedInterpreterBackend::DestroyBlock(BlockBase* block)
+void Backend::DestroyBlock(BlockBase* block)
 {
   delete static_cast<Block*>(block);
 }
 
-void CachedInterpreterBackend::ExecuteBlock()
+void Backend::ExecuteBlock()
 {
   m_cpu->m_execution_stats.code_cache_blocks_executed++;
-  m_cpu->m_execution_stats.code_cache_instructions_executed += m_current_block->entries.size();
-  for (const Block::Entry& instruction : m_current_block->entries)
-  {
-#if 0
-    if (TRACE_EXECUTION && m_cpu->m_registers.EIP != TRACE_EXECUTION_LAST_EIP)
-    {
-      m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP, nullptr);
-      TRACE_EXECUTION_LAST_EIP = m_cpu->m_registers.EIP;
-    }
-#endif
-
-    m_cpu->AddCycle();
-    m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
-    m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
-    m_cpu->m_registers.EIP = (m_cpu->m_registers.EIP + instruction.length) & m_cpu->m_EIP_mask;
-    std::memcpy(&m_cpu->idata, &instruction.data, sizeof(m_cpu->idata));
-    instruction.handler(m_cpu);
-    // Interpreter::ExecuteInstruction(m_cpu);
-  }
+  m_cpu->m_execution_stats.code_cache_instructions_executed += m_current_block->instructions.size();
+  m_current_block->code_pointer(m_cpu);
 }
 
-} // namespace CPU_X86
+} // namespace CPU_X86::Recompiler

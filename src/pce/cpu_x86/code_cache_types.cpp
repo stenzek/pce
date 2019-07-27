@@ -86,4 +86,64 @@ bool IsLinkableExitInstruction(const Instruction* instruction)
   return false;
 }
 
+bool CanInstructionFault(const Instruction* instruction)
+{
+  switch (instruction->operation)
+  {
+    case Operation_AAA:
+    case Operation_AAD:
+    case Operation_AAM:
+    case Operation_AAS:
+    case Operation_CLD:
+    case Operation_CLC:
+    case Operation_STC:
+    case Operation_STD:
+      return false;
+
+    case Operation_ADD:
+    case Operation_ADC:
+    case Operation_SUB:
+    case Operation_SBB:
+    case Operation_AND:
+    case Operation_XOR:
+    case Operation_OR:
+    case Operation_CMP:
+    case Operation_TEST:
+    case Operation_MOV:
+    {
+      for (u32 i = 0; i < 2; i++)
+      {
+        if (!instruction->IsRegisterOperand(i) && instruction->operands[i].mode != OperandMode_Immediate)
+        {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    case Operation_INC:
+    case Operation_DEC:
+    case Operation_NEG:
+    case Operation_NOT:
+    {
+      return (!instruction->IsRegisterOperand(0) && instruction->operands[0].mode != OperandMode_Immediate);
+    }
+
+    default:
+      return true;
+  }
+}
+
+bool OperandIsESP(const Instruction* instruction, const Instruction::Operand& operand)
+{
+  // If any instructions manipulate ESP, we need to update the shadow variable for the next instruction.
+  if (operand.size <= OperandSize_8)
+    return false;
+
+  return (operand.mode == OperandMode_Register && operand.reg32 == Reg32_ESP) ||
+         (operand.mode == OperandMode_ModRM_Reg && instruction->GetModRM_Reg() == Reg32_ESP) ||
+         (operand.mode == OperandMode_ModRM_RM && instruction->ModRM_RM_IsReg() &&
+          instruction->data.modrm_rm_register == Reg32_ESP);
+}
+
 }

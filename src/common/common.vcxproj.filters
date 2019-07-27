@@ -15,6 +15,7 @@
     <ClInclude Include="display_renderer.h" />
     <ClInclude Include="display_renderer_gl.h" />
     <ClInclude Include="display_timing.h" />
+    <ClInclude Include="jit_code_buffer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hdd_image.cpp" />
@@ -27,6 +28,7 @@
     <ClCompile Include="display_renderer.cpp" />
     <ClCompile Include="display_renderer_gl.cpp" />
     <ClCompile Include="display_timing.cpp" />
+    <ClCompile Include="jit_code_buffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="bitfield.natvis" />

@@ -34,6 +34,10 @@ struct BlockKey
     // return (std::memcmp(this, &key, sizeof(key)) != 0);
     return (qword != key.qword);
   }
+
+  bool Is16BitCode() const { return (cs_size == 0); }
+  bool Is32BitCode() const { return (cs_size != 0); }
+  bool IsV8086Code() const { return (v8086_mode != 0); }
 };
 
 struct BlockKeyHash
@@ -88,9 +92,15 @@ struct BlockBase
   bool CrossesPage() const { return (flags & BlockFlags::CrossesPage) != BlockFlags::None; }
 
   bool IsDestroyPending() const { return (flags & BlockFlags::DestroyPending) != BlockFlags::None; }
+
+  bool Is16BitCode() const { return key.Is16BitCode(); }
+  bool Is32BitCode() const { return key.Is32BitCode(); }
+  bool IsV8086Code() const { return key.IsV8086Code(); }
 };
 
 bool IsExitBlockInstruction(const Instruction* instruction);
 bool IsLinkableExitInstruction(const Instruction* instruction);
+bool CanInstructionFault(const Instruction* instruction);
+bool OperandIsESP(const Instruction* instruction, const Instruction::Operand& operand);
 
 } // namespace CPU_X86

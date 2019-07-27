@@ -616,54 +616,58 @@ enum JumpCondition : u8
   JumpCondition_Count
 };
 
-struct InstructionData
+union InstructionData
 {
-  union // +0
+  struct
   {
-    u32 imm32;
-    u16 imm16;
-    u8 imm8;
-  };
-  union // +4
-  {
-    u32 disp32;
-    u16 disp16;
-    u8 disp8;
-    u32 imm2_32;
-    u16 imm2_16;
-    u8 imm2_8;
-  };
-
-  OperandSize operand_size; // +8
-  AddressSize address_size; // +9
-  Segment segment;          // +10
-  union                     // +11
-  {
-    BitField<u8, u8, 0, 3> modrm_rm;
-    BitField<u8, u8, 3, 3> modrm_reg;
-    BitField<u8, u8, 6, 2> modrm_mod;
-    u8 modrm;
-  };
-  union // +12
-  {
-    BitField<u8, Reg32, 0, 3> sib_base_reg;
-    BitField<u8, Reg32, 3, 3> sib_index_reg;
-    BitField<u8, u8, 6, 2> sib_scaling_factor;
-    u8 sib;
-  };
-  union // +13
-  {
-    struct
+    union // +0
     {
-      u8 modrm_rm_register : 1;
-      u8 has_segment_override : 1;
-      u8 has_rep : 1;
-      u8 has_repne : 1;
-      u8 has_lock : 1;
-      u8 : 3;
+      u32 imm32;
+      u16 imm16;
+      u8 imm8;
     };
-    u8 flags;
+    union // +4
+    {
+      u32 disp32;
+      u16 disp16;
+      u8 disp8;
+      u32 imm2_32;
+      u16 imm2_16;
+      u8 imm2_8;
+    };
+
+    OperandSize operand_size; // +8
+    AddressSize address_size; // +9
+    Segment segment;          // +10
+    union                     // +11
+    {
+      BitField<u8, u8, 0, 3> modrm_rm;
+      BitField<u8, u8, 3, 3> modrm_reg;
+      BitField<u8, u8, 6, 2> modrm_mod;
+      u8 modrm;
+    };
+    union // +12
+    {
+      BitField<u8, Reg32, 0, 3> sib_base_reg;
+      BitField<u8, Reg32, 3, 3> sib_index_reg;
+      BitField<u8, u8, 6, 2> sib_scaling_factor;
+      u8 sib;
+    };
+    union // +13
+    {
+      struct
+      {
+        u8 modrm_rm_register : 1;
+        u8 has_segment_override : 1;
+        u8 has_rep : 1;
+        u8 has_repne : 1;
+        u8 has_lock : 1;
+        u8 : 3;
+      };
+      u8 flags;
+    };
   };
+  u64 bits64[2];
 
   // total size: 16 bytes (2 padding)
 
@@ -679,6 +683,7 @@ struct InstructionData
   u32 GetAddressMask() const { return (address_size == AddressSize_16) ? 0xFFFF : 0xFFFFFFFF; }
   u32 GetOperandSizeMask() const { return (operand_size == OperandSize_16) ? 0xFFFF : 0xFFFFFFFF; }
   bool Is32Bit() const { return (operand_size == OperandSize_32); }
+  bool IsRep() const { return (has_rep != 0); }
 };
 
 enum class ModRMAddressingMode : u8

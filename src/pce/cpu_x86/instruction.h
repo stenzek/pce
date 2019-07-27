@@ -44,6 +44,7 @@ struct Instruction
   uint32 GetAddressMask() const { return data.GetAddressMask(); }
   Segment GetMemorySegment() const { return data.segment; }
   bool Is32Bit() const { return data.Is32Bit(); }
+  bool IsRep() const { return data.IsRep(); }
   bool IsRegisterOperand(size_t index) const
   {
     const OperandMode mode = operands[index].mode;
