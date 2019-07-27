@@ -420,13 +420,13 @@ u8 Interpreter::ReadByteOperand(CPU* cpu)
       //             return value;
       //         }
     case OperandMode_Memory:
-      return cpu->ReadMemoryByte(cpu->idata.segment, cpu->idata.disp32);
+      return cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->idata.disp32);
     case OperandMode_ModRM_RM:
     {
       if (cpu->idata.modrm_rm_register)
         return cpu->m_registers.reg8[cpu->m_effective_address];
       else
-        return cpu->ReadMemoryByte(cpu->idata.segment, cpu->m_effective_address);
+        return cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->m_effective_address);
     }
     case OperandMode_ModRM_Reg:
       return cpu->m_registers.reg8[cpu->idata.GetModRM_Reg()];
@@ -450,13 +450,13 @@ u16 Interpreter::ReadWordOperand(CPU* cpu)
     case OperandMode_Immediate2:
       return cpu->idata.imm2_16;
     case OperandMode_Memory:
-      return cpu->ReadMemoryWord(cpu->idata.segment, cpu->idata.disp32);
+      return cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->idata.disp32);
     case OperandMode_ModRM_RM:
     {
       if (cpu->idata.modrm_rm_register)
         return cpu->m_registers.reg16[cpu->m_effective_address];
       else
-        return cpu->ReadMemoryWord(cpu->idata.segment, cpu->m_effective_address);
+        return cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->m_effective_address);
     }
     case OperandMode_ModRM_Reg:
       return cpu->m_registers.reg16[cpu->idata.GetModRM_Reg()];
@@ -481,13 +481,13 @@ u32 Interpreter::ReadDWordOperand(CPU* cpu)
     case OperandMode_Immediate2:
       return cpu->idata.imm2_32;
     case OperandMode_Memory:
-      return cpu->ReadMemoryDWord(cpu->idata.segment, cpu->idata.disp32);
+      return cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->idata.disp32);
     case OperandMode_ModRM_RM:
     {
       if (cpu->idata.modrm_rm_register)
         return cpu->m_registers.reg32[cpu->m_effective_address];
       else
-        return cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
+        return cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
     }
     case OperandMode_ModRM_Reg:
       return cpu->m_registers.reg32[cpu->idata.GetModRM_Reg()];
@@ -527,7 +527,7 @@ u16 Interpreter::ReadSignExtendedWordOperand(CPU* cpu)
           value = cpu->idata.imm2_8;
           break;
         case OperandMode_Memory:
-          value = cpu->ReadMemoryByte(cpu->idata.segment, cpu->idata.disp32);
+          value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->idata.disp32);
           break;
         case OperandMode_ModRM_Reg:
           value = cpu->m_registers.reg8[cpu->idata.GetModRM_Reg()];
@@ -536,7 +536,7 @@ u16 Interpreter::ReadSignExtendedWordOperand(CPU* cpu)
           if (cpu->idata.modrm_rm_register)
             value = cpu->m_registers.reg8[cpu->m_effective_address];
           else
-            value = cpu->ReadMemoryByte(cpu->idata.segment, cpu->m_effective_address);
+            value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->m_effective_address);
           break;
         default:
           DebugUnreachableCode();
@@ -573,7 +573,7 @@ u32 Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
           value = cpu->idata.imm2_8;
           break;
         case OperandMode_Memory:
-          value = cpu->ReadMemoryByte(cpu->idata.segment, cpu->idata.disp32);
+          value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->idata.disp32);
           break;
         case OperandMode_ModRM_Reg:
           value = cpu->m_registers.reg8[cpu->idata.GetModRM_Reg()];
@@ -582,7 +582,7 @@ u32 Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
           if (cpu->idata.modrm_rm_register)
             value = cpu->m_registers.reg8[cpu->m_effective_address];
           else
-            value = cpu->ReadMemoryByte(cpu->idata.segment, cpu->m_effective_address);
+            value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->m_effective_address);
           break;
         default:
           DebugUnreachableCode();
@@ -605,7 +605,7 @@ u32 Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
           value = cpu->idata.imm2_16;
           break;
         case OperandMode_Memory:
-          value = cpu->ReadMemoryWord(cpu->idata.segment, cpu->idata.disp32);
+          value = cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->idata.disp32);
           break;
         case OperandMode_ModRM_Reg:
           value = cpu->m_registers.reg16[cpu->idata.GetModRM_Reg()];
@@ -614,7 +614,7 @@ u32 Interpreter::ReadSignExtendedDWordOperand(CPU* cpu)
           if (cpu->idata.modrm_rm_register)
             value = cpu->m_registers.reg16[cpu->m_effective_address];
           else
-            value = cpu->ReadMemoryWord(cpu->idata.segment, cpu->m_effective_address);
+            value = cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->m_effective_address);
           break;
         default:
           DebugUnreachableCode();
@@ -654,7 +654,7 @@ u16 Interpreter::ReadZeroExtendedWordOperand(CPU* cpu)
           value = cpu->idata.imm2_8;
           break;
         case OperandMode_Memory:
-          value = cpu->ReadMemoryByte(cpu->idata.segment, cpu->idata.disp32);
+          value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->idata.disp32);
           break;
         case OperandMode_ModRM_Reg:
           value = cpu->m_registers.reg8[cpu->idata.GetModRM_Reg()];
@@ -663,7 +663,7 @@ u16 Interpreter::ReadZeroExtendedWordOperand(CPU* cpu)
           if (cpu->idata.modrm_rm_register)
             value = cpu->m_registers.reg8[cpu->m_effective_address];
           else
-            value = cpu->ReadMemoryByte(cpu->idata.segment, cpu->m_effective_address);
+            value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->m_effective_address);
           break;
         default:
           DebugUnreachableCode();
@@ -703,7 +703,7 @@ u32 Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
           value = cpu->idata.imm2_8;
           break;
         case OperandMode_Memory:
-          value = cpu->ReadMemoryByte(cpu->idata.segment, cpu->idata.disp32);
+          value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->idata.disp32);
           break;
         case OperandMode_ModRM_Reg:
           value = cpu->m_registers.reg8[cpu->idata.GetModRM_Reg()];
@@ -712,7 +712,7 @@ u32 Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
           if (cpu->idata.modrm_rm_register)
             value = cpu->m_registers.reg8[cpu->m_effective_address];
           else
-            value = cpu->ReadMemoryByte(cpu->idata.segment, cpu->m_effective_address);
+            value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, cpu->m_effective_address);
           break;
         default:
           DebugUnreachableCode();
@@ -738,7 +738,7 @@ u32 Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
           value = cpu->idata.imm2_16;
           break;
         case OperandMode_Memory:
-          value = cpu->ReadMemoryWord(cpu->idata.segment, cpu->idata.disp32);
+          value = cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->idata.disp32);
           break;
         case OperandMode_ModRM_Reg:
           value = cpu->m_registers.reg16[cpu->idata.GetModRM_Reg()];
@@ -747,7 +747,7 @@ u32 Interpreter::ReadZeroExtendedDWordOperand(CPU* cpu)
           if (cpu->idata.modrm_rm_register)
             value = cpu->m_registers.reg16[cpu->m_effective_address];
           else
-            value = cpu->ReadMemoryWord(cpu->idata.segment, cpu->m_effective_address);
+            value = cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->m_effective_address);
           break;
         default:
           DebugUnreachableCode();
@@ -772,7 +772,7 @@ void Interpreter::WriteByteOperand(CPU* cpu, u8 value)
       cpu->m_registers.reg8[constant] = value;
       break;
     case OperandMode_Memory:
-      cpu->WriteMemoryByte(cpu->idata.segment, cpu->idata.disp32, value);
+      cpu->WriteSegmentMemoryByte(cpu->idata.segment, cpu->idata.disp32, value);
       break;
 
     case OperandMode_ModRM_RM:
@@ -780,7 +780,7 @@ void Interpreter::WriteByteOperand(CPU* cpu, u8 value)
       if (cpu->idata.modrm_rm_register)
         cpu->m_registers.reg8[cpu->m_effective_address] = value;
       else
-        cpu->WriteMemoryByte(cpu->idata.segment, cpu->m_effective_address, value);
+        cpu->WriteSegmentMemoryByte(cpu->idata.segment, cpu->m_effective_address, value);
     }
     break;
 
@@ -803,7 +803,7 @@ void Interpreter::WriteWordOperand(CPU* cpu, u16 value)
       cpu->m_registers.reg16[constant] = value;
       break;
     case OperandMode_Memory:
-      cpu->WriteMemoryWord(cpu->idata.segment, cpu->idata.disp32, value);
+      cpu->WriteSegmentMemoryWord(cpu->idata.segment, cpu->idata.disp32, value);
       break;
 
     case OperandMode_ModRM_RM:
@@ -811,7 +811,7 @@ void Interpreter::WriteWordOperand(CPU* cpu, u16 value)
       if (cpu->idata.modrm_rm_register)
         cpu->m_registers.reg16[cpu->m_effective_address] = value;
       else
-        cpu->WriteMemoryWord(cpu->idata.segment, cpu->m_effective_address, value);
+        cpu->WriteSegmentMemoryWord(cpu->idata.segment, cpu->m_effective_address, value);
     }
     break;
 
@@ -835,7 +835,7 @@ void Interpreter::WriteDWordOperand(CPU* cpu, u32 value)
       cpu->m_registers.reg32[constant] = value;
       break;
     case OperandMode_Memory:
-      cpu->WriteMemoryDWord(cpu->idata.segment, cpu->idata.disp32, value);
+      cpu->WriteSegmentMemoryDWord(cpu->idata.segment, cpu->idata.disp32, value);
       break;
 
     case OperandMode_ModRM_RM:
@@ -843,7 +843,7 @@ void Interpreter::WriteDWordOperand(CPU* cpu, u32 value)
       if (cpu->idata.modrm_rm_register)
         cpu->m_registers.reg32[cpu->m_effective_address] = value;
       else
-        cpu->WriteMemoryDWord(cpu->idata.segment, cpu->m_effective_address, value);
+        cpu->WriteSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address, value);
     }
     break;
 
@@ -875,13 +875,13 @@ void Interpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, u16* segment
     {
       if (size == OperandSize_16)
       {
-        *address = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, cpu->idata.disp32));
-        *segment_selector = cpu->ReadMemoryWord(cpu->idata.segment, cpu->idata.disp32 + 2);
+        *address = ZeroExtend32(cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->idata.disp32));
+        *segment_selector = cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->idata.disp32 + 2);
       }
       else
       {
-        *address = cpu->ReadMemoryDWord(cpu->idata.segment, cpu->idata.disp32);
-        *segment_selector = cpu->ReadMemoryWord(cpu->idata.segment, cpu->idata.disp32 + 4);
+        *address = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->idata.disp32);
+        *segment_selector = cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->idata.disp32 + 4);
       }
     }
     break;
@@ -890,13 +890,13 @@ void Interpreter::ReadFarAddressOperand(CPU* cpu, OperandSize size, u16* segment
     {
       if (size == OperandSize_16)
       {
-        *address = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, cpu->m_effective_address));
-        *segment_selector = cpu->ReadMemoryWord(cpu->idata.segment, cpu->m_effective_address + 2);
+        *address = ZeroExtend32(cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->m_effective_address));
+        *segment_selector = cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->m_effective_address + 2);
       }
       else
       {
-        *address = cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
-        *segment_selector = cpu->ReadMemoryWord(cpu->idata.segment, cpu->m_effective_address + 4);
+        *address = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
+        *segment_selector = cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->m_effective_address + 4);
       }
     }
     break;
@@ -919,8 +919,8 @@ u64 Interpreter::ReadQWordOperand(CPU* cpu)
     address = cpu->m_effective_address;
 
   // TODO: Is the masking here correct?
-  u32 qword_low = cpu->ReadMemoryDWord(cpu->idata.segment, address);
-  u32 qword_high = cpu->ReadMemoryDWord(cpu->idata.segment, (address + 4) & cpu->idata.GetAddressMask());
+  u32 qword_low = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, address);
+  u32 qword_high = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, (address + 4) & cpu->idata.GetAddressMask());
   return (ZeroExtend64(qword_high) << 32) | ZeroExtend64(qword_low);
 }
 
@@ -937,8 +937,9 @@ void Interpreter::WriteQWordOperand(CPU* cpu, u64 value)
     address = cpu->m_effective_address;
 
   // TODO: Is the masking here correct?
-  cpu->WriteMemoryDWord(cpu->idata.segment, address, Truncate32(value));
-  cpu->WriteMemoryDWord(cpu->idata.segment, (address + 4) & cpu->idata.GetAddressMask(), Truncate32(value >> 32));
+  cpu->WriteSegmentMemoryDWord(cpu->idata.segment, address, Truncate32(value));
+  cpu->WriteSegmentMemoryDWord(cpu->idata.segment, (address + 4) & cpu->idata.GetAddressMask(),
+                               Truncate32(value >> 32));
 }
 
 template<JumpCondition condition>
@@ -3339,7 +3340,7 @@ void Interpreter::Execute_Operation_ENTER(CPU* cpu)
       {
         BP -= sizeof(u16);
 
-        u16 prev_ptr = cpu->ReadMemoryWord(Segment_SS, BP);
+        u16 prev_ptr = cpu->ReadSegmentMemoryWord(Segment_SS, BP);
         cpu->PushWord(prev_ptr);
       }
       cpu->PushDWord(frame_pointer);
@@ -3352,7 +3353,7 @@ void Interpreter::Execute_Operation_ENTER(CPU* cpu)
       {
         EBP -= sizeof(u32);
 
-        u32 prev_ptr = cpu->ReadMemoryDWord(Segment_SS, EBP);
+        u32 prev_ptr = cpu->ReadSegmentMemoryDWord(Segment_SS, EBP);
         cpu->PushDWord(prev_ptr);
       }
       cpu->PushDWord(frame_pointer);
@@ -3926,12 +3927,12 @@ void Interpreter::Execute_Operation_XLAT(CPU* cpu)
   if (cpu->idata.address_size == AddressSize_16)
   {
     u16 address = cpu->m_registers.BX + ZeroExtend16(cpu->m_registers.AL);
-    value = cpu->ReadMemoryByte(cpu->idata.segment, address);
+    value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, address);
   }
   else if (cpu->idata.address_size == AddressSize_32)
   {
     u32 address = cpu->m_registers.EBX + ZeroExtend32(cpu->m_registers.AL);
-    value = cpu->ReadMemoryByte(cpu->idata.segment, address);
+    value = cpu->ReadSegmentMemoryByte(cpu->idata.segment, address);
   }
   else
   {
@@ -4119,14 +4120,14 @@ void Interpreter::Execute_Operation_BOUND(CPU* cpu)
   if (actual_size == OperandSize_16)
   {
     address = ZeroExtend32(ReadWordOperand<addr_mode, addr_constant>(cpu));
-    lower_bound = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, table_address + 0));
-    upper_bound = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, table_address + 2));
+    lower_bound = ZeroExtend32(cpu->ReadSegmentMemoryWord(cpu->idata.segment, table_address + 0));
+    upper_bound = ZeroExtend32(cpu->ReadSegmentMemoryWord(cpu->idata.segment, table_address + 2));
   }
   else if (actual_size == OperandSize_32)
   {
     address = ReadDWordOperand<addr_mode, addr_constant>(cpu);
-    lower_bound = cpu->ReadMemoryDWord(cpu->idata.segment, table_address + 0);
-    upper_bound = cpu->ReadMemoryDWord(cpu->idata.segment, table_address + 4);
+    lower_bound = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, table_address + 0);
+    upper_bound = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, table_address + 4);
   }
   else
   {
@@ -4367,8 +4368,8 @@ void Interpreter::Execute_Operation_LIDT(CPU* cpu)
 
   CalculateEffectiveAddress<src_mode>(cpu);
   const VirtualMemoryAddress base_address = cpu->m_effective_address;
-  u32 table_limit = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0));
-  u32 table_base_address = cpu->ReadMemoryDWord(cpu->idata.segment, base_address + 2);
+  u32 table_limit = ZeroExtend32(cpu->ReadSegmentMemoryWord(cpu->idata.segment, base_address + 0));
+  u32 table_base_address = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, base_address + 2);
 
   // 16-bit operand drops higher order bits
   if (cpu->idata.operand_size == OperandSize_16)
@@ -4389,8 +4390,8 @@ void Interpreter::Execute_Operation_LGDT(CPU* cpu)
 
   CalculateEffectiveAddress<src_mode>(cpu);
   const VirtualMemoryAddress base_address = cpu->m_effective_address;
-  u32 table_limit = ZeroExtend32(cpu->ReadMemoryWord(cpu->idata.segment, base_address + 0));
-  u32 table_base_address = cpu->ReadMemoryDWord(cpu->idata.segment, base_address + 2);
+  u32 table_limit = ZeroExtend32(cpu->ReadSegmentMemoryWord(cpu->idata.segment, base_address + 0));
+  u32 table_base_address = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, base_address + 2);
 
   // 16-bit operand drops higher order bits
   if (cpu->idata.operand_size == OperandSize_16)
@@ -4456,8 +4457,8 @@ void Interpreter::Execute_Operation_SIDT(CPU* cpu)
 
   // Write back to memory
   const VirtualMemoryAddress base_address = cpu->m_effective_address;
-  cpu->WriteMemoryWord(cpu->idata.segment, base_address + 0, idt_limit);
-  cpu->WriteMemoryDWord(cpu->idata.segment, base_address + 2, idt_address);
+  cpu->WriteSegmentMemoryWord(cpu->idata.segment, base_address + 0, idt_limit);
+  cpu->WriteSegmentMemoryDWord(cpu->idata.segment, base_address + 2, idt_address);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
@@ -4476,8 +4477,8 @@ void Interpreter::Execute_Operation_SGDT(CPU* cpu)
   // Write back to memory
   CalculateEffectiveAddress<dst_mode>(cpu);
   const VirtualMemoryAddress base_address = cpu->m_effective_address;
-  cpu->WriteMemoryWord(cpu->idata.segment, base_address + 0, gdt_limit);
-  cpu->WriteMemoryDWord(cpu->idata.segment, base_address + 2, gdt_address);
+  cpu->WriteSegmentMemoryWord(cpu->idata.segment, base_address + 0, gdt_limit);
+  cpu->WriteSegmentMemoryDWord(cpu->idata.segment, base_address + 2, gdt_address);
 }
 
 template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
@@ -4978,7 +4979,7 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
       if (cpu->idata.address_size == AddressSize_16)
         effective_address &= 0xFFFF;
 
-      in_value = cpu->ReadMemoryWord(cpu->idata.segment, effective_address);
+      in_value = cpu->ReadSegmentMemoryWord(cpu->idata.segment, effective_address);
     }
 
     // Output value depends on operation, since we share this handler for multiple operations
@@ -5005,7 +5006,7 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
       if (is_register_operand)
         cpu->m_registers.reg16[cpu->m_effective_address] = out_value;
       else
-        cpu->WriteMemoryWord(cpu->idata.segment, effective_address, out_value);
+        cpu->WriteSegmentMemoryWord(cpu->idata.segment, effective_address, out_value);
     }
 
     // CF flag depends on whether the bit was set in the input value
@@ -5034,7 +5035,7 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
       if (cpu->idata.address_size == AddressSize_16)
         effective_address &= 0xFFFF;
 
-      in_value = cpu->ReadMemoryDWord(cpu->idata.segment, effective_address);
+      in_value = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, effective_address);
     }
 
     // Output value depends on operation, since we share this handler for multiple operations
@@ -5061,7 +5062,7 @@ void Interpreter::Execute_Operation_BTx(CPU* cpu)
       if (is_register_operand)
         cpu->m_registers.reg32[cpu->m_effective_address] = out_value;
       else
-        cpu->WriteMemoryDWord(cpu->idata.segment, effective_address, out_value);
+        cpu->WriteSegmentMemoryDWord(cpu->idata.segment, effective_address, out_value);
     }
 
     // CF flag depends on whether the bit was set in the input value
@@ -5223,7 +5224,7 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
       cpu->CommitPendingCycles();
 
       const u8 value = cpu->m_bus->ReadIOPortByte(port_number);
-      cpu->WriteMemoryByte(Segment_ES, dst_address, value);
+      cpu->WriteSegmentMemoryByte(Segment_ES, dst_address, value);
       data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
@@ -5237,7 +5238,7 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
       cpu->CommitPendingCycles();
 
       const u16 value = cpu->m_bus->ReadIOPortWord(port_number);
-      cpu->WriteMemoryWord(Segment_ES, dst_address, value);
+      cpu->WriteSegmentMemoryWord(Segment_ES, dst_address, value);
       data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
@@ -5251,7 +5252,7 @@ void Interpreter::Execute_Operation_INS(CPU* cpu)
       cpu->CommitPendingCycles();
 
       const u32 value = cpu->m_bus->ReadIOPortDWord(port_number);
-      cpu->WriteMemoryDWord(Segment_ES, dst_address, value);
+      cpu->WriteSegmentMemoryDWord(Segment_ES, dst_address, value);
       data_size = sizeof(u32);
     }
     else
@@ -5299,7 +5300,7 @@ void Interpreter::Execute_Operation_OUTS(CPU* cpu)
 
       cpu->CommitPendingCycles();
 
-      u8 value = cpu->ReadMemoryByte(segment, src_address);
+      u8 value = cpu->ReadSegmentMemoryByte(segment, src_address);
       cpu->m_bus->WriteIOPortByte(port_number, value);
       data_size = sizeof(u8);
     }
@@ -5313,7 +5314,7 @@ void Interpreter::Execute_Operation_OUTS(CPU* cpu)
 
       cpu->CommitPendingCycles();
 
-      u16 value = cpu->ReadMemoryWord(segment, src_address);
+      u16 value = cpu->ReadSegmentMemoryWord(segment, src_address);
       cpu->m_bus->WriteIOPortWord(port_number, value);
       data_size = sizeof(u16);
     }
@@ -5327,7 +5328,7 @@ void Interpreter::Execute_Operation_OUTS(CPU* cpu)
 
       cpu->CommitPendingCycles();
 
-      u32 value = cpu->ReadMemoryDWord(segment, src_address);
+      u32 value = cpu->ReadSegmentMemoryDWord(segment, src_address);
       cpu->m_bus->WriteIOPortDWord(port_number, value);
       data_size = sizeof(u32);
     }
@@ -5368,21 +5369,21 @@ void Interpreter::Execute_Operation_SCAS(CPU* cpu)
     if (actual_size == OperandSize_8)
     {
       const u8 lhs = cpu->m_registers.AL;
-      const u8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
+      const u8 rhs = cpu->ReadSegmentMemoryByte(Segment_ES, dst_address);
       ALUOp_Sub8(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
       const u16 lhs = cpu->m_registers.AX;
-      const u16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
+      const u16 rhs = cpu->ReadSegmentMemoryWord(Segment_ES, dst_address);
       ALUOp_Sub16(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
       const u32 lhs = cpu->m_registers.EAX;
-      const u32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
+      const u32 rhs = cpu->ReadSegmentMemoryDWord(Segment_ES, dst_address);
       ALUOp_Sub32(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u32);
     }
@@ -5423,19 +5424,19 @@ void Interpreter::Execute_Operation_LODS(CPU* cpu)
 
     if (actual_size == OperandSize_8)
     {
-      u8 value = cpu->ReadMemoryByte(segment, src_address);
+      u8 value = cpu->ReadSegmentMemoryByte(segment, src_address);
       cpu->m_registers.AL = value;
       data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      u16 value = cpu->ReadMemoryWord(segment, src_address);
+      u16 value = cpu->ReadSegmentMemoryWord(segment, src_address);
       cpu->m_registers.AX = value;
       data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      u32 value = cpu->ReadMemoryDWord(segment, src_address);
+      u32 value = cpu->ReadSegmentMemoryDWord(segment, src_address);
       cpu->m_registers.EAX = value;
       data_size = sizeof(u32);
     }
@@ -5476,19 +5477,19 @@ void Interpreter::Execute_Operation_STOS(CPU* cpu)
     if (actual_size == OperandSize_8)
     {
       u8 value = cpu->m_registers.AL;
-      cpu->WriteMemoryByte(Segment_ES, dst_address, value);
+      cpu->WriteSegmentMemoryByte(Segment_ES, dst_address, value);
       data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
       u16 value = cpu->m_registers.AX;
-      cpu->WriteMemoryWord(Segment_ES, dst_address, value);
+      cpu->WriteSegmentMemoryWord(Segment_ES, dst_address, value);
       data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
       u32 value = cpu->m_registers.EAX;
-      cpu->WriteMemoryDWord(Segment_ES, dst_address, value);
+      cpu->WriteSegmentMemoryDWord(Segment_ES, dst_address, value);
       data_size = sizeof(u32);
     }
     else
@@ -5531,22 +5532,22 @@ void Interpreter::Execute_Operation_CMPS(CPU* cpu)
 
     if (actual_size == OperandSize_8)
     {
-      const u8 lhs = cpu->ReadMemoryByte(src_segment, src_address);
-      const u8 rhs = cpu->ReadMemoryByte(Segment_ES, dst_address);
+      const u8 lhs = cpu->ReadSegmentMemoryByte(src_segment, src_address);
+      const u8 rhs = cpu->ReadSegmentMemoryByte(Segment_ES, dst_address);
       ALUOp_Sub8(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      const u16 lhs = cpu->ReadMemoryWord(src_segment, src_address);
-      const u16 rhs = cpu->ReadMemoryWord(Segment_ES, dst_address);
+      const u16 lhs = cpu->ReadSegmentMemoryWord(src_segment, src_address);
+      const u16 rhs = cpu->ReadSegmentMemoryWord(Segment_ES, dst_address);
       ALUOp_Sub16(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      const u32 lhs = cpu->ReadMemoryDWord(src_segment, src_address);
-      const u32 rhs = cpu->ReadMemoryDWord(Segment_ES, dst_address);
+      const u32 lhs = cpu->ReadSegmentMemoryDWord(src_segment, src_address);
+      const u32 rhs = cpu->ReadSegmentMemoryDWord(Segment_ES, dst_address);
       ALUOp_Sub32(&cpu->m_registers.EFLAGS.bits, lhs, rhs);
       data_size = sizeof(u32);
     }
@@ -5602,20 +5603,20 @@ void Interpreter::Execute_Operation_MOVS(CPU* cpu)
 
     if (actual_size == OperandSize_8)
     {
-      u8 value = cpu->ReadMemoryByte(src_segment, src_address);
-      cpu->WriteMemoryByte(Segment_ES, dst_address, value);
+      u8 value = cpu->ReadSegmentMemoryByte(src_segment, src_address);
+      cpu->WriteSegmentMemoryByte(Segment_ES, dst_address, value);
       data_size = sizeof(u8);
     }
     else if (actual_size == OperandSize_16)
     {
-      u16 value = cpu->ReadMemoryWord(src_segment, src_address);
-      cpu->WriteMemoryWord(Segment_ES, dst_address, value);
+      u16 value = cpu->ReadSegmentMemoryWord(src_segment, src_address);
+      cpu->WriteSegmentMemoryWord(Segment_ES, dst_address, value);
       data_size = sizeof(u16);
     }
     else if (actual_size == OperandSize_32)
     {
-      u32 value = cpu->ReadMemoryDWord(src_segment, src_address);
-      cpu->WriteMemoryDWord(Segment_ES, dst_address, value);
+      u32 value = cpu->ReadSegmentMemoryDWord(src_segment, src_address);
+      cpu->WriteSegmentMemoryDWord(Segment_ES, dst_address, value);
       data_size = sizeof(u32);
     }
     else

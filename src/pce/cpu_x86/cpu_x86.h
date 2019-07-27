@@ -20,6 +20,7 @@ namespace CPU_X86 {
 namespace Recompiler {
 class Backend;
 class CodeGenerator;
+class Thunks;
 }
 
 class Backend;
@@ -39,6 +40,7 @@ class CPU : public ::CPU
   friend class InterpreterBackend;
   friend Recompiler::Backend;
   friend Recompiler::CodeGenerator;
+  friend Recompiler::Thunks;
 
 public:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
@@ -361,12 +363,12 @@ public:
 
   // Reads/writes memory based on the specified segment and offset.
   // These should only be used within instruction handlers, or jit code, as they raise exceptions.
-  u8 ReadMemoryByte(Segment segment, VirtualMemoryAddress address);
-  u16 ReadMemoryWord(Segment segment, VirtualMemoryAddress address);
-  u32 ReadMemoryDWord(Segment segment, VirtualMemoryAddress address);
-  void WriteMemoryByte(Segment segment, VirtualMemoryAddress address, u8 value);
-  void WriteMemoryWord(Segment segment, VirtualMemoryAddress address, u16 value);
-  void WriteMemoryDWord(Segment segment, VirtualMemoryAddress address, u32 value);
+  u8 ReadSegmentMemoryByte(Segment segment, VirtualMemoryAddress address);
+  u16 ReadSegmentMemoryWord(Segment segment, VirtualMemoryAddress address);
+  u32 ReadSegmentMemoryDWord(Segment segment, VirtualMemoryAddress address);
+  void WriteSegmentMemoryByte(Segment segment, VirtualMemoryAddress address, u8 value);
+  void WriteSegmentMemoryWord(Segment segment, VirtualMemoryAddress address, u16 value);
+  void WriteSegmentMemoryDWord(Segment segment, VirtualMemoryAddress address, u32 value);
 
   // Unchecked memory reads/writes (don't perform access checks, or raise exceptions).
   // Safe to use outside instruction handlers.

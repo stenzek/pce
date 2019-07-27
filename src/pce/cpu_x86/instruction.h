@@ -53,6 +53,8 @@ struct Instruction
              mode == OperandMode_ModRM_DebugRegister || mode == OperandMode_ModRM_TestRegister ||
              mode == OperandMode_ModRM_Reg || (mode == OperandMode_ModRM_RM && data.ModRM_RM_IsReg())));
   }
+  bool Is32BitAddressSize() const { return (data.address_size == AddressSize_32); }
+  bool Is32BitOperandSize() const { return (data.operand_size == OperandSize_32); }
 };
 
 } // namespace CPU_X86
