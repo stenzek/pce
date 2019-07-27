@@ -59,7 +59,7 @@ enum class BlockFlags : u32
   CrossesPage = (1 << 2),
 
   Decoding = (1 << 3),
-  BackgroundCompiling = (1 << 4),   // Only used by recompiler backends.
+  BackgroundCompiling = (1 << 4), // Only used by recompiler backends.
   Invalidated = (1 << 5),
   DestroyPending = (1 << 6),
 };
@@ -79,6 +79,7 @@ struct BlockBase
   u32 next_page_physical_address = 0;
   BlockFlags flags = BlockFlags::None;
 
+  PhysicalMemoryAddress GetPhysicalAddress() const { return key.eip_physical_address; }
   PhysicalMemoryAddress GetPhysicalPageAddress() const { return (key.eip_physical_address & CPU::PAGE_MASK); }
   PhysicalMemoryAddress GetNextPhysicalPageAddress() const { return next_page_physical_address; }
 
@@ -102,5 +103,8 @@ bool IsExitBlockInstruction(const Instruction* instruction);
 bool IsLinkableExitInstruction(const Instruction* instruction);
 bool CanInstructionFault(const Instruction* instruction);
 bool OperandIsESP(const Instruction* instruction, const Instruction::Operand& operand);
+
+// TODO: Model
+bool IsInvalidInstruction(const Instruction& instruction);
 
 } // namespace CPU_X86

@@ -63,7 +63,8 @@ bool IsExitBlockInstruction(const Instruction* instruction)
     break;
   }
 
-  return false;
+  // Exit block on invalid instruction.
+  return IsInvalidInstruction(*instruction);
 }
 
 bool IsLinkableExitInstruction(const Instruction* instruction)
@@ -98,6 +99,7 @@ bool CanInstructionFault(const Instruction* instruction)
     case Operation_CLC:
     case Operation_STC:
     case Operation_STD:
+    case Operation_LEA:
       return false;
 
     case Operation_ADD:
@@ -144,6 +146,24 @@ bool OperandIsESP(const Instruction* instruction, const Instruction::Operand& op
          (operand.mode == OperandMode_ModRM_Reg && instruction->GetModRM_Reg() == Reg32_ESP) ||
          (operand.mode == OperandMode_ModRM_RM && instruction->ModRM_RM_IsReg() &&
           instruction->data.modrm_rm_register == Reg32_ESP);
+}
+
+bool IsInvalidInstruction(const Instruction& instruction)
+{
+  if (instruction.data.has_lock)
+  {
+    // many instructions with lock prefix is invalid
+    switch (instruction.operation)
+    {
+      case Operation_MOV:
+      case Operation_INVLPG:
+      case Operation_INVD:
+      case Operation_WBINVD:
+        return true;
+    }
+  }
+
+  return false;
 }
 
 }
