@@ -147,7 +147,7 @@ public:
   RegisterCache(CodeGenerator& code_generator);
   ~RegisterCache();
 
-  u32 GetActiveCalleeSavedRegisterCount() const { return m_active_callee_saved_register_count; }
+  u32 GetActiveCalleeSavedRegisterCount() const { return m_host_register_callee_saved_order_count; }
 
   //////////////////////////////////////////////////////////////////////////
   // Register Allocation
@@ -165,6 +165,7 @@ public:
   u32 GetFreeHostRegisters() const;
 
   HostReg AllocateHostReg(HostRegState state = HostRegState::InUse);
+  bool AllocateHostReg(HostReg reg, HostRegState state = HostRegState::InUse);
   void FreeHostReg(HostReg reg);
 
   // Push/pop volatile host registers. Returns the number of registers pushed/popped.
@@ -225,7 +226,6 @@ private:
   std::array<HostRegState, HostReg_Count> m_host_register_state{};
   std::array<HostReg, HostReg_Count> m_host_register_allocation_order{};
   u32 m_host_register_available_count = 0;
-  u32 m_active_callee_saved_register_count = 0;
 
   std::array<GuestRegData, Reg8_Count> m_guest_reg8_state{};
   std::array<GuestRegData, Reg16_Count> m_guest_reg16_state{};
@@ -233,6 +233,9 @@ private:
 
   std::array<u32, HostReg_Count> m_guest_register_order{};
   u32 m_guest_register_order_count = 0;
+
+  std::array<HostReg, HostReg_Count> m_host_register_callee_saved_order{};
+  u32 m_host_register_callee_saved_order_count = 0;
 };
 
 } // namespace CPU_X86::Recompiler

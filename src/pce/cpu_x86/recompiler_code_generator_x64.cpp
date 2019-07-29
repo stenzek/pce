@@ -75,11 +75,12 @@ void CodeGenerator::InitHostRegs()
   // TODO: function calls mess up the parameter registers if we use them.. fix it
   // allocate nonvolatile before volatile
   m_register_cache.SetHostRegAllocationOrder(
-    {Xbyak::Operand::RBX, /*Xbyak::Operand::RBP, */ Xbyak::Operand::RDI, Xbyak::Operand::RSI, /*Xbyak::Operand::RSP, */
+    {Xbyak::Operand::RBX, Xbyak::Operand::RBP, Xbyak::Operand::RDI, Xbyak::Operand::RSI, /*Xbyak::Operand::RSP, */
      Xbyak::Operand::R12, Xbyak::Operand::R13, Xbyak::Operand::R14, Xbyak::Operand::R15, /*Xbyak::Operand::RCX,
-     Xbyak::Operand::RDX, Xbyak::Operand::R8, Xbyak::Operand::R9, */Xbyak::Operand::R10, Xbyak::Operand::R11,
+     Xbyak::Operand::RDX, Xbyak::Operand::R8, Xbyak::Operand::R9, */
+     Xbyak::Operand::R10, Xbyak::Operand::R11,
      /*Xbyak::Operand::RAX*/});
-  m_register_cache.SetCallerSavedHostRegs({/*Xbyak::Operand::RAX,*/ Xbyak::Operand::RCX, Xbyak::Operand::RDX,
+  m_register_cache.SetCallerSavedHostRegs({Xbyak::Operand::RAX, Xbyak::Operand::RCX, Xbyak::Operand::RDX,
                                            Xbyak::Operand::R8, Xbyak::Operand::R9, Xbyak::Operand::R10,
                                            Xbyak::Operand::R11});
   m_register_cache.SetCalleeSavedHostRegs({Xbyak::Operand::RBX, Xbyak::Operand::RBP, Xbyak::Operand::RDI,
@@ -92,12 +93,10 @@ void CodeGenerator::InitHostRegs()
 
 void CodeGenerator::EmitBeginBlock()
 {
-#if defined(ABI_WIN64)
-  m_emit.push(GetCPUPtrReg());
+  // Store the CPU struct pointer.
+  const bool cpu_reg_allocated = m_register_cache.AllocateHostReg(RCPUPTR);
+  DebugAssert(cpu_reg_allocated);
   m_emit.mov(GetCPUPtrReg(), GetHostReg64(RARG1));
-#else
-
-#endif
 
   // Copy {EIP,ESP} to m_current_{EIP,ESP}
   SyncCurrentEIP();
@@ -106,11 +105,8 @@ void CodeGenerator::EmitBeginBlock()
 
 void CodeGenerator::EmitEndBlock()
 {
+  m_register_cache.FreeHostReg(RCPUPTR);
   m_register_cache.PopCalleeSavedRegisters();
-
-#if defined(ABI_WIN64)
-  m_emit.pop(GetCPUPtrReg());
-#endif
 
   m_emit.ret();
 }
@@ -349,27 +345,26 @@ void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
     m_emit.pop(m_emit.cl);
 }
 
-void CodeGenerator::PrepareStackForCall(u32 num_parameters)
+u32 CodeGenerator::PrepareStackForCall()
 {
   // we assume that the stack is unaligned at this point
   const u32 num_callee_saved = m_register_cache.GetActiveCalleeSavedRegisterCount();
   const u32 num_caller_saved = m_register_cache.PushCallerSavedRegisters();
-  const u32 current_offset = 8 + (num_callee_saved + num_caller_saved + num_parameters) * 8;
+  const u32 current_offset = 8 + (num_callee_saved + num_caller_saved) * 8;
   const u32 aligned_offset = Common::AlignUp(current_offset + FUNCTION_CALL_SHADOW_SPACE, 16);
   const u32 adjust_size = aligned_offset - current_offset;
   if (adjust_size > 0)
     m_emit.sub(m_emit.rsp, adjust_size);
+
+  return adjust_size;
 }
 
-void CodeGenerator::RestoreStackAfterCall(u32 num_parameters)
+void CodeGenerator::RestoreStackAfterCall(u32 adjust_size)
 {
-  const u32 num_callee_saved = m_register_cache.GetActiveCalleeSavedRegisterCount();
-  const u32 num_caller_saved = m_register_cache.PopCallerSavedRegisters();
-  const u32 current_offset = 8 + (num_callee_saved + num_caller_saved + num_parameters) * 8;
-  const u32 aligned_offset = Common::AlignUp(current_offset + FUNCTION_CALL_SHADOW_SPACE, 16);
-  const u32 adjust_size = aligned_offset - current_offset;
   if (adjust_size > 0)
     m_emit.add(m_emit.rsp, adjust_size);
+
+  m_register_cache.PopCallerSavedRegisters();
 }
 
 void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1)
@@ -380,7 +375,7 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
 
   // shadow space allocate
-  PrepareStackForCall(1);
+  const u32 adjust_size = PrepareStackForCall();
 
   // push arguments
   EmitCopyValue(RARG1, arg1);
@@ -389,7 +384,7 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   m_emit.call(function_addr_reg);
 
   // shadow space release
-  RestoreStackAfterCall(1);
+  RestoreStackAfterCall(adjust_size);
 
   // copy out return value if requested
   if (return_value)
@@ -407,7 +402,7 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
 
   // shadow space allocate
-  PrepareStackForCall(3);
+  const u32 adjust_size = PrepareStackForCall();
 
   // push arguments
   EmitCopyValue(RARG1, arg1);
@@ -417,7 +412,7 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   m_emit.call(function_addr_reg);
 
   // shadow space release
-  RestoreStackAfterCall(3);
+  RestoreStackAfterCall(adjust_size);
 
   // copy out return value if requested
   if (return_value)
@@ -436,7 +431,7 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
 
   // shadow space allocate
-  PrepareStackForCall(3);
+  const u32 adjust_size = PrepareStackForCall();
 
   // push arguments
   EmitCopyValue(RARG1, arg1);
@@ -447,7 +442,7 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   m_emit.call(function_addr_reg);
 
   // shadow space release
-  RestoreStackAfterCall(3);
+  RestoreStackAfterCall(adjust_size);
 
   // copy out return value if requested
   if (return_value)
@@ -466,7 +461,7 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
 
   // shadow space allocate
-  PrepareStackForCall(3);
+  const u32 adjust_size = PrepareStackForCall();
 
   // push arguments
   EmitCopyValue(RARG1, arg1);
@@ -478,7 +473,7 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   m_emit.call(function_addr_reg);
 
   // shadow space release
-  RestoreStackAfterCall(3);
+  RestoreStackAfterCall(adjust_size);
 
   // copy out return value if requested
   if (return_value)

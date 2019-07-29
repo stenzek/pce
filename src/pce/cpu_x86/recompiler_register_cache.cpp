@@ -173,18 +173,8 @@ HostReg RegisterCache::AllocateHostReg(HostRegState state /* = HostRegState::InU
     const HostReg reg = m_host_register_allocation_order[i];
     if ((m_host_register_state[reg] & (HostRegState::Usable | HostRegState::InUse)) == HostRegState::Usable)
     {
-      m_host_register_state[reg] |= state;
-
-      if ((m_host_register_state[reg] & (HostRegState::CalleeSaved | HostRegState::CalleeSavedAllocated)) ==
-          HostRegState::CalleeSaved)
-      {
-        // new register we need to save..
-        m_host_register_state[reg] |= HostRegState::CalleeSavedAllocated;
-        m_active_callee_saved_register_count++;
-        m_code_generator.EmitPushHostReg(reg);
-      }
-
-      return reg;
+      if (AllocateHostReg(reg, state))
+        return reg;
     }
   }
 
@@ -193,6 +183,26 @@ HostReg RegisterCache::AllocateHostReg(HostRegState state /* = HostRegState::InU
     Panic("Failed to evict guest register for new allocation");
 
   return AllocateHostReg(state);
+}
+
+bool RegisterCache::AllocateHostReg(HostReg reg, HostRegState state /*= HostRegState::InUse*/)
+{
+  if ((m_host_register_state[reg] & (HostRegState::Usable | HostRegState::InUse)) != HostRegState::Usable)
+    return false;
+
+  m_host_register_state[reg] |= state;
+
+  if ((m_host_register_state[reg] & (HostRegState::CalleeSaved | HostRegState::CalleeSavedAllocated)) ==
+      HostRegState::CalleeSaved)
+  {
+    // new register we need to save..
+    DebugAssert(m_host_register_callee_saved_order_count < HostReg_Count);
+    m_host_register_callee_saved_order[m_host_register_callee_saved_order_count++] = reg;
+    m_host_register_state[reg] |= HostRegState::CalleeSavedAllocated;
+    m_code_generator.EmitPushHostReg(reg);
+  }
+
+  return reg;
 }
 
 Value RegisterCache::GetCPUPtr()
@@ -246,17 +256,20 @@ u32 RegisterCache::PopCallerSavedRegisters() const
 
 u32 RegisterCache::PopCalleeSavedRegisters()
 {
+  if (m_host_register_callee_saved_order_count == 0)
+    return 0;
+
   u32 count = 0;
-  u32 i = (HostReg_Count - 1);
+  u32 i = m_host_register_callee_saved_order_count;
   do
   {
-    if ((m_host_register_state[i] & (HostRegState::CalleeSaved | HostRegState::CalleeSavedAllocated)) ==
-        (HostRegState::CalleeSaved | HostRegState::CalleeSavedAllocated))
-    {
-      m_code_generator.EmitPopHostReg(static_cast<HostReg>(i));
-      m_host_register_state[i] &= ~HostRegState::CalleeSavedAllocated;
-      count++;
-    }
+    const HostReg reg = m_host_register_callee_saved_order[i - 1];
+    DebugAssert((m_host_register_state[reg] & (HostRegState::CalleeSaved | HostRegState::CalleeSavedAllocated)) ==
+                (HostRegState::CalleeSaved | HostRegState::CalleeSavedAllocated));
+
+    m_code_generator.EmitPopHostReg(reg);
+    m_host_register_state[reg] &= ~HostRegState::CalleeSavedAllocated;
+    count++;
     i--;
   } while (i > 0);
   return count;

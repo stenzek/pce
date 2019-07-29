@@ -8,10 +8,12 @@
 #include "recompiler_code_generator.h"
 Log_SetChannel(CPU_X86::Recompiler);
 
-namespace CPU_X86::Recompiler {
-
+namespace CPU_X86 {
 extern bool TRACE_EXECUTION;
 extern u32 TRACE_EXECUTION_LAST_EIP;
+}
+
+namespace CPU_X86::Recompiler {
 
 Backend::Backend(CPU* cpu) : CodeCacheBackend(cpu), m_code_space(std::make_unique<JitCodeBuffer>()) {}
 

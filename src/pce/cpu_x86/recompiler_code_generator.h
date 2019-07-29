@@ -64,8 +64,8 @@ public:
   void EmitStoreCPUStructField(u32 offset, const Value& value);
   void EmitAddCPUStructField(u32 offset, const Value& value);
 
-  void PrepareStackForCall(u32 num_parameters);
-  void RestoreStackAfterCall(u32 num_parameters);
+  u32 PrepareStackForCall();
+  void RestoreStackAfterCall(u32 adjust_size);
 
   //void EmitFunctionCall(const void* ptr);
   void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1);
