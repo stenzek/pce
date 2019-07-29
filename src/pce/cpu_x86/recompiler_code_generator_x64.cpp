@@ -369,10 +369,8 @@ void CodeGenerator::RestoreStackAfterCall(u32 adjust_size)
 
 void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1)
 {
-  // we need a temporary for the function pointer
-  const Value function_addr = m_register_cache.AllocateScratch(OperandSize_64);
-  const Xbyak::Reg64 function_addr_reg(function_addr.host_reg);
-  m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
+  if (return_value)
+    return_value->Discard();
 
   // shadow space allocate
   const u32 adjust_size = PrepareStackForCall();
@@ -381,7 +379,8 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   EmitCopyValue(RARG1, arg1);
 
   // actually call the function
-  m_emit.call(function_addr_reg);
+  m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
+  m_emit.call(GetHostReg64(RRETURN));
 
   // shadow space release
   RestoreStackAfterCall(adjust_size);
@@ -389,17 +388,15 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   // copy out return value if requested
   if (return_value)
   {
-    DebugAssert(return_value->IsInHostRegister());
-    EmitCopyValue(return_value->host_reg, Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
+    return_value->Undiscard();
+    EmitCopyValue(return_value->GetHostRegister(), Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
   }
 }
 
 void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2)
 {
-  // we need a temporary for the function pointer
-  const Value function_addr = m_register_cache.AllocateScratch(OperandSize_64);
-  const Xbyak::Reg64 function_addr_reg(function_addr.host_reg);
-  m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
+  if (return_value)
+    return_value->Discard();
 
   // shadow space allocate
   const u32 adjust_size = PrepareStackForCall();
@@ -409,7 +406,8 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   EmitCopyValue(RARG2, arg2);
 
   // actually call the function
-  m_emit.call(function_addr_reg);
+  m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
+  m_emit.call(GetHostReg64(RRETURN));
 
   // shadow space release
   RestoreStackAfterCall(adjust_size);
@@ -417,18 +415,16 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   // copy out return value if requested
   if (return_value)
   {
-    DebugAssert(return_value->IsInHostRegister());
-    EmitCopyValue(return_value->host_reg, Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
+    return_value->Undiscard();
+    EmitCopyValue(return_value->GetHostRegister(), Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
   }
 }
 
 void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
                                      const Value& arg3)
 {
-  // we need a temporary for the function pointer
-  const Value function_addr = m_register_cache.AllocateScratch(OperandSize_64);
-  const Xbyak::Reg64 function_addr_reg(function_addr.host_reg);
-  m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
+  if (return_value)
+    m_register_cache.DiscardHostReg(return_value->GetHostRegister());
 
   // shadow space allocate
   const u32 adjust_size = PrepareStackForCall();
@@ -439,7 +435,8 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   EmitCopyValue(RARG3, arg3);
 
   // actually call the function
-  m_emit.call(function_addr_reg);
+  m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
+  m_emit.call(GetHostReg64(RRETURN));
 
   // shadow space release
   RestoreStackAfterCall(adjust_size);
@@ -447,18 +444,16 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   // copy out return value if requested
   if (return_value)
   {
-    DebugAssert(return_value->IsInHostRegister());
-    EmitCopyValue(return_value->host_reg, Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
+    return_value->Undiscard();
+    EmitCopyValue(return_value->GetHostRegister(), Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
   }
 }
 
 void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
                                      const Value& arg3, const Value& arg4)
 {
-  // we need a temporary for the function pointer
-  const Value function_addr = m_register_cache.AllocateScratch(OperandSize_64);
-  const Xbyak::Reg64 function_addr_reg(function_addr.host_reg);
-  m_emit.mov(function_addr_reg, reinterpret_cast<size_t>(ptr));
+  if (return_value)
+    return_value->Discard();
 
   // shadow space allocate
   const u32 adjust_size = PrepareStackForCall();
@@ -470,7 +465,8 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   EmitCopyValue(RARG4, arg4);
 
   // actually call the function
-  m_emit.call(function_addr_reg);
+  m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
+  m_emit.call(GetHostReg64(RRETURN));
 
   // shadow space release
   RestoreStackAfterCall(adjust_size);
@@ -478,8 +474,8 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   // copy out return value if requested
   if (return_value)
   {
-    DebugAssert(return_value->IsInHostRegister());
-    EmitCopyValue(return_value->host_reg, Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
+    return_value->Undiscard();
+    EmitCopyValue(return_value->GetHostRegister(), Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
   }
 }
 

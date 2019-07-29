@@ -18,6 +18,7 @@ enum class HostRegState : u8
   CalleeSaved = (1 << 3),          // Register is callee-saved, and should be restored after leaving the block.
   InUse = (1 << 4),                // In-use, must be saved/restored across function call.
   CalleeSavedAllocated = (1 << 5), // Register was callee-saved and allocated, so should be restored before returning.
+  Discarded = (1 << 6),            // Register contents is not used, so do not preserve across function calls.
 };
 IMPLEMENT_ENUM_CLASS_BITWISE_OPERATORS(HostRegState);
 
@@ -58,11 +59,22 @@ struct Value
   bool IsInHostRegister() const { return (flags & ValueFlags::InHostRegister) != ValueFlags::None; }
   bool IsScratch() const { return (flags & ValueFlags::Scratch) != ValueFlags::None; }
 
+  /// Returns the host register this value is bound to.
+  HostReg GetHostRegister() const
+  {
+    DebugAssert(IsInHostRegister());
+    return host_reg;
+  }
+
   /// Removes the contents of this value. Use with care, as scratch/temporaries are not released.
   void Clear();
 
   /// Releases the host register if needed, and clears the contents.
   void ReleaseAndClear();
+
+  /// Flags the value is being discarded. Call Undiscard() to track again.
+  void Discard();
+  void Undiscard();
 
   static Value FromHostReg(RegisterCache* regcache, HostReg reg, OperandSize size)
   {
@@ -164,15 +176,28 @@ public:
   u32 GetUsedHostRegisters() const;
   u32 GetFreeHostRegisters() const;
 
+  /// Allocates a new host register. If there are no free registers, the guest register which was accessed the longest
+  /// time ago will be evicted.
   HostReg AllocateHostReg(HostRegState state = HostRegState::InUse);
+
+  /// Allocates a specific host register. If this register is not free, returns false.
   bool AllocateHostReg(HostReg reg, HostRegState state = HostRegState::InUse);
+
+  /// Flags the host register as discard-able. This means that the contents is no longer required, and will not be pushed
+  /// when saving caller-saved registers.
+  void DiscardHostReg(HostReg reg);
+
+  /// Clears the discard-able flag on a host register, so that the contents will be preserved across function calls.
+  void UndiscardHostReg(HostReg reg);
+
+  /// Frees a host register, making it usable in future allocations.
   void FreeHostReg(HostReg reg);
 
-  // Push/pop volatile host registers. Returns the number of registers pushed/popped.
+  /// Push/pop volatile host registers. Returns the number of registers pushed/popped.
   u32 PushCallerSavedRegisters() const;
   u32 PopCallerSavedRegisters() const;
 
-  // Restore callee-saved registers. Call at the end of the function.
+  /// Restore callee-saved registers. Call at the end of the function.
   u32 PopCalleeSavedRegisters();
 
   //////////////////////////////////////////////////////////////////////////

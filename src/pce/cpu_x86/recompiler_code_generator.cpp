@@ -96,6 +96,8 @@ u32 CodeGenerator::CalculateSegmentRegisterOffset(Segment segment)
 bool CodeGenerator::CompileBlock(const BlockBase* block, BlockFunctionType* out_function_ptr, size_t* out_code_size)
 {
   // TODO: Align code buffer.
+  if (block->key.eip_physical_address == 0x0021450B)
+    __debugbreak();
 
   m_block = block;
   m_block_start = block->instructions.data();

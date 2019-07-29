@@ -88,6 +88,18 @@ void Value::ReleaseAndClear()
   Clear();
 }
 
+void Value::Discard()
+{
+  DebugAssert(IsInHostRegister());
+  regcache->DiscardHostReg(host_reg);
+}
+
+void Value::Undiscard()
+{
+  DebugAssert(IsInHostRegister());
+  regcache->UndiscardHostReg(host_reg);
+}
+
 RegisterCache::RegisterCache(CodeGenerator& code_generator) : m_code_generator(code_generator) {}
 
 RegisterCache::~RegisterCache() = default;
@@ -205,6 +217,27 @@ bool RegisterCache::AllocateHostReg(HostReg reg, HostRegState state /*= HostRegS
   return reg;
 }
 
+void RegisterCache::DiscardHostReg(HostReg reg)
+{
+  DebugAssert(IsHostRegInUse(reg));
+  Log_DebugPrintf("Discarding host register %s", m_code_generator.GetHostRegName(reg));
+  m_host_register_state[reg] |= HostRegState::Discarded;
+}
+
+void RegisterCache::UndiscardHostReg(HostReg reg)
+{
+  DebugAssert(IsHostRegInUse(reg));
+  Log_DebugPrintf("Undiscarding host register %s", m_code_generator.GetHostRegName(reg));
+  m_host_register_state[reg] &= ~HostRegState::Discarded;
+}
+
+void RegisterCache::FreeHostReg(HostReg reg)
+{
+  DebugAssert(IsHostRegInUse(reg));
+  Log_DebugPrintf("Freeing host register %s", m_code_generator.GetHostRegName(reg));
+  m_host_register_state[reg] &= ~HostRegState::InUse;
+}
+
 Value RegisterCache::GetCPUPtr()
 {
   return Value::FromHostReg(this, m_cpu_ptr_host_register, HostPointerSize);
@@ -212,13 +245,9 @@ Value RegisterCache::GetCPUPtr()
 
 Value RegisterCache::AllocateScratch(OperandSize size)
 {
-  HostReg reg = AllocateHostReg();
+  const HostReg reg = AllocateHostReg();
+  Log_DebugPrintf("Allocating host register %s as scratch", m_code_generator.GetHostRegName(reg));
   return Value::FromScratch(this, reg, size);
-}
-
-void RegisterCache::FreeHostReg(HostReg reg)
-{
-  m_host_register_state[reg] &= ~HostRegState::InUse;
 }
 
 u32 RegisterCache::PushCallerSavedRegisters() const
@@ -226,7 +255,7 @@ u32 RegisterCache::PushCallerSavedRegisters() const
   u32 count = 0;
   for (u32 i = 0; i < HostReg_Count; i++)
   {
-    if ((m_host_register_state[i] & (HostRegState::CallerSaved | HostRegState::InUse)) ==
+    if ((m_host_register_state[i] & (HostRegState::CallerSaved | HostRegState::InUse | HostRegState::Discarded)) ==
         (HostRegState::CallerSaved | HostRegState::InUse))
     {
       m_code_generator.EmitPushHostReg(static_cast<HostReg>(i));
@@ -243,7 +272,7 @@ u32 RegisterCache::PopCallerSavedRegisters() const
   u32 i = (HostReg_Count - 1);
   do
   {
-    if ((m_host_register_state[i] & (HostRegState::CallerSaved | HostRegState::InUse)) ==
+    if ((m_host_register_state[i] & (HostRegState::CallerSaved | HostRegState::InUse | HostRegState::Discarded)) ==
         (HostRegState::CallerSaved | HostRegState::InUse))
     {
       m_code_generator.EmitPopHostReg(static_cast<HostReg>(i));
