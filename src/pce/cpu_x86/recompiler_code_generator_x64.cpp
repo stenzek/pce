@@ -834,4 +834,78 @@ void CodeGenerator::EmitAddCPUStructField(u32 offset, const Value& value)
   }
 }
 
+Value CodeGenerator::GetSignFlag(const Value& value)
+{
+  Value ret = m_register_cache.AllocateScratch(OperandSize_32);
+  Xbyak::Reg32 ret_reg = GetHostReg32(ret);
+
+  switch (value.size)
+  {
+    case OperandSize_8:
+      m_emit.movzx(ret_reg, GetHostReg8(value));
+      break;
+
+    case OperandSize_16:
+      m_emit.movzx(ret_reg, GetHostReg16(value));
+      m_emit.shr(ret_reg, 8);
+      break;
+
+    case OperandSize_32:
+      m_emit.mov(ret_reg, GetHostReg32(value));
+      m_emit.shr(ret_reg, 24);
+      break;
+
+    default:
+      UnreachableCode();
+      return {};
+  }
+
+  m_emit.and_(ret_reg, Flag_SF);
+  return ret;
+}
+
+Value CodeGenerator::GetZeroFlag(const Value& value)
+{
+  switch (value.size)
+  {
+    case OperandSize_8:
+      m_emit.cmp(GetHostReg8(value), 0);
+      break;
+
+    case OperandSize_16:
+      m_emit.cmp(GetHostReg16(value), 0);
+      break;
+
+    case OperandSize_32:
+      m_emit.cmp(GetHostReg32(value), 0);
+      break;
+
+    default:
+      UnreachableCode();
+      return {};
+  }
+
+  Value ret = m_register_cache.AllocateScratch(OperandSize_32);
+  Xbyak::Reg32 ret_reg = GetHostReg32(ret);
+  m_emit.setz(ret_reg.cvt8());
+  m_emit.movzx(ret_reg, ret_reg.cvt8());
+  m_emit.shl(ret_reg, 6); // Flag_ZF
+  return ret;
+}
+
+Value CodeGenerator::GetParityFlag(const Value& value)
+{
+  Value ret = m_register_cache.AllocateScratch(OperandSize_32);
+  Xbyak::Reg32 ret_reg = GetHostReg32(ret);
+
+  // movzx takes the place of AND'ing with 0xFF.
+  DebugAssert(value.IsInHostRegister());
+  m_emit.movzx(ret_reg, GetHostReg8(value.host_reg));
+  m_emit.popcnt(ret_reg, ret_reg);
+  m_emit.not_(ret_reg);
+  m_emit.shl(ret_reg, 2);
+  m_emit.and_(ret_reg, Flag_PF);
+  return ret;
+}
+
 } // namespace CPU_X86::Recompiler

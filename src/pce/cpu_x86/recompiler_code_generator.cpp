@@ -96,8 +96,6 @@ u32 CodeGenerator::CalculateSegmentRegisterOffset(Segment segment)
 bool CodeGenerator::CompileBlock(const BlockBase* block, BlockFunctionType* out_function_ptr, size_t* out_code_size)
 {
   // TODO: Align code buffer.
-  if (block->key.eip_physical_address == 0x0021450B)
-    __debugbreak();
 
   m_block = block;
   m_block_start = block->instructions.data();
@@ -162,6 +160,10 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
 
     case Operation_MOV:
       result = Compile_MOV(instruction);
+      break;
+
+    case Operation_AND:
+      result = Compile_AND(instruction);
       break;
 
     default:
@@ -921,6 +923,46 @@ bool CodeGenerator::Compile_MOV(const Instruction& instruction)
   InstructionPrologue(instruction, cycles);
   CalculateEffectiveAddress(instruction);
   WriteOperand(instruction, 0, ReadOperand(instruction, 1, instruction.operands[1].size, false));
+
+  if (OperandIsESP(&instruction, instruction.operands[0]))
+    SyncCurrentESP();
+
+  return true;
+}
+
+void CodeGenerator::SetEFLAGS_BitwiseOps(const Value& value)
+{
+  Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
+  EmitAnd(eflags.GetHostRegister(),
+          Value::FromConstantU32(~(Flag_OF | Flag_CF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)));
+  EmitOr(eflags.GetHostRegister(), GetSignFlag(value));
+  EmitOr(eflags.GetHostRegister(), GetParityFlag(value));
+  EmitOr(eflags.GetHostRegister(), GetZeroFlag(value));
+  m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
+}
+
+bool CodeGenerator::Compile_AND(const Instruction& instruction)
+{
+  CycleCount cycles = 0;
+  if (instruction.DestinationMode() == OperandMode_Register && instruction.SourceMode() == OperandMode_Immediate)
+    cycles = m_cpu->GetCycles(CYCLES_ALU_REG_IMM);
+  else if (instruction.DestinationMode() == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_ALU_RM_MEM_REG, instruction.ModRM_RM_IsReg());
+  else if (instruction.SourceMode() == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_ALU_REG_RM_MEM, instruction.ModRM_RM_IsReg());
+
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  // lhs <- lhs AND rhs
+  // TODO: constant folding here
+  const OperandSize size = instruction.operands[0].size;
+  Value lhs = ReadOperand(instruction, 0, size, false, true);
+  Value rhs = ReadOperand(instruction, 1, size, true);
+  EmitAnd(lhs.GetHostRegister(), rhs);
+  rhs.ReleaseAndClear();
+  lhs = WriteOperand(instruction, 0, std::move(lhs));
+  SetEFLAGS_BitwiseOps(lhs);
 
   if (OperandIsESP(&instruction, instruction.operands[0]))
     SyncCurrentESP();

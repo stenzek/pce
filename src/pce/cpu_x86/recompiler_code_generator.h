@@ -114,6 +114,11 @@ private:
   void SyncCurrentEIP();
   void SyncCurrentESP();
 
+  Value GetSignFlag(const Value& value);
+  Value GetZeroFlag(const Value& value);
+  Value GetParityFlag(const Value& value);
+  void SetEFLAGS_BitwiseOps(const Value& value);
+
   //////////////////////////////////////////////////////////////////////////
   // Instruction Code Generators
   //////////////////////////////////////////////////////////////////////////
@@ -122,6 +127,7 @@ private:
   bool Compile_NOP(const Instruction& instruction);
   bool Compile_LEA(const Instruction& instruction);
   bool Compile_MOV(const Instruction& instruction);
+  bool Compile_AND(const Instruction& instruction);
 
   CPU* m_cpu;
   JitCodeBuffer* m_code_buffer;
