@@ -1553,7 +1553,7 @@ private:
 		}
 	}
 	LabelManager labelMgr_;
-	bool isInDisp16(uint32 x) const { return 0xFFFF8000 <= x || x <= 0x7FFF; }
+	bool isInDisp16(uint32 x) const { return 0xFFFF8000 <= x || x <= 0xFFFF; }
 	void opModR(const Reg& reg1, const Reg& reg2, int code0, int code1 = NONE, int code2 = NONE)
 	{
 		rex(reg2, reg1);
