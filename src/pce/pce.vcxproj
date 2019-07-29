@@ -46,6 +46,7 @@
     <ClCompile Include="cpu_x86\cycles.cpp" />
     <ClCompile Include="cpu_x86\recompiler_backend.cpp" />
     <ClCompile Include="cpu_x86\recompiler_code_generator.cpp" />
+    <ClCompile Include="cpu_x86\recompiler_code_generator_generic.cpp" />
     <ClCompile Include="cpu_x86\recompiler_code_generator_x64.cpp" />
     <ClCompile Include="cpu_x86\recompiler_register_cache.cpp" />
     <ClCompile Include="cpu_x86\recompiler_thunks.cpp" />

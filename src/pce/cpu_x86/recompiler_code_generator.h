@@ -56,9 +56,11 @@ public:
   void EmitZeroExtend(HostReg to_reg, OperandSize to_size, HostReg from_reg, OperandSize from_size);
   void EmitCopyValue(HostReg to_reg, const Value& value);
   void EmitAdd(HostReg to_reg, const Value& value);
+  void EmitSub(HostReg to_reg, const Value& value);
   void EmitShl(HostReg to_reg, const Value& value);
   void EmitAnd(HostReg to_reg, const Value& value);
   void EmitOr(HostReg to_reg, const Value& value);
+  void EmitXor(HostReg to_reg, const Value& value);
 
   void EmitLoadGuestRegister(HostReg host_reg, OperandSize guest_size, u8 guest_reg);
   void EmitStoreGuestRegister(OperandSize guest_size, u8 guest_reg, const Value& value);
@@ -117,7 +119,6 @@ private:
   Value GetSignFlag(const Value& value);
   Value GetZeroFlag(const Value& value);
   Value GetParityFlag(const Value& value);
-  void SetEFLAGS_BitwiseOps(const Value& value);
 
   //////////////////////////////////////////////////////////////////////////
   // Instruction Code Generators
@@ -128,6 +129,9 @@ private:
   bool Compile_LEA(const Instruction& instruction);
   bool Compile_MOV(const Instruction& instruction);
   bool Compile_Bitwise(const Instruction& instruction);
+  bool Compile_Bitwise_Impl(const Instruction& instruction, CycleCount cycles);
+  bool Compile_AddSub(const Instruction& instruction);
+  bool Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles);
 
   CPU* m_cpu;
   JitCodeBuffer* m_code_buffer;

@@ -164,8 +164,15 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
 
     case Operation_AND:
     case Operation_OR:
+    case Operation_XOR:
     case Operation_TEST:
       result = Compile_Bitwise(instruction);
+      break;
+
+    case Operation_ADD:
+    case Operation_SUB:
+    case Operation_CMP:
+      result = Compile_AddSub(instruction);
       break;
 
     default:
@@ -932,17 +939,6 @@ bool CodeGenerator::Compile_MOV(const Instruction& instruction)
   return true;
 }
 
-void CodeGenerator::SetEFLAGS_BitwiseOps(const Value& value)
-{
-  Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
-  EmitAnd(eflags.GetHostRegister(),
-          Value::FromConstantU32(~(Flag_OF | Flag_CF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)));
-  EmitOr(eflags.GetHostRegister(), GetSignFlag(value));
-  EmitOr(eflags.GetHostRegister(), GetParityFlag(value));
-  EmitOr(eflags.GetHostRegister(), GetZeroFlag(value));
-  m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
-}
-
 bool CodeGenerator::Compile_Bitwise(const Instruction& instruction)
 {
   CycleCount cycles = 0;
@@ -952,48 +948,29 @@ bool CodeGenerator::Compile_Bitwise(const Instruction& instruction)
     cycles = m_cpu->GetCyclesRM(CYCLES_ALU_RM_MEM_REG, instruction.ModRM_RM_IsReg());
   else if (instruction.SourceMode() == OperandMode_ModRM_RM)
     cycles = m_cpu->GetCyclesRM(CYCLES_ALU_REG_RM_MEM, instruction.ModRM_RM_IsReg());
-
-  InstructionPrologue(instruction, cycles);
-  CalculateEffectiveAddress(instruction);
+  else
+    Panic("Unknown mode");
 
   // TODO: constant folding here
-  const OperandSize size = instruction.operands[0].size;
-  if (instruction.operation == Operation_TEST)
-  {
-    // TEST doesn't write the destination back, otherwise it's the same as AND.
-    Value lhs = ReadOperand(instruction, 0, size, false);
-    Value rhs = ReadOperand(instruction, 1, size, true);
-    Value lhs_copy = m_register_cache.AllocateScratch(size);
-    EmitCopyValue(lhs_copy.GetHostRegister(), lhs);
-    EmitAnd(lhs_copy.GetHostRegister(), rhs);
-    rhs.ReleaseAndClear();
-    SetEFLAGS_BitwiseOps(lhs_copy);
-  }
+
+  return Compile_Bitwise_Impl(instruction, cycles);
+}
+
+bool CodeGenerator::Compile_AddSub(const Instruction& instruction)
+{
+  CycleCount cycles = 0;
+  if (instruction.DestinationMode() == OperandMode_Register && instruction.SourceMode() == OperandMode_Immediate)
+    cycles = m_cpu->GetCycles(CYCLES_ALU_REG_IMM);
+  else if (instruction.DestinationMode() == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_ALU_RM_MEM_REG, instruction.ModRM_RM_IsReg());
+  else if (instruction.SourceMode() == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_ALU_REG_RM_MEM, instruction.ModRM_RM_IsReg());
   else
-  {
-    Value lhs = ReadOperand(instruction, 0, size, false, true);
-    Value rhs = ReadOperand(instruction, 1, size, true);
+    Panic("Unknown mode");
 
-    switch (instruction.operation)
-    {
-      case Operation_AND:
-        EmitAnd(lhs.GetHostRegister(), rhs);
-        break;
+  // TODO: constant folding here
 
-      case Operation_OR:
-        EmitOr(lhs.GetHostRegister(), rhs);
-        break;
-    }
-
-    rhs.ReleaseAndClear();
-    lhs = WriteOperand(instruction, 0, std::move(lhs));
-    SetEFLAGS_BitwiseOps(lhs);
-  }
-
-  if (OperandIsESP(&instruction, instruction.operands[0]))
-    SyncCurrentESP();
-
-  return true;
+  return Compile_AddSub_Impl(instruction, cycles);
 }
 
 } // namespace CPU_X86::Recompiler
