@@ -163,7 +163,9 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       break;
 
     case Operation_AND:
-      result = Compile_AND(instruction);
+    case Operation_OR:
+    case Operation_TEST:
+      result = Compile_Bitwise(instruction);
       break;
 
     default:
@@ -941,7 +943,7 @@ void CodeGenerator::SetEFLAGS_BitwiseOps(const Value& value)
   m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
 }
 
-bool CodeGenerator::Compile_AND(const Instruction& instruction)
+bool CodeGenerator::Compile_Bitwise(const Instruction& instruction)
 {
   CycleCount cycles = 0;
   if (instruction.DestinationMode() == OperandMode_Register && instruction.SourceMode() == OperandMode_Immediate)
@@ -954,15 +956,39 @@ bool CodeGenerator::Compile_AND(const Instruction& instruction)
   InstructionPrologue(instruction, cycles);
   CalculateEffectiveAddress(instruction);
 
-  // lhs <- lhs AND rhs
   // TODO: constant folding here
   const OperandSize size = instruction.operands[0].size;
-  Value lhs = ReadOperand(instruction, 0, size, false, true);
-  Value rhs = ReadOperand(instruction, 1, size, true);
-  EmitAnd(lhs.GetHostRegister(), rhs);
-  rhs.ReleaseAndClear();
-  lhs = WriteOperand(instruction, 0, std::move(lhs));
-  SetEFLAGS_BitwiseOps(lhs);
+  if (instruction.operation == Operation_TEST)
+  {
+    // TEST doesn't write the destination back, otherwise it's the same as AND.
+    Value lhs = ReadOperand(instruction, 0, size, false);
+    Value rhs = ReadOperand(instruction, 1, size, true);
+    Value lhs_copy = m_register_cache.AllocateScratch(size);
+    EmitCopyValue(lhs_copy.GetHostRegister(), lhs);
+    EmitAnd(lhs_copy.GetHostRegister(), rhs);
+    rhs.ReleaseAndClear();
+    SetEFLAGS_BitwiseOps(lhs_copy);
+  }
+  else
+  {
+    Value lhs = ReadOperand(instruction, 0, size, false, true);
+    Value rhs = ReadOperand(instruction, 1, size, true);
+
+    switch (instruction.operation)
+    {
+      case Operation_AND:
+        EmitAnd(lhs.GetHostRegister(), rhs);
+        break;
+
+      case Operation_OR:
+        EmitOr(lhs.GetHostRegister(), rhs);
+        break;
+    }
+
+    rhs.ReleaseAndClear();
+    lhs = WriteOperand(instruction, 0, std::move(lhs));
+    SetEFLAGS_BitwiseOps(lhs);
+  }
 
   if (OperandIsESP(&instruction, instruction.operands[0]))
     SyncCurrentESP();

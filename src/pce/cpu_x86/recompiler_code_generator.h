@@ -127,7 +127,7 @@ private:
   bool Compile_NOP(const Instruction& instruction);
   bool Compile_LEA(const Instruction& instruction);
   bool Compile_MOV(const Instruction& instruction);
-  bool Compile_AND(const Instruction& instruction);
+  bool Compile_Bitwise(const Instruction& instruction);
 
   CPU* m_cpu;
   JitCodeBuffer* m_code_buffer;
