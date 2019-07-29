@@ -91,6 +91,13 @@ struct Value
     flags = ValueFlags::Valid | ValueFlags::InHostRegister;
   }
 
+  void ClearConstant()
+  {
+    // By clearing the constant bit, we should already be in a host register.
+    DebugAssert(IsInHostRegister());
+    flags &= ~ValueFlags::Constant;
+  }
+
   bool IsDirty() const { return (flags & ValueFlags::Dirty) != ValueFlags::None; }
   void SetDirty() { flags |= ValueFlags::Dirty; }
   void ClearDirty() { flags &= ~ValueFlags::Dirty; }

@@ -466,13 +466,17 @@ Value RegisterCache::ReadGuestRegister(Value& cache_value, OperandSize size, u8 
       DebugAssert(cache_value.IsConstant());
 
       const HostReg host_reg = AllocateHostReg();
-      Log_DebugPrintf("Allocated host register %s for constant guest register %s (%" PRIX64,
+      Log_DebugPrintf("Allocated host register %s for constant guest register %s (0x%" PRIX64 ")",
                       m_code_generator.GetHostRegName(host_reg), Decoder::GetRegisterName(size, guest_reg),
                       cache_value.constant_value);
 
       m_code_generator.EmitCopyValue(host_reg, cache_value);
       cache_value.AddHostReg(this, host_reg);
       AppendRegisterToOrder(size, guest_reg);
+
+      // if we're forcing a host register, we're probably going to be changing the value,
+      // in which case the constant won't be correct anyway. so just drop it.
+      cache_value.ClearConstant();
     }
 
     return cache_value;
@@ -520,6 +524,15 @@ Value RegisterCache::WriteGuestRegister(Reg32 guest_reg, Value&& value)
 Value RegisterCache::WriteGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, Value&& value)
 {
   DebugAssert(value.size == size);
+  if (cache_value.IsInHostRegister() && value.IsInHostRegister() && cache_value.host_reg == value.host_reg)
+  {
+    // updating the register value.
+    Log_DebugPrintf("Updating guest register %s (in host register %s)", Decoder::GetRegisterName(size, guest_reg),
+                    m_code_generator.GetHostRegName(value.host_reg, size));
+    cache_value = std::move(value);
+    cache_value.SetDirty();
+    return cache_value;
+  }
 
   FlushOverlappingGuestRegisters(size, guest_reg);
   InvalidateGuestRegister(cache_value, size, guest_reg);
