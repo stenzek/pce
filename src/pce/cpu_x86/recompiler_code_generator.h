@@ -28,7 +28,7 @@ namespace CPU_X86::Recompiler {
 class CodeGenerator
 {
 public:
-  CodeGenerator(JitCodeBuffer* code_buffer);
+  CodeGenerator(CPU* cpu, JitCodeBuffer* code_buffer);
   ~CodeGenerator();
 
   static u32 CalculateRegisterOffset(Reg8 reg);
@@ -107,7 +107,7 @@ private:
   void LoadSegmentMemory(Value* dest_value, OperandSize size, const Value& address, Segment segment);
   void StoreSegmentMemory(const Value& value, const Value& address, Segment segment);
   void RaiseException(u32 exception, const Value& ec = Value::FromConstantU32(0));
-  void InstructionPrologue(const Instruction& instruction, bool force_sync = false);
+  void InstructionPrologue(const Instruction& instruction, CycleCount cycles, bool force_sync = false);
   void SyncInstructionPointer();
   void SyncCurrentEIP();
   void SyncCurrentESP();
@@ -121,6 +121,7 @@ private:
   bool Compile_LEA(const Instruction& instruction);
   bool Compile_MOV(const Instruction& instruction);
 
+  CPU* m_cpu;
   JitCodeBuffer* m_code_buffer;
   const BlockBase* m_block = nullptr;
   const Instruction* m_block_start = nullptr;
@@ -130,7 +131,7 @@ private:
 
   u32 m_delayed_eip_add = 0;
   u32 m_delayed_current_eip_add = 0;
-  u32 m_delayed_cycles_add = 0;
+  CycleCount m_delayed_cycles_add = 0;
 
   std::array<Value, 3> m_operand_memory_addresses{};
 };

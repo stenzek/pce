@@ -20,8 +20,8 @@ namespace CPU_X86::Recompiler {
 // TODO: block linking
 // TODO: memcpy-like stuff from bus for validation
 
-CodeGenerator::CodeGenerator(JitCodeBuffer* code_buffer)
-  : m_code_buffer(code_buffer), m_register_cache(*this),
+CodeGenerator::CodeGenerator(CPU* cpu, JitCodeBuffer* code_buffer)
+  : m_cpu(cpu), m_code_buffer(code_buffer), m_register_cache(*this),
     m_emit(code_buffer->GetFreeCodeSpace(), code_buffer->GetFreeCodePointer())
 {
   InitHostRegs();
@@ -737,14 +737,17 @@ void CodeGenerator::RaiseException(u32 exception, const Value& ec /*= Value::Fro
                    ec);
 }
 
-void CodeGenerator::InstructionPrologue(const Instruction& instruction, bool force_sync /* = false */)
+void CodeGenerator::InstructionPrologue(const Instruction& instruction, CycleCount cycles,
+                                        bool force_sync /* = false */)
 {
+  cycles++;
+
   if (!CanInstructionFault(&instruction) && !force_sync)
   {
     // Defer updates for non-faulting instructions.
     m_delayed_eip_add += instruction.length;
     m_delayed_current_eip_add += instruction.length;
-    m_delayed_cycles_add++;
+    m_delayed_cycles_add += cycles;
     return;
   }
 
@@ -774,7 +777,7 @@ void CodeGenerator::InstructionPrologue(const Instruction& instruction, bool for
   m_delayed_current_eip_add = instruction.length;
 
   // Add pending cycles for this instruction.
-  EmitAddCPUStructField(offsetof(CPU, m_pending_cycles), Value::FromConstantU64(m_delayed_cycles_add + 1));
+  EmitAddCPUStructField(offsetof(CPU, m_pending_cycles), Value::FromConstantU64(m_delayed_cycles_add + cycles));
   m_delayed_cycles_add = 0;
 }
 
@@ -813,7 +816,7 @@ void CodeGenerator::SyncCurrentESP()
 
 bool CodeGenerator::Compile_Fallback(const Instruction& instruction)
 {
-  InstructionPrologue(instruction, true);
+  InstructionPrologue(instruction, 0, true);
 
   // flush and invalidate all guest registers, since the fallback could change any of them
   m_register_cache.FlushAllGuestRegisters(true);
@@ -835,13 +838,13 @@ bool CodeGenerator::Compile_Fallback(const Instruction& instruction)
 
 bool CodeGenerator::Compile_NOP(const Instruction& instruction)
 {
-  InstructionPrologue(instruction);
+  InstructionPrologue(instruction, m_cpu->GetCycles(CYCLES_NOP));
   return true;
 }
 
 bool CodeGenerator::Compile_LEA(const Instruction& instruction)
 {
-  InstructionPrologue(instruction);
+  InstructionPrologue(instruction, m_cpu->GetCycles(CYCLES_LEA));
   CalculateEffectiveAddress(instruction);
   WriteOperand(instruction, 0, std::move(m_operand_memory_addresses[1]));
   return true;
@@ -851,7 +854,19 @@ bool CodeGenerator::Compile_MOV(const Instruction& instruction)
 {
   DebugAssert(instruction.operands[0].size == instruction.operands[1].size);
 
-  InstructionPrologue(instruction);
+  CycleCount cycles = 0;
+  if (instruction.DestinationMode() == OperandMode_Register && instruction.SourceMode() == OperandMode_Immediate)
+    cycles = m_cpu->GetCycles(CYCLES_MOV_REG_IMM);
+  else if (instruction.DestinationMode() == OperandMode_Register && instruction.SourceMode() == OperandMode_Memory)
+    cycles = m_cpu->GetCycles(CYCLES_MOV_REG_MEM);
+  else if (instruction.DestinationMode() == OperandMode_Memory && instruction.SourceMode() == OperandMode_Register)
+    cycles = m_cpu->GetCycles(CYCLES_MOV_RM_MEM_REG);
+  else if (instruction.DestinationMode() == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_MOV_RM_MEM_REG, instruction.ModRM_RM_IsReg());
+  else if (instruction.DestinationMode() == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_MOV_REG_RM_MEM, instruction.ModRM_RM_IsReg());
+
+  InstructionPrologue(instruction, cycles);
   CalculateEffectiveAddress(instruction);
   WriteOperand(instruction, 0, ReadOperand(instruction, 1, instruction.operands[1].size, false));
 

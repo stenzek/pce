@@ -191,7 +191,7 @@ bool Backend::CompileBlock(BlockBase* block)
     return false;
   }
 
-  CodeGenerator codegen(m_code_space.get());
+  CodeGenerator codegen(m_cpu, m_code_space.get());
   if (!codegen.CompileBlock(block, &cblock->code_pointer, &cblock->code_size))
   {
     Log_WarningPrintf("Failed to compile block at paddr %08X", block->key.eip_physical_address);

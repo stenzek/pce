@@ -21,7 +21,7 @@ namespace Recompiler {
 class Backend;
 class CodeGenerator;
 class Thunks;
-}
+} // namespace Recompiler
 
 class Backend;
 class DebuggerInterface;
@@ -315,20 +315,25 @@ public:
 
   bool IsHalted() const { return m_halted; }
 
+  // Cycle group lookup
+  CycleCount GetCycles(CYCLE_GROUP group) { return ZeroExtend64(m_cycle_group_timings[group]); }
+  CycleCount GetCyclesPMode(CYCLE_GROUP group)
+  {
+    return ZeroExtend64(m_cycle_group_timings[group + (m_registers.CR0 & 0x01)]);
+  }
+  CycleCount GetCyclesRM(CYCLE_GROUP group, bool rm_reg)
+  {
+    return ZeroExtend64(m_cycle_group_timings[group + static_cast<int>(rm_reg)]);
+  }
+
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
   void AddMemoryCycle()
   { /*m_pending_cycles++;*/
   }
-  void AddCycles(CYCLE_GROUP group) { m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group]); }
-  void AddCyclesPMode(CYCLE_GROUP group)
-  {
-    m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + (m_registers.CR0 & 0x01)]);
-  }
-  void AddCyclesRM(CYCLE_GROUP group, bool rm_reg)
-  {
-    m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + static_cast<int>(rm_reg)]);
-  }
+  void AddCycles(CYCLE_GROUP group) { m_pending_cycles += GetCycles(group); }
+  void AddCyclesPMode(CYCLE_GROUP group) { m_pending_cycles += GetCyclesPMode(group); }
+  void AddCyclesRM(CYCLE_GROUP group, bool rm_reg) { m_pending_cycles += GetCyclesRM(group, rm_reg); }
 
   void CommitPendingCycles()
   {

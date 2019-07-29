@@ -55,6 +55,8 @@ struct Instruction
   }
   bool Is32BitAddressSize() const { return (data.address_size == AddressSize_32); }
   bool Is32BitOperandSize() const { return (data.operand_size == OperandSize_32); }
+  OperandMode DestinationMode() const { return operands[0].mode; }
+  OperandMode SourceMode() const { return operands[0].mode; }
 };
 
 } // namespace CPU_X86
