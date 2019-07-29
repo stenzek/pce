@@ -14,18 +14,17 @@ Value::Value(RegisterCache* regcache_, u64 constant_, OperandSize size_, ValueFl
 }
 
 Value::Value(const Value& other)
-  : regcache(other.regcache), constant_value(other.constant_value), size(other.size), flags(other.flags)
+  : regcache(other.regcache), constant_value(other.constant_value), host_reg(other.host_reg), size(other.size),
+    flags(other.flags)
 {
   AssertMsg(!other.IsScratch(), "Can't copy a temporary register");
 }
 
 Value::Value(Value&& other)
-  : regcache(other.regcache), constant_value(other.constant_value), size(other.size), flags(other.flags)
+  : regcache(other.regcache), constant_value(other.constant_value), host_reg(other.host_reg), size(other.size),
+    flags(other.flags)
 {
-  other.regcache = nullptr;
-  other.constant_value = 0;
-  other.size = OperandSize_8;
-  other.flags = ValueFlags::None;
+  other.Clear();
 }
 
 Value::Value(RegisterCache* regcache_, HostReg reg_, OperandSize size_, ValueFlags flags_)
@@ -45,6 +44,7 @@ Value& Value::operator=(const Value& other)
   Release();
   regcache = other.regcache;
   constant_value = other.constant_value;
+  host_reg = other.host_reg;
   size = other.size;
   flags = other.flags;
 
@@ -56,12 +56,10 @@ Value& Value::operator=(Value&& other)
   Release();
   regcache = other.regcache;
   constant_value = other.constant_value;
+  host_reg = other.host_reg;
   size = other.size;
   flags = other.flags;
-  other.regcache = nullptr;
-  other.constant_value = 0;
-  other.size = OperandSize_8;
-  other.flags = ValueFlags::None;
+  other.Clear();
   return *this;
 }
 
@@ -69,6 +67,7 @@ void Value::Clear()
 {
   regcache = nullptr;
   constant_value = 0;
+  host_reg = {};
   size = OperandSize_8;
   flags = ValueFlags::None;
 }
@@ -304,452 +303,328 @@ u32 RegisterCache::PopCalleeSavedRegisters()
   return count;
 }
 
-void RegisterCache::FlushOverlappingGuestRegisters(Reg8 guest_reg)
+void RegisterCache::FlushOverlappingGuestRegisters(OperandSize size, u8 guest_reg)
 {
-  switch (guest_reg)
+  switch (size)
   {
-    case Reg8_AL:
-    case Reg8_AH:
-      FlushGuestRegister(Reg16_AX, true);
-      FlushGuestRegister(Reg32_EAX, true);
-      break;
-    case Reg8_CL:
-    case Reg8_CH:
-      FlushGuestRegister(Reg16_CX, true);
-      FlushGuestRegister(Reg32_ECX, true);
-      break;
-    case Reg8_BL:
-    case Reg8_BH:
-      FlushGuestRegister(Reg16_BX, true);
-      FlushGuestRegister(Reg32_EBX, true);
-      break;
-    case Reg8_DL:
-    case Reg8_DH:
-      FlushGuestRegister(Reg16_DX, true);
-      FlushGuestRegister(Reg32_EDX, true);
-      break;
+    case OperandSize_8:
+    {
+
+      switch (guest_reg)
+      {
+        case Reg8_AL:
+        case Reg8_AH:
+          FlushGuestRegister(Reg16_AX, true);
+          FlushGuestRegister(Reg32_EAX, true);
+          break;
+        case Reg8_CL:
+        case Reg8_CH:
+          FlushGuestRegister(Reg16_CX, true);
+          FlushGuestRegister(Reg32_ECX, true);
+          break;
+        case Reg8_BL:
+        case Reg8_BH:
+          FlushGuestRegister(Reg16_BX, true);
+          FlushGuestRegister(Reg32_EBX, true);
+          break;
+        case Reg8_DL:
+        case Reg8_DH:
+          FlushGuestRegister(Reg16_DX, true);
+          FlushGuestRegister(Reg32_EDX, true);
+          break;
+        default:
+          break;
+      }
+    }
+    break;
+
+    case OperandSize_16:
+    {
+
+      switch (guest_reg)
+      {
+        case Reg16_AX:
+          FlushGuestRegister(Reg8_AL, true);
+          FlushGuestRegister(Reg8_AH, true);
+          FlushGuestRegister(Reg32_EAX, true);
+          break;
+        case Reg16_BX:
+          FlushGuestRegister(Reg8_BL, true);
+          FlushGuestRegister(Reg8_BH, true);
+          FlushGuestRegister(Reg32_EBX, true);
+          break;
+        case Reg16_CX:
+          FlushGuestRegister(Reg8_CL, true);
+          FlushGuestRegister(Reg8_CH, true);
+          FlushGuestRegister(Reg16_CX, true);
+          FlushGuestRegister(Reg32_ECX, true);
+          break;
+        case Reg16_DX:
+          FlushGuestRegister(Reg8_DL, true);
+          FlushGuestRegister(Reg8_DH, true);
+          FlushGuestRegister(Reg16_DX, true);
+          FlushGuestRegister(Reg32_EDX, true);
+          break;
+        case Reg16_SP:
+          FlushGuestRegister(Reg32_ESP, true);
+          break;
+        case Reg16_BP:
+          FlushGuestRegister(Reg32_EBP, true);
+          break;
+        case Reg16_SI:
+          FlushGuestRegister(Reg32_ESI, true);
+          break;
+        case Reg16_DI:
+          FlushGuestRegister(Reg32_EDI, true);
+          break;
+        default:
+          break;
+      }
+    }
+    break;
+
+    case OperandSize_32:
+    {
+
+      switch (guest_reg)
+      {
+        case Reg32_EAX:
+          FlushGuestRegister(Reg8_AL, true);
+          FlushGuestRegister(Reg8_AH, true);
+          FlushGuestRegister(Reg16_AX, true);
+          break;
+        case Reg32_EBX:
+          FlushGuestRegister(Reg8_BL, true);
+          FlushGuestRegister(Reg8_BH, true);
+          FlushGuestRegister(Reg16_BX, true);
+          break;
+        case Reg32_ECX:
+          FlushGuestRegister(Reg8_CL, true);
+          FlushGuestRegister(Reg8_CH, true);
+          FlushGuestRegister(Reg16_CX, true);
+          FlushGuestRegister(Reg32_ECX, true);
+          break;
+        case Reg32_EDX:
+          FlushGuestRegister(Reg8_DL, true);
+          FlushGuestRegister(Reg8_DH, true);
+          FlushGuestRegister(Reg16_DX, true);
+          FlushGuestRegister(Reg32_EDX, true);
+          break;
+        case Reg32_ESP:
+          FlushGuestRegister(Reg16_SP, true);
+          break;
+        case Reg32_EBP:
+          FlushGuestRegister(Reg16_BP, true);
+          break;
+        case Reg32_ESI:
+          FlushGuestRegister(Reg16_SI, true);
+          break;
+        case Reg32_EDI:
+          FlushGuestRegister(Reg16_DI, true);
+          break;
+        default:
+          break;
+      }
+    }
+    break;
+
     default:
       break;
   }
 }
 
-void RegisterCache::FlushOverlappingGuestRegisters(Reg16 guest_reg)
+Value RegisterCache::ReadGuestRegister(Reg8 guest_reg, bool cache /* = true */, bool force_host_register /* = false */)
 {
-  switch (guest_reg)
-  {
-    case Reg16_AX:
-      FlushGuestRegister(Reg8_AL, true);
-      FlushGuestRegister(Reg8_AH, true);
-      FlushGuestRegister(Reg32_EAX, true);
-      break;
-    case Reg16_BX:
-      FlushGuestRegister(Reg8_BL, true);
-      FlushGuestRegister(Reg8_BH, true);
-      FlushGuestRegister(Reg32_EBX, true);
-      break;
-    case Reg16_CX:
-      FlushGuestRegister(Reg8_CL, true);
-      FlushGuestRegister(Reg8_CH, true);
-      FlushGuestRegister(Reg16_CX, true);
-      FlushGuestRegister(Reg32_ECX, true);
-      break;
-    case Reg16_DX:
-      FlushGuestRegister(Reg8_DL, true);
-      FlushGuestRegister(Reg8_DH, true);
-      FlushGuestRegister(Reg16_DX, true);
-      FlushGuestRegister(Reg32_EDX, true);
-      break;
-    case Reg16_SP:
-      FlushGuestRegister(Reg32_ESP, true);
-      break;
-    case Reg16_BP:
-      FlushGuestRegister(Reg32_EBP, true);
-      break;
-    case Reg16_SI:
-      FlushGuestRegister(Reg32_ESI, true);
-      break;
-    case Reg16_DI:
-      FlushGuestRegister(Reg32_EDI, true);
-      break;
-    default:
-      break;
-  }
+  return ReadGuestRegister(m_guest_reg8_cache[guest_reg], OperandSize_8, static_cast<u8>(guest_reg), cache,
+                           force_host_register);
 }
 
-void RegisterCache::FlushOverlappingGuestRegisters(Reg32 guest_reg)
+Value RegisterCache::ReadGuestRegister(Reg16 guest_reg, bool cache /* = true */, bool force_host_register /* = false */)
 {
-  switch (guest_reg)
-  {
-    case Reg32_EAX:
-      FlushGuestRegister(Reg8_AL, true);
-      FlushGuestRegister(Reg8_AH, true);
-      FlushGuestRegister(Reg16_AX, true);
-      break;
-    case Reg32_EBX:
-      FlushGuestRegister(Reg8_BL, true);
-      FlushGuestRegister(Reg8_BH, true);
-      FlushGuestRegister(Reg16_BX, true);
-      break;
-    case Reg32_ECX:
-      FlushGuestRegister(Reg8_CL, true);
-      FlushGuestRegister(Reg8_CH, true);
-      FlushGuestRegister(Reg16_CX, true);
-      FlushGuestRegister(Reg32_ECX, true);
-      break;
-    case Reg32_EDX:
-      FlushGuestRegister(Reg8_DL, true);
-      FlushGuestRegister(Reg8_DH, true);
-      FlushGuestRegister(Reg16_DX, true);
-      FlushGuestRegister(Reg32_EDX, true);
-      break;
-    case Reg32_ESP:
-      FlushGuestRegister(Reg16_SP, true);
-      break;
-    case Reg32_EBP:
-      FlushGuestRegister(Reg16_BP, true);
-      break;
-    case Reg32_ESI:
-      FlushGuestRegister(Reg16_SI, true);
-      break;
-    case Reg32_EDI:
-      FlushGuestRegister(Reg16_DI, true);
-      break;
-    default:
-      break;
-  }
+  return ReadGuestRegister(m_guest_reg16_cache[guest_reg], OperandSize_16, static_cast<u8>(guest_reg), cache,
+                           force_host_register);
 }
 
-Value RegisterCache::ReadGuestRegister(Reg8 guest_reg, bool cache /* = true */)
+Value RegisterCache::ReadGuestRegister(Reg32 guest_reg, bool cache /* = true */, bool force_host_register /* = false */)
 {
-  GuestRegData& state = m_guest_reg8_state[guest_reg];
-  if (state.IsCached())
-  {
-    if (state.IsInHostRegister())
-      PushRegisterToOrder(OperandSize_8, guest_reg);
+  return ReadGuestRegister(m_guest_reg32_cache[guest_reg], OperandSize_32, static_cast<u8>(guest_reg), cache,
+                           force_host_register);
+}
 
-    return state.ToValue(this, OperandSize_8);
+Value RegisterCache::ReadGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, bool cache,
+                                       bool force_host_register)
+{
+  if (cache_value.IsValid())
+  {
+    if (cache_value.IsInHostRegister())
+    {
+      PushRegisterToOrder(size, guest_reg);
+    }
+    else if (force_host_register)
+    {
+      // if it's not in a register, it should be constant
+      DebugAssert(cache_value.IsConstant());
+
+      const HostReg host_reg = AllocateHostReg();
+      Log_DebugPrintf("Allocated host register %s for constant guest register %s (%" PRIX64,
+                      m_code_generator.GetHostRegName(host_reg), Decoder::GetRegisterName(size, guest_reg),
+                      cache_value.constant_value);
+
+      m_code_generator.EmitCopyValue(host_reg, cache_value);
+      cache_value.AddHostReg(this, host_reg);
+      AppendRegisterToOrder(size, guest_reg);
+    }
+
+    return cache_value;
   }
 
-  FlushOverlappingGuestRegisters(guest_reg);
+  FlushOverlappingGuestRegisters(size, guest_reg);
 
   const HostReg host_reg = AllocateHostReg();
-  m_code_generator.EmitLoadGuestRegister(host_reg, OperandSize_8, guest_reg);
+  m_code_generator.EmitLoadGuestRegister(host_reg, size, guest_reg);
 
-  Log_DebugPrintf("Loading guest register %s to host register %s%s", Decoder::GetRegisterName(guest_reg),
-                  m_code_generator.GetHostRegName(host_reg, OperandSize_8), cache ? " (cached)" : "");
+  Log_DebugPrintf("Loading guest register %s to host register %s%s", Decoder::GetRegisterName(size, guest_reg),
+                  m_code_generator.GetHostRegName(host_reg, size), cache ? " (cached)" : "");
 
-  // Now in cache.
   if (cache)
   {
-    state.SetHostReg(host_reg);
-    AppendRegisterToOrder(OperandSize_8, guest_reg);
-    return Value::FromHostReg(this, host_reg, OperandSize_8);
+    // Now in cache.
+    cache_value.SetHostReg(this, host_reg, size);
+    AppendRegisterToOrder(size, guest_reg);
+    return cache_value;
   }
   else
   {
-    return Value::FromScratch(this, host_reg, OperandSize_8);
+    // Skip caching, return the register as a value.
+    return Value::FromScratch(this, host_reg, size);
   }
 }
 
-Value RegisterCache::ReadGuestRegister(Reg16 guest_reg, bool cache /* = true */)
+Value RegisterCache::WriteGuestRegister(Reg8 guest_reg, Value&& value)
 {
-  GuestRegData& state = m_guest_reg16_state[guest_reg];
-  if (state.IsCached())
-  {
-    if (state.IsInHostRegister())
-      PushRegisterToOrder(OperandSize_16, guest_reg);
-
-    return state.ToValue(this, OperandSize_16);
-  }
-
-  FlushOverlappingGuestRegisters(guest_reg);
-
-  const HostReg host_reg = AllocateHostReg();
-  m_code_generator.EmitLoadGuestRegister(host_reg, OperandSize_16, guest_reg);
-
-  Log_DebugPrintf("Loading guest register %s to host register %s%s", Decoder::GetRegisterName(guest_reg),
-                  m_code_generator.GetHostRegName(host_reg, OperandSize_16), cache ? " (cached)" : "");
-
-  // Now in cache.
-  if (cache)
-  {
-    state.SetHostReg(host_reg);
-    AppendRegisterToOrder(OperandSize_16, guest_reg);
-    return Value::FromHostReg(this, host_reg, OperandSize_16);
-  }
-  else
-  {
-    return Value::FromScratch(this, host_reg, OperandSize_16);
-  }
+  return WriteGuestRegister(m_guest_reg8_cache[guest_reg], OperandSize_8, static_cast<u8>(guest_reg), std::move(value));
 }
 
-Value RegisterCache::ReadGuestRegister(Reg32 guest_reg, bool cache /* = true */)
+Value RegisterCache::WriteGuestRegister(Reg16 guest_reg, Value&& value)
 {
-  GuestRegData& state = m_guest_reg32_state[guest_reg];
-  if (state.IsCached())
-  {
-    if (state.IsInHostRegister())
-      PushRegisterToOrder(OperandSize_32, guest_reg);
-
-    return state.ToValue(this, OperandSize_32);
-  }
-
-  FlushOverlappingGuestRegisters(guest_reg);
-
-  const HostReg host_reg = AllocateHostReg();
-  m_code_generator.EmitLoadGuestRegister(host_reg, OperandSize_32, guest_reg);
-
-  Log_DebugPrintf("Loading guest register %s to host register %s%s", Decoder::GetRegisterName(guest_reg),
-                  m_code_generator.GetHostRegName(host_reg, OperandSize_32), cache ? " (cached)" : "");
-
-  // Now in cache.
-  if (cache)
-  {
-    state.SetHostReg(host_reg);
-    AppendRegisterToOrder(OperandSize_32, guest_reg);
-    return Value::FromHostReg(this, host_reg, OperandSize_32);
-  }
-  else
-  {
-    return Value::FromScratch(this, host_reg, OperandSize_32);
-  }
+  return WriteGuestRegister(m_guest_reg16_cache[guest_reg], OperandSize_16, static_cast<u8>(guest_reg),
+                            std::move(value));
 }
 
-void RegisterCache::WriteGuestRegister(Reg8 guest_reg, Value&& value)
+Value RegisterCache::WriteGuestRegister(Reg32 guest_reg, Value&& value)
 {
-  FlushOverlappingGuestRegisters(guest_reg);
-  InvalidateGuestRegister(guest_reg);
+  return WriteGuestRegister(m_guest_reg32_cache[guest_reg], OperandSize_32, static_cast<u8>(guest_reg),
+                            std::move(value));
+}
 
-  GuestRegData& guest_reg_state = m_guest_reg8_state[guest_reg];
+Value RegisterCache::WriteGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, Value&& value)
+{
+  DebugAssert(value.size == size);
+
+  FlushOverlappingGuestRegisters(size, guest_reg);
+  InvalidateGuestRegister(cache_value, size, guest_reg);
+  DebugAssert(!cache_value.IsValid());
+
   if (value.IsConstant())
   {
     // No need to allocate a host register, and we can defer the store.
-    guest_reg_state.SetConstant(Truncate32(value.constant_value));
-    guest_reg_state.SetDirty();
-    return;
+    cache_value = value;
+    cache_value.SetDirty();
+    return cache_value;
   }
 
-  AppendRegisterToOrder(OperandSize_8, guest_reg);
+  AppendRegisterToOrder(size, guest_reg);
 
   // If it's a temporary, we can bind that to the guest register.
   if (value.IsScratch())
   {
     Log_DebugPrintf("Binding scratch register %s to guest register %s",
-                    m_code_generator.GetHostRegName(value.host_reg, OperandSize_8),
-                    Decoder::GetRegisterName(guest_reg));
+                    m_code_generator.GetHostRegName(value.host_reg, size), Decoder::GetRegisterName(size, guest_reg));
 
-    guest_reg_state.SetHostReg(value.host_reg);
-    guest_reg_state.SetDirty();
-    value.Clear();
-    return;
+    cache_value = std::move(value);
+    cache_value.flags &= ~ValueFlags::Scratch;
+    cache_value.SetDirty();
+    return Value::FromHostReg(this, cache_value.host_reg, size);
   }
 
   // Allocate host register, and copy value to it.
   HostReg host_reg = AllocateHostReg();
   m_code_generator.EmitCopyValue(host_reg, value);
-  guest_reg_state.SetHostReg(host_reg);
-  guest_reg_state.SetDirty();
+  cache_value.SetHostReg(this, host_reg, size);
+  cache_value.SetDirty();
 
   Log_DebugPrintf("Copying non-scratch register %s to %s to guest register %s",
-                  m_code_generator.GetHostRegName(value.host_reg, OperandSize_8),
-                  m_code_generator.GetHostRegName(host_reg, OperandSize_8), Decoder::GetRegisterName(guest_reg));
-}
+                  m_code_generator.GetHostRegName(value.host_reg, size),
+                  m_code_generator.GetHostRegName(host_reg, size), Decoder::GetRegisterName(size, guest_reg));
 
-void RegisterCache::WriteGuestRegister(Reg16 guest_reg, Value&& value)
-{
-  FlushOverlappingGuestRegisters(guest_reg);
-  InvalidateGuestRegister(guest_reg);
-
-  GuestRegData& guest_reg_state = m_guest_reg16_state[guest_reg];
-  if (value.IsConstant())
-  {
-    // No need to allocate a host register, and we can defer the store.
-    guest_reg_state.SetConstant(Truncate32(value.constant_value));
-    guest_reg_state.SetDirty();
-    return;
-  }
-
-  AppendRegisterToOrder(OperandSize_16, guest_reg);
-
-  // If it's a temporary, we can bind that to the guest register.
-  if (value.IsScratch())
-  {
-    Log_DebugPrintf("Binding scratch register %s to guest register %s",
-                    m_code_generator.GetHostRegName(value.host_reg, OperandSize_16),
-                    Decoder::GetRegisterName(guest_reg));
-
-    guest_reg_state.SetHostReg(value.host_reg);
-    guest_reg_state.SetDirty();
-    value.Clear();
-    return;
-  }
-
-  // Allocate host register, and copy value to it.
-  HostReg host_reg = AllocateHostReg();
-  m_code_generator.EmitCopyValue(host_reg, value);
-  guest_reg_state.SetHostReg(host_reg);
-  guest_reg_state.SetDirty();
-
-  Log_DebugPrintf("Copying non-scratch register %s to %s to guest register %s",
-                  m_code_generator.GetHostRegName(value.host_reg, OperandSize_16),
-                  m_code_generator.GetHostRegName(host_reg, OperandSize_16), Decoder::GetRegisterName(guest_reg));
-}
-
-void RegisterCache::WriteGuestRegister(Reg32 guest_reg, Value&& value)
-{
-  FlushOverlappingGuestRegisters(guest_reg);
-  InvalidateGuestRegister(guest_reg);
-
-  GuestRegData& guest_reg_state = m_guest_reg32_state[guest_reg];
-  if (value.IsConstant())
-  {
-    // No need to allocate a host register, and we can defer the store.
-    guest_reg_state.SetConstant(Truncate32(value.constant_value));
-    guest_reg_state.SetDirty();
-    return;
-  }
-
-  AppendRegisterToOrder(OperandSize_32, guest_reg);
-
-  // If it's a temporary, we can bind that to the guest register.
-  if (value.IsScratch())
-  {
-    Log_DebugPrintf("Binding scratch register %s to guest register %s",
-                    m_code_generator.GetHostRegName(value.host_reg, OperandSize_32),
-                    Decoder::GetRegisterName(guest_reg));
-
-    guest_reg_state.SetHostReg(value.host_reg);
-    guest_reg_state.SetDirty();
-    value.Clear();
-    return;
-  }
-
-  // Allocate host register, and copy value to it.
-  HostReg host_reg = AllocateHostReg();
-  m_code_generator.EmitCopyValue(host_reg, value);
-  guest_reg_state.SetHostReg(host_reg);
-  guest_reg_state.SetDirty();
-
-  Log_DebugPrintf("Copying non-scratch register %s to %s to guest register %s",
-                  m_code_generator.GetHostRegName(value.host_reg, OperandSize_32),
-                  m_code_generator.GetHostRegName(host_reg, OperandSize_32), Decoder::GetRegisterName(guest_reg));
+  return Value::FromHostReg(this, cache_value.host_reg, size);
 }
 
 void RegisterCache::FlushGuestRegister(Reg8 guest_reg, bool invalidate)
 {
-  GuestRegData& guest_reg_state = m_guest_reg8_state[guest_reg];
-  if (guest_reg_state.IsDirty())
-  {
-    if (guest_reg_state.IsInHostRegister())
-    {
-      Log_DebugPrintf("Flushing guest register %s from host register %s", Decoder::GetRegisterName(guest_reg),
-                      m_code_generator.GetHostRegName(guest_reg_state.host_reg, OperandSize_8));
-    }
-    else if (guest_reg_state.IsConstant())
-    {
-      Log_DebugPrintf("Flushing guest register %s from constant 0x%02X", Decoder::GetRegisterName(guest_reg),
-                      guest_reg_state.constant_value);
-    }
-    m_code_generator.EmitStoreGuestRegister(OperandSize_8, guest_reg, guest_reg_state.ToValue(this, OperandSize_8));
-    guest_reg_state.ClearDirty();
-  }
-
-  if (invalidate)
-    InvalidateGuestRegister(guest_reg);
-}
-
-void RegisterCache::InvalidateGuestRegister(Reg8 guest_reg)
-{
-  GuestRegData& guest_reg_state = m_guest_reg8_state[guest_reg];
-  if (!guest_reg_state.IsCached())
-    return;
-
-  if (guest_reg_state.IsInHostRegister())
-  {
-    FreeHostReg(guest_reg_state.host_reg);
-    ClearRegisterFromOrder(OperandSize_8, guest_reg);
-  }
-
-  Log_DebugPrintf("Invalidating guest register %s", Decoder::GetRegisterName(guest_reg));
-  guest_reg_state.Invalidate();
+  FlushGuestRegister(m_guest_reg8_cache[guest_reg], OperandSize_8, static_cast<u8>(guest_reg), invalidate);
 }
 
 void RegisterCache::FlushGuestRegister(Reg16 guest_reg, bool invalidate)
 {
-  GuestRegData& guest_reg_state = m_guest_reg16_state[guest_reg];
-  if (guest_reg_state.IsDirty())
-  {
-    if (guest_reg_state.IsInHostRegister())
-    {
-      Log_DebugPrintf("Flushing guest register %s from host register %s", Decoder::GetRegisterName(guest_reg),
-                      m_code_generator.GetHostRegName(guest_reg_state.host_reg, OperandSize_16));
-    }
-    else if (guest_reg_state.IsConstant())
-    {
-      Log_DebugPrintf("Flushing guest register %s from constant 0x%04X", Decoder::GetRegisterName(guest_reg),
-                      guest_reg_state.constant_value);
-    }
-    m_code_generator.EmitStoreGuestRegister(OperandSize_16, guest_reg, guest_reg_state.ToValue(this, OperandSize_16));
-    guest_reg_state.ClearDirty();
-  }
-
-  if (invalidate)
-    InvalidateGuestRegister(guest_reg);
-}
-
-void RegisterCache::InvalidateGuestRegister(Reg16 guest_reg)
-{
-  GuestRegData& guest_reg_state = m_guest_reg16_state[guest_reg];
-  if (!guest_reg_state.IsCached())
-    return;
-
-  if (guest_reg_state.IsInHostRegister())
-  {
-    FreeHostReg(guest_reg_state.host_reg);
-    ClearRegisterFromOrder(OperandSize_16, guest_reg);
-  }
-
-  Log_DebugPrintf("Invalidating guest register %s", Decoder::GetRegisterName(guest_reg));
-  guest_reg_state.Invalidate();
+  FlushGuestRegister(m_guest_reg16_cache[guest_reg], OperandSize_16, static_cast<u8>(guest_reg), invalidate);
 }
 
 void RegisterCache::FlushGuestRegister(Reg32 guest_reg, bool invalidate)
 {
-  GuestRegData& guest_reg_state = m_guest_reg32_state[guest_reg];
-  if (guest_reg_state.IsDirty())
+  FlushGuestRegister(m_guest_reg32_cache[guest_reg], OperandSize_32, static_cast<u8>(guest_reg), invalidate);
+}
+
+void RegisterCache::FlushGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, bool invalidate)
+{
+  if (cache_value.IsDirty())
   {
-    if (guest_reg_state.IsInHostRegister())
+    if (cache_value.IsInHostRegister())
     {
-      Log_DebugPrintf("Flushing guest register %s from host register %s", Decoder::GetRegisterName(guest_reg),
-                      m_code_generator.GetHostRegName(guest_reg_state.host_reg, OperandSize_32));
+      Log_DebugPrintf("Flushing guest register %s from host register %s", Decoder::GetRegisterName(size, guest_reg),
+                      m_code_generator.GetHostRegName(cache_value.host_reg, size));
     }
-    else if (guest_reg_state.IsConstant())
+    else if (cache_value.IsConstant())
     {
-      Log_DebugPrintf("Flushing guest register %s from constant 0x%08X", Decoder::GetRegisterName(guest_reg),
-                      guest_reg_state.constant_value);
+      Log_DebugPrintf("Flushing guest register %s from constant 0x%" PRIX64, Decoder::GetRegisterName(size, guest_reg),
+                      cache_value.constant_value);
     }
-    m_code_generator.EmitStoreGuestRegister(OperandSize_32, guest_reg, guest_reg_state.ToValue(this, OperandSize_32));
-    guest_reg_state.ClearDirty();
+    m_code_generator.EmitStoreGuestRegister(size, guest_reg, cache_value);
+    cache_value.ClearDirty();
   }
 
   if (invalidate)
-    InvalidateGuestRegister(guest_reg);
+    InvalidateGuestRegister(cache_value, size, guest_reg);
+}
+
+void RegisterCache::InvalidateGuestRegister(Reg8 guest_reg)
+{
+  InvalidateGuestRegister(m_guest_reg8_cache[guest_reg], OperandSize_8, static_cast<u8>(guest_reg));
+}
+
+void RegisterCache::InvalidateGuestRegister(Reg16 guest_reg)
+{
+  InvalidateGuestRegister(m_guest_reg16_cache[guest_reg], OperandSize_16, static_cast<u8>(guest_reg));
 }
 
 void RegisterCache::InvalidateGuestRegister(Reg32 guest_reg)
 {
-  GuestRegData& guest_reg_state = m_guest_reg32_state[guest_reg];
-  if (!guest_reg_state.IsCached())
+  InvalidateGuestRegister(m_guest_reg32_cache[guest_reg], OperandSize_32, static_cast<u8>(guest_reg));
+}
+
+void RegisterCache::InvalidateGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg)
+{
+  if (!cache_value.IsValid())
     return;
 
-  if (guest_reg_state.IsInHostRegister())
+  if (cache_value.IsInHostRegister())
   {
-    FreeHostReg(guest_reg_state.host_reg);
-    ClearRegisterFromOrder(OperandSize_32, guest_reg);
+    FreeHostReg(cache_value.host_reg);
+    ClearRegisterFromOrder(size, guest_reg);
   }
 
-  Log_DebugPrintf("Invalidating guest register %s", Decoder::GetRegisterName(guest_reg));
-  guest_reg_state.Invalidate();
+  Log_DebugPrintf("Invalidating guest register %s", Decoder::GetRegisterName(size, guest_reg));
+  cache_value.Clear();
 }
 
 void RegisterCache::FlushAllGuestRegisters(bool invalidate)

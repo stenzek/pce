@@ -20,9 +20,21 @@ static const Xbyak::Reg8 GetHostReg8(HostReg reg)
   return Xbyak::Reg8(reg, reg >= Xbyak::Operand::SPL);
 }
 
+static const Xbyak::Reg8 GetHostReg8(const Value& value)
+{
+  DebugAssert(value.size == OperandSize_8 && value.IsInHostRegister());
+  return Xbyak::Reg8(value.host_reg, value.host_reg >= Xbyak::Operand::SPL);
+}
+
 static const Xbyak::Reg16 GetHostReg16(HostReg reg)
 {
   return Xbyak::Reg16(reg);
+}
+
+static const Xbyak::Reg16 GetHostReg16(const Value& value)
+{
+  DebugAssert(value.size == OperandSize_16 && value.IsInHostRegister());
+  return Xbyak::Reg16(value.host_reg);
 }
 
 static const Xbyak::Reg32 GetHostReg32(HostReg reg)
@@ -30,9 +42,21 @@ static const Xbyak::Reg32 GetHostReg32(HostReg reg)
   return Xbyak::Reg32(reg);
 }
 
+static const Xbyak::Reg32 GetHostReg32(const Value& value)
+{
+  DebugAssert(value.size == OperandSize_32 && value.IsInHostRegister());
+  return Xbyak::Reg32(value.host_reg);
+}
+
 static const Xbyak::Reg64 GetHostReg64(HostReg reg)
 {
   return Xbyak::Reg64(reg);
+}
+
+static const Xbyak::Reg64 GetHostReg64(const Value& value)
+{
+  DebugAssert(value.size == OperandSize_64 && value.IsInHostRegister());
+  return Xbyak::Reg64(value.host_reg);
 }
 
 static const Xbyak::Reg64 GetCPUPtrReg()
@@ -343,6 +367,118 @@ void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
 
   if (save_cl)
     m_emit.pop(m_emit.cl);
+}
+
+void CodeGenerator::EmitAnd(HostReg to_reg, const Value& value)
+{
+  DebugAssert(value.IsConstant() || value.IsInHostRegister());
+  switch (value.size)
+  {
+    case OperandSize_8:
+    {
+      if (value.IsConstant())
+        m_emit.and_(GetHostReg8(to_reg), Truncate32(value.constant_value & UINT32_C(0xFF)));
+      else
+        m_emit.and_(GetHostReg8(to_reg), GetHostReg8(value));
+    }
+    break;
+
+    case OperandSize_16:
+    {
+      if (value.IsConstant())
+        m_emit.and_(GetHostReg16(to_reg), Truncate32(value.constant_value & UINT32_C(0xFFFF)));
+      else
+        m_emit.and_(GetHostReg16(to_reg), GetHostReg16(value));
+    }
+    break;
+
+    case OperandSize_32:
+    {
+      if (value.IsConstant())
+        m_emit.and_(GetHostReg32(to_reg), Truncate32(value.constant_value));
+      else
+        m_emit.and_(GetHostReg32(to_reg), GetHostReg32(value));
+    }
+    break;
+
+    case OperandSize_64:
+    {
+      if (value.IsConstant())
+      {
+        if (!Xbyak::inner::IsInInt32(value.constant_value))
+        {
+          Value temp = m_register_cache.AllocateScratch(OperandSize_64);
+          m_emit.mov(GetHostReg64(temp), value.constant_value);
+          m_emit.and_(GetHostReg64(to_reg), GetHostReg64(temp));
+        }
+        else
+        {
+          m_emit.and_(GetHostReg64(to_reg), Truncate32(value.constant_value));
+        }
+      }
+      else
+      {
+        m_emit.and_(GetHostReg64(to_reg), GetHostReg64(value));
+      }
+    }
+    break;
+  }
+}
+
+void CodeGenerator::EmitOr(HostReg to_reg, const Value& value)
+{
+  DebugAssert(value.IsConstant() || value.IsInHostRegister());
+  switch (value.size)
+  {
+    case OperandSize_8:
+    {
+      if (value.IsConstant())
+        m_emit.or_(GetHostReg8(to_reg), Truncate32(value.constant_value & UINT32_C(0xFF)));
+      else
+        m_emit.or_(GetHostReg8(to_reg), GetHostReg8(value));
+    }
+    break;
+
+    case OperandSize_16:
+    {
+      if (value.IsConstant())
+        m_emit.or_(GetHostReg16(to_reg), Truncate32(value.constant_value & UINT32_C(0xFFFF)));
+      else
+        m_emit.or_(GetHostReg16(to_reg), GetHostReg16(value));
+    }
+    break;
+
+    case OperandSize_32:
+    {
+      if (value.IsConstant())
+        m_emit.or_(GetHostReg32(to_reg), Truncate32(value.constant_value));
+      else
+        m_emit.or_(GetHostReg32(to_reg), GetHostReg32(value));
+    }
+    break;
+
+    case OperandSize_64:
+    {
+      if (value.IsConstant())
+      {
+        if (!Xbyak::inner::IsInInt32(value.constant_value))
+        {
+          Value temp = m_register_cache.AllocateScratch(OperandSize_64);
+          m_emit.mov(GetHostReg64(temp), value.constant_value);
+          m_emit.or_(GetHostReg64(to_reg), GetHostReg64(temp));
+        }
+        else
+        {
+          m_emit.or_(GetHostReg64(to_reg), Truncate32(value.constant_value));
+        }
+      }
+      else
+      {
+        m_emit.or_(GetHostReg64(to_reg), GetHostReg64(value));
+      }
+    }
+    break;
+  }
 }
 
 u32 CodeGenerator::PrepareStackForCall()

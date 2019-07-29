@@ -28,18 +28,16 @@ enum class ValueFlags : u8
   Valid = (1 << 0),
   Constant = (1 << 1),       // The value itself is constant, and not in a register.
   InHostRegister = (1 << 2), // The value itself is located in a host register.
-  Scratch = (1 << 3)         // The value is temporary, and will be released after the Value is destroyed.
+  Scratch = (1 << 3),        // The value is temporary, and will be released after the Value is destroyed.
+  Dirty = (1 << 4),          // For register cache values, the value needs to be written back to the CPU struct.
 };
 IMPLEMENT_ENUM_CLASS_BITWISE_OPERATORS(ValueFlags);
 
 struct Value
 {
   RegisterCache* regcache = nullptr;
-  union
-  {
-    u64 constant_value = 0;
-    HostReg host_reg;
-  };
+  u64 constant_value = 0;
+  HostReg host_reg = {};
 
   OperandSize size = OperandSize_8;
   ValueFlags flags = ValueFlags::None;
@@ -76,14 +74,34 @@ struct Value
   void Discard();
   void Undiscard();
 
+  void AddHostReg(RegisterCache* regcache_, HostReg hr)
+  {
+    DebugAssert(IsValid());
+    regcache = regcache_;
+    host_reg = hr;
+    flags |= ValueFlags::InHostRegister;
+  }
+
+  void SetHostReg(RegisterCache* regcache_, HostReg hr, OperandSize size_)
+  {
+    regcache = regcache_;
+    constant_value = 0;
+    host_reg = hr;
+    size = size_;
+    flags = ValueFlags::Valid | ValueFlags::InHostRegister;
+  }
+
+  bool IsDirty() const { return (flags & ValueFlags::Dirty) != ValueFlags::None; }
+  void SetDirty() { flags |= ValueFlags::Dirty; }
+  void ClearDirty() { flags &= ~ValueFlags::Dirty; }
+
   static Value FromHostReg(RegisterCache* regcache, HostReg reg, OperandSize size)
   {
-    return Value(regcache, static_cast<u32>(reg), size, ValueFlags::Valid | ValueFlags::InHostRegister);
+    return Value(regcache, reg, size, ValueFlags::Valid | ValueFlags::InHostRegister);
   }
   static Value FromScratch(RegisterCache* regcache, HostReg reg, OperandSize size)
   {
-    return Value(regcache, static_cast<u32>(reg), size,
-                 ValueFlags::Valid | ValueFlags::InHostRegister | ValueFlags::Scratch);
+    return Value(regcache, reg, size, ValueFlags::Valid | ValueFlags::InHostRegister | ValueFlags::Scratch);
   }
   static Value FromConstant(u64 cv, OperandSize size)
   {
@@ -96,61 +114,6 @@ struct Value
 
 private:
   void Release();
-};
-
-enum class GuestRegState : u8
-{
-  None = 0,            // Unknown, must be loaded.
-  Cached = (1 << 1),   // Present in register cache.
-  Constant = (1 << 2), // Has a constant value.
-  Dirty = (1 << 3),    // Implies cached or constant, but the value differs from the CPU struct.
-};
-IMPLEMENT_ENUM_CLASS_BITWISE_OPERATORS(GuestRegState);
-
-struct GuestRegData
-{
-  union
-  {
-    u32 constant_value;
-    HostReg host_reg;
-  };
-  GuestRegState state;
-
-  bool IsConstant() const { return (state & GuestRegState::Constant) != GuestRegState::None; }
-  bool IsDirty() const { return (state & GuestRegState::Dirty) != GuestRegState::None; }
-  bool IsCached() const { return (state != GuestRegState::None); }
-  bool IsInHostRegister() const
-  {
-    return (state & (GuestRegState::Cached | GuestRegState::Constant)) == (GuestRegState::Cached);
-  }
-
-  void SetConstant(u32 cv)
-  {
-    constant_value = cv;
-    state = GuestRegState::Constant | GuestRegState::Dirty;
-  }
-  void SetConstantU8(u8 value) { SetConstant(ZeroExtend32(value)); }
-  void SetConstantU16(u16 value) { SetConstant(ZeroExtend32(value)); }
-  void SetConstantU32(u32 value) { SetConstant(ZeroExtend32(value)); }
-
-  void SetHostReg(HostReg hr)
-  {
-    constant_value = 0;
-    host_reg = hr;
-    state = GuestRegState::Cached;
-  }
-
-  void SetDirty() { state |= GuestRegState::Dirty; }
-  void ClearDirty() { state &= ~GuestRegState::Dirty; }
-  void Invalidate() { *this = {}; }
-
-  Value ToValue(RegisterCache* regcache, OperandSize size) const
-  {
-    if (IsConstant())
-      return Value::FromConstant(ZeroExtend64(constant_value), size);
-    else
-      return Value::FromHostReg(regcache, host_reg, size);
-  }
 };
 
 class RegisterCache
@@ -183,8 +146,8 @@ public:
   /// Allocates a specific host register. If this register is not free, returns false.
   bool AllocateHostReg(HostReg reg, HostRegState state = HostRegState::InUse);
 
-  /// Flags the host register as discard-able. This means that the contents is no longer required, and will not be pushed
-  /// when saving caller-saved registers.
+  /// Flags the host register as discard-able. This means that the contents is no longer required, and will not be
+  /// pushed when saving caller-saved registers.
   void DiscardHostReg(HostReg reg);
 
   /// Clears the discard-able flag on a host register, so that the contents will be preserved across function calls.
@@ -209,19 +172,16 @@ public:
   //////////////////////////////////////////////////////////////////////////
   // Guest Register Caching
   //////////////////////////////////////////////////////////////////////////
-  void FlushOverlappingGuestRegisters(Reg8 guest_reg);
-  void FlushOverlappingGuestRegisters(Reg16 guest_reg);
-  void FlushOverlappingGuestRegisters(Reg32 guest_reg);
+  void FlushOverlappingGuestRegisters(OperandSize size, u8 guest_reg);
 
-  Value ReadGuestRegister(Reg8 guest_reg, bool cache = true);
-  Value ReadGuestRegister(Reg16 guest_reg, bool cache = true);
-  Value ReadGuestRegister(Reg32 guest_reg, bool cache = true);
-  Value ReadGuestRegister(OperandSize guest_size, u8 guest_reg, bool cache = true);
+  Value ReadGuestRegister(Reg8 guest_reg, bool cache = true, bool force_host_register = false);
+  Value ReadGuestRegister(Reg16 guest_reg, bool cache = true, bool force_host_register = false);
+  Value ReadGuestRegister(Reg32 guest_reg, bool cache = true, bool force_host_register = false);
 
   /// Creates a copy of value, and stores it to guest_reg.
-  void WriteGuestRegister(Reg8 guest_reg, Value&& value);
-  void WriteGuestRegister(Reg16 guest_reg, Value&& value);
-  void WriteGuestRegister(Reg32 guest_reg, Value&& value);
+  Value WriteGuestRegister(Reg8 guest_reg, Value&& value);
+  Value WriteGuestRegister(Reg16 guest_reg, Value&& value);
+  Value WriteGuestRegister(Reg32 guest_reg, Value&& value);
 
   void FlushGuestRegister(Reg8 guest_reg, bool invalidate);
   void FlushGuestRegister(Reg16 guest_reg, bool invalidate);
@@ -241,6 +201,10 @@ private:
   }
   static constexpr u32 INVALID_REGISTER_CODE = UINT32_C(0xFFFFFFFF);
 
+  Value ReadGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, bool cache, bool force_host_register);
+  Value WriteGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, Value&& value);
+  void FlushGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, bool invalidate);
+  void InvalidateGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg);
   void ClearRegisterFromOrder(u8 size, u8 reg);
   void PushRegisterToOrder(u8 size, u8 reg);
   void AppendRegisterToOrder(u8 size, u8 reg);
@@ -252,9 +216,9 @@ private:
   std::array<HostReg, HostReg_Count> m_host_register_allocation_order{};
   u32 m_host_register_available_count = 0;
 
-  std::array<GuestRegData, Reg8_Count> m_guest_reg8_state{};
-  std::array<GuestRegData, Reg16_Count> m_guest_reg16_state{};
-  std::array<GuestRegData, Reg32_Count> m_guest_reg32_state{};
+  std::array<Value, Reg8_Count> m_guest_reg8_cache{};
+  std::array<Value, Reg16_Count> m_guest_reg16_cache{};
+  std::array<Value, Reg32_Count> m_guest_reg32_cache{};
 
   std::array<u32, HostReg_Count> m_guest_register_order{};
   u32 m_guest_register_order_count = 0;

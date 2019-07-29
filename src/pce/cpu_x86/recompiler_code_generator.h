@@ -57,6 +57,8 @@ public:
   void EmitCopyValue(HostReg to_reg, const Value& value);
   void EmitAdd(HostReg to_reg, const Value& value);
   void EmitShl(HostReg to_reg, const Value& value);
+  void EmitAnd(HostReg to_reg, const Value& value);
+  void EmitOr(HostReg to_reg, const Value& value);
 
   void EmitLoadGuestRegister(HostReg host_reg, OperandSize guest_size, u8 guest_reg);
   void EmitStoreGuestRegister(OperandSize guest_size, u8 guest_reg, const Value& value);
@@ -102,8 +104,8 @@ private:
   //////////////////////////////////////////////////////////////////////////
   void CalculateEffectiveAddress(const Instruction& instruction);
   Value CalculateOperandMemoryAddress(const Instruction& instruction, size_t index);
-  Value ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size, bool sign_extend);
-  void WriteOperand(const Instruction& instruction, size_t index, Value&& value);
+  Value ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size, bool sign_extend, bool force_host_register = false);
+  Value WriteOperand(const Instruction& instruction, size_t index, Value&& value);
   void LoadSegmentMemory(Value* dest_value, OperandSize size, const Value& address, Segment segment);
   void StoreSegmentMemory(const Value& value, const Value& address, Segment segment);
   void RaiseException(u32 exception, const Value& ec = Value::FromConstantU32(0));

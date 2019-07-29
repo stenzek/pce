@@ -282,6 +282,27 @@ const char* Decoder::GetRegisterName(Reg32 reg)
   return reg32_names[reg];
 }
 
+const char* Decoder::GetRegisterName(OperandSize size, u8 reg)
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      DebugAssert(reg < Reg8_Count);
+      return reg8_names[reg];
+
+    case OperandSize_16:
+      DebugAssert(reg < Reg16_Count);
+      return reg16_names[reg];
+
+    case OperandSize_32:
+      DebugAssert(reg < Reg32_Count);
+      return reg32_names[reg];
+
+    default:
+      return "<UNKNOWN>";
+  }
+}
+
 const char* Decoder::GetSegmentName(Segment reg)
 {
   DebugAssert(reg < Segment_Count);
