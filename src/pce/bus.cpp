@@ -104,7 +104,7 @@ bool Bus::SaveState(BinaryWriter& writer)
 void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, u32 size, bool is_write, u32 value)
 {
 #if 0
-  static const uint32 check_addresses[] = {0xC0000, 16};
+  static const uint32 check_addresses[] = { 0x0001c16a, 4, 0x0001c21a, 4};
 
   uint32 v_start = address;
   uint32 v_end = address + size;
@@ -114,7 +114,7 @@ void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, u32 size, bool
     uint32 a_start = check_addresses[i];
     uint32 a_end = a_start + check_addresses[i + 1];
 
-    if ((v_start >= a_start && v_end < a_end) || (a_start >= v_start && a_end < v_end))
+    if ((v_start >= a_start && v_end <= a_end) || (a_start >= v_start && a_end <= v_end))
     {
       if (is_write)
         Log_WarningPrintf("Mem BP %08X while writing %08X (value 0x%08X)", a_start, v_start, value);

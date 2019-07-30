@@ -19,6 +19,7 @@ namespace CPU_X86::Recompiler {
 // TODO: Remove physical references when block is destroyed
 // TODO: block linking
 // TODO: memcpy-like stuff from bus for validation
+// TODO: xor eax, eax -> invalidate and constant 0
 
 CodeGenerator::CodeGenerator(CPU* cpu, JitCodeBuffer* code_buffer)
   : m_cpu(cpu), m_code_buffer(code_buffer), m_register_cache(*this),
@@ -483,13 +484,8 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
       break;
 
     case OperandMode_ModRM_RM:
-    {
-      const Decoder::ModRMAddress* modrm =
-        Decoder::DecodeModRMAddress(instruction.GetAddressSize(), instruction.data.modrm);
-      val = (modrm->addressing_mode == ModRMAddressingMode::Register) ? MakeRegisterAccess(modrm->base_register) :
-                                                                        MakeMemoryAccess();
-    }
-    break;
+      val = instruction.ModRM_RM_IsReg() ? MakeRegisterAccess(instruction.GetModRM_RM_Reg()) : MakeMemoryAccess();
+      break;
 
     default:
       Panic("Unhandled address mode");
@@ -542,15 +538,7 @@ Value CodeGenerator::WriteOperand(const Instruction& instruction, size_t index, 
       return MakeRegisterAccess(instruction.GetModRM_Reg());
 
     case OperandMode_ModRM_RM:
-    {
-      const Decoder::ModRMAddress* modrm =
-        Decoder::DecodeModRMAddress(instruction.GetAddressSize(), instruction.data.modrm);
-      if (modrm->addressing_mode == ModRMAddressingMode::Register)
-        return MakeRegisterAccess(modrm->base_register);
-      else
-        return MakeMemoryAccess();
-    }
-    break;
+      return instruction.ModRM_RM_IsReg() ? MakeRegisterAccess(instruction.GetModRM_RM_Reg()) : MakeMemoryAccess();
 
     default:
       Panic("Unhandled operand mode");
@@ -926,7 +914,7 @@ bool CodeGenerator::Compile_MOV(const Instruction& instruction)
     cycles = m_cpu->GetCycles(CYCLES_MOV_RM_MEM_REG);
   else if (instruction.DestinationMode() == OperandMode_ModRM_RM)
     cycles = m_cpu->GetCyclesRM(CYCLES_MOV_RM_MEM_REG, instruction.ModRM_RM_IsReg());
-  else if (instruction.DestinationMode() == OperandMode_ModRM_RM)
+  else if (instruction.SourceMode() == OperandMode_ModRM_RM)
     cycles = m_cpu->GetCyclesRM(CYCLES_MOV_REG_RM_MEM, instruction.ModRM_RM_IsReg());
 
   InstructionPrologue(instruction, cycles);
@@ -941,13 +929,21 @@ bool CodeGenerator::Compile_MOV(const Instruction& instruction)
 
 bool CodeGenerator::Compile_Bitwise(const Instruction& instruction)
 {
+  const bool is_test = (instruction.operation == Operation_TEST);
+
   CycleCount cycles = 0;
   if (instruction.DestinationMode() == OperandMode_Register && instruction.SourceMode() == OperandMode_Immediate)
-    cycles = m_cpu->GetCycles(CYCLES_ALU_REG_IMM);
+  {
+    cycles = is_test ?
+               m_cpu->GetCyclesRM(CYCLES_TEST_RM_MEM_REG, (instruction.DestinationMode() == OperandMode_ModRM_RM) ?
+                                                            instruction.ModRM_RM_IsReg() :
+                                                            false) :
+               m_cpu->GetCycles(CYCLES_ALU_REG_IMM);
+  }
   else if (instruction.DestinationMode() == OperandMode_ModRM_RM)
-    cycles = m_cpu->GetCyclesRM(CYCLES_ALU_RM_MEM_REG, instruction.ModRM_RM_IsReg());
+    cycles = m_cpu->GetCyclesRM(is_test ? CYCLES_TEST_RM_MEM_REG : CYCLES_ALU_RM_MEM_REG, instruction.ModRM_RM_IsReg());
   else if (instruction.SourceMode() == OperandMode_ModRM_RM)
-    cycles = m_cpu->GetCyclesRM(CYCLES_ALU_REG_RM_MEM, instruction.ModRM_RM_IsReg());
+    cycles = m_cpu->GetCyclesRM(is_test ? CYCLES_TEST_REG_RM_MEM : CYCLES_ALU_REG_RM_MEM, instruction.ModRM_RM_IsReg());
   else
     Panic("Unknown mode");
 
@@ -958,13 +954,15 @@ bool CodeGenerator::Compile_Bitwise(const Instruction& instruction)
 
 bool CodeGenerator::Compile_AddSub(const Instruction& instruction)
 {
+  const bool is_cmp = (instruction.operation == Operation_CMP);
+
   CycleCount cycles = 0;
   if (instruction.DestinationMode() == OperandMode_Register && instruction.SourceMode() == OperandMode_Immediate)
-    cycles = m_cpu->GetCycles(CYCLES_ALU_REG_IMM);
+    cycles = m_cpu->GetCycles(is_cmp ? CYCLES_CMP_REG_IMM : CYCLES_ALU_REG_IMM);
   else if (instruction.DestinationMode() == OperandMode_ModRM_RM)
-    cycles = m_cpu->GetCyclesRM(CYCLES_ALU_RM_MEM_REG, instruction.ModRM_RM_IsReg());
+    cycles = m_cpu->GetCyclesRM(is_cmp ? CYCLES_CMP_RM_MEM_REG : CYCLES_ALU_RM_MEM_REG, instruction.ModRM_RM_IsReg());
   else if (instruction.SourceMode() == OperandMode_ModRM_RM)
-    cycles = m_cpu->GetCyclesRM(CYCLES_ALU_REG_RM_MEM, instruction.ModRM_RM_IsReg());
+    cycles = m_cpu->GetCyclesRM(is_cmp ? CYCLES_CMP_REG_RM_MEM : CYCLES_ALU_REG_RM_MEM, instruction.ModRM_RM_IsReg());
   else
     Panic("Unknown mode");
 
