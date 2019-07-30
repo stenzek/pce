@@ -158,6 +158,7 @@ private:
   bool Compile_PUSH(const Instruction& instruction);
   bool Compile_POP(const Instruction& instruction);
   bool Compile_CALL_Near(const Instruction& instruction);
+  bool Compile_RET_Near(const Instruction& instruction);
 
   CPU* m_cpu;
   JitCodeBuffer* m_code_buffer;

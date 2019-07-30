@@ -192,6 +192,10 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_CALL_Near(instruction);
       break;
 
+    case Operation_RET_Near:
+      result = Compile_RET_Near(instruction);
+      break;
+
     default:
       result = Compile_Fallback(instruction);
       break;
@@ -1239,6 +1243,34 @@ bool CodeGenerator::Compile_CALL_Near(const Instruction& instruction)
   if (instruction.GetOperandSize() == OperandSize_16)
     ConvertValueSizeInPlace(&current_eip, OperandSize_16, false);
   GuestPush(std::move(current_eip));
+
+  m_register_cache.InvalidateGuestRegister(Reg32_EIP);
+  EmitFunctionCall(nullptr, &Thunks::BranchTo, m_register_cache.GetCPUPtr(), branch_address);
+  return true;
+}
+
+bool CodeGenerator::Compile_RET_Near(const Instruction& instruction)
+{
+  InstructionPrologue(instruction, m_cpu->GetCycles(CYCLES_RET_NEAR));
+
+  Value branch_address = GuestPop(instruction.GetOperandSize());
+  if (branch_address.size != OperandSize_32)
+    ConvertValueSizeInPlace(&branch_address, OperandSize_32, false);
+
+  // RET nn
+  if (instruction.operands[0].mode != OperandMode_None)
+  {
+    Assert(instruction.operands[0].mode == OperandMode_Immediate);
+    Value esp_adjust = ReadOperand(instruction, 0, OperandSize_32, false);
+    Value esp = m_register_cache.ReadGuestRegister(Reg32_ESP, true, true);
+    EmitAdd(esp.GetHostRegister(), esp_adjust);
+    if (!m_block->key.ss_size)
+    {
+      // 16-bit SP. Zero extend has the same effect as masking the upper bits.
+      EmitZeroExtend(esp.GetHostRegister(), OperandSize_32, esp.GetHostRegister(), OperandSize_16);
+    }
+    m_register_cache.WriteGuestRegister(Reg32_ESP, std::move(esp));
+  }
 
   m_register_cache.InvalidateGuestRegister(Reg32_EIP);
   EmitFunctionCall(nullptr, &Thunks::BranchTo, m_register_cache.GetCPUPtr(), branch_address);
