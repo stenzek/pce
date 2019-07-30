@@ -3219,9 +3219,9 @@ template<OperandSize dst_size, OperandMode dst_mode, u32 dst_constant>
 void Interpreter::Execute_Operation_POP(CPU* cpu)
 {
   if constexpr (dst_mode == OperandMode_Register)
-    cpu->AddCycles(CYCLES_PUSH_REG);
+    cpu->AddCycles(CYCLES_POP_REG);
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_PUSH_MEM, cpu->idata.ModRM_RM_IsReg());
+    cpu->AddCyclesRM(CYCLES_POP_MEM, cpu->idata.ModRM_RM_IsReg());
   else
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
