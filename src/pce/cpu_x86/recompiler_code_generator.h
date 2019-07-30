@@ -66,6 +66,7 @@ public:
   void EmitOr(HostReg to_reg, const Value& value);
   void EmitXor(HostReg to_reg, const Value& value);
   void EmitTest(HostReg to_reg, const Value& value);
+  void EmitNot(HostReg to_reg, OperandSize size);
 
   void EmitLoadGuestRegister(HostReg host_reg, OperandSize guest_size, u8 guest_reg);
   void EmitStoreGuestRegister(OperandSize guest_size, u8 guest_reg, const Value& value);
@@ -145,6 +146,7 @@ private:
   bool Compile_MOV(const Instruction& instruction);
   bool Compile_Bitwise(const Instruction& instruction);
   bool Compile_Bitwise_Impl(const Instruction& instruction, CycleCount cycles);
+  bool Compile_NOT(const Instruction& instruction);
   bool Compile_AddSub(const Instruction& instruction);
   bool Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles);
 

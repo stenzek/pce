@@ -170,6 +170,10 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_Bitwise(instruction);
       break;
 
+    case Operation_NOT:
+      result = Compile_NOT(instruction);
+      break;
+
     case Operation_ADD:
     case Operation_SUB:
     case Operation_CMP:
@@ -999,6 +1003,53 @@ bool CodeGenerator::Compile_Bitwise(const Instruction& instruction)
   if (OperandIsESP(instruction, 0))
     SyncCurrentESP();
 
+  return true;
+}
+
+bool CodeGenerator::Compile_NOT(const Instruction& instruction)
+{
+  CycleCount cycles = 0;
+  if (instruction.DestinationMode() == OperandMode_Register)
+    cycles = m_cpu->GetCycles(CYCLES_NEG_RM_REG);
+  else if (instruction.DestinationMode() == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_NEG_RM_MEM, instruction.ModRM_RM_IsReg());
+  else
+    Panic("Unknown mode");
+
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  Value value = ReadOperand(instruction, 0, instruction.operands[0].size, false, false);
+
+  // const prop
+  // TODO: Option to disable
+  if (value.IsConstant())
+  {
+    switch (value.size)
+    {
+      case OperandSize_8:
+        value.constant_value = ZeroExtend64(~Truncate8(value.constant_value));
+        break;
+
+      case OperandSize_16:
+        value.constant_value = ZeroExtend64(~Truncate16(value.constant_value));
+        break;
+
+      case OperandSize_32:
+        value.constant_value = ZeroExtend64(~Truncate32(value.constant_value));
+        break;
+
+      default:
+        UnreachableCode();
+        break;
+    }
+  }
+  else
+  {
+    EmitNot(value.GetHostRegister(), value.size);
+  }
+
+  WriteOperand(instruction, 0, std::move(value));
   return true;
 }
 

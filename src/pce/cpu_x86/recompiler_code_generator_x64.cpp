@@ -707,6 +707,31 @@ void CodeGenerator::EmitTest(HostReg to_reg, const Value& value)
   }
 }
 
+void CodeGenerator::EmitNot(HostReg to_reg, OperandSize size)
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      m_emit.not(GetHostReg8(to_reg));
+      break;
+
+    case OperandSize_16:
+      m_emit.not(GetHostReg16(to_reg));
+      break;
+
+    case OperandSize_32:
+      m_emit.not(GetHostReg32(to_reg));
+      break;
+
+    case OperandSize_64:
+      m_emit.not(GetHostReg64(to_reg));
+      break;
+
+    default:
+      break;
+  }
+}
+
 u32 CodeGenerator::PrepareStackForCall()
 {
   // we assume that the stack is unaligned at this point
