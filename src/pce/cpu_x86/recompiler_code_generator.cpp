@@ -423,9 +423,6 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
   };
 
   auto MakeMemoryAccess = [&]() -> Value {
-    // Memory stores can fault. Ensure all registers are flushed before.
-    m_register_cache.FlushAllGuestRegisters(false);
-
     // we get the result back in eax, which we can use as a temporary.
     Value val = m_register_cache.AllocateScratch(operand->size);
     LoadSegmentMemory(&val, operand->size, m_operand_memory_addresses[index], instruction.GetMemorySegment());
@@ -550,8 +547,6 @@ Value CodeGenerator::WriteOperand(const Instruction& instruction, size_t index, 
   };
 
   auto MakeMemoryAccess = [&]() {
-    // Memory stores can fault. Ensure all registers are flushed before.
-    m_register_cache.FlushAllGuestRegisters(false);
     StoreSegmentMemory(value, m_operand_memory_addresses[index], instruction.GetMemorySegment());
     return std::move(value);
   };
@@ -855,6 +850,9 @@ void CodeGenerator::InstructionPrologue(const Instruction& instruction, CycleCou
   // Add pending cycles for this instruction.
   EmitAddCPUStructField(offsetof(CPU, m_pending_cycles), Value::FromConstantU64(m_delayed_cycles_add + cycles));
   m_delayed_cycles_add = 0;
+
+  // Flush all registers from the last instruction if this instruction can fault.
+  m_register_cache.FlushAllGuestRegisters(false);
 }
 
 void CodeGenerator::SyncInstructionPointer()
