@@ -221,7 +221,9 @@ void CodeGenerator::EmitCopyValue(HostReg to_reg, const Value& value)
   {
     case OperandSize_8:
     {
-      if (value.IsConstant())
+      if (value.HasConstantValue(0))
+        m_emit.xor_(GetHostReg8(to_reg), GetHostReg8(to_reg));
+      else if (value.IsConstant())
         m_emit.mov(GetHostReg8(to_reg), value.constant_value);
       else
         m_emit.mov(GetHostReg8(to_reg), GetHostReg8(value.host_reg));
@@ -230,7 +232,9 @@ void CodeGenerator::EmitCopyValue(HostReg to_reg, const Value& value)
 
     case OperandSize_16:
     {
-      if (value.IsConstant())
+      if (value.HasConstantValue(0))
+        m_emit.xor_(GetHostReg16(to_reg), GetHostReg16(to_reg));
+      else if (value.IsConstant())
         m_emit.mov(GetHostReg16(to_reg), value.constant_value);
       else
         m_emit.mov(GetHostReg16(to_reg), GetHostReg16(value.host_reg));
@@ -239,7 +243,9 @@ void CodeGenerator::EmitCopyValue(HostReg to_reg, const Value& value)
 
     case OperandSize_32:
     {
-      if (value.IsConstant())
+      if (value.HasConstantValue(0))
+        m_emit.xor_(GetHostReg32(to_reg), GetHostReg32(to_reg));
+      else if (value.IsConstant())
         m_emit.mov(GetHostReg32(to_reg), value.constant_value);
       else
         m_emit.mov(GetHostReg32(to_reg), GetHostReg32(value.host_reg));
@@ -248,7 +254,9 @@ void CodeGenerator::EmitCopyValue(HostReg to_reg, const Value& value)
 
     case OperandSize_64:
     {
-      if (value.IsConstant())
+      if (value.HasConstantValue(0))
+        m_emit.xor_(GetHostReg64(to_reg), GetHostReg64(to_reg));
+      else if (value.IsConstant())
         m_emit.mov(GetHostReg64(to_reg), value.constant_value);
       else
         m_emit.mov(GetHostReg64(to_reg), GetHostReg64(value.host_reg));

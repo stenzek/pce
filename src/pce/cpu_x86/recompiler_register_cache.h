@@ -64,6 +64,12 @@ struct Value
     return host_reg;
   }
 
+  /// Returns true if this value is constant and has the specified value.
+  bool HasConstantValue(u64 cv) const
+  {
+    return (((flags & ValueFlags::Constant) != ValueFlags::None) && constant_value == cv);
+  }
+
   /// Removes the contents of this value. Use with care, as scratch/temporaries are not released.
   void Clear();
 
