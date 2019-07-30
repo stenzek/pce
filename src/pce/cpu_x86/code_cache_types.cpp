@@ -145,7 +145,7 @@ bool OperandIsESP(const Instruction* instruction, const Instruction::Operand& op
   return (operand.mode == OperandMode_Register && operand.reg32 == Reg32_ESP) ||
          (operand.mode == OperandMode_ModRM_Reg && instruction->GetModRM_Reg() == Reg32_ESP) ||
          (operand.mode == OperandMode_ModRM_RM && instruction->ModRM_RM_IsReg() &&
-          instruction->data.modrm_rm_register == Reg32_ESP);
+          instruction->data.GetModRM_RM_Reg() == Reg32_ESP);
 }
 
 bool IsInvalidInstruction(const Instruction& instruction)

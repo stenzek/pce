@@ -674,6 +674,7 @@ union InstructionData
   u8 GetModRM_Reg() const { return ((modrm >> 3) & 7); }
   u8 GetModRM_RM() { return (modrm & 7); }
   bool ModRM_RM_IsReg() const { return (modrm_mod == 0b11); }
+  u8 GetModRM_RM_Reg() const { return (modrm_rm); }
   bool HasSIB() const { return (modrm_mod != 0b11 && modrm_rm == 0b100); }
   Reg32 GetSIBBaseRegister() const { return static_cast<Reg32>(sib & 0x07); }
   Reg32 GetSIBIndexRegister() const { return static_cast<Reg32>((sib >> 3) & 0x07); }
