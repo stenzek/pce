@@ -389,6 +389,59 @@ void CodeGenerator::UpdateEFLAGS(Value&& merge_value, u32 clear_flags_mask, u32 
   m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
 }
 
+void CodeGenerator::GuestPush(const Value& value)
+{
+  // For calling the thunk, we need ESP flushed. Invalidate as well, since the push will change it.
+  m_register_cache.FlushGuestRegister(Reg32_ESP, true);
+
+  // TODO: don't use a thunk, the whole thing can be done inline manipulating the registers
+  switch (value.size)
+  {
+    case OperandSize_16:
+      EmitFunctionCall(nullptr, &Thunks::PushWord, m_register_cache.GetCPUPtr(), value);
+      break;
+
+    case OperandSize_32:
+      EmitFunctionCall(nullptr, &Thunks::PushDWord, m_register_cache.GetCPUPtr(), value);
+      break;
+
+    default:
+      UnreachableCode();
+      break;
+  }
+}
+
+void CodeGenerator::GuestPush(Value&& value)
+{
+  // TODO: value can be discarded once the function is called, no need to restore it if scratch
+  GuestPush(value);
+}
+
+Value CodeGenerator::GuestPop(OperandSize size)
+{
+  // For calling the thunk, we need ESP flushed. Invalidate as well, since the pop will change it.
+  m_register_cache.FlushGuestRegister(Reg32_ESP, true);
+
+  // TODO: don't use a thunk, the whole thing can be done inline manipulating the registers
+  Value value = m_register_cache.AllocateScratch(size);
+  switch (size)
+  {
+    case OperandSize_16:
+      EmitFunctionCall(&value, &Thunks::PopWord, m_register_cache.GetCPUPtr());
+      break;
+
+    case OperandSize_32:
+      EmitFunctionCall(&value, &Thunks::PopDWord, m_register_cache.GetCPUPtr());
+      break;
+
+    default:
+      UnreachableCode();
+      break;
+  }
+
+  return value;
+}
+
 Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size,
                                  bool sign_extend, bool force_host_register /* = false */)
 {
@@ -1099,29 +1152,9 @@ bool CodeGenerator::Compile_PUSH(const Instruction& instruction)
   InstructionPrologue(instruction, cycles);
   CalculateEffectiveAddress(instruction);
 
-  // For calling the thunk, we need ESP flushed. Invalidate as well, since the push will change it.
-  m_register_cache.FlushGuestRegister(Reg32_ESP, true);
-
   // size is determined by the general operand size of the instruction, sign-extended if smaller
-  // TODO: value can be discarded once the function is called, no need to restore it if scratch
-  // TODO: don't use a thunk, the whole thing can be done inline manipulating the registers
   Value value = ReadOperand(instruction, 0, instruction.GetOperandSize(), true, false);
-  switch (instruction.GetOperandSize())
-  {
-    case OperandSize_16:
-      EmitFunctionCall(nullptr, &Thunks::PushWord, m_register_cache.GetCPUPtr(), value);
-      break;
-
-    case OperandSize_32:
-      EmitFunctionCall(nullptr, &Thunks::PushDWord, m_register_cache.GetCPUPtr(), value);
-      break;
-
-    default:
-      UnreachableCode();
-      break;
-  }
-
-  // ESP is updated after the instruction.
+  GuestPush(std::move(value));
   SyncCurrentESP();
   return true;
 }
@@ -1139,25 +1172,7 @@ bool CodeGenerator::Compile_POP(const Instruction& instruction)
   InstructionPrologue(instruction, cycles);
   CalculateEffectiveAddress(instruction);
 
-  // For calling the thunk, we need ESP flushed. Invalidate as well, since the pop will change it.
-  m_register_cache.FlushGuestRegister(Reg32_ESP, true);
-
-  // TODO: don't use a thunk, the whole thing can be done inline manipulating the registers
-  Value value = m_register_cache.AllocateScratch(instruction.GetOperandSize());
-  switch (instruction.GetOperandSize())
-  {
-    case OperandSize_16:
-      EmitFunctionCall(&value, &Thunks::PopWord, m_register_cache.GetCPUPtr());
-      break;
-
-    case OperandSize_32:
-      EmitFunctionCall(&value, &Thunks::PopDWord, m_register_cache.GetCPUPtr());
-      break;
-
-    default:
-      UnreachableCode();
-      break;
-  }
+  Value value = GuestPop(instruction.GetOperandSize());
   WriteOperand(instruction, 0, std::move(value));
 
   // ESP is updated after the pop, but we don't want to alter the value for exceptions until after the write occurs, if

@@ -109,6 +109,11 @@ public:
   // EFLAGS merging.
   void UpdateEFLAGS(Value&& merge_value, u32 clear_flags_mask, u32 copy_flags_mask, u32 set_flags_mask);
 
+  // Guest stack operations.
+  void GuestPush(const Value& value);
+  void GuestPush(Value&& value);
+  Value GuestPop(OperandSize size);
+
 private:
   // Host register setup
   void InitHostRegs();
