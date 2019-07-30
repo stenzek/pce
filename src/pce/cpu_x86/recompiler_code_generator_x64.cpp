@@ -64,16 +64,6 @@ static const Xbyak::Reg64 GetCPUPtrReg()
   return GetHostReg64(RCPUPTR);
 }
 
-static void CopyFlags(Xbyak::CodeGenerator* emitter, Value* out_flags, u32 out_flags_mask)
-{
-  DebugAssert(out_flags->IsInHostRegister());
-
-  // this is a 64-bit push/pop
-  emitter->pushf();
-  emitter->pop(GetHostReg64(out_flags->host_reg));
-  emitter->and_(GetHostReg32(out_flags->host_reg), out_flags_mask);
-}
-
 const char* CodeGenerator::GetHostRegName(HostReg reg, OperandSize size /*= HostPointerSize*/)
 {
   static constexpr std::array<const char*, HostReg_Count> reg8_names = {
@@ -748,6 +738,16 @@ void CodeGenerator::EmitPopHostReg(HostReg reg)
   m_emit.pop(GetHostReg64(reg));
 }
 
+Value CodeGenerator::ReadFlagsFromHost()
+{
+  // this is a 64-bit push/pop, we ignore the upper 32 bits
+  Value temp = m_register_cache.AllocateScratch(OperandSize_32);
+  DebugAssert(temp.IsInHostRegister());
+  m_emit.pushf();
+  m_emit.pop(GetHostReg64(temp.host_reg));
+  return temp;
+}
+
 void CodeGenerator::EmitLoadGuestRegister(HostReg host_reg, OperandSize guest_size, u8 guest_reg)
 {
   switch (guest_size)
@@ -1037,8 +1037,9 @@ bool CodeGenerator::Compile_Bitwise_Impl(const Instruction& instruction, CycleCo
   CalculateEffectiveAddress(instruction);
 
   const OperandSize size = instruction.operands[0].size;
-  const u32 eflags_mask = Flag_OF | Flag_CF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF;
-  Value new_eflags = m_register_cache.AllocateScratch(OperandSize_32);
+  const u32 clear_flags_mask = Flag_OF | Flag_CF | Flag_AF;
+  const u32 copy_flags_mask = Flag_SF | Flag_ZF | Flag_PF;
+  Value host_flags;
   Value result;
   if (instruction.operation == Operation_TEST)
   {
@@ -1048,7 +1049,7 @@ bool CodeGenerator::Compile_Bitwise_Impl(const Instruction& instruction, CycleCo
     result = m_register_cache.AllocateScratch(size);
     EmitCopyValue(result.GetHostRegister(), lhs);
     EmitAnd(result.GetHostRegister(), rhs);
-    CopyFlags(&m_emit, &new_eflags, eflags_mask);
+    host_flags = ReadFlagsFromHost();
   }
   else
   {
@@ -1073,14 +1074,11 @@ bool CodeGenerator::Compile_Bitwise_Impl(const Instruction& instruction, CycleCo
         break;
     }
 
-    CopyFlags(&m_emit, &new_eflags, eflags_mask);
+    host_flags = ReadFlagsFromHost();
     result = WriteOperand(instruction, 0, std::move(lhs));
   }
 
-  Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
-  EmitAnd(eflags.GetHostRegister(), Value::FromConstantU32(~eflags_mask));
-  EmitOr(eflags.GetHostRegister(), new_eflags);
-  m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
+  UpdateEFLAGS(std::move(host_flags), clear_flags_mask, copy_flags_mask, 0);
   return true;
 }
 
@@ -1093,7 +1091,7 @@ bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCou
   const OperandSize size = instruction.operands[0].size;
   const bool is_updating_lhs = (instruction.operation != Operation_CMP);
   const u32 eflags_mask = Flag_OF | Flag_CF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF;
-  Value new_eflags = m_register_cache.AllocateScratch(OperandSize_32);
+  Value host_flags;
   Value result;
 
   if (instruction.operation == Operation_CMP)
@@ -1104,7 +1102,7 @@ bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCou
     result = m_register_cache.AllocateScratch(size);
     EmitCopyValue(result.GetHostRegister(), lhs);
     EmitSub(result.GetHostRegister(), rhs);
-    CopyFlags(&m_emit, &new_eflags, eflags_mask);
+    host_flags = ReadFlagsFromHost();
   }
   else
   {
@@ -1125,14 +1123,11 @@ bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCou
         break;
     }
 
-    CopyFlags(&m_emit, &new_eflags, eflags_mask);
+    host_flags = ReadFlagsFromHost();
     result = WriteOperand(instruction, 0, std::move(lhs));
   }
 
-  Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
-  EmitAnd(eflags.GetHostRegister(), Value::FromConstantU32(~eflags_mask));
-  EmitOr(eflags.GetHostRegister(), new_eflags);
-  m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
+  UpdateEFLAGS(std::move(host_flags), 0, eflags_mask, 0);
   return true;
 }
 

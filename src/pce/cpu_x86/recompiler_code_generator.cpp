@@ -351,6 +351,32 @@ Value CodeGenerator::ShlValues(const Value& lhs, const Value& rhs)
   return res;
 }
 
+void CodeGenerator::UpdateEFLAGS(Value&& merge_value, u32 clear_flags_mask, u32 copy_flags_mask, u32 set_flags_mask)
+{
+  Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
+
+  const u32 bits_to_clear = clear_flags_mask | copy_flags_mask;
+  if (bits_to_clear != 0)
+    EmitAnd(eflags.GetHostRegister(), Value::FromConstantU32(~bits_to_clear));
+  if (copy_flags_mask != 0)
+  {
+    if (merge_value.IsConstant())
+    {
+      EmitOr(eflags.GetHostRegister(),
+             Value::FromConstantU32(Truncate32(merge_value.constant_value) & copy_flags_mask));
+    }
+    else
+    {
+      EmitAnd(merge_value.GetHostRegister(), Value::FromConstantU32(copy_flags_mask));
+      EmitOr(eflags.GetHostRegister(), merge_value);
+    }
+  }
+  if (set_flags_mask != 0)
+    EmitOr(eflags.GetHostRegister(), Value::FromConstantU32(set_flags_mask));
+
+  m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
+}
+
 Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size,
                                  bool sign_extend, bool force_host_register /* = false */)
 {
@@ -860,9 +886,12 @@ void CodeGenerator::SyncCurrentESP()
   EmitStoreCPUStructField(offsetof(CPU, m_current_ESP), m_register_cache.ReadGuestRegister(Reg32_ESP, false));
 }
 
+static std::array<u64, Operation_Count> s_fallback_operation_instruction_counts;
+
 bool CodeGenerator::Compile_Fallback(const Instruction& instruction)
 {
   InstructionPrologue(instruction, 0, true);
+  s_fallback_operation_instruction_counts[instruction.operation]++;
 
   // flush and invalidate all guest registers, since the fallback could change any of them
   m_register_cache.FlushAllGuestRegisters(true);

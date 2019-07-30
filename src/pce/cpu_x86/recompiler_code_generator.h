@@ -5,11 +5,11 @@
 
 #include "common/jit_code_buffer.h"
 
-#include "pce/types.h"
 #include "pce/cpu_x86/decoder.h"
-#include "pce/cpu_x86/types.h"
 #include "pce/cpu_x86/recompiler_register_cache.h"
 #include "pce/cpu_x86/recompiler_thunks.h"
+#include "pce/cpu_x86/types.h"
+#include "pce/types.h"
 #include "xbyak.h"
 
 // ABI selection
@@ -36,6 +36,9 @@ public:
   static u32 CalculateRegisterOffset(Reg32 reg);
   static u32 CalculateSegmentRegisterOffset(Segment segment);
   static const char* GetHostRegName(HostReg reg, OperandSize size = HostPointerSize);
+
+  RegisterCache& GetRegisterCache() { return m_register_cache; }
+  CodeEmitter& GetCodeEmitter() { return m_emit; }
 
   bool CompileBlock(const BlockBase* block, BlockFunctionType* out_function_ptr, size_t* out_code_size);
 
@@ -71,11 +74,12 @@ public:
   u32 PrepareStackForCall();
   void RestoreStackAfterCall(u32 adjust_size);
 
-  //void EmitFunctionCall(const void* ptr);
+  // void EmitFunctionCall(const void* ptr);
   void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1);
   void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2);
   void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2, const Value& arg3);
-  void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2, const Value& arg3, const Value& arg4);  
+  void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2, const Value& arg3,
+                        const Value& arg4);
 
 #if 0
   template<typename R, typename A1, typename A2>
@@ -89,10 +93,18 @@ public:
   void EmitPushHostReg(HostReg reg);
   void EmitPopHostReg(HostReg reg);
 
+  // Flags copying from host.
+#if defined(Y_CPU_X64)
+  Value ReadFlagsFromHost();
+#endif
+
   // Value ops
   Value AddValues(const Value& lhs, const Value& rhs);
   Value MulValues(const Value& lhs, const Value& rhs);
   Value ShlValues(const Value& lhs, const Value& rhs);
+
+  // EFLAGS merging.
+  void UpdateEFLAGS(Value&& merge_value, u32 clear_flags_mask, u32 copy_flags_mask, u32 set_flags_mask);
 
 private:
   // Host register setup
@@ -106,7 +118,8 @@ private:
   //////////////////////////////////////////////////////////////////////////
   void CalculateEffectiveAddress(const Instruction& instruction);
   Value CalculateOperandMemoryAddress(const Instruction& instruction, size_t index);
-  Value ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size, bool sign_extend, bool force_host_register = false);
+  Value ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size, bool sign_extend,
+                    bool force_host_register = false);
   Value WriteOperand(const Instruction& instruction, size_t index, Value&& value);
   void LoadSegmentMemory(Value* dest_value, OperandSize size, const Value& address, Segment segment);
   void StoreSegmentMemory(const Value& value, const Value& address, Segment segment);
