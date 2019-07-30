@@ -126,6 +126,7 @@ private:
   //////////////////////////////////////////////////////////////////////////
   void CalculateEffectiveAddress(const Instruction& instruction);
   Value CalculateOperandMemoryAddress(const Instruction& instruction, size_t index);
+  Value CalculateJumpTarget(const Instruction& instruction, size_t index = 0);
   Value ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size, bool sign_extend,
                     bool force_host_register = false);
   Value WriteOperand(const Instruction& instruction, size_t index, Value&& value);
@@ -156,6 +157,7 @@ private:
   bool Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles);
   bool Compile_PUSH(const Instruction& instruction);
   bool Compile_POP(const Instruction& instruction);
+  bool Compile_CALL_Near(const Instruction& instruction);
 
   CPU* m_cpu;
   JitCodeBuffer* m_code_buffer;

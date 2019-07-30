@@ -21,6 +21,7 @@ public:
   static void PushDWord(CPU* cpu, u32 value);
   static u16 PopWord(CPU* cpu);
   static u32 PopDWord(CPU* cpu);
+  static void BranchTo(CPU* cpu, u32 address);
 };
 
 } // namespace CPU_X86::Recompiler

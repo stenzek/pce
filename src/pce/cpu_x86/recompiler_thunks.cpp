@@ -71,4 +71,9 @@ u32 Thunks::PopDWord(CPU* cpu)
   return cpu->PopDWord();
 }
 
+void Thunks::BranchTo(CPU* cpu, u32 address)
+{
+  cpu->BranchTo(address);
+}
+
 } // namespace CPU_X86::Recompiler

@@ -188,6 +188,10 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_POP(instruction);
       break;
 
+    case Operation_CALL_Near:
+      result = Compile_CALL_Near(instruction);
+      break;
+
     default:
       result = Compile_Fallback(instruction);
       break;
@@ -769,6 +773,41 @@ Value CodeGenerator::CalculateOperandMemoryAddress(const Instruction& instructio
   return Value();
 }
 
+Value CodeGenerator::CalculateJumpTarget(const Instruction& instruction, size_t index /* = 0 */)
+{
+  // TODO: optimize these into a lea
+  const Instruction::Operand& operand = instruction.operands[index];
+  switch (operand.mode)
+  {
+    case OperandMode_Relative:
+    {
+      // we shouldn't have any delayed bits to add here
+      Assert(m_delayed_eip_add == 0);
+      Value eip = m_register_cache.ReadGuestRegister(Reg32_EIP, false);
+      Value target = m_register_cache.AllocateScratch(OperandSize_32);
+      EmitCopyValue(target.GetHostRegister(), eip);
+      EmitAdd(target.GetHostRegister(), Value::FromConstantU32(instruction.data.disp32));
+      if (instruction.GetOperandSize() == OperandSize_16)
+      {
+        // zero extending achieves the same thing as masking with FFFF, but doesn't need flags and is shorter
+        EmitZeroExtend(target.GetHostRegister(), OperandSize_32, target.GetHostRegister(), OperandSize_16);
+      }
+      return target;
+    }
+
+    case OperandMode_ModRM_RM:
+    {
+      return ReadOperand(instruction, index, OperandSize_32, false, false);
+    }
+
+    default:
+    {
+      UnreachableCode();
+      return Value{};
+    }
+  }
+}
+
 bool CodeGenerator::IsConstantOperand(const Instruction* instruction, size_t index)
 {
   const Instruction::Operand* operand = &instruction->operands[index];
@@ -1178,6 +1217,31 @@ bool CodeGenerator::Compile_POP(const Instruction& instruction)
   // ESP is updated after the pop, but we don't want to alter the value for exceptions until after the write occurs, if
   // this is popping to memory.
   SyncCurrentESP();
+  return true;
+}
+
+bool CodeGenerator::Compile_CALL_Near(const Instruction& instruction)
+{
+  CycleCount cycles = 0;
+  if (instruction.operands[0].mode == OperandMode_Relative)
+    cycles = m_cpu->GetCycles(CYCLES_CALL_NEAR);
+  else if (instruction.operands[0].mode == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_CALL_NEAR_RM_MEM, instruction.ModRM_RM_IsReg());
+  else
+    Panic("Unknown mode");
+
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  Value branch_address = CalculateJumpTarget(instruction);
+
+  Value current_eip = m_register_cache.ReadGuestRegister(Reg32_EIP);
+  if (instruction.GetOperandSize() == OperandSize_16)
+    ConvertValueSizeInPlace(&current_eip, OperandSize_16, false);
+  GuestPush(std::move(current_eip));
+
+  m_register_cache.InvalidateGuestRegister(Reg32_EIP);
+  EmitFunctionCall(nullptr, &Thunks::BranchTo, m_register_cache.GetCPUPtr(), branch_address);
   return true;
 }
 
