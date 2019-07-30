@@ -393,7 +393,7 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
       {
         Value val = m_register_cache.ReadGuestRegister(static_cast<Reg8>(reg), true, force_host_register);
         if (output_size != OperandSize_8)
-          ConvertValueSize(val, output_size, sign_extend);
+          val = ConvertValueSize(val, output_size, sign_extend);
 
         return val;
       }
@@ -402,7 +402,7 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
       {
         Value val = m_register_cache.ReadGuestRegister(static_cast<Reg16>(reg), true, force_host_register);
         if (output_size != OperandSize_16)
-          ConvertValueSize(val, output_size, sign_extend);
+          val = ConvertValueSize(val, output_size, sign_extend);
 
         return val;
       }
@@ -411,7 +411,7 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
       {
         Value val = m_register_cache.ReadGuestRegister(static_cast<Reg32>(reg), true, force_host_register);
         if (output_size != OperandSize_32)
-          ConvertValueSize(val, output_size, sign_extend);
+          val = ConvertValueSize(val, output_size, sign_extend);
 
         return val;
       }

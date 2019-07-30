@@ -214,6 +214,7 @@ void CodeGenerator::EmitZeroExtend(HostReg to_reg, OperandSize to_size, HostReg 
 
 void CodeGenerator::EmitCopyValue(HostReg to_reg, const Value& value)
 {
+  // TODO: mov x, 0 -> xor x, x
   DebugAssert(value.IsConstant() || value.IsInHostRegister());
 
   switch (value.size)
