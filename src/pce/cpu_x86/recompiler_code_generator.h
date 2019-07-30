@@ -149,6 +149,7 @@ private:
   bool Compile_NOT(const Instruction& instruction);
   bool Compile_AddSub(const Instruction& instruction);
   bool Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles);
+  bool Compile_Push(const Instruction& instruction);
 
   CPU* m_cpu;
   JitCodeBuffer* m_code_buffer;

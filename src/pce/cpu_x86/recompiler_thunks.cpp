@@ -2,6 +2,8 @@
 
 namespace CPU_X86::Recompiler {
 
+// TODO: Port thunks to "ASM routines", i.e. code in the jit buffer.
+
 u8 Thunks::ReadSegmentMemoryByte(CPU* cpu, Segment segment, VirtualMemoryAddress address)
 {
   LinearMemoryAddress linear_address = cpu->CalculateLinearAddress(segment, address);
@@ -47,6 +49,16 @@ void Thunks::WriteSegmentMemoryDWord(CPU* cpu, Segment segment, VirtualMemoryAdd
 void Thunks::RaiseException(CPU* cpu, u32 exception, u32 error_code)
 {
   cpu->RaiseException(exception, error_code);
+}
+
+void Thunks::PushWord(CPU* cpu, u16 value)
+{
+  cpu->PushWord(value);
+}
+
+void Thunks::PushDWord(CPU* cpu, u32 value)
+{
+  cpu->PushDWord(value);
 }
 
 } // namespace CPU_X86::Recompiler

@@ -17,6 +17,8 @@ public:
   static void WriteSegmentMemoryWord(CPU* cpu, Segment segment, VirtualMemoryAddress address, u16 value);
   static void WriteSegmentMemoryDWord(CPU* cpu, Segment segment, VirtualMemoryAddress address, u32 value);
   static void RaiseException(CPU* cpu, u32 exception, u32 error_code);
+  static void PushWord(CPU* cpu, u16 value);
+  static void PushDWord(CPU* cpu, u32 value);
 };
 
 } // namespace CPU_X86::Recompiler

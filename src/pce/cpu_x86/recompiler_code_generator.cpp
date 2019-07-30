@@ -180,6 +180,10 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_AddSub(instruction);
       break;
 
+    case Operation_PUSH:
+      result = Compile_Push(instruction);
+      break;
+
     default:
       result = Compile_Fallback(instruction);
       break;
@@ -1073,6 +1077,47 @@ bool CodeGenerator::Compile_AddSub(const Instruction& instruction)
   if (OperandIsESP(instruction, 0))
     SyncCurrentESP();
 
+  return true;
+}
+
+bool CodeGenerator::Compile_Push(const Instruction& instruction)
+{
+  CycleCount cycles = 0;
+  if (instruction.operands[0].mode == OperandMode_Immediate)
+    cycles = m_cpu->GetCycles(CYCLES_PUSH_IMM);
+  else if (instruction.operands[0].mode == OperandMode_Register)
+    cycles = m_cpu->GetCycles(CYCLES_PUSH_REG);
+  else if (instruction.operands[0].mode == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_PUSH_MEM, instruction.ModRM_RM_IsReg());
+  else
+    Panic("Unknown mode");
+
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  // For calling the thunk, we need ESP flushed. Invalidate as well, since the push will change it.
+  m_register_cache.FlushGuestRegister(Reg32_ESP, true);
+
+  // size is determined by the general operand size of the instruction, sign-extended if smaller
+  // TODO: value can be discarded once the function is called, no need to restore it if scratch
+  Value value = ReadOperand(instruction, 0, instruction.GetOperandSize(), true, false);
+  switch (instruction.GetOperandSize())
+  {
+    case OperandSize_16:
+      EmitFunctionCall(nullptr, &Thunks::PushWord, m_register_cache.GetCPUPtr(), value);
+      break;
+
+    case OperandSize_32:
+      EmitFunctionCall(nullptr, &Thunks::PushDWord, m_register_cache.GetCPUPtr(), value);
+      break;
+
+    default:
+      UnreachableCode();
+      break;
+  }
+
+  // ESP is updated after the instruction.
+  SyncCurrentESP();
   return true;
 }
 
