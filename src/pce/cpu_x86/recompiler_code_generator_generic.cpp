@@ -63,10 +63,6 @@ bool CodeGenerator::Compile_Bitwise_Impl(const Instruction& instruction, CycleCo
   EmitOr(eflags.GetHostRegister(), GetParityFlag(result));
   EmitOr(eflags.GetHostRegister(), GetZeroFlag(result));
   m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
-
-  if (OperandIsESP(&instruction, instruction.operands[0]))
-    SyncCurrentESP();
-
   return true;
 }
 

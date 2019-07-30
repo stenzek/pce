@@ -560,7 +560,7 @@ void CodeGenerator::CalculateEffectiveAddress(const Instruction& instruction)
       }
       else
       {
-        Log_DebugPrintf("Effective address is constant 0x" PRIX64, m_operand_memory_addresses[i].constant_value);
+        Log_DebugPrintf("Effective address is constant 0x%" PRIX64, m_operand_memory_addresses[i].constant_value);
       }
 
       if (m_operand_memory_addresses[i].size != OperandSize_32)
@@ -921,7 +921,7 @@ bool CodeGenerator::Compile_MOV(const Instruction& instruction)
   CalculateEffectiveAddress(instruction);
   WriteOperand(instruction, 0, ReadOperand(instruction, 1, instruction.operands[1].size, false));
 
-  if (OperandIsESP(&instruction, instruction.operands[0]))
+  if (OperandIsESP(instruction, 0))
     SyncCurrentESP();
 
   return true;
@@ -947,9 +947,30 @@ bool CodeGenerator::Compile_Bitwise(const Instruction& instruction)
   else
     Panic("Unknown mode");
 
-  // TODO: constant folding here
+  // Special case for xor reg, reg.
+  if (instruction.operation == Operation_XOR && OperandRegistersMatch(instruction, 0, 1))
+  {
+    // Register contains zero, eflags has PF and ZF set.
+    InstructionPrologue(instruction, cycles);
+    CalculateEffectiveAddress(instruction);
+    WriteOperand(instruction, 0, Value::FromConstant(0, instruction.operands[0].size));
+    Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
+    EmitAnd(eflags.GetHostRegister(),
+            Value::FromConstantU32(~(Flag_OF | Flag_CF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF)));
+    EmitOr(eflags.GetHostRegister(), Value::FromConstantU32(Flag_PF | Flag_ZF));
+    m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
+  }
+  else
+  {
+    // TODO: constant folding here
+    if (!Compile_Bitwise_Impl(instruction, cycles))
+      return Compile_Fallback(instruction);
+  }
 
-  return Compile_Bitwise_Impl(instruction, cycles);
+  if (OperandIsESP(instruction, 0))
+    SyncCurrentESP();
+
+  return true;
 }
 
 bool CodeGenerator::Compile_AddSub(const Instruction& instruction)
@@ -968,7 +989,13 @@ bool CodeGenerator::Compile_AddSub(const Instruction& instruction)
 
   // TODO: constant folding here
 
-  return Compile_AddSub_Impl(instruction, cycles);
+  if (!Compile_AddSub_Impl(instruction, cycles))
+    return Compile_Fallback(instruction);
+
+  if (OperandIsESP(instruction, 0))
+    SyncCurrentESP();
+
+  return true;
 }
 
 } // namespace CPU_X86::Recompiler

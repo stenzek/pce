@@ -2,6 +2,7 @@
 #include "pce/bus.h"
 #include "pce/cpu_x86/cpu_x86.h"
 #include "pce/cpu_x86/instruction.h"
+#include <optional>
 #include <unordered_map>
 
 namespace CPU_X86 {
@@ -102,7 +103,10 @@ struct BlockBase
 bool IsExitBlockInstruction(const Instruction* instruction);
 bool IsLinkableExitInstruction(const Instruction* instruction);
 bool CanInstructionFault(const Instruction* instruction);
-bool OperandIsESP(const Instruction* instruction, const Instruction::Operand& operand);
+bool OperandIsESP(const Instruction& instruction, u32 index);
+
+std::optional<u8> GetOperandRegister(const Instruction& instruction, u32 index);
+bool OperandRegistersMatch(const Instruction& instruction, u32 index1, u32 index2);
 
 // TODO: Model
 bool IsInvalidInstruction(const Instruction& instruction);

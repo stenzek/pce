@@ -1081,10 +1081,6 @@ bool CodeGenerator::Compile_Bitwise_Impl(const Instruction& instruction, CycleCo
   EmitAnd(eflags.GetHostRegister(), Value::FromConstantU32(~eflags_mask));
   EmitOr(eflags.GetHostRegister(), new_eflags);
   m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
-
-  if (OperandIsESP(&instruction, instruction.operands[0]))
-    SyncCurrentESP();
-
   return true;
 }
 
@@ -1137,10 +1133,6 @@ bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCou
   EmitAnd(eflags.GetHostRegister(), Value::FromConstantU32(~eflags_mask));
   EmitOr(eflags.GetHostRegister(), new_eflags);
   m_register_cache.WriteGuestRegister(Reg32_EFLAGS, std::move(eflags));
-
-  if (OperandIsESP(&instruction, instruction.operands[0]))
-    SyncCurrentESP();
-
   return true;
 }
 
