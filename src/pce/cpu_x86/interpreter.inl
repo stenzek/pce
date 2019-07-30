@@ -3167,7 +3167,7 @@ void Interpreter::Execute_Operation_PUSH(CPU* cpu)
   else if constexpr (src_mode == OperandMode_Register)
     cpu->AddCycles(CYCLES_PUSH_REG);
   else if constexpr (src_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_PUSH_MEM, cpu->idata.ModRM_RM_IsReg());
+    cpu->AddCycles(cpu->idata.ModRM_RM_IsReg() ? CYCLES_PUSH_REG : CYCLES_PUSH_MEM);
   else
     static_assert(dependent_int_false<src_mode>::value, "unknown mode");
 
@@ -3221,7 +3221,7 @@ void Interpreter::Execute_Operation_POP(CPU* cpu)
   if constexpr (dst_mode == OperandMode_Register)
     cpu->AddCycles(CYCLES_POP_REG);
   else if constexpr (dst_mode == OperandMode_ModRM_RM)
-    cpu->AddCyclesRM(CYCLES_POP_MEM, cpu->idata.ModRM_RM_IsReg());
+    cpu->AddCycles(cpu->idata.ModRM_RM_IsReg() ? CYCLES_POP_REG : CYCLES_POP_MEM);
   else
     static_assert(dependent_int_false<dst_mode>::value, "unknown mode");
 
