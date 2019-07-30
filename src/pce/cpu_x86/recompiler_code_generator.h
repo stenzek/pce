@@ -60,10 +60,12 @@ public:
   void EmitCopyValue(HostReg to_reg, const Value& value);
   void EmitAdd(HostReg to_reg, const Value& value);
   void EmitSub(HostReg to_reg, const Value& value);
+  void EmitCmp(HostReg to_reg, const Value& value);
   void EmitShl(HostReg to_reg, const Value& value);
   void EmitAnd(HostReg to_reg, const Value& value);
   void EmitOr(HostReg to_reg, const Value& value);
   void EmitXor(HostReg to_reg, const Value& value);
+  void EmitTest(HostReg to_reg, const Value& value);
 
   void EmitLoadGuestRegister(HostReg host_reg, OperandSize guest_size, u8 guest_reg);
   void EmitStoreGuestRegister(OperandSize guest_size, u8 guest_reg, const Value& value);

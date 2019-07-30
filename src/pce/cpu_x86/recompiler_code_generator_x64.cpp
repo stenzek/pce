@@ -370,6 +370,63 @@ void CodeGenerator::EmitSub(HostReg to_reg, const Value& value)
   }
 }
 
+void CodeGenerator::EmitCmp(HostReg to_reg, const Value& value)
+{
+  DebugAssert(value.IsConstant() || value.IsInHostRegister());
+
+  switch (value.size)
+  {
+    case OperandSize_8:
+    {
+      if (value.IsConstant())
+        m_emit.cmp(GetHostReg8(to_reg), SignExtend32(Truncate8(value.constant_value)));
+      else
+        m_emit.cmp(GetHostReg8(to_reg), GetHostReg8(value.host_reg));
+    }
+    break;
+
+    case OperandSize_16:
+    {
+      if (value.IsConstant())
+        m_emit.cmp(GetHostReg16(to_reg), SignExtend32(Truncate16(value.constant_value)));
+      else
+        m_emit.cmp(GetHostReg16(to_reg), GetHostReg16(value.host_reg));
+    }
+    break;
+
+    case OperandSize_32:
+    {
+      if (value.IsConstant())
+        m_emit.cmp(GetHostReg32(to_reg), Truncate32(value.constant_value));
+      else
+        m_emit.cmp(GetHostReg32(to_reg), GetHostReg32(value.host_reg));
+    }
+    break;
+
+    case OperandSize_64:
+    {
+      if (value.IsConstant())
+      {
+        if (!Xbyak::inner::IsInInt32(value.constant_value))
+        {
+          Value temp = m_register_cache.AllocateScratch(OperandSize_64);
+          m_emit.mov(GetHostReg64(temp.host_reg), value.constant_value);
+          m_emit.cmp(GetHostReg64(to_reg), GetHostReg64(temp.host_reg));
+        }
+        else
+        {
+          m_emit.cmp(GetHostReg64(to_reg), Truncate32(value.constant_value));
+        }
+      }
+      else
+      {
+        m_emit.cmp(GetHostReg64(to_reg), GetHostReg64(value.host_reg));
+      }
+    }
+    break;
+  }
+}
+
 void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
 {
   DebugAssert(value.IsConstant() || value.IsInHostRegister());
@@ -588,6 +645,62 @@ void CodeGenerator::EmitXor(HostReg to_reg, const Value& value)
       else
       {
         m_emit.xor_(GetHostReg64(to_reg), GetHostReg64(value));
+      }
+    }
+    break;
+  }
+}
+
+void CodeGenerator::EmitTest(HostReg to_reg, const Value& value)
+{
+  DebugAssert(value.IsConstant() || value.IsInHostRegister());
+  switch (value.size)
+  {
+    case OperandSize_8:
+    {
+      if (value.IsConstant())
+        m_emit.test(GetHostReg8(to_reg), Truncate32(value.constant_value & UINT32_C(0xFF)));
+      else
+        m_emit.test(GetHostReg8(to_reg), GetHostReg8(value));
+    }
+    break;
+
+    case OperandSize_16:
+    {
+      if (value.IsConstant())
+        m_emit.test(GetHostReg16(to_reg), Truncate32(value.constant_value & UINT32_C(0xFFFF)));
+      else
+        m_emit.test(GetHostReg16(to_reg), GetHostReg16(value));
+    }
+    break;
+
+    case OperandSize_32:
+    {
+      if (value.IsConstant())
+        m_emit.test(GetHostReg32(to_reg), Truncate32(value.constant_value));
+      else
+        m_emit.test(GetHostReg32(to_reg), GetHostReg32(value));
+    }
+    break;
+
+    case OperandSize_64:
+    {
+      if (value.IsConstant())
+      {
+        if (!Xbyak::inner::IsInInt32(value.constant_value))
+        {
+          Value temp = m_register_cache.AllocateScratch(OperandSize_64);
+          m_emit.mov(GetHostReg64(temp), value.constant_value);
+          m_emit.test(GetHostReg64(to_reg), GetHostReg64(temp));
+        }
+        else
+        {
+          m_emit.test(GetHostReg64(to_reg), Truncate32(value.constant_value));
+        }
+      }
+      else
+      {
+        m_emit.test(GetHostReg64(to_reg), GetHostReg64(value));
       }
     }
     break;
@@ -1037,47 +1150,38 @@ bool CodeGenerator::Compile_Bitwise_Impl(const Instruction& instruction, CycleCo
   CalculateEffectiveAddress(instruction);
 
   const OperandSize size = instruction.operands[0].size;
+  Value lhs = ReadOperand(instruction, 0, size, false, true);
+  Value rhs = ReadOperand(instruction, 1, size, true, false);
+
+  switch (instruction.operation)
+  {
+    case Operation_AND:
+      EmitAnd(lhs.GetHostRegister(), rhs);
+      break;
+
+    case Operation_OR:
+      EmitOr(lhs.GetHostRegister(), rhs);
+      break;
+
+    case Operation_XOR:
+      EmitXor(lhs.GetHostRegister(), rhs);
+      break;
+
+    case Operation_TEST:
+      EmitTest(lhs.GetHostRegister(), rhs);
+      break;
+
+    default:
+      break;
+  }
+
+  Value host_flags = ReadFlagsFromHost();
+
+  if (instruction.operation != Operation_TEST)
+    WriteOperand(instruction, 0, std::move(lhs));
+
   const u32 clear_flags_mask = Flag_OF | Flag_CF | Flag_AF;
   const u32 copy_flags_mask = Flag_SF | Flag_ZF | Flag_PF;
-  Value host_flags;
-  Value result;
-  if (instruction.operation == Operation_TEST)
-  {
-    // TEST doesn't write the destination back, otherwise it's the same as AND.
-    Value lhs = ReadOperand(instruction, 0, size, false, false);
-    Value rhs = ReadOperand(instruction, 1, size, true, false);
-    result = m_register_cache.AllocateScratch(size);
-    EmitCopyValue(result.GetHostRegister(), lhs);
-    EmitAnd(result.GetHostRegister(), rhs);
-    host_flags = ReadFlagsFromHost();
-  }
-  else
-  {
-    Value lhs = ReadOperand(instruction, 0, size, false, true);
-    Value rhs = ReadOperand(instruction, 1, size, true, false);
-
-    switch (instruction.operation)
-    {
-      case Operation_AND:
-        EmitAnd(lhs.GetHostRegister(), rhs);
-        break;
-
-      case Operation_OR:
-        EmitOr(lhs.GetHostRegister(), rhs);
-        break;
-
-      case Operation_XOR:
-        EmitXor(lhs.GetHostRegister(), rhs);
-        break;
-
-      default:
-        break;
-    }
-
-    host_flags = ReadFlagsFromHost();
-    result = WriteOperand(instruction, 0, std::move(lhs));
-  }
-
   UpdateEFLAGS(std::move(host_flags), clear_flags_mask, copy_flags_mask, 0);
   return true;
 }
@@ -1087,46 +1191,34 @@ bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCou
   InstructionPrologue(instruction, cycles);
   CalculateEffectiveAddress(instruction);
 
-  // TODO: constant folding here
   const OperandSize size = instruction.operands[0].size;
-  const bool is_updating_lhs = (instruction.operation != Operation_CMP);
+  Value lhs = ReadOperand(instruction, 0, size, false, true);
+  Value rhs = ReadOperand(instruction, 1, size, true, false);
+
+  switch (instruction.operation)
+  {
+    case Operation_ADD:
+      EmitAdd(lhs.GetHostRegister(), rhs);
+      break;
+
+    case Operation_SUB:
+      EmitSub(lhs.GetHostRegister(), rhs);
+      break;
+
+    case Operation_CMP:
+      EmitCmp(lhs.GetHostRegister(), rhs);
+      break;
+
+    default:
+      break;
+  }
+
+  Value host_flags = ReadFlagsFromHost();
+
+  if (instruction.operation != Operation_CMP)
+    WriteOperand(instruction, 0, std::move(lhs));
+
   const u32 eflags_mask = Flag_OF | Flag_CF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF;
-  Value host_flags;
-  Value result;
-
-  if (instruction.operation == Operation_CMP)
-  {
-    // CMP doesn't write the destination back, otherwise it's the same as SUB.
-    Value lhs = ReadOperand(instruction, 0, size, false, false);
-    Value rhs = ReadOperand(instruction, 1, size, true, false);
-    result = m_register_cache.AllocateScratch(size);
-    EmitCopyValue(result.GetHostRegister(), lhs);
-    EmitSub(result.GetHostRegister(), rhs);
-    host_flags = ReadFlagsFromHost();
-  }
-  else
-  {
-    Value lhs = ReadOperand(instruction, 0, size, false, true);
-    Value rhs = ReadOperand(instruction, 1, size, true, false);
-
-    switch (instruction.operation)
-    {
-      case Operation_ADD:
-        EmitAdd(lhs.GetHostRegister(), rhs);
-        break;
-
-      case Operation_SUB:
-        EmitSub(lhs.GetHostRegister(), rhs);
-        break;
-
-      default:
-        break;
-    }
-
-    host_flags = ReadFlagsFromHost();
-    result = WriteOperand(instruction, 0, std::move(lhs));
-  }
-
   UpdateEFLAGS(std::move(host_flags), 0, eflags_mask, 0);
   return true;
 }
