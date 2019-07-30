@@ -181,7 +181,11 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       break;
 
     case Operation_PUSH:
-      result = Compile_Push(instruction);
+      result = Compile_PUSH(instruction);
+      break;
+
+    case Operation_POP:
+      result = Compile_POP(instruction);
       break;
 
     default:
@@ -1080,7 +1084,7 @@ bool CodeGenerator::Compile_AddSub(const Instruction& instruction)
   return true;
 }
 
-bool CodeGenerator::Compile_Push(const Instruction& instruction)
+bool CodeGenerator::Compile_PUSH(const Instruction& instruction)
 {
   CycleCount cycles = 0;
   if (instruction.operands[0].mode == OperandMode_Immediate)
@@ -1088,7 +1092,7 @@ bool CodeGenerator::Compile_Push(const Instruction& instruction)
   else if (instruction.operands[0].mode == OperandMode_Register)
     cycles = m_cpu->GetCycles(CYCLES_PUSH_REG);
   else if (instruction.operands[0].mode == OperandMode_ModRM_RM)
-    cycles = m_cpu->GetCyclesRM(CYCLES_PUSH_MEM, instruction.ModRM_RM_IsReg());
+    cycles = m_cpu->GetCycles(instruction.ModRM_RM_IsReg() ? CYCLES_PUSH_REG : CYCLES_PUSH_MEM);
   else
     Panic("Unknown mode");
 
@@ -1100,6 +1104,7 @@ bool CodeGenerator::Compile_Push(const Instruction& instruction)
 
   // size is determined by the general operand size of the instruction, sign-extended if smaller
   // TODO: value can be discarded once the function is called, no need to restore it if scratch
+  // TODO: don't use a thunk, the whole thing can be done inline manipulating the registers
   Value value = ReadOperand(instruction, 0, instruction.GetOperandSize(), true, false);
   switch (instruction.GetOperandSize())
   {
@@ -1117,6 +1122,46 @@ bool CodeGenerator::Compile_Push(const Instruction& instruction)
   }
 
   // ESP is updated after the instruction.
+  SyncCurrentESP();
+  return true;
+}
+
+bool CodeGenerator::Compile_POP(const Instruction& instruction)
+{
+  CycleCount cycles = 0;
+  if (instruction.operands[0].mode == OperandMode_Register)
+    cycles = m_cpu->GetCycles(CYCLES_POP_REG);
+  else if (instruction.operands[0].mode == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCycles(instruction.ModRM_RM_IsReg() ? CYCLES_POP_REG : CYCLES_POP_MEM);
+  else
+    Panic("Unknown mode");
+
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  // For calling the thunk, we need ESP flushed. Invalidate as well, since the pop will change it.
+  m_register_cache.FlushGuestRegister(Reg32_ESP, true);
+
+  // TODO: don't use a thunk, the whole thing can be done inline manipulating the registers
+  Value value = m_register_cache.AllocateScratch(instruction.GetOperandSize());
+  switch (instruction.GetOperandSize())
+  {
+    case OperandSize_16:
+      EmitFunctionCall(&value, &Thunks::PopWord, m_register_cache.GetCPUPtr());
+      break;
+
+    case OperandSize_32:
+      EmitFunctionCall(&value, &Thunks::PopDWord, m_register_cache.GetCPUPtr());
+      break;
+
+    default:
+      UnreachableCode();
+      break;
+  }
+  WriteOperand(instruction, 0, std::move(value));
+
+  // ESP is updated after the pop, but we don't want to alter the value for exceptions until after the write occurs, if
+  // this is popping to memory.
   SyncCurrentESP();
   return true;
 }

@@ -19,6 +19,8 @@ public:
   static void RaiseException(CPU* cpu, u32 exception, u32 error_code);
   static void PushWord(CPU* cpu, u16 value);
   static void PushDWord(CPU* cpu, u32 value);
+  static u16 PopWord(CPU* cpu);
+  static u32 PopDWord(CPU* cpu);
 };
 
 } // namespace CPU_X86::Recompiler

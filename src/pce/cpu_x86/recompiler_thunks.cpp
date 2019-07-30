@@ -61,4 +61,14 @@ void Thunks::PushDWord(CPU* cpu, u32 value)
   cpu->PushDWord(value);
 }
 
+u16 Thunks::PopWord(CPU* cpu)
+{
+  return cpu->PopWord();
+}
+
+u32 Thunks::PopDWord(CPU* cpu)
+{
+  return cpu->PopDWord();
+}
+
 } // namespace CPU_X86::Recompiler
