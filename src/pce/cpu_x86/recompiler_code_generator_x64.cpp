@@ -11,7 +11,13 @@ constexpr HostReg RARG2 = Xbyak::Operand::RDX;
 constexpr HostReg RARG3 = Xbyak::Operand::R8;
 constexpr HostReg RARG4 = Xbyak::Operand::R9;
 const u32 FUNCTION_CALL_SHADOW_SPACE = 32;
-#else
+#elif defined(ABI_SYSV)
+constexpr HostReg RCPUPTR = Xbyak::Operand::RBP;
+constexpr HostReg RRETURN = Xbyak::Operand::RAX;
+constexpr HostReg RARG1 = Xbyak::Operand::RDI;
+constexpr HostReg RARG2 = Xbyak::Operand::RSI;
+constexpr HostReg RARG3 = Xbyak::Operand::RDX;
+constexpr HostReg RARG4 = Xbyak::Operand::RCX;
 const u32 FUNCTION_CALL_SHADOW_SPACE = 0;
 #endif
 
@@ -111,7 +117,20 @@ void CodeGenerator::InitHostRegs()
                                            Xbyak::Operand::RSI, Xbyak::Operand::RSP, Xbyak::Operand::R12,
                                            Xbyak::Operand::R13, Xbyak::Operand::R14, Xbyak::Operand::R15});
   m_register_cache.SetCPUPtrHostReg(RCPUPTR);
-#else
+#elif defined(ABI_SYSV)
+  m_register_cache.SetHostRegAllocationOrder(
+    {Xbyak::Operand::RBX, /*Xbyak::Operand::RSP, */ Xbyak::Operand::RBP, Xbyak::Operand::R12, Xbyak::Operand::R13,
+     Xbyak::Operand::R14, Xbyak::Operand::R15,
+     /*Xbyak::Operand::RAX, */ /*Xbyak::Operand::RDI, */ /*Xbyak::Operand::RSI, */
+     /*Xbyak::Operand::RDX, */ /*Xbyak::Operand::RCX, */ Xbyak::Operand::R8, Xbyak::Operand::R9, Xbyak::Operand::R10,
+     Xbyak::Operand::R11});
+  m_register_cache.SetCallerSavedHostRegs({Xbyak::Operand::RAX, Xbyak::Operand::RDI, Xbyak::Operand::RSI,
+                                           Xbyak::Operand::RDX, Xbyak::Operand::RCX, Xbyak::Operand::R8,
+                                           Xbyak::Operand::R9, Xbyak::Operand::R10, Xbyak::Operand::R11});
+  m_register_cache.SetCalleeSavedHostRegs({Xbyak::Operand::RBX, Xbyak::Operand::RSP, Xbyak::Operand::RBP,
+                                           Xbyak::Operand::R12, Xbyak::Operand::R13, Xbyak::Operand::R14,
+                                           Xbyak::Operand::R15});
+  m_register_cache.SetCPUPtrHostReg(RCPUPTR);
 #endif
 }
 
