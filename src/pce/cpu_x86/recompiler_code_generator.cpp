@@ -180,6 +180,11 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_AddSub(instruction);
       break;
 
+    case Operation_INC:
+    case Operation_DEC:
+      result = Compile_IncDec(instruction);
+      break;
+
     case Operation_PUSH:
       result = Compile_PUSH(instruction);
       break;
@@ -1186,6 +1191,25 @@ bool CodeGenerator::Compile_AddSub(const Instruction& instruction)
   // TODO: constant folding here
 
   if (!Compile_AddSub_Impl(instruction, cycles))
+    return Compile_Fallback(instruction);
+
+  if (OperandIsESP(instruction, 0))
+    SyncCurrentESP();
+
+  return true;
+}
+
+bool CodeGenerator::Compile_IncDec(const Instruction& instruction)
+{
+  CycleCount cycles = 0;
+  if (instruction.operands[0].mode == OperandMode_Register)
+    cycles = m_cpu->GetCycles(CYCLES_INC_RM_REG);
+  else if (instruction.operands[0].mode == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_INC_RM_MEM, instruction.ModRM_RM_IsReg());
+  else
+    Panic("Unknown mode");
+
+  if (!Compile_IncDec_Impl(instruction, cycles))
     return Compile_Fallback(instruction);
 
   if (OperandIsESP(instruction, 0))

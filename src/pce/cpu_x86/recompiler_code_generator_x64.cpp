@@ -455,6 +455,44 @@ void CodeGenerator::EmitCmp(HostReg to_reg, const Value& value)
   }
 }
 
+void CodeGenerator::EmitInc(HostReg to_reg, OperandSize size)
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      m_emit.inc(GetHostReg8(to_reg));
+      break;
+    case OperandSize_16:
+      m_emit.inc(GetHostReg16(to_reg));
+      break;
+    case OperandSize_32:
+      m_emit.inc(GetHostReg32(to_reg));
+      break;
+    default:
+      UnreachableCode();
+      break;
+  }
+}
+
+void CodeGenerator::EmitDec(HostReg to_reg, OperandSize size)
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      m_emit.dec(GetHostReg8(to_reg));
+      break;
+    case OperandSize_16:
+      m_emit.dec(GetHostReg16(to_reg));
+      break;
+    case OperandSize_32:
+      m_emit.dec(GetHostReg32(to_reg));
+      break;
+    default:
+      UnreachableCode();
+      break;
+  }
+}
+
 void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
 {
   DebugAssert(value.IsConstant() || value.IsInHostRegister());
@@ -1272,6 +1310,27 @@ bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCou
     WriteOperand(instruction, 0, std::move(lhs));
 
   const u32 eflags_mask = Flag_OF | Flag_CF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF;
+  UpdateEFLAGS(std::move(host_flags), 0, eflags_mask, 0);
+  return true;
+}
+
+bool CodeGenerator::Compile_IncDec_Impl(const Instruction& instruction, CycleCount cycles)
+{
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  Value val = ReadOperand(instruction, 0, instruction.operands[0].size, false, true);
+  if (instruction.operation == Operation_INC)
+    EmitInc(val.GetHostRegister(), val.size);
+  else if (instruction.operation == Operation_DEC)
+    EmitDec(val.GetHostRegister(), val.size);
+  else
+    Panic("Unknown operation");
+
+  Value host_flags = ReadFlagsFromHost();
+  WriteOperand(instruction, 0, std::move(val));
+
+  const u32 eflags_mask = Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF;
   UpdateEFLAGS(std::move(host_flags), 0, eflags_mask, 0);
   return true;
 }

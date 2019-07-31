@@ -61,6 +61,8 @@ public:
   void EmitAdd(HostReg to_reg, const Value& value);
   void EmitSub(HostReg to_reg, const Value& value);
   void EmitCmp(HostReg to_reg, const Value& value);
+  void EmitInc(HostReg to_reg, OperandSize size);
+  void EmitDec(HostReg to_reg, OperandSize size);
   void EmitShl(HostReg to_reg, const Value& value);
   void EmitAnd(HostReg to_reg, const Value& value);
   void EmitOr(HostReg to_reg, const Value& value);
@@ -156,6 +158,8 @@ private:
   bool Compile_NOT(const Instruction& instruction);
   bool Compile_AddSub(const Instruction& instruction);
   bool Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles);
+  bool Compile_IncDec(const Instruction& instruction);
+  bool Compile_IncDec_Impl(const Instruction& instruction, CycleCount cycles);
   bool Compile_PUSH(const Instruction& instruction);
   bool Compile_PUSH_Sreg(const Instruction& instruction);
   bool Compile_POP(const Instruction& instruction);

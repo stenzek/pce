@@ -77,4 +77,13 @@ bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCou
 
 #endif
 
+#if !defined(Y_CPU_X64)
+
+bool CodeGenerator::Compile_IncDec_Impl(const Instruction& instruction, CycleCount cycles)
+{
+  return Compile_Fallback(instruction);
+}
+
+#endif
+
 } // namespace CPU_X86::Recompiler
