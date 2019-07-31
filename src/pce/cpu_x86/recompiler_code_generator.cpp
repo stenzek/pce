@@ -192,6 +192,10 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_POP(instruction);
       break;
 
+    case Operation_JMP_Near:
+      result = Compile_JMP_Near(instruction);
+      break;
+
     case Operation_CALL_Near:
       result = Compile_CALL_Near(instruction);
       break;
@@ -452,6 +456,12 @@ Value CodeGenerator::GuestPop(OperandSize size)
   }
 
   return value;
+}
+
+void CodeGenerator::GuestBranch(const Value& branch_address)
+{
+  m_register_cache.InvalidateGuestRegister(Reg32_EIP);
+  EmitFunctionCall(nullptr, &Thunks::BranchTo, m_register_cache.GetCPUPtr(), branch_address);
 }
 
 Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size,
@@ -1252,6 +1262,24 @@ bool CodeGenerator::Compile_POP(const Instruction& instruction)
   return true;
 }
 
+bool CodeGenerator::Compile_JMP_Near(const Instruction& instruction)
+{
+  CycleCount cycles = 0;
+  if (instruction.operands[0].mode == OperandMode_Relative)
+    cycles = m_cpu->GetCycles(CYCLES_JMP_NEAR);
+  else if (instruction.operands[0].mode == OperandMode_ModRM_RM)
+    cycles = m_cpu->GetCyclesRM(CYCLES_JMP_NEAR_RM_MEM, instruction.ModRM_RM_IsReg());
+  else
+    Panic("Unknown mode");
+
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  Value branch_address = CalculateJumpTarget(instruction);
+  GuestBranch(std::move(branch_address));
+  return true;
+}
+
 bool CodeGenerator::Compile_CALL_Near(const Instruction& instruction)
 {
   CycleCount cycles = 0;
@@ -1271,9 +1299,7 @@ bool CodeGenerator::Compile_CALL_Near(const Instruction& instruction)
   if (instruction.GetOperandSize() == OperandSize_16)
     ConvertValueSizeInPlace(&current_eip, OperandSize_16, false);
   GuestPush(std::move(current_eip));
-
-  m_register_cache.InvalidateGuestRegister(Reg32_EIP);
-  EmitFunctionCall(nullptr, &Thunks::BranchTo, m_register_cache.GetCPUPtr(), branch_address);
+  GuestBranch(std::move(branch_address));
   return true;
 }
 
@@ -1300,8 +1326,7 @@ bool CodeGenerator::Compile_RET_Near(const Instruction& instruction)
     m_register_cache.WriteGuestRegister(Reg32_ESP, std::move(esp));
   }
 
-  m_register_cache.InvalidateGuestRegister(Reg32_EIP);
-  EmitFunctionCall(nullptr, &Thunks::BranchTo, m_register_cache.GetCPUPtr(), branch_address);
+  GuestBranch(std::move(branch_address));
   return true;
 }
 

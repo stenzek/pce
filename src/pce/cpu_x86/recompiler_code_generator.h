@@ -113,6 +113,7 @@ public:
   void GuestPush(const Value& value);
   void GuestPush(Value&& value);
   Value GuestPop(OperandSize size);
+  void GuestBranch(const Value& branch_address);
 
 private:
   // Host register setup
@@ -158,6 +159,7 @@ private:
   bool Compile_PUSH(const Instruction& instruction);
   bool Compile_PUSH_Sreg(const Instruction& instruction);
   bool Compile_POP(const Instruction& instruction);
+  bool Compile_JMP_Near(const Instruction& instruction);
   bool Compile_CALL_Near(const Instruction& instruction);
   bool Compile_RET_Near(const Instruction& instruction);
 
