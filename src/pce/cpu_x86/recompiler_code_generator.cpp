@@ -1130,15 +1130,15 @@ bool CodeGenerator::Compile_NOT(const Instruction& instruction)
     switch (value.size)
     {
       case OperandSize_8:
-        value.constant_value = ZeroExtend64(~Truncate8(value.constant_value));
+        value.constant_value = ZeroExtend64(Truncate8(~value.constant_value));
         break;
 
       case OperandSize_16:
-        value.constant_value = ZeroExtend64(~Truncate16(value.constant_value));
+        value.constant_value = ZeroExtend64(Truncate16(~value.constant_value));
         break;
 
       case OperandSize_32:
-        value.constant_value = ZeroExtend64(~Truncate32(value.constant_value));
+        value.constant_value = ZeroExtend64(Truncate32(~value.constant_value));
         break;
 
       default:
