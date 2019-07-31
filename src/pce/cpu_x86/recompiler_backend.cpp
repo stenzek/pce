@@ -11,7 +11,7 @@ Log_SetChannel(CPU_X86::Recompiler);
 namespace CPU_X86 {
 extern bool TRACE_EXECUTION;
 extern u32 TRACE_EXECUTION_LAST_EIP;
-}
+} // namespace CPU_X86
 
 namespace CPU_X86::Recompiler {
 
@@ -225,6 +225,7 @@ void Backend::DestroyBlock(BlockBase* block)
 
 void Backend::ExecuteBlock()
 {
+  // m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP);
   m_cpu->m_execution_stats.code_cache_blocks_executed++;
   m_cpu->m_execution_stats.code_cache_instructions_executed += m_current_block->instructions.size();
   m_current_block->code_pointer(m_cpu);

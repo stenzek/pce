@@ -121,7 +121,7 @@ void CachedInterpreterBackend::Execute()
 
     // Current block should be cleared after executing, in case of external reset.
     m_current_block = nullptr;
-    
+
     // Run pending events.
     m_system->RunEvents();
   }
@@ -211,6 +211,7 @@ void CachedInterpreterBackend::DestroyBlock(BlockBase* block)
 
 void CachedInterpreterBackend::ExecuteBlock()
 {
+  // m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP);
   m_cpu->m_execution_stats.code_cache_blocks_executed++;
   m_cpu->m_execution_stats.code_cache_instructions_executed += m_current_block->entries.size();
   for (const Block::Entry& instruction : m_current_block->entries)

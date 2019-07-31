@@ -1251,9 +1251,11 @@ bool CodeGenerator::Compile_POP(const Instruction& instruction)
     Panic("Unknown mode");
 
   InstructionPrologue(instruction, cycles);
-  CalculateEffectiveAddress(instruction);
 
+  // POP can use ESP in the address calculations, in this case the value of ESP
+  // is that after the pop operation has occurred, not before.
   Value value = GuestPop(instruction.GetOperandSize());
+  CalculateEffectiveAddress(instruction);
   WriteOperand(instruction, 0, std::move(value));
 
   // ESP is updated after the pop, but we don't want to alter the value for exceptions until after the write occurs, if
