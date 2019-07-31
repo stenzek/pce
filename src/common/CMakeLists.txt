@@ -11,6 +11,8 @@ set(SRCS
     fastjmp.h
     hdd_image.cpp
     hdd_image.h
+    jit_code_buffer.cpp
+    jit_code_buffer.h
     object.cpp
     object.h
     object_type_info.cpp
