@@ -18,6 +18,7 @@ public:
   static void WriteSegmentMemoryDWord(CPU* cpu, Segment segment, VirtualMemoryAddress address, u32 value);
   static void RaiseException(CPU* cpu, u32 exception, u32 error_code);
   static void PushWord(CPU* cpu, u16 value);
+  static void PushWord32(CPU* cpu, u16 value);
   static void PushDWord(CPU* cpu, u32 value);
   static u16 PopWord(CPU* cpu);
   static u32 PopDWord(CPU* cpu);

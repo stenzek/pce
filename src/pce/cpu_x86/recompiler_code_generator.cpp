@@ -184,6 +184,10 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_PUSH(instruction);
       break;
 
+    case Operation_PUSH_Sreg:
+      result = Compile_PUSH_Sreg(instruction);
+      break;
+
     case Operation_POP:
       result = Compile_POP(instruction);
       break;
@@ -1198,6 +1202,30 @@ bool CodeGenerator::Compile_PUSH(const Instruction& instruction)
   // size is determined by the general operand size of the instruction, sign-extended if smaller
   Value value = ReadOperand(instruction, 0, instruction.GetOperandSize(), true, false);
   GuestPush(std::move(value));
+  SyncCurrentESP();
+  return true;
+}
+
+bool CodeGenerator::Compile_PUSH_Sreg(const Instruction& instruction)
+{
+  CycleCount cycles = m_cpu->GetCycles(CYCLES_PUSH_SREG);
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  Value value = m_register_cache.AllocateScratch(OperandSize_16);
+  EmitLoadCPUStructField(value.host_reg, OperandSize_16,
+                         offsetof(CPU, m_registers.segment_selectors[instruction.operands[0].segreg]));
+  if (instruction.GetOperandSize() == OperandSize_16)
+  {
+    GuestPush(std::move(value));
+  }
+  else
+  {
+    // needs to call PushWord32.
+    m_register_cache.FlushGuestRegister(Reg32_ESP, true);
+    EmitFunctionCall(nullptr, &Thunks::PushWord32, m_register_cache.GetCPUPtr(), value);
+  }
+
   SyncCurrentESP();
   return true;
 }

@@ -56,6 +56,11 @@ void Thunks::PushWord(CPU* cpu, u16 value)
   cpu->PushWord(value);
 }
 
+void Thunks::PushWord32(CPU* cpu, u16 value)
+{
+  cpu->PushWord32(value);
+}
+
 void Thunks::PushDWord(CPU* cpu, u32 value)
 {
   cpu->PushDWord(value);
