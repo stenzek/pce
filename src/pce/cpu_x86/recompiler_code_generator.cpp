@@ -170,6 +170,12 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_Bitwise(instruction);
       break;
 
+    case Operation_SHL:
+    case Operation_SHR:
+    case Operation_SAR:
+      result = Compile_Shift(instruction);
+      break;
+
     case Operation_NOT:
       result = Compile_NOT(instruction);
       break;
@@ -380,7 +386,7 @@ Value CodeGenerator::ShlValues(const Value& lhs, const Value& rhs)
 
   Value res = m_register_cache.AllocateScratch(lhs.size);
   EmitCopyValue(res.host_reg, lhs);
-  EmitShl(res.host_reg, rhs);
+  EmitShl(res.host_reg, res.size, rhs);
   return res;
 }
 
@@ -525,6 +531,54 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
   Value val;
   switch (operand->mode)
   {
+    case OperandMode_Constant:
+    {
+      switch (output_size)
+      {
+        case OperandSize_8:
+          DebugAssert(operand->size == OperandSize_8);
+          val = Value::FromConstantU8(Truncate8(operand->constant));
+          break;
+
+        case OperandSize_16:
+        {
+          switch (operand->size)
+          {
+            case OperandSize_8:
+              val = Value::FromConstantU16(sign_extend ? SignExtend16(Truncate8(operand->constant)) :
+                                                         ZeroExtend16(Truncate8(operand->constant)));
+              break;
+
+            default:
+              val = Value::FromConstantU16(ZeroExtend16(Truncate16(operand->constant)));
+              break;
+          }
+        }
+        break;
+        case OperandSize_32:
+        {
+          switch (operand->size)
+          {
+            case OperandSize_8:
+              val = Value::FromConstantU32(sign_extend ? SignExtend32(Truncate8(operand->constant)) :
+                                                         ZeroExtend32(Truncate8(operand->constant)));
+              break;
+
+            case OperandSize_16:
+              val = Value::FromConstantU32(sign_extend ? SignExtend32(Truncate16(operand->constant)) :
+                                                         ZeroExtend32(Truncate16(operand->constant)));
+              break;
+
+            default:
+              val = Value::FromConstantU32(instruction.data.imm32);
+              break;
+          }
+        }
+        break;
+      }
+    }
+    break;
+
     case OperandMode_Immediate:
     {
       switch (output_size)
@@ -1127,6 +1181,19 @@ bool CodeGenerator::Compile_Bitwise(const Instruction& instruction)
   return true;
 }
 
+bool CodeGenerator::Compile_Shift(const Instruction& instruction)
+{
+  CycleCount cycles = m_cpu->GetCyclesRM(CYCLES_ALU_RM_MEM_REG, instruction.ModRM_RM_IsReg());
+
+  if (!Compile_Shift_Impl(instruction, cycles))
+    return Compile_Fallback(instruction);
+
+  if (OperandIsESP(instruction, 0))
+    SyncCurrentESP();
+
+  return true;
+}
+
 bool CodeGenerator::Compile_NOT(const Instruction& instruction)
 {
   CycleCount cycles = 0;
@@ -1355,5 +1422,4 @@ bool CodeGenerator::Compile_RET_Near(const Instruction& instruction)
   GuestBranch(std::move(branch_address));
   return true;
 }
-
 } // namespace CPU_X86::Recompiler

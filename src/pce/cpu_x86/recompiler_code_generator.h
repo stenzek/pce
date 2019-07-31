@@ -63,7 +63,9 @@ public:
   void EmitCmp(HostReg to_reg, const Value& value);
   void EmitInc(HostReg to_reg, OperandSize size);
   void EmitDec(HostReg to_reg, OperandSize size);
-  void EmitShl(HostReg to_reg, const Value& value);
+  void EmitShl(HostReg to_reg, OperandSize size, const Value& amount_value);
+  void EmitShr(HostReg to_reg, OperandSize size, const Value& amount_value);
+  void EmitSar(HostReg to_reg, OperandSize size, const Value& amount_value);
   void EmitAnd(HostReg to_reg, const Value& value);
   void EmitOr(HostReg to_reg, const Value& value);
   void EmitXor(HostReg to_reg, const Value& value);
@@ -100,6 +102,7 @@ public:
 
   // Flags copying from host.
 #if defined(Y_CPU_X64)
+  void ReadFlagsFromHost(Value* value);
   Value ReadFlagsFromHost();
 #endif
 
@@ -155,6 +158,8 @@ private:
   bool Compile_MOV(const Instruction& instruction);
   bool Compile_Bitwise(const Instruction& instruction);
   bool Compile_Bitwise_Impl(const Instruction& instruction, CycleCount cycles);
+  bool Compile_Shift(const Instruction& instruction);
+  bool Compile_Shift_Impl(const Instruction& instruction, CycleCount cycles);
   bool Compile_NOT(const Instruction& instruction);
   bool Compile_AddSub(const Instruction& instruction);
   bool Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles);

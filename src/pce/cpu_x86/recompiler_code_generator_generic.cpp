@@ -70,6 +70,16 @@ bool CodeGenerator::Compile_Bitwise_Impl(const Instruction& instruction, CycleCo
 
 #if !defined(Y_CPU_X64)
 
+bool CodeGenerator::Compile_Shift_Impl(const Instruction& instruction, CycleCount cycles)
+{
+  return Compile_Fallback(instruction);
+}
+
+#endif
+
+
+#if !defined(Y_CPU_X64)
+
 bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles)
 {
   return Compile_Fallback(instruction);

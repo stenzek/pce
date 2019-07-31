@@ -493,25 +493,25 @@ void CodeGenerator::EmitDec(HostReg to_reg, OperandSize size)
   }
 }
 
-void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
+void CodeGenerator::EmitShl(HostReg to_reg, OperandSize size, const Value& amount_value)
 {
-  DebugAssert(value.IsConstant() || value.IsInHostRegister());
+  DebugAssert(amount_value.IsConstant() || amount_value.IsInHostRegister());
 
   // We have to use CL for the shift amount :(
-  const bool save_cl = (!value.IsConstant() && m_register_cache.IsHostRegInUse(Xbyak::Operand::RCX) &&
-                        (!value.IsInHostRegister() || value.host_reg != Xbyak::Operand::RCX));
+  const bool save_cl = (!amount_value.IsConstant() && m_register_cache.IsHostRegInUse(Xbyak::Operand::RCX) &&
+                        (!amount_value.IsInHostRegister() || amount_value.host_reg != Xbyak::Operand::RCX));
   if (save_cl)
-    m_emit.push(m_emit.cl);
+    m_emit.push(m_emit.rcx);
 
-  if (!value.IsConstant())
-    m_emit.mov(m_emit.cl, value.host_reg);
+  if (!amount_value.IsConstant())
+    m_emit.mov(m_emit.cl, GetHostReg8(amount_value.host_reg));
 
-  switch (value.size)
+  switch (size)
   {
     case OperandSize_8:
     {
-      if (value.IsConstant())
-        m_emit.shl(GetHostReg8(to_reg), Truncate8(value.constant_value));
+      if (amount_value.IsConstant())
+        m_emit.shl(GetHostReg8(to_reg), Truncate8(amount_value.constant_value));
       else
         m_emit.shl(GetHostReg8(to_reg), m_emit.cl);
     }
@@ -519,8 +519,8 @@ void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
 
     case OperandSize_16:
     {
-      if (value.IsConstant())
-        m_emit.shl(GetHostReg16(to_reg), Truncate8(value.constant_value));
+      if (amount_value.IsConstant())
+        m_emit.shl(GetHostReg16(to_reg), Truncate8(amount_value.constant_value));
       else
         m_emit.shl(GetHostReg16(to_reg), m_emit.cl);
     }
@@ -528,8 +528,8 @@ void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
 
     case OperandSize_32:
     {
-      if (value.IsConstant())
-        m_emit.shl(GetHostReg32(to_reg), Truncate32(value.constant_value));
+      if (amount_value.IsConstant())
+        m_emit.shl(GetHostReg32(to_reg), Truncate32(amount_value.constant_value));
       else
         m_emit.shl(GetHostReg32(to_reg), m_emit.cl);
     }
@@ -537,8 +537,8 @@ void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
 
     case OperandSize_64:
     {
-      if (value.IsConstant())
-        m_emit.shl(GetHostReg64(to_reg), Truncate32(value.constant_value));
+      if (amount_value.IsConstant())
+        m_emit.shl(GetHostReg64(to_reg), Truncate32(amount_value.constant_value));
       else
         m_emit.shl(GetHostReg64(to_reg), m_emit.cl);
     }
@@ -546,7 +546,119 @@ void CodeGenerator::EmitShl(HostReg to_reg, const Value& value)
   }
 
   if (save_cl)
-    m_emit.pop(m_emit.cl);
+    m_emit.pop(m_emit.rcx);
+}
+
+void CodeGenerator::EmitShr(HostReg to_reg, OperandSize size, const Value& amount_value)
+{
+  DebugAssert(amount_value.IsConstant() || amount_value.IsInHostRegister());
+
+  // We have to use CL for the shift amount :(
+  const bool save_cl = (!amount_value.IsConstant() && m_register_cache.IsHostRegInUse(Xbyak::Operand::RCX) &&
+                        (!amount_value.IsInHostRegister() || amount_value.host_reg != Xbyak::Operand::RCX));
+  if (save_cl)
+    m_emit.push(m_emit.rcx);
+
+  if (!amount_value.IsConstant())
+    m_emit.mov(m_emit.cl, GetHostReg8(amount_value.host_reg));
+
+  switch (size)
+  {
+    case OperandSize_8:
+    {
+      if (amount_value.IsConstant())
+        m_emit.shr(GetHostReg8(to_reg), Truncate8(amount_value.constant_value));
+      else
+        m_emit.shr(GetHostReg8(to_reg), m_emit.cl);
+    }
+    break;
+
+    case OperandSize_16:
+    {
+      if (amount_value.IsConstant())
+        m_emit.shr(GetHostReg16(to_reg), Truncate8(amount_value.constant_value));
+      else
+        m_emit.shr(GetHostReg16(to_reg), m_emit.cl);
+    }
+    break;
+
+    case OperandSize_32:
+    {
+      if (amount_value.IsConstant())
+        m_emit.shr(GetHostReg32(to_reg), Truncate32(amount_value.constant_value));
+      else
+        m_emit.shr(GetHostReg32(to_reg), m_emit.cl);
+    }
+    break;
+
+    case OperandSize_64:
+    {
+      if (amount_value.IsConstant())
+        m_emit.shr(GetHostReg64(to_reg), Truncate32(amount_value.constant_value));
+      else
+        m_emit.shr(GetHostReg64(to_reg), m_emit.cl);
+    }
+    break;
+  }
+
+  if (save_cl)
+    m_emit.pop(m_emit.rcx);
+}
+
+void CodeGenerator::EmitSar(HostReg to_reg, OperandSize size, const Value& amount_value)
+{
+  DebugAssert(amount_value.IsConstant() || amount_value.IsInHostRegister());
+
+  // We have to use CL for the shift amount :(
+  const bool save_cl = (!amount_value.IsConstant() && m_register_cache.IsHostRegInUse(Xbyak::Operand::RCX) &&
+                        (!amount_value.IsInHostRegister() || amount_value.host_reg != Xbyak::Operand::RCX));
+  if (save_cl)
+    m_emit.push(m_emit.rcx);
+
+  if (!amount_value.IsConstant())
+    m_emit.mov(m_emit.cl, GetHostReg8(amount_value.host_reg));
+
+  switch (size)
+  {
+    case OperandSize_8:
+    {
+      if (amount_value.IsConstant())
+        m_emit.sar(GetHostReg8(to_reg), Truncate8(amount_value.constant_value));
+      else
+        m_emit.sar(GetHostReg8(to_reg), m_emit.cl);
+    }
+    break;
+
+    case OperandSize_16:
+    {
+      if (amount_value.IsConstant())
+        m_emit.sar(GetHostReg16(to_reg), Truncate8(amount_value.constant_value));
+      else
+        m_emit.sar(GetHostReg16(to_reg), m_emit.cl);
+    }
+    break;
+
+    case OperandSize_32:
+    {
+      if (amount_value.IsConstant())
+        m_emit.sar(GetHostReg32(to_reg), Truncate32(amount_value.constant_value));
+      else
+        m_emit.sar(GetHostReg32(to_reg), m_emit.cl);
+    }
+    break;
+
+    case OperandSize_64:
+    {
+      if (amount_value.IsConstant())
+        m_emit.sar(GetHostReg64(to_reg), Truncate32(amount_value.constant_value));
+      else
+        m_emit.sar(GetHostReg64(to_reg), m_emit.cl);
+    }
+    break;
+  }
+
+  if (save_cl)
+    m_emit.pop(m_emit.rcx);
 }
 
 void CodeGenerator::EmitAnd(HostReg to_reg, const Value& value)
@@ -942,13 +1054,18 @@ void CodeGenerator::EmitPopHostReg(HostReg reg)
   m_emit.pop(GetHostReg64(reg));
 }
 
-Value CodeGenerator::ReadFlagsFromHost()
+void CodeGenerator::ReadFlagsFromHost(Value* value)
 {
   // this is a 64-bit push/pop, we ignore the upper 32 bits
-  Value temp = m_register_cache.AllocateScratch(OperandSize_32);
-  DebugAssert(temp.IsInHostRegister());
+  DebugAssert(value->IsInHostRegister());
   m_emit.pushf();
-  m_emit.pop(GetHostReg64(temp.host_reg));
+  m_emit.pop(GetHostReg64(value->host_reg));
+}
+
+Value CodeGenerator::ReadFlagsFromHost()
+{
+  Value temp = m_register_cache.AllocateScratch(OperandSize_32);
+  ReadFlagsFromHost(&temp);
   return temp;
 }
 
@@ -1277,6 +1394,70 @@ bool CodeGenerator::Compile_Bitwise_Impl(const Instruction& instruction, CycleCo
   return true;
 }
 
+bool CodeGenerator::Compile_Shift_Impl(const Instruction& instruction, CycleCount cycles)
+{
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  bool is_unary_version = instruction.operands[1].mode == OperandMode_Constant;
+  const OperandSize size = instruction.operands[0].size;
+  Value val = ReadOperand(instruction, 0, size, false, true);
+  Value shift_amount = ReadOperand(instruction, 1, OperandSize_8, true, false);
+  if (shift_amount.HasConstantValue(0))
+  {
+    // shift zero does nothing and effects no flags.
+    return true;
+  }
+
+  if (shift_amount.IsInHostRegister())
+    m_emit.and_(GetHostReg8(shift_amount), 0x1F);
+  else
+    shift_amount.constant_value &= 0x1F;
+
+  // allocate storage for the host flags before the jump, because it can save
+  // a callee-saved register. also read/cache the flags for the same reason
+  Value host_flags = m_register_cache.AllocateScratch(OperandSize_32);
+  m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
+
+  Xbyak::Label noop_label;
+  if (!shift_amount.IsConstant())
+  {
+    m_emit.test(GetHostReg8(shift_amount), GetHostReg8(shift_amount));
+    m_emit.jz(noop_label);
+  }
+
+  switch (instruction.operation)
+  {
+    case Operation_SHL:
+      EmitShl(val.GetHostRegister(), val.size, shift_amount);
+      break;
+
+    case Operation_SHR:
+      EmitShr(val.GetHostRegister(), val.size, shift_amount);
+      break;
+
+    case Operation_SAR:
+      EmitSar(val.GetHostRegister(), val.size, shift_amount);
+      break;
+
+    default:
+      UnreachableCode();
+      break;
+  }
+
+  ReadFlagsFromHost(&host_flags);
+  WriteOperand(instruction, 0, std::move(val));
+  if (instruction.operation == Operation_SAR || !is_unary_version)
+    UpdateEFLAGS(std::move(host_flags), Flag_OF, Flag_CF | Flag_SF | Flag_ZF | Flag_PF, 0);
+  else
+    UpdateEFLAGS(std::move(host_flags), 0, Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF, 0);
+
+  if (!shift_amount.IsConstant())
+    m_emit.L(noop_label);
+
+  return true;
+}
+
 bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles)
 {
   InstructionPrologue(instruction, cycles);
@@ -1301,6 +1482,7 @@ bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCou
       break;
 
     default:
+      UnreachableCode();
       break;
   }
 
