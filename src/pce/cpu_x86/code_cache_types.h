@@ -2,6 +2,7 @@
 #include "pce/bus.h"
 #include "pce/cpu_x86/cpu_x86.h"
 #include "pce/cpu_x86/instruction.h"
+#include <optional>
 #include <unordered_map>
 
 namespace CPU_X86 {
@@ -34,6 +35,10 @@ struct BlockKey
     // return (std::memcmp(this, &key, sizeof(key)) != 0);
     return (qword != key.qword);
   }
+
+  bool Is16BitCode() const { return (cs_size == 0); }
+  bool Is32BitCode() const { return (cs_size != 0); }
+  bool IsV8086Code() const { return (v8086_mode != 0); }
 };
 
 struct BlockKeyHash
@@ -55,7 +60,7 @@ enum class BlockFlags : u32
   CrossesPage = (1 << 2),
 
   Decoding = (1 << 3),
-  BackgroundCompiling = (1 << 4),   // Only used by recompiler backends.
+  BackgroundCompiling = (1 << 4), // Only used by recompiler backends.
   Invalidated = (1 << 5),
   DestroyPending = (1 << 6),
 };
@@ -75,6 +80,7 @@ struct BlockBase
   u32 next_page_physical_address = 0;
   BlockFlags flags = BlockFlags::None;
 
+  PhysicalMemoryAddress GetPhysicalAddress() const { return key.eip_physical_address; }
   PhysicalMemoryAddress GetPhysicalPageAddress() const { return (key.eip_physical_address & CPU::PAGE_MASK); }
   PhysicalMemoryAddress GetNextPhysicalPageAddress() const { return next_page_physical_address; }
 
@@ -88,9 +94,21 @@ struct BlockBase
   bool CrossesPage() const { return (flags & BlockFlags::CrossesPage) != BlockFlags::None; }
 
   bool IsDestroyPending() const { return (flags & BlockFlags::DestroyPending) != BlockFlags::None; }
+
+  bool Is16BitCode() const { return key.Is16BitCode(); }
+  bool Is32BitCode() const { return key.Is32BitCode(); }
+  bool IsV8086Code() const { return key.IsV8086Code(); }
 };
 
 bool IsExitBlockInstruction(const Instruction* instruction);
 bool IsLinkableExitInstruction(const Instruction* instruction);
+bool CanInstructionFault(const Instruction* instruction);
+bool OperandIsESP(const Instruction& instruction, u32 index);
+
+std::optional<u8> GetOperandRegister(const Instruction& instruction, u32 index);
+bool OperandRegistersMatch(const Instruction& instruction, u32 index1, u32 index2);
+
+// TODO: Model
+bool IsInvalidInstruction(const Instruction& instruction);
 
 } // namespace CPU_X86

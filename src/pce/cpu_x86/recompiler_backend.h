@@ -1,20 +1,19 @@
 #pragma once
 #include "common/fastjmp.h"
+#include "common/jit_code_buffer.h"
 #include "pce/cpu_x86/code_cache_backend.h"
 #include "pce/cpu_x86/cpu_x86.h"
+#include "pce/cpu_x86/recompiler_types.h"
 #include <unordered_map>
+#include <utility>
 
-namespace CPU_X86 {
+namespace CPU_X86::Recompiler {
 
-class JitX64Code;
-
-class JitX64Backend : public CodeCacheBackend
+class Backend : public CodeCacheBackend
 {
-  friend class JitX64CodeGenerator;
-
 public:
-  JitX64Backend(CPU* cpu);
-  ~JitX64Backend();
+  Backend(CPU* cpu);
+  ~Backend();
 
   void Reset() override;
   void Execute() override;
@@ -23,29 +22,22 @@ public:
   void BranchFromException(u32 new_EIP) override;
   void FlushCodeCache() override;
 
-private:
+protected:
   struct Block : public BlockBase
   {
-    Block(const BlockKey key);
-    ~Block();
+    Block(const BlockKey key_) : BlockBase(key_) {}
 
-    static constexpr size_t CODE_SIZE = 4096;
-    using CodePointer = void (*)(CPU*);
-    // void AllocCode(size_t size);
-
-    CodePointer code_pointer = nullptr;
+    BlockFunctionType code_pointer = nullptr;
     size_t code_size = 0;
   };
 
-  // Block flush handling.
   BlockBase* AllocateBlock(const BlockKey key) override;
   bool CompileBlock(BlockBase* block) override;
   void ResetBlock(BlockBase* block) override;
   void FlushBlock(BlockBase* block, bool defer_destroy = false) override;
   void DestroyBlock(BlockBase* block) override;
 
-  // Block execution dispatcher.
-  void Dispatch();
+  void ExecuteBlock();
 
 #ifdef Y_COMPILER_MSVC
 #pragma warning(push)
@@ -56,13 +48,8 @@ private:
 #pragma warning(pop)
 #endif
 
-  CycleCount m_cycles_remaining = 0;
-
-  std::unordered_map<BlockKey, Block*, BlockKeyHash> m_blocks;
   Block* m_current_block = nullptr;
-  bool m_current_block_flushed = false;
+  std::unique_ptr<JitCodeBuffer> m_code_space;
   bool m_code_buffer_overflow = false;
-
-  std::unique_ptr<JitX64Code> m_code_space;
 };
-} // namespace CPU_X86
+} // namespace CPU_X86::Recompiler

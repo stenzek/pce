@@ -10,7 +10,7 @@
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
 #include "pce/cpu_x86/interpreter_backend.h"
-#include "pce/cpu_x86/jitx64_backend.h"
+#include "pce/cpu_x86/recompiler_backend.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
 #include <cctype>
@@ -491,7 +491,7 @@ void CPU::CreateBackend()
 
 #if defined(Y_CPU_X64)
     case BackendType::Recompiler:
-      m_backend = std::make_unique<JitX64Backend>(this);
+      m_backend = std::make_unique<Recompiler::Backend>(this);
       break;
 #endif
 
@@ -1258,42 +1258,42 @@ void CPU::WriteMemoryDWord(LinearMemoryAddress address, u32 value)
   m_bus->WriteMemoryDWord(physical_address, value);
 }
 
-u8 CPU::ReadMemoryByte(Segment segment, VirtualMemoryAddress address)
+u8 CPU::ReadSegmentMemoryByte(Segment segment, VirtualMemoryAddress address)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(segment, address);
   CheckSegmentAccess<sizeof(u8), AccessType::Read>(segment, address, true);
   return ReadMemoryByte(linear_address);
 }
 
-u16 CPU::ReadMemoryWord(Segment segment, VirtualMemoryAddress address)
+u16 CPU::ReadSegmentMemoryWord(Segment segment, VirtualMemoryAddress address)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(segment, address);
   CheckSegmentAccess<sizeof(u16), AccessType::Read>(segment, address, true);
   return ReadMemoryWord(linear_address);
 }
 
-u32 CPU::ReadMemoryDWord(Segment segment, VirtualMemoryAddress address)
+u32 CPU::ReadSegmentMemoryDWord(Segment segment, VirtualMemoryAddress address)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(segment, address);
   CheckSegmentAccess<sizeof(u32), AccessType::Read>(segment, address, true);
   return ReadMemoryDWord(linear_address);
 }
 
-void CPU::WriteMemoryByte(Segment segment, VirtualMemoryAddress address, u8 value)
+void CPU::WriteSegmentMemoryByte(Segment segment, VirtualMemoryAddress address, u8 value)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(segment, address);
   CheckSegmentAccess<sizeof(u8), AccessType::Write>(segment, address, true);
   WriteMemoryByte(linear_address, value);
 }
 
-void CPU::WriteMemoryWord(Segment segment, VirtualMemoryAddress address, u16 value)
+void CPU::WriteSegmentMemoryWord(Segment segment, VirtualMemoryAddress address, u16 value)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(segment, address);
   CheckSegmentAccess<sizeof(u16), AccessType::Write>(segment, address, true);
   WriteMemoryWord(linear_address, value);
 }
 
-void CPU::WriteMemoryDWord(Segment segment, VirtualMemoryAddress address, u32 value)
+void CPU::WriteSegmentMemoryDWord(Segment segment, VirtualMemoryAddress address, u32 value)
 {
   LinearMemoryAddress linear_address = CalculateLinearAddress(segment, address);
   CheckSegmentAccess<sizeof(u32), AccessType::Write>(segment, address, true);
@@ -3828,49 +3828,49 @@ void CPU::LoadFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddr
 
   if (is_32bit)
   {
-    cw = ReadMemoryWord(seg, (addr + 0) & addr_mask);
-    sw = ReadMemoryWord(seg, (addr + 4) & addr_mask);
-    tw = ReadMemoryWord(seg, (addr + 8) & addr_mask);
+    cw = ReadSegmentMemoryWord(seg, (addr + 0) & addr_mask);
+    sw = ReadSegmentMemoryWord(seg, (addr + 4) & addr_mask);
+    tw = ReadSegmentMemoryWord(seg, (addr + 8) & addr_mask);
     if (InProtectedMode())
     {
-      fip = ReadMemoryDWord(seg, (addr + 12) & addr_mask);
-      u32 temp = ReadMemoryDWord(seg, (addr + 16) & addr_mask);
+      fip = ReadSegmentMemoryDWord(seg, (addr + 12) & addr_mask);
+      u32 temp = ReadSegmentMemoryDWord(seg, (addr + 16) & addr_mask);
       fop = (temp >> 16) & 0x7FF;
       fcs = Truncate16(temp & 0xFFFF);
-      fdp = ReadMemoryDWord(seg, (addr + 20) & addr_mask);
-      fds = ReadMemoryWord(seg, (addr + 24) & addr_mask);
+      fdp = ReadSegmentMemoryDWord(seg, (addr + 20) & addr_mask);
+      fds = ReadSegmentMemoryWord(seg, (addr + 24) & addr_mask);
     }
     else
     {
-      fip = ZeroExtend32(ReadMemoryWord(seg, (addr + 12) & addr_mask));
-      u32 temp = ReadMemoryDWord(seg, (addr + 16) & addr_mask);
+      fip = ZeroExtend32(ReadSegmentMemoryWord(seg, (addr + 12) & addr_mask));
+      u32 temp = ReadSegmentMemoryDWord(seg, (addr + 16) & addr_mask);
       fop = Truncate16(temp) & 0x7FF;
       fip |= ZeroExtend32(Truncate16(temp >> 11)) << 16;
-      fdp = ZeroExtend32(ReadMemoryWord(seg, (addr + 20) & addr_mask));
-      fdp |= ZeroExtend32(Truncate16(ReadMemoryWord(seg, (addr + 24) & addr_mask) >> 11)) << 16;
+      fdp = ZeroExtend32(ReadSegmentMemoryWord(seg, (addr + 20) & addr_mask));
+      fdp |= ZeroExtend32(Truncate16(ReadSegmentMemoryWord(seg, (addr + 24) & addr_mask) >> 11)) << 16;
     }
     addr += 28;
   }
   else
   {
-    cw = ReadMemoryWord(seg, (addr + 0) & addr_mask);
-    sw = ReadMemoryWord(seg, (addr + 2) & addr_mask);
-    tw = ReadMemoryWord(seg, (addr + 4) & addr_mask);
+    cw = ReadSegmentMemoryWord(seg, (addr + 0) & addr_mask);
+    sw = ReadSegmentMemoryWord(seg, (addr + 2) & addr_mask);
+    tw = ReadSegmentMemoryWord(seg, (addr + 4) & addr_mask);
     if (InProtectedMode() && !InVirtual8086Mode())
     {
-      fip = ZeroExtend32(ReadMemoryWord(seg, (addr + 6) & addr_mask));
-      fcs = ReadMemoryWord(seg, (addr + 8) & addr_mask);
-      fdp = ZeroExtend32(ReadMemoryWord(seg, (addr + 10) & addr_mask));
-      fds = ReadMemoryWord(seg, (addr + 12) & addr_mask);
+      fip = ZeroExtend32(ReadSegmentMemoryWord(seg, (addr + 6) & addr_mask));
+      fcs = ReadSegmentMemoryWord(seg, (addr + 8) & addr_mask);
+      fdp = ZeroExtend32(ReadSegmentMemoryWord(seg, (addr + 10) & addr_mask));
+      fds = ReadSegmentMemoryWord(seg, (addr + 12) & addr_mask);
     }
     else
     {
-      fip = ZeroExtend32(ReadMemoryWord(seg, (addr + 6) & addr_mask));
-      u16 temp = ReadMemoryWord(seg, (addr + 8) & addr_mask);
+      fip = ZeroExtend32(ReadSegmentMemoryWord(seg, (addr + 6) & addr_mask));
+      u16 temp = ReadSegmentMemoryWord(seg, (addr + 8) & addr_mask);
       fop = temp & 0x7FF;
       fip |= (ZeroExtend32(temp >> 12) & 0xF) << 16;
-      fdp = ZeroExtend32(ReadMemoryWord(seg, (addr + 10) & addr_mask));
-      fdp |= (ZeroExtend32(ReadMemoryWord(seg, (addr + 12) & addr_mask) >> 12) & 0xF) << 16;
+      fdp = ZeroExtend32(ReadSegmentMemoryWord(seg, (addr + 10) & addr_mask));
+      fdp |= (ZeroExtend32(ReadSegmentMemoryWord(seg, (addr + 12) & addr_mask) >> 12) & 0xF) << 16;
     }
     addr += 14;
   }
@@ -3885,9 +3885,9 @@ void CPU::LoadFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAddr
 
   for (u32 i = 0; i < 8; i++)
   {
-    m_fpu_registers.ST[i].low = ZeroExtend64(ReadMemoryDWord(seg, (addr + 0) & addr_mask));
-    m_fpu_registers.ST[i].low |= ZeroExtend64(ReadMemoryDWord(seg, (addr + 4) & addr_mask)) << 32;
-    m_fpu_registers.ST[i].high = ReadMemoryWord(seg, (addr + 8) & addr_mask);
+    m_fpu_registers.ST[i].low = ZeroExtend64(ReadSegmentMemoryDWord(seg, (addr + 0) & addr_mask));
+    m_fpu_registers.ST[i].low |= ZeroExtend64(ReadSegmentMemoryDWord(seg, (addr + 4) & addr_mask)) << 32;
+    m_fpu_registers.ST[i].high = ReadSegmentMemoryWord(seg, (addr + 8) & addr_mask);
     addr += 10;
   }
 }
@@ -3906,44 +3906,44 @@ void CPU::StoreFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAdd
 
   if (is_32bit)
   {
-    WriteMemoryWord(seg, (addr + 0) & addr_mask, cw);
-    WriteMemoryWord(seg, (addr + 4) & addr_mask, sw);
-    WriteMemoryWord(seg, (addr + 8) & addr_mask, tw);
+    WriteSegmentMemoryWord(seg, (addr + 0) & addr_mask, cw);
+    WriteSegmentMemoryWord(seg, (addr + 4) & addr_mask, sw);
+    WriteSegmentMemoryWord(seg, (addr + 8) & addr_mask, tw);
     if (InProtectedMode())
     {
-      WriteMemoryDWord(seg, (addr + 12) & addr_mask, fip);
-      WriteMemoryDWord(seg, (addr + 16) & addr_mask, ZeroExtend32(fcs) | ((fop & 0x7FF) << 16));
-      WriteMemoryDWord(seg, (addr + 20) & addr_mask, fdp);
-      WriteMemoryWord(seg, (addr + 24) & addr_mask, fds);
+      WriteSegmentMemoryDWord(seg, (addr + 12) & addr_mask, fip);
+      WriteSegmentMemoryDWord(seg, (addr + 16) & addr_mask, ZeroExtend32(fcs) | ((fop & 0x7FF) << 16));
+      WriteSegmentMemoryDWord(seg, (addr + 20) & addr_mask, fdp);
+      WriteSegmentMemoryWord(seg, (addr + 24) & addr_mask, fds);
     }
     else
     {
-      WriteMemoryWord(seg, (addr + 12) & addr_mask, Truncate16(fip));
-      WriteMemoryDWord(seg, (addr + 16) & addr_mask, (fop & 0x7FF) | ((fip >> 16) << 11));
-      WriteMemoryWord(seg, (addr + 20) & addr_mask, Truncate16(fdp));
-      WriteMemoryWord(seg, (addr + 24) & addr_mask, ((fdp >> 16) << 11));
+      WriteSegmentMemoryWord(seg, (addr + 12) & addr_mask, Truncate16(fip));
+      WriteSegmentMemoryDWord(seg, (addr + 16) & addr_mask, (fop & 0x7FF) | ((fip >> 16) << 11));
+      WriteSegmentMemoryWord(seg, (addr + 20) & addr_mask, Truncate16(fdp));
+      WriteSegmentMemoryWord(seg, (addr + 24) & addr_mask, ((fdp >> 16) << 11));
     }
 
     addr += 28;
   }
   else
   {
-    WriteMemoryWord(seg, (addr + 0) & addr_mask, cw);
-    WriteMemoryWord(seg, (addr + 2) & addr_mask, sw);
-    WriteMemoryWord(seg, (addr + 4) & addr_mask, tw);
+    WriteSegmentMemoryWord(seg, (addr + 0) & addr_mask, cw);
+    WriteSegmentMemoryWord(seg, (addr + 2) & addr_mask, sw);
+    WriteSegmentMemoryWord(seg, (addr + 4) & addr_mask, tw);
     if (InProtectedMode() && !InVirtual8086Mode())
     {
-      WriteMemoryWord(seg, (addr + 6) & addr_mask, Truncate16(fip));
-      WriteMemoryWord(seg, (addr + 8) & addr_mask, fcs);
-      WriteMemoryWord(seg, (addr + 10) & addr_mask, Truncate16(fdp));
-      WriteMemoryWord(seg, (addr + 12) & addr_mask, fds);
+      WriteSegmentMemoryWord(seg, (addr + 6) & addr_mask, Truncate16(fip));
+      WriteSegmentMemoryWord(seg, (addr + 8) & addr_mask, fcs);
+      WriteSegmentMemoryWord(seg, (addr + 10) & addr_mask, Truncate16(fdp));
+      WriteSegmentMemoryWord(seg, (addr + 12) & addr_mask, fds);
     }
     else
     {
-      WriteMemoryWord(seg, (addr + 6) & addr_mask, Truncate16(fip));
-      WriteMemoryWord(seg, (addr + 8) & addr_mask, (fop & 0x7FF) | (((fip >> 16) & 0xF) << 12));
-      WriteMemoryWord(seg, (addr + 10) & addr_mask, Truncate16(fdp));
-      WriteMemoryWord(seg, (addr + 12) & addr_mask, (((fdp >> 16) & 0xF) << 12));
+      WriteSegmentMemoryWord(seg, (addr + 6) & addr_mask, Truncate16(fip));
+      WriteSegmentMemoryWord(seg, (addr + 8) & addr_mask, (fop & 0x7FF) | (((fip >> 16) & 0xF) << 12));
+      WriteSegmentMemoryWord(seg, (addr + 10) & addr_mask, Truncate16(fdp));
+      WriteSegmentMemoryWord(seg, (addr + 12) & addr_mask, (((fdp >> 16) & 0xF) << 12));
     }
 
     addr += 14;
@@ -3955,9 +3955,9 @@ void CPU::StoreFPUState(Segment seg, VirtualMemoryAddress addr, VirtualMemoryAdd
   // Save each of the registers out
   for (u32 i = 0; i < 8; i++)
   {
-    WriteMemoryDWord(seg, (addr + 0) & addr_mask, Truncate32(m_fpu_registers.ST[i].low));
-    WriteMemoryDWord(seg, (addr + 4) & addr_mask, Truncate32(m_fpu_registers.ST[i].low >> 32));
-    WriteMemoryWord(seg, (addr + 8) & addr_mask, m_fpu_registers.ST[i].high);
+    WriteSegmentMemoryDWord(seg, (addr + 0) & addr_mask, Truncate32(m_fpu_registers.ST[i].low));
+    WriteSegmentMemoryDWord(seg, (addr + 4) & addr_mask, Truncate32(m_fpu_registers.ST[i].low >> 32));
+    WriteSegmentMemoryWord(seg, (addr + 8) & addr_mask, m_fpu_registers.ST[i].high);
     addr += 10;
   }
 }

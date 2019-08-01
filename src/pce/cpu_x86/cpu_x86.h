@@ -17,6 +17,12 @@ class InterruptController;
 
 namespace CPU_X86 {
 
+namespace Recompiler {
+class Backend;
+class CodeGenerator;
+class Thunks;
+} // namespace Recompiler
+
 class Backend;
 class DebuggerInterface;
 
@@ -32,8 +38,9 @@ class CPU : public ::CPU
   friend class CachedInterpreterBackend;
   friend class Interpreter;
   friend class InterpreterBackend;
-  friend class JitX64Backend;
-  friend class JitX64CodeGenerator;
+  friend Recompiler::Backend;
+  friend Recompiler::CodeGenerator;
+  friend Recompiler::Thunks;
 
 public:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
@@ -308,20 +315,25 @@ public:
 
   bool IsHalted() const { return m_halted; }
 
+  // Cycle group lookup
+  CycleCount GetCycles(CYCLE_GROUP group) { return ZeroExtend64(m_cycle_group_timings[group]); }
+  CycleCount GetCyclesPMode(CYCLE_GROUP group)
+  {
+    return ZeroExtend64(m_cycle_group_timings[group + (m_registers.CR0 & 0x01)]);
+  }
+  CycleCount GetCyclesRM(CYCLE_GROUP group, bool rm_reg)
+  {
+    return ZeroExtend64(m_cycle_group_timings[group + static_cast<int>(rm_reg)]);
+  }
+
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
   void AddMemoryCycle()
   { /*m_pending_cycles++;*/
   }
-  void AddCycles(CYCLE_GROUP group) { m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group]); }
-  void AddCyclesPMode(CYCLE_GROUP group)
-  {
-    m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + (m_registers.CR0 & 0x01)]);
-  }
-  void AddCyclesRM(CYCLE_GROUP group, bool rm_reg)
-  {
-    m_pending_cycles += ZeroExtend64(m_cycle_group_timings[group + static_cast<int>(rm_reg)]);
-  }
+  void AddCycles(CYCLE_GROUP group) { m_pending_cycles += GetCycles(group); }
+  void AddCyclesPMode(CYCLE_GROUP group) { m_pending_cycles += GetCyclesPMode(group); }
+  void AddCyclesRM(CYCLE_GROUP group, bool rm_reg) { m_pending_cycles += GetCyclesRM(group, rm_reg); }
 
   void CommitPendingCycles()
   {
@@ -356,12 +368,12 @@ public:
 
   // Reads/writes memory based on the specified segment and offset.
   // These should only be used within instruction handlers, or jit code, as they raise exceptions.
-  u8 ReadMemoryByte(Segment segment, VirtualMemoryAddress address);
-  u16 ReadMemoryWord(Segment segment, VirtualMemoryAddress address);
-  u32 ReadMemoryDWord(Segment segment, VirtualMemoryAddress address);
-  void WriteMemoryByte(Segment segment, VirtualMemoryAddress address, u8 value);
-  void WriteMemoryWord(Segment segment, VirtualMemoryAddress address, u16 value);
-  void WriteMemoryDWord(Segment segment, VirtualMemoryAddress address, u32 value);
+  u8 ReadSegmentMemoryByte(Segment segment, VirtualMemoryAddress address);
+  u16 ReadSegmentMemoryWord(Segment segment, VirtualMemoryAddress address);
+  u32 ReadSegmentMemoryDWord(Segment segment, VirtualMemoryAddress address);
+  void WriteSegmentMemoryByte(Segment segment, VirtualMemoryAddress address, u8 value);
+  void WriteSegmentMemoryWord(Segment segment, VirtualMemoryAddress address, u16 value);
+  void WriteSegmentMemoryDWord(Segment segment, VirtualMemoryAddress address, u32 value);
 
   // Unchecked memory reads/writes (don't perform access checks, or raise exceptions).
   // Safe to use outside instruction handlers.

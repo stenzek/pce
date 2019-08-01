@@ -163,6 +163,9 @@ static const char* operation_names[Operation_Count] = {"<invalid>",
                                                        "cpuid",
                                                        "rdtsc",
                                                        "cmpxchg8b",
+                                                       "wrmsr",
+                                                       "rdmsr",
+                                                       "rsm",
 
                                                        "f2xm1",
                                                        "fabs",
@@ -280,6 +283,27 @@ const char* Decoder::GetRegisterName(Reg32 reg)
 {
   DebugAssert(reg < Reg32_Count);
   return reg32_names[reg];
+}
+
+const char* Decoder::GetRegisterName(OperandSize size, u8 reg)
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      DebugAssert(reg < Reg8_Count);
+      return reg8_names[reg];
+
+    case OperandSize_16:
+      DebugAssert(reg < Reg16_Count);
+      return reg16_names[reg];
+
+    case OperandSize_32:
+      DebugAssert(reg < Reg32_Count);
+      return reg32_names[reg];
+
+    default:
+      return "<UNKNOWN>";
+  }
 }
 
 const char* Decoder::GetSegmentName(Segment reg)
@@ -616,8 +640,8 @@ const Decoder::ModRMAddress* Decoder::DecodeModRMAddress(AddressSize address_siz
     /* 00 011 - [eBX]             */ {ModRMAddressingMode::Indirect, Reg32_EBX, 0, 0, Segment_DS},
     /* 00 100 - [sib]             */ {ModRMAddressingMode::SIB, 0, 0, 0, Segment_DS},
     /* 00 101 - [dword]           */ {ModRMAddressingMode::Direct, 0, 0, 4, Segment_DS},
-    /* 00 110 - [SI]              */ {ModRMAddressingMode::Indirect, Reg32_ESI, 0, 0, Segment_DS},
-    /* 00 111 - [DI]              */ {ModRMAddressingMode::Indirect, Reg32_EDI, 0, 0, Segment_DS},
+    /* 00 110 - [eSI]             */ {ModRMAddressingMode::Indirect, Reg32_ESI, 0, 0, Segment_DS},
+    /* 00 111 - [eDI]             */ {ModRMAddressingMode::Indirect, Reg32_EDI, 0, 0, Segment_DS},
     /* 01 000 - [eAX + sbyte]     */ {ModRMAddressingMode::Indexed, Reg32_EAX, 0, 1, Segment_DS},
     /* 01 001 - [eCX + sbyte]     */ {ModRMAddressingMode::Indexed, Reg32_ECX, 0, 1, Segment_DS},
     /* 01 010 - [eDX + sbyte]     */ {ModRMAddressingMode::Indexed, Reg32_EDX, 0, 1, Segment_DS},

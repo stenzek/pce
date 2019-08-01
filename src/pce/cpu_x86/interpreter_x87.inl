@@ -51,26 +51,26 @@ floatx80 Interpreter::ReadFloatOperand(CPU* cpu, float_status_t& fs)
     if constexpr (size == OperandSize_32)
     {
       // Convert single precision -> extended precision.
-      u32 dword_val = cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
+      u32 dword_val = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
       return float32_to_floatx80(dword_val, fs);
     }
     else if constexpr (size == OperandSize_64)
     {
       // Convert double precision -> extended precision
-      u32 dword_val_low = cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
+      u32 dword_val_low = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
       u32 dword_val_high =
-        cpu->ReadMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
+        cpu->ReadSegmentMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
       float64 qword_val = (ZeroExtend64(dword_val_high) << 32) | ZeroExtend64(dword_val_low);
       return float64_to_floatx80(qword_val, fs);
     }
     else if constexpr (size == OperandSize_80)
     {
       // Load 80-bit extended precision. Does not check for SNaNs.
-      u32 tword_val_low = cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
+      u32 tword_val_low = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
       u32 tword_val_middle =
-        cpu->ReadMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
+        cpu->ReadSegmentMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
       u16 tword_val_high =
-        cpu->ReadMemoryWord(cpu->idata.segment, (cpu->m_effective_address + 8) & cpu->idata.GetAddressMask());
+        cpu->ReadSegmentMemoryWord(cpu->idata.segment, (cpu->m_effective_address + 8) & cpu->idata.GetAddressMask());
       floatx80 ret;
       ret.fraction = (ZeroExtend64(tword_val_middle) << 32) | ZeroExtend64(tword_val_low);
       ret.exp = tword_val_high;
@@ -87,19 +87,19 @@ floatx80 Interpreter::ReadIntegerOperandAsFloat(CPU* cpu, float_status_t& fs)
   static_assert(size == OperandSize_16 || size == OperandSize_32 || size == OperandSize_64, "size is 16, 32, 64-bit");
   if constexpr (size == OperandSize_16)
   {
-    s64 int_value = SignExtend64(cpu->ReadMemoryWord(cpu->idata.segment, cpu->m_effective_address));
+    s64 int_value = SignExtend64(cpu->ReadSegmentMemoryWord(cpu->idata.segment, cpu->m_effective_address));
     return int64_to_floatx80(int_value);
   }
   else if constexpr (size == OperandSize_32)
   {
-    s64 int_value = SignExtend64(cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address));
+    s64 int_value = SignExtend64(cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address));
     return int64_to_floatx80(int_value);
   }
   else if constexpr (size == OperandSize_64)
   {
-    u32 low = cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
+    u32 low = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
     u32 high =
-      cpu->ReadMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
+      cpu->ReadSegmentMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
     s64 int_value = s64((ZeroExtend64(high) << 32) | ZeroExtend64(low));
     return int64_to_floatx80(int_value);
   }
@@ -125,23 +125,23 @@ void Interpreter::WriteFloatOperand(CPU* cpu, float_status_t& fs, const floatx80
     {
       // Convert extended precision -> single precision.
       u32 dword_val = floatx80_to_float32(value, fs);
-      cpu->WriteMemoryDWord(cpu->idata.segment, cpu->m_effective_address, dword_val);
+      cpu->WriteSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address, dword_val);
     }
     if constexpr (size == OperandSize_64)
     {
       // Convert extended precision -> double precision
       u64 qword_val = floatx80_to_float64(value, fs);
-      cpu->WriteMemoryDWord(cpu->idata.segment, cpu->m_effective_address, Truncate32(qword_val));
-      cpu->WriteMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask(),
+      cpu->WriteSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address, Truncate32(qword_val));
+      cpu->WriteSegmentMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask(),
                             Truncate32(qword_val >> 32));
     }
     if constexpr (size == OperandSize_80)
     {
       // Store 80-bit extended precision.
-      cpu->WriteMemoryDWord(cpu->idata.segment, cpu->m_effective_address, Truncate32(value.fraction));
-      cpu->WriteMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask(),
+      cpu->WriteSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address, Truncate32(value.fraction));
+      cpu->WriteSegmentMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask(),
                             Truncate32(value.fraction >> 32));
-      cpu->WriteMemoryWord(cpu->idata.segment, (cpu->m_effective_address + 8) & cpu->idata.GetAddressMask(), value.exp);
+      cpu->WriteSegmentMemoryWord(cpu->idata.segment, (cpu->m_effective_address + 8) & cpu->idata.GetAddressMask(), value.exp);
     }
   }
 }
@@ -418,9 +418,9 @@ void Interpreter::Execute_Operation_FBLD(CPU* cpu)
 
   CalculateEffectiveAddress<src_mode>(cpu);
 
-  u32 p1 = cpu->ReadMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
-  u32 p2 = cpu->ReadMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
-  u16 p3 = cpu->ReadMemoryWord(cpu->idata.segment, (cpu->m_effective_address + 8) & cpu->idata.GetAddressMask());
+  u32 p1 = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address);
+  u32 p2 = cpu->ReadSegmentMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask());
+  u16 p3 = cpu->ReadSegmentMemoryWord(cpu->idata.segment, (cpu->m_effective_address + 8) & cpu->idata.GetAddressMask());
 
   // based on bochs fpu_load_store.cc
   u16 hi2 = p3;
@@ -499,10 +499,10 @@ void Interpreter::Execute_Operation_FBSTP(CPU* cpu)
   u16 new_SW = cpu->m_fpu_registers.SW.bits;
   cpu->m_fpu_registers.SW.bits = SW;
 
-  cpu->WriteMemoryDWord(cpu->idata.segment, cpu->m_effective_address, Truncate32(save_reg_lo));
-  cpu->WriteMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask(),
+  cpu->WriteSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address, Truncate32(save_reg_lo));
+  cpu->WriteSegmentMemoryDWord(cpu->idata.segment, (cpu->m_effective_address + 4) & cpu->idata.GetAddressMask(),
                         Truncate32(save_reg_lo >> 32));
-  cpu->WriteMemoryWord(cpu->idata.segment, (cpu->m_effective_address + 8) & cpu->idata.GetAddressMask(), save_reg_hi);
+  cpu->WriteSegmentMemoryWord(cpu->idata.segment, (cpu->m_effective_address + 8) & cpu->idata.GetAddressMask(), save_reg_hi);
 
   cpu->m_fpu_registers.SW.bits = new_SW;
   PopFloatStack(cpu);
@@ -924,8 +924,8 @@ void Interpreter::Execute_Operation_FIST(CPU* cpu)
     static_assert(dst_size != OperandSize_64 || (dst_mode == OperandMode_Memory || dst_mode == OperandMode_ModRM_RM),
                   "operand is correct type");
     Assert(!cpu->idata.modrm_rm_register);
-    cpu->WriteMemoryDWord(cpu->idata.segment, cpu->m_effective_address, Truncate32(u64(int_value)));
-    cpu->WriteMemoryDWord(cpu->idata.segment, cpu->m_effective_address + 4, Truncate32(u64(int_value) >> 32));
+    cpu->WriteSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address, Truncate32(u64(int_value)));
+    cpu->WriteSegmentMemoryDWord(cpu->idata.segment, cpu->m_effective_address + 4, Truncate32(u64(int_value) >> 32));
   }
 }
 

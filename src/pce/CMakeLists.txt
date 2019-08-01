@@ -1,4 +1,4 @@
-set(SRCS
+add_library(pce
     bus.cpp
     bus.h
     component.cpp
@@ -133,22 +133,25 @@ set(SRCS
     types.h
 )
 
+set(RECOMPILER_GENERIC_SRCS
+  cpu_x86/recompiler_backend.cpp
+  cpu_x86/recompiler_backend.h
+  cpu_x86/recompiler_code_generator.cpp
+  cpu_x86/recompiler_code_generator.h
+  cpu_x86/recompiler_code_generator_generic.cpp
+  cpu_x86/recompiler_register_cache.cpp
+  cpu_x86/recompiler_register_cache.h
+  cpu_x86/recompiler_thunks.cpp
+  cpu_x86/recompiler_thunks.h
+  cpu_x86/recompiler_types.h
+)
+
 if(${CPU_ARCH} STREQUAL "x64")
-  set(JIT_SRCS
-    cpu_x86/jitx64_backend.cpp
-    cpu_x86/jitx64_backend.h
-    cpu_x86/jitx64_code.cpp
-    cpu_x86/jitx64_code.h
-    cpu_x86/jitx64_codegen.cpp
-    cpu_x86/jitx64_codegen.h
-  )
+  target_sources(pce PRIVATE ${RECOMPILER_GENERIC_SRCS} cpu_x86/recompiler_code_generator_x64.cpp)
   message("Building x64 recompiler")
 else()
-  set(JIT_SRCS "")
   message("Not building recompiler")
 endif()
-
-add_library(pce ${SRCS} ${JIT_SRCS})
 
 if(ENABLE_VOODOO)
   target_sources(pce PRIVATE
