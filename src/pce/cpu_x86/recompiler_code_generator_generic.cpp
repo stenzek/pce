@@ -77,7 +77,6 @@ bool CodeGenerator::Compile_Shift_Impl(const Instruction& instruction, CycleCoun
 
 #endif
 
-
 #if !defined(Y_CPU_X64)
 
 bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles)

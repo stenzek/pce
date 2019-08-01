@@ -81,20 +81,45 @@ public:
   u32 PrepareStackForCall();
   void RestoreStackAfterCall(u32 adjust_size);
 
-  // void EmitFunctionCall(const void* ptr);
-  void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1);
-  void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2);
-  void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2, const Value& arg3);
-  void EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2, const Value& arg3,
-                        const Value& arg4);
+  void EmitFunctionCallPtr(Value* return_value, const void* ptr);
+  void EmitFunctionCallPtr(Value* return_value, const void* ptr, const Value& arg1);
+  void EmitFunctionCallPtr(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2);
+  void EmitFunctionCallPtr(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
+                           const Value& arg3);
+  void EmitFunctionCallPtr(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
+                           const Value& arg3, const Value& arg4);
 
-#if 0
-  template<typename R, typename A1, typename A2>
-  void EmitCPUFunctionCall(Value* return_value, R (CPU::*ptr)(A1, A2), const Value& arg1, const Value& arg2)
+  template<typename FunctionType>
+  void EmitFunctionCall(Value* return_value, const FunctionType ptr)
   {
-    return EmitFunctionCall(return_value, std::mem_fn(ptr), m_register_cache.GetCPUPtr(), arg1, arg2);
+    EmitFunctionCallPtr(return_value, reinterpret_cast<const void**>(ptr));
   }
-#endif
+
+  template<typename FunctionType>
+  void EmitFunctionCall(Value* return_value, const FunctionType ptr, const Value& arg1)
+  {
+    EmitFunctionCallPtr(return_value, reinterpret_cast<const void**>(ptr), arg1);
+  }
+
+  template<typename FunctionType>
+  void EmitFunctionCall(Value* return_value, const FunctionType ptr, const Value& arg1, const Value& arg2)
+  {
+    EmitFunctionCallPtr(return_value, reinterpret_cast<const void**>(ptr), arg1, arg2);
+  }
+
+  template<typename FunctionType>
+  void EmitFunctionCall(Value* return_value, const FunctionType ptr, const Value& arg1, const Value& arg2,
+                        const Value& arg3)
+  {
+    EmitFunctionCallPtr(return_value, reinterpret_cast<const void**>(ptr), arg1, arg2, arg3);
+  }
+
+  template<typename FunctionType>
+  void EmitFunctionCall(Value* return_value, const FunctionType ptr, const Value& arg1, const Value& arg2,
+                        const Value& arg3, const Value& arg4)
+  {
+    EmitFunctionCallPtr(return_value, reinterpret_cast<const void**>(ptr), arg1, arg2, arg3, arg4);
+  }
 
   // Host register saving.
   void EmitPushHostReg(HostReg reg);

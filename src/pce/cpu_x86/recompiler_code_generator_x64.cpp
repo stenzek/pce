@@ -932,7 +932,30 @@ void CodeGenerator::RestoreStackAfterCall(u32 adjust_size)
   m_register_cache.PopCallerSavedRegisters();
 }
 
-void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1)
+void CodeGenerator::EmitFunctionCallPtr(Value* return_value, const void* ptr)
+{
+  if (return_value)
+    return_value->Discard();
+
+  // shadow space allocate
+  const u32 adjust_size = PrepareStackForCall();
+
+  // actually call the function
+  m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
+  m_emit.call(GetHostReg64(RRETURN));
+
+  // shadow space release
+  RestoreStackAfterCall(adjust_size);
+
+  // copy out return value if requested
+  if (return_value)
+  {
+    return_value->Undiscard();
+    EmitCopyValue(return_value->GetHostRegister(), Value::FromHostReg(&m_register_cache, RRETURN, return_value->size));
+  }
+}
+
+void CodeGenerator::EmitFunctionCallPtr(Value* return_value, const void* ptr, const Value& arg1)
 {
   if (return_value)
     return_value->Discard();
@@ -958,7 +981,7 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   }
 }
 
-void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2)
+void CodeGenerator::EmitFunctionCallPtr(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2)
 {
   if (return_value)
     return_value->Discard();
@@ -985,8 +1008,8 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   }
 }
 
-void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
-                                     const Value& arg3)
+void CodeGenerator::EmitFunctionCallPtr(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
+                                        const Value& arg3)
 {
   if (return_value)
     m_register_cache.DiscardHostReg(return_value->GetHostRegister());
@@ -1014,8 +1037,8 @@ void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const
   }
 }
 
-void CodeGenerator::EmitFunctionCall(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
-                                     const Value& arg3, const Value& arg4)
+void CodeGenerator::EmitFunctionCallPtr(Value* return_value, const void* ptr, const Value& arg1, const Value& arg2,
+                                        const Value& arg3, const Value& arg4)
 {
   if (return_value)
     return_value->Discard();
