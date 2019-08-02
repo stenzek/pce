@@ -548,6 +548,25 @@ enum OperandSize : u8
   OperandSize_Count // TODO: Rename to "inherit"
 };
 
+inline constexpr u32 GetOperandSizeInBytes(OperandSize size)
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      return 1;
+    case OperandSize_16:
+      return 2;
+    case OperandSize_32:
+      return 4;
+    case OperandSize_64:
+      return 8;
+    case OperandSize_80:
+      return 10;
+    default:
+      return 0;
+  }
+}
+
 enum OperandMode : u8
 {
   OperandMode_None,

@@ -504,6 +504,23 @@ Value RegisterCache::ReadGuestRegister(Value& cache_value, OperandSize size, u8 
   }
 }
 
+Value RegisterCache::ReadGuestRegister(OperandSize size, u8 guest_reg, bool cache /*=true*/,
+                                       bool force_host_register /*= false*/)
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      return ReadGuestRegister(m_guest_reg8_cache[guest_reg], size, guest_reg, cache, force_host_register);
+    case OperandSize_16:
+      return ReadGuestRegister(m_guest_reg16_cache[guest_reg], size, guest_reg, cache, force_host_register);
+    case OperandSize_32:
+      return ReadGuestRegister(m_guest_reg32_cache[guest_reg], size, guest_reg, cache, force_host_register);
+    default:
+      UnreachableCode();
+      return Value();
+  }
+}
+
 Value RegisterCache::WriteGuestRegister(Reg8 guest_reg, Value&& value)
 {
   return WriteGuestRegister(m_guest_reg8_cache[guest_reg], OperandSize_8, static_cast<u8>(guest_reg), std::move(value));
@@ -519,6 +536,22 @@ Value RegisterCache::WriteGuestRegister(Reg32 guest_reg, Value&& value)
 {
   return WriteGuestRegister(m_guest_reg32_cache[guest_reg], OperandSize_32, static_cast<u8>(guest_reg),
                             std::move(value));
+}
+
+Value RegisterCache::WriteGuestRegister(OperandSize size, u8 guest_reg, Value&& value)
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      return WriteGuestRegister(m_guest_reg8_cache[guest_reg], size, guest_reg, std::move(value));
+    case OperandSize_16:
+      return WriteGuestRegister(m_guest_reg16_cache[guest_reg], size, guest_reg, std::move(value));
+    case OperandSize_32:
+      return WriteGuestRegister(m_guest_reg32_cache[guest_reg], size, guest_reg, std::move(value));
+    default:
+      UnreachableCode();
+      return Value();
+  }
 }
 
 Value RegisterCache::WriteGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, Value&& value)
@@ -586,6 +619,25 @@ void RegisterCache::FlushGuestRegister(Reg16 guest_reg, bool invalidate)
 void RegisterCache::FlushGuestRegister(Reg32 guest_reg, bool invalidate)
 {
   FlushGuestRegister(m_guest_reg32_cache[guest_reg], OperandSize_32, static_cast<u8>(guest_reg), invalidate);
+}
+
+void RegisterCache::FlushGuestRegister(OperandSize size, u8 guest_reg, bool invalidate)
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      FlushGuestRegister(m_guest_reg8_cache[guest_reg], size, guest_reg, invalidate);
+      break;
+    case OperandSize_16:
+      FlushGuestRegister(m_guest_reg16_cache[guest_reg], size, guest_reg, invalidate);
+      break;
+    case OperandSize_32:
+      FlushGuestRegister(m_guest_reg32_cache[guest_reg], size, guest_reg, invalidate);
+      break;
+    default:
+      UnreachableCode();
+      return;
+  }
 }
 
 void RegisterCache::FlushGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, bool invalidate)
@@ -726,6 +778,21 @@ void RegisterCache::AppendRegisterToOrder(u8 size, u8 reg)
     std::memmove(&m_guest_register_order[1], &m_guest_register_order[0], sizeof(u32) * m_guest_register_order_count);
   m_guest_register_order[0] = code;
   m_guest_register_order_count++;
+}
+
+bool RegisterCache::IsGuestRegisterInHostReg(OperandSize size, u8 guest_reg) const
+{
+  switch (size)
+  {
+    case OperandSize_8:
+      return m_guest_reg8_cache[guest_reg].IsInHostRegister();
+    case OperandSize_16:
+      return m_guest_reg16_cache[guest_reg].IsInHostRegister();
+    case OperandSize_32:
+      return m_guest_reg32_cache[guest_reg].IsInHostRegister();
+    default:
+      return false;
+  }
 }
 
 } // namespace CPU_X86::Recompiler

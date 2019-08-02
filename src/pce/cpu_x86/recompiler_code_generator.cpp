@@ -163,6 +163,11 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_MOV(instruction);
       break;
 
+    case Operation_MOVS:
+    case Operation_LODS:
+      result = Compile_String(instruction);
+      break;
+
     case Operation_AND:
     case Operation_OR:
     case Operation_XOR:
@@ -1416,4 +1421,5 @@ bool CodeGenerator::Compile_RET_Near(const Instruction& instruction)
   GuestBranch(std::move(branch_address));
   return true;
 }
+
 } // namespace CPU_X86::Recompiler

@@ -187,18 +187,27 @@ public:
   //////////////////////////////////////////////////////////////////////////
   void FlushOverlappingGuestRegisters(OperandSize size, u8 guest_reg);
 
+  /// Returns true if the specified guest register is cached.
+  bool IsGuestRegisterInHostReg(Reg8 guest_reg) const { return m_guest_reg8_cache[guest_reg].IsInHostRegister(); }
+  bool IsGuestRegisterInHostReg(Reg16 guest_reg) const { return m_guest_reg16_cache[guest_reg].IsInHostRegister(); }
+  bool IsGuestRegisterInHostReg(Reg32 guest_reg) const { return m_guest_reg32_cache[guest_reg].IsInHostRegister(); }
+  bool IsGuestRegisterInHostReg(OperandSize size, u8 guest_reg) const;
+
   Value ReadGuestRegister(Reg8 guest_reg, bool cache = true, bool force_host_register = false);
   Value ReadGuestRegister(Reg16 guest_reg, bool cache = true, bool force_host_register = false);
   Value ReadGuestRegister(Reg32 guest_reg, bool cache = true, bool force_host_register = false);
+  Value ReadGuestRegister(OperandSize size, u8 guest_reg, bool cache = true, bool force_host_register = false);
 
   /// Creates a copy of value, and stores it to guest_reg.
   Value WriteGuestRegister(Reg8 guest_reg, Value&& value);
   Value WriteGuestRegister(Reg16 guest_reg, Value&& value);
   Value WriteGuestRegister(Reg32 guest_reg, Value&& value);
+  Value WriteGuestRegister(OperandSize size, u8 guest_reg, Value&& value);
 
   void FlushGuestRegister(Reg8 guest_reg, bool invalidate);
   void FlushGuestRegister(Reg16 guest_reg, bool invalidate);
   void FlushGuestRegister(Reg32 guest_reg, bool invalidate);
+  void FlushGuestRegister(OperandSize size, u8 guest_reg, bool invalidate);
   void InvalidateGuestRegister(Reg8 guest_reg);
   void InvalidateGuestRegister(Reg16 guest_reg);
   void InvalidateGuestRegister(Reg32 guest_reg);

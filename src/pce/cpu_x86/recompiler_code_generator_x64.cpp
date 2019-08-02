@@ -1571,6 +1571,168 @@ bool CodeGenerator::Compile_IncDec_Impl(const Instruction& instruction, CycleCou
   return true;
 }
 
+bool CodeGenerator::Compile_String(const Instruction& instruction)
+{
+  const CycleCount cycles_base = m_cpu->GetCycles(instruction.IsRep() ? CYCLES_REP_MOVS_BASE : CYCLES_MOVS);
+  const CycleCount cycles_n = m_cpu->GetCycles(CYCLES_REP_MOVS_N) + 1;
+  const u32 data_size = GetOperandSizeInBytes(instruction.operands[0].size);
+  const OperandSize reg_address_size =
+    ((instruction.GetAddressSize() == AddressSize_32) ? OperandSize_32 : OperandSize_16);
+  const bool is_rep = instruction.IsRep();
+  const bool is_32bit = (instruction.GetAddressSize() == AddressSize_32);
+  const bool needs_eax = (instruction.operation == Operation_STOS || instruction.operation == Operation_SCAS);
+  const bool needs_esi = (instruction.operation == Operation_MOVS || instruction.operation == Operation_CMPS ||
+                          instruction.operation == Operation_LODS);
+  const bool needs_edi = (instruction.operation == Operation_MOVS || instruction.operation == Operation_CMPS ||
+                          instruction.operation == Operation_STOS || instruction.operation == Operation_SCAS);
+  const bool needs_lhs = (instruction.operation == Operation_MOVS || instruction.operation == Operation_LODS ||
+                          instruction.operation == Operation_CMPS);
+  const bool needs_rhs = (instruction.operation == Operation_CMPS);
+  if (is_rep)
+    return Compile_Fallback(instruction);
+
+  InstructionPrologue(instruction, cycles_base, true);
+
+  // work out the increment (positive or negative)
+  Value increment = m_register_cache.AllocateScratch(reg_address_size);
+  {
+    Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
+    Value increment_temp = m_register_cache.AllocateScratch(reg_address_size);
+    if (is_32bit)
+    {
+      EmitCopyValue(increment.GetHostRegister(), Value::FromConstantU32(data_size));
+      EmitCopyValue(increment_temp.GetHostRegister(), Value::FromConstantU32(u32(-s32(data_size))));
+      m_emit.test(GetHostReg32(eflags), Flag_DF);
+      m_emit.cmovnz(GetHostReg32(increment), GetHostReg32(increment_temp));
+    }
+    else
+    {
+      EmitCopyValue(increment.GetHostRegister(), Value::FromConstantU16(u16(data_size)));
+      EmitCopyValue(increment_temp.GetHostRegister(), Value::FromConstantU16(u16(-s16(data_size))));
+      m_emit.test(GetHostReg32(eflags), Flag_DF);
+      m_emit.cmovnz(GetHostReg16(increment), GetHostReg16(increment_temp));
+    }
+  }
+
+  // temporary for the value read, and zero-extended address (if in 16-bit mode)
+  Value lhs;
+  Value rhs;
+  Value address;
+  Value eax;
+  Value ecx;
+  Value esi;
+  Value edi;
+  if (!is_32bit)
+    address = m_register_cache.AllocateScratch(OperandSize_32);
+  if (needs_lhs)
+    lhs = m_register_cache.AllocateScratch(instruction.operands[0].size);
+  if (needs_rhs)
+    rhs = m_register_cache.AllocateScratch(instruction.operands[0].size);
+  if (needs_eax)
+    eax = m_register_cache.ReadGuestRegister(reg_address_size, Reg32_EAX, true, true);
+  if (needs_esi)
+    esi = m_register_cache.ReadGuestRegister(reg_address_size, Reg32_ESI, true, true);
+  if (needs_edi)
+    edi = m_register_cache.ReadGuestRegister(reg_address_size, Reg32_EDI, true, true);
+  if (is_rep)
+    ecx = m_register_cache.ReadGuestRegister(reg_address_size, Reg32_ECX, true, true);
+
+  // everything should be in the register cache still
+  Assert((!needs_eax || m_register_cache.IsGuestRegisterInHostReg(reg_address_size, Reg32_EAX)) &&
+         (!needs_esi || m_register_cache.IsGuestRegisterInHostReg(reg_address_size, Reg32_ESI)) &&
+         (!needs_edi || m_register_cache.IsGuestRegisterInHostReg(reg_address_size, Reg32_EDI)) &&
+         (!is_rep || m_register_cache.IsGuestRegisterInHostReg(reg_address_size, Reg32_ECX)));
+
+  Xbyak::Label rep_label;
+  Xbyak::Label done_label;
+  if (is_rep)
+  {
+    m_emit.L(rep_label);
+
+    // add n cycles
+    EmitAddCPUStructField(offsetof(CPU, m_pending_cycles), Value::FromConstantU64(cycles_n));
+
+    // compare ecx against zero
+    EmitTest(ecx.GetHostRegister(), ecx);
+    m_emit.jz(done_label);
+  }
+
+  switch (instruction.operation)
+  {
+    case Operation_LODS:
+    {
+      // read from esi, write to (e)ax
+      if (is_32bit)
+      {
+        LoadSegmentMemory(&lhs, lhs.size, esi, instruction.GetMemorySegment());
+      }
+      else
+      {
+        EmitZeroExtend(address.GetHostRegister(), OperandSize_32, esi.GetHostRegister(), OperandSize_16);
+        LoadSegmentMemory(&lhs, lhs.size, address, instruction.GetMemorySegment());
+      }
+      m_register_cache.WriteGuestRegister(lhs.size, Reg32_EAX, std::move(lhs));
+    }
+    break;
+
+    case Operation_MOVS:
+    {
+      // read from esi, write to es:edi
+      if (is_32bit)
+      {
+        LoadSegmentMemory(&lhs, lhs.size, esi, instruction.GetMemorySegment());
+        StoreSegmentMemory(lhs, edi, Segment_ES);
+      }
+      else
+      {
+        EmitZeroExtend(address.GetHostRegister(), OperandSize_32, esi.GetHostRegister(), OperandSize_16);
+        LoadSegmentMemory(&lhs, lhs.size, address, instruction.GetMemorySegment());
+        EmitZeroExtend(address.GetHostRegister(), OperandSize_32, edi.GetHostRegister(), OperandSize_16);
+        StoreSegmentMemory(lhs, address, Segment_ES);
+      }
+    }
+    break;
+
+    default:
+      UnreachableCode();
+      break;
+  }
+
+  // increment edi/esi
+  if (needs_esi)
+  {
+    EmitAdd(esi.GetHostRegister(), increment);
+    m_register_cache.WriteGuestRegister(reg_address_size, Reg32_ESI, std::move(esi));
+  }
+  if (needs_edi)
+  {
+    EmitAdd(edi.GetHostRegister(), increment);
+    m_register_cache.WriteGuestRegister(reg_address_size, Reg32_EDI, std::move(edi));
+  }
+
+  if (is_rep)
+  {
+    // reduce ecx
+    EmitDec(ecx.GetHostRegister(), ecx.size);
+    m_register_cache.WriteGuestRegister(reg_address_size, Reg32_ECX, std::move(ecx));
+
+    // flush new esi/edi/ecx values, since we can fault after the next loop
+    if (needs_esi)
+      m_register_cache.FlushGuestRegister(reg_address_size, Reg32_ESI, false);
+    if (needs_edi)
+      m_register_cache.FlushGuestRegister(reg_address_size, Reg32_EDI, false);
+    m_register_cache.FlushGuestRegister(reg_address_size, Reg32_ECX, false);
+
+    // jump if at the end with condition, the flushes shouldn't change the flags
+    // m_emit.jz(done_label);
+
+    m_emit.jmp(rep_label);
+  }
+
+  m_emit.L(done_label);
+  return true;
+}
+
 class ThunkGenerator
 {
 public:

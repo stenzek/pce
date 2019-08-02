@@ -131,6 +131,9 @@ public:
   Value ReadFlagsFromHost();
 #endif
 
+  // REP generator.
+  bool EmitREP(const Instruction& instruction, std::function<void()> body_emitter);
+
   // Value ops
   Value AddValues(const Value& lhs, const Value& rhs);
   Value MulValues(const Value& lhs, const Value& rhs);
@@ -196,6 +199,7 @@ private:
   bool Compile_JMP_Near(const Instruction& instruction);
   bool Compile_CALL_Near(const Instruction& instruction);
   bool Compile_RET_Near(const Instruction& instruction);
+  bool Compile_String(const Instruction& instruction);
 
   CPU* m_cpu;
   JitCodeBuffer* m_code_buffer;

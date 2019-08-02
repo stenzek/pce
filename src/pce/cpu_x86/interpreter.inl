@@ -5130,6 +5130,7 @@ void Interpreter::Execute_REP(CPU* cpu, callback cb)
 
   for (;;)
   {
+    cpu->AddCycle();
     if constexpr (operation == Operation_CMPS)
       cpu->AddCycles(CYCLES_REP_CMPS_N);
     else if constexpr (operation == Operation_INS)
@@ -5195,9 +5196,6 @@ void Interpreter::Execute_REP(CPU* cpu, callback cb)
       return;
     }
 #endif
-
-    // Add an extra instruction since we're looping around again.
-    cpu->AddCycle();
   }
 }
 
