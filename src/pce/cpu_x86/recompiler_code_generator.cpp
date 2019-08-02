@@ -21,8 +21,8 @@ namespace CPU_X86::Recompiler {
 // TODO: memcpy-like stuff from bus for validation
 // TODO: xor eax, eax -> invalidate and constant 0
 
-CodeGenerator::CodeGenerator(CPU* cpu, JitCodeBuffer* code_buffer)
-  : m_cpu(cpu), m_code_buffer(code_buffer), m_register_cache(*this),
+CodeGenerator::CodeGenerator(CPU* cpu, JitCodeBuffer* code_buffer, const ASMFunctions& asm_functions)
+  : m_cpu(cpu), m_code_buffer(code_buffer), m_asm_functions(asm_functions), m_register_cache(*this),
     m_emit(code_buffer->GetFreeCodeSpace(), code_buffer->GetFreeCodePointer())
 {
   InitHostRegs();
@@ -914,16 +914,13 @@ void CodeGenerator::LoadSegmentMemory(Value* dest_value, OperandSize size, const
   switch (size)
   {
     case OperandSize_8:
-      EmitFunctionCall(dest_value, &Thunks::ReadSegmentMemoryByte, m_register_cache.GetCPUPtr(),
-                       Value::FromConstantU32(static_cast<u32>(segment)), address);
+      EmitFunctionCall(dest_value, m_asm_functions.read_memory_byte, Value::FromConstantU8(segment), address);
       break;
     case OperandSize_16:
-      EmitFunctionCall(dest_value, &Thunks::ReadSegmentMemoryWord, m_register_cache.GetCPUPtr(),
-                       Value::FromConstantU32(static_cast<u32>(segment)), address);
+      EmitFunctionCall(dest_value, m_asm_functions.read_memory_word, Value::FromConstantU8(segment), address);
       break;
     case OperandSize_32:
-      EmitFunctionCall(dest_value, &Thunks::ReadSegmentMemoryDWord, m_register_cache.GetCPUPtr(),
-                       Value::FromConstantU32(static_cast<u32>(segment)), address);
+      EmitFunctionCall(dest_value, m_asm_functions.read_memory_dword, Value::FromConstantU8(segment), address);
       break;
     default:
       break;
@@ -963,16 +960,13 @@ void CodeGenerator::StoreSegmentMemory(const Value& value, const Value& address,
   switch (value.size)
   {
     case OperandSize_8:
-      EmitFunctionCall(nullptr, &Thunks::WriteSegmentMemoryByte, m_register_cache.GetCPUPtr(),
-                       Value::FromConstantU32(static_cast<u32>(segment)), address, value);
+      EmitFunctionCall(nullptr, m_asm_functions.write_memory_byte, Value::FromConstantU8(segment), address, value);
       break;
     case OperandSize_16:
-      EmitFunctionCall(nullptr, &Thunks::WriteSegmentMemoryWord, m_register_cache.GetCPUPtr(),
-                       Value::FromConstantU32(static_cast<u32>(segment)), address, value);
+      EmitFunctionCall(nullptr, m_asm_functions.write_memory_word, Value::FromConstantU8(segment), address, value);
       break;
     case OperandSize_32:
-      EmitFunctionCall(nullptr, &Thunks::WriteSegmentMemoryDWord, m_register_cache.GetCPUPtr(),
-                       Value::FromConstantU32(static_cast<u32>(segment)), address, value);
+      EmitFunctionCall(nullptr, m_asm_functions.write_memory_dword, Value::FromConstantU8(segment), address, value);
       break;
     default:
       break;

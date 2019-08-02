@@ -1,5 +1,6 @@
 #include "interpreter.h"
 #include "recompiler_code_generator.h"
+#include "recompiler_thunks.h"
 
 namespace CPU_X86::Recompiler {
 
@@ -10,7 +11,8 @@ constexpr HostReg RARG1 = Xbyak::Operand::RCX;
 constexpr HostReg RARG2 = Xbyak::Operand::RDX;
 constexpr HostReg RARG3 = Xbyak::Operand::R8;
 constexpr HostReg RARG4 = Xbyak::Operand::R9;
-const u32 FUNCTION_CALL_SHADOW_SPACE = 32;
+constexpr u32 FUNCTION_CALL_SHADOW_SPACE = 32;
+constexpr u64 FUNCTION_CALL_STACK_ALIGNMENT = 16;
 #elif defined(ABI_SYSV)
 constexpr HostReg RCPUPTR = Xbyak::Operand::RBP;
 constexpr HostReg RRETURN = Xbyak::Operand::RAX;
@@ -18,7 +20,8 @@ constexpr HostReg RARG1 = Xbyak::Operand::RDI;
 constexpr HostReg RARG2 = Xbyak::Operand::RSI;
 constexpr HostReg RARG3 = Xbyak::Operand::RDX;
 constexpr HostReg RARG4 = Xbyak::Operand::RCX;
-const u32 FUNCTION_CALL_SHADOW_SPACE = 0;
+constexpr u32 FUNCTION_CALL_SHADOW_SPACE = 0;
+constexpr u64 FUNCTION_CALL_STACK_ALIGNMENT = 16;
 #endif
 
 static const Xbyak::Reg8 GetHostReg8(HostReg reg)
@@ -967,8 +970,15 @@ void CodeGenerator::EmitFunctionCallPtr(Value* return_value, const void* ptr, co
   EmitCopyValue(RARG1, arg1);
 
   // actually call the function
-  m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
-  m_emit.call(GetHostReg64(RRETURN));
+  if (Xbyak::inner::IsInInt32(reinterpret_cast<size_t>(ptr) - reinterpret_cast<size_t>(m_emit.getCurr())))
+  {
+    m_emit.call(ptr);
+  }
+  else
+  {
+    m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
+    m_emit.call(GetHostReg64(RRETURN));
+  }
 
   // shadow space release
   RestoreStackAfterCall(adjust_size);
@@ -994,8 +1004,15 @@ void CodeGenerator::EmitFunctionCallPtr(Value* return_value, const void* ptr, co
   EmitCopyValue(RARG2, arg2);
 
   // actually call the function
-  m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
-  m_emit.call(GetHostReg64(RRETURN));
+  if (Xbyak::inner::IsInInt32(reinterpret_cast<size_t>(ptr) - reinterpret_cast<size_t>(m_emit.getCurr())))
+  {
+    m_emit.call(ptr);
+  }
+  else
+  {
+    m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
+    m_emit.call(GetHostReg64(RRETURN));
+  }
 
   // shadow space release
   RestoreStackAfterCall(adjust_size);
@@ -1023,8 +1040,15 @@ void CodeGenerator::EmitFunctionCallPtr(Value* return_value, const void* ptr, co
   EmitCopyValue(RARG3, arg3);
 
   // actually call the function
-  m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
-  m_emit.call(GetHostReg64(RRETURN));
+  if (Xbyak::inner::IsInInt32(reinterpret_cast<size_t>(ptr) - reinterpret_cast<size_t>(m_emit.getCurr())))
+  {
+    m_emit.call(ptr);
+  }
+  else
+  {
+    m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
+    m_emit.call(GetHostReg64(RRETURN));
+  }
 
   // shadow space release
   RestoreStackAfterCall(adjust_size);
@@ -1053,8 +1077,15 @@ void CodeGenerator::EmitFunctionCallPtr(Value* return_value, const void* ptr, co
   EmitCopyValue(RARG4, arg4);
 
   // actually call the function
-  m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
-  m_emit.call(GetHostReg64(RRETURN));
+  if (Xbyak::inner::IsInInt32(reinterpret_cast<size_t>(ptr) - reinterpret_cast<size_t>(m_emit.getCurr())))
+  {
+    m_emit.call(ptr);
+  }
+  else
+  {
+    m_emit.mov(GetHostReg64(RRETURN), reinterpret_cast<size_t>(ptr));
+    m_emit.call(GetHostReg64(RRETURN));
+  }
 
   // shadow space release
   RestoreStackAfterCall(adjust_size);
@@ -1538,6 +1569,217 @@ bool CodeGenerator::Compile_IncDec_Impl(const Instruction& instruction, CycleCou
   const u32 eflags_mask = Flag_OF | Flag_AF | Flag_SF | Flag_ZF | Flag_PF;
   UpdateEFLAGS(std::move(host_flags), 0, eflags_mask, 0);
   return true;
+}
+
+class ThunkGenerator
+{
+public:
+#if 0
+  static void AlignStack(Xbyak::CodeGenerator& emitter)
+  {
+    // since we jump to the CPU function not call it, we need to align to 16 bytes
+    emitter.lea(emitter.rsp, emitter.qword[emitter.rsp + (FUNCTION_CALL_STACK_ALIGNMENT - 1)]);
+
+    // we can be really evil here and just use SPL instead of RSP, and leave the upper bits intact
+    emitter.and_(emitter.spl, static_cast<u8>(~static_cast<u8>(FUNCTION_CALL_STACK_ALIGNMENT)));
+  }
+#endif
+
+  template<typename DataType>
+  static DataType (*CompileMemoryReadFunction(JitCodeBuffer* code_buffer))(u8, u32)
+  {
+    using FunctionType = DataType (*)(u8, u32);
+    const auto rret = GetHostReg64(RRETURN);
+    const auto rcpuptr = GetHostReg64(RCPUPTR);
+    const auto rarg1 = GetHostReg32(RARG1);
+    const auto rarg2 = GetHostReg32(RARG2);
+    const auto rarg3 = GetHostReg32(RARG3);
+    const auto scratch = GetHostReg64(RARG3);
+
+    Xbyak::CodeGenerator emitter(code_buffer->GetFreeCodeSpace(), code_buffer->GetFreeCodePointer());
+
+    // ensure function starts at aligned 16 bytes
+    emitter.align();
+    FunctionType ret = emitter.getCurr<FunctionType>();
+
+    // TODO: We can skip these if the base address is zero and the size is 4GB.
+    Xbyak::Label raise_gpf_label;
+
+    static_assert(sizeof(CPU::SegmentCache) == 16);
+    emitter.movzx(rarg1, rarg1.cvt8());
+    emitter.shl(rarg1, 4);
+    emitter.lea(rret, emitter.byte[rcpuptr + rarg1.cvt64() + offsetof(CPU, m_segment_cache[0])]);
+
+    // if segcache->access_mask & Read == 0
+    emitter.test(emitter.byte[rret + offsetof(CPU::SegmentCache, access_mask)], static_cast<u32>(AccessTypeMask::Read));
+    emitter.jz(raise_gpf_label);
+
+    // if offset < limit_low
+    emitter.cmp(rarg2, emitter.dword[rret + offsetof(CPU::SegmentCache, limit_low)]);
+    emitter.jb(raise_gpf_label);
+
+    // if offset + (size - 1) > limit_high
+    // offset += segcache->base_address
+    if constexpr (sizeof(DataType) > 1)
+    {
+      emitter.lea(scratch, emitter.qword[rarg2.cvt64() + (sizeof(DataType) - 1)]);
+      emitter.add(rarg2, emitter.dword[rret + offsetof(CPU::SegmentCache, base_address)]);
+      emitter.mov(rret.cvt32(), emitter.dword[rret + offsetof(CPU::SegmentCache, limit_high)]);
+      emitter.cmp(scratch, rret);
+      emitter.ja(raise_gpf_label);
+    }
+    else
+    {
+      emitter.cmp(rarg2, emitter.dword[rret + offsetof(CPU::SegmentCache, limit_high)]);
+      emitter.ja(raise_gpf_label);
+      emitter.add(rarg2, emitter.dword[rret + offsetof(CPU::SegmentCache, base_address)]);
+    }
+
+    // swap segment with CPU
+    emitter.mov(rarg1, rcpuptr);
+
+    // go ahead with the memory read
+    if constexpr (std::is_same_v<DataType, u8>)
+    {
+      emitter.mov(rret, reinterpret_cast<size_t>(static_cast<u8 (*)(CPU*, LinearMemoryAddress)>(&CPU::ReadMemoryByte)));
+    }
+    else if constexpr (std::is_same_v<DataType, u16>)
+    {
+      emitter.mov(rret,
+                  reinterpret_cast<size_t>(static_cast<u16 (*)(CPU*, LinearMemoryAddress)>(&CPU::ReadMemoryWord)));
+    }
+    else
+    {
+      emitter.mov(rret,
+                  reinterpret_cast<size_t>(static_cast<u32 (*)(CPU*, LinearMemoryAddress)>(&CPU::ReadMemoryDWord)));
+    }
+
+    emitter.jmp(rret);
+
+    // RAISE GPF BRANCH
+    emitter.L(raise_gpf_label);
+
+    // register swap since the CPU has to come first
+    emitter.cmp(rarg1, (Segment_SS << 4));
+    emitter.mov(rarg1, Interrupt_StackFault);
+    emitter.mov(rarg2, Interrupt_GeneralProtectionFault);
+    emitter.cmove(rarg2, rarg1);
+    emitter.xor_(rarg3, rarg3);
+    emitter.mov(rarg1, rcpuptr);
+
+    // cpu->RaiseException(ss ? Interrupt_StackFault : Interrupt_GeneralProtectionFault, 0)
+    emitter.mov(rret, reinterpret_cast<size_t>(static_cast<void (*)(CPU*, u32, u32)>(&CPU::RaiseException)));
+    emitter.jmp(rret);
+
+    emitter.ready();
+    code_buffer->CommitCode(emitter.getSize());
+    return ret;
+  }
+
+  template<typename DataType>
+  static void (*CompileMemoryWriteFunction(JitCodeBuffer* code_buffer))(u8, u32, DataType)
+  {
+    using FunctionType = void (*)(u8, u32, DataType);
+    const auto rret = GetHostReg64(RRETURN);
+    const auto rcpuptr = GetHostReg64(RCPUPTR);
+    const auto rarg1 = GetHostReg32(RARG1);
+    const auto rarg2 = GetHostReg32(RARG2);
+    const auto rarg3 = GetHostReg32(RARG3);
+    const auto scratch = GetHostReg64(RARG4);
+
+    Xbyak::CodeGenerator emitter(code_buffer->GetFreeCodeSpace(), code_buffer->GetFreeCodePointer());
+
+    // ensure function starts at aligned 16 bytes
+    emitter.align();
+    FunctionType ret = emitter.getCurr<FunctionType>();
+
+    // TODO: We can skip these if the base address is zero and the size is 4GB.
+    Xbyak::Label raise_gpf_label;
+
+    static_assert(sizeof(CPU::SegmentCache) == 16);
+    emitter.movzx(rarg1, rarg1.cvt8());
+    emitter.shl(rarg1, 4);
+    emitter.lea(rret, emitter.byte[rcpuptr + rarg1.cvt64() + offsetof(CPU, m_segment_cache[0])]);
+
+    // if segcache->access_mask & Read == 0
+    emitter.test(emitter.byte[rret + offsetof(CPU::SegmentCache, access_mask)],
+                 static_cast<u32>(AccessTypeMask::Write));
+    emitter.jz(raise_gpf_label);
+
+    // if offset < limit_low
+    emitter.cmp(rarg2, emitter.dword[rret + offsetof(CPU::SegmentCache, limit_low)]);
+    emitter.jb(raise_gpf_label);
+
+    // if offset + (size - 1) > limit_high
+    // offset += segcache->base_address
+    if constexpr (sizeof(DataType) > 1)
+    {
+      emitter.lea(scratch, emitter.qword[rarg2.cvt64() + (sizeof(DataType) - 1)]);
+      emitter.add(rarg2, emitter.dword[rret + offsetof(CPU::SegmentCache, base_address)]);
+      emitter.mov(rret.cvt32(), emitter.dword[rret + offsetof(CPU::SegmentCache, limit_high)]);
+      emitter.cmp(scratch, rret.cvt64());
+      emitter.ja(raise_gpf_label);
+    }
+    else
+    {
+      emitter.cmp(rarg2, emitter.dword[rret + offsetof(CPU::SegmentCache, limit_high)]);
+      emitter.ja(raise_gpf_label);
+      emitter.add(rarg2, emitter.dword[rret + offsetof(CPU::SegmentCache, base_address)]);
+    }
+
+    // swap segment with CPU
+    emitter.mov(rarg1, rcpuptr);
+
+    // go ahead with the memory read
+    if constexpr (std::is_same_v<DataType, u8>)
+    {
+      emitter.mov(
+        rret, reinterpret_cast<size_t>(static_cast<void (*)(CPU*, LinearMemoryAddress, u8)>(&CPU::WriteMemoryByte)));
+    }
+    else if constexpr (std::is_same_v<DataType, u16>)
+    {
+      emitter.mov(
+        rret, reinterpret_cast<size_t>(static_cast<void (*)(CPU*, LinearMemoryAddress, u16)>(&CPU::WriteMemoryWord)));
+    }
+    else
+    {
+      emitter.mov(
+        rret, reinterpret_cast<size_t>(static_cast<void (*)(CPU*, LinearMemoryAddress, u32)>(&CPU::WriteMemoryDWord)));
+    }
+
+    emitter.jmp(rret);
+
+    // RAISE GPF BRANCH
+    emitter.L(raise_gpf_label);
+
+    // register swap since the CPU has to come first
+    emitter.cmp(rarg1, (Segment_SS << 4));
+    emitter.mov(rarg1, Interrupt_StackFault);
+    emitter.mov(rarg2, Interrupt_GeneralProtectionFault);
+    emitter.cmove(rarg2, rarg1);
+    emitter.xor_(rarg3, rarg3);
+    emitter.mov(rarg1, rcpuptr);
+
+    // cpu->RaiseException(ss ? Interrupt_StackFault : Interrupt_GeneralProtectionFault, 0)
+    emitter.mov(rret, reinterpret_cast<size_t>(static_cast<void (*)(CPU*, u32, u32)>(&CPU::RaiseException)));
+    emitter.jmp(rret);
+
+    emitter.ready();
+    code_buffer->CommitCode(emitter.getSize());
+    return ret;
+  }
+};
+
+ASMFunctions ASMFunctions::Generate(JitCodeBuffer* code_buffer)
+{
+  ASMFunctions functions = {};
+  functions.read_memory_byte = ThunkGenerator::CompileMemoryReadFunction<u8>(code_buffer);
+  functions.read_memory_word = ThunkGenerator::CompileMemoryReadFunction<u16>(code_buffer);
+  functions.read_memory_dword = ThunkGenerator::CompileMemoryReadFunction<u32>(code_buffer);
+  functions.write_memory_byte = ThunkGenerator::CompileMemoryWriteFunction<u8>(code_buffer);
+  functions.write_memory_word = ThunkGenerator::CompileMemoryWriteFunction<u16>(code_buffer);
+  functions.write_memory_dword = ThunkGenerator::CompileMemoryWriteFunction<u32>(code_buffer);
+  return functions;
 }
 
 } // namespace CPU_X86::Recompiler

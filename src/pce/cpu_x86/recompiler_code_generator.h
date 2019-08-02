@@ -28,7 +28,7 @@ namespace CPU_X86::Recompiler {
 class CodeGenerator
 {
 public:
-  CodeGenerator(CPU* cpu, JitCodeBuffer* code_buffer);
+  CodeGenerator(CPU* cpu, JitCodeBuffer* code_buffer, const ASMFunctions& asm_functions);
   ~CodeGenerator();
 
   static u32 CalculateRegisterOffset(Reg8 reg);
@@ -199,6 +199,7 @@ private:
 
   CPU* m_cpu;
   JitCodeBuffer* m_code_buffer;
+  const ASMFunctions& m_asm_functions;
   const BlockBase* m_block = nullptr;
   const Instruction* m_block_start = nullptr;
   const Instruction* m_block_end = nullptr;

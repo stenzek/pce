@@ -1123,28 +1123,28 @@ void CPU::RaisePageFault(LinearMemoryAddress linear_address, AccessFlags flags, 
   RaiseException(Interrupt_PageFault, error_code);
 }
 
-u8 CPU::ReadMemoryByte(LinearMemoryAddress address)
+u8 CPU::ReadMemoryByte(CPU* cpu, LinearMemoryAddress address)
 {
-  AddMemoryCycle();
+  cpu->AddMemoryCycle();
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
+  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
 
   // TODO: Optimize Bus
-  return m_bus->ReadMemoryByte(physical_address);
+  return cpu->m_bus->ReadMemoryByte(physical_address);
 }
 
-u16 CPU::ReadMemoryWord(LinearMemoryAddress address)
+u16 CPU::ReadMemoryWord(CPU* cpu, LinearMemoryAddress address)
 {
-  AddMemoryCycle();
+  cpu->AddMemoryCycle();
 
   // Unaligned access?
   if ((address & (sizeof(u16) - 1)) != 0)
   {
     // Alignment access exception.
-    if (m_alignment_check_enabled)
+    if (cpu->m_alignment_check_enabled)
     {
-      RaiseException(Interrupt_AlignmentCheck, 0);
+      cpu->RaiseException(Interrupt_AlignmentCheck, 0);
       return 0;
     }
 
@@ -1152,28 +1152,28 @@ u16 CPU::ReadMemoryWord(LinearMemoryAddress address)
     if ((address & PAGE_MASK) != ((address + sizeof(u16) - 1) & PAGE_MASK))
     {
       // Fall back to byte reads.
-      u8 b0 = ReadMemoryByte(address + 0);
-      u8 b1 = ReadMemoryByte(address + 1);
+      u8 b0 = ReadMemoryByte(cpu, address + 0);
+      u8 b1 = ReadMemoryByte(cpu, address + 1);
       return ZeroExtend16(b0) | (ZeroExtend16(b1) << 8);
     }
   }
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
-  return m_bus->ReadMemoryWord(physical_address);
+  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
+  return cpu->m_bus->ReadMemoryWord(physical_address);
 }
 
-u32 CPU::ReadMemoryDWord(LinearMemoryAddress address)
+u32 CPU::ReadMemoryDWord(CPU* cpu, LinearMemoryAddress address)
 {
-  AddMemoryCycle();
+  cpu->AddMemoryCycle();
 
   // Unaligned access?
   if ((address & (sizeof(u32) - 1)) != 0)
   {
     // Alignment access exception.
-    if (m_alignment_check_enabled)
+    if (cpu->m_alignment_check_enabled)
     {
-      RaiseException(Interrupt_AlignmentCheck, 0);
+      cpu->RaiseException(Interrupt_AlignmentCheck, 0);
       return 0;
     }
 
@@ -1181,36 +1181,36 @@ u32 CPU::ReadMemoryDWord(LinearMemoryAddress address)
     if ((address & PAGE_MASK) != ((address + sizeof(u32) - 1) & PAGE_MASK))
     {
       // Fallback to word reads when it's split across pages.
-      u16 w0 = ReadMemoryWord(address + 0);
-      u16 w1 = ReadMemoryWord(address + 2);
+      u16 w0 = ReadMemoryWord(cpu, address + 0);
+      u16 w1 = ReadMemoryWord(cpu, address + 2);
       return ZeroExtend32(w0) | (ZeroExtend32(w1) << 16);
     }
   }
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
-  return m_bus->ReadMemoryDWord(physical_address);
+  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
+  return cpu->m_bus->ReadMemoryDWord(physical_address);
 }
 
-void CPU::WriteMemoryByte(LinearMemoryAddress address, u8 value)
+void CPU::WriteMemoryByte(CPU* cpu, LinearMemoryAddress address, u8 value)
 {
-  AddMemoryCycle();
+  cpu->AddMemoryCycle();
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
-  m_bus->WriteMemoryByte(physical_address, value);
+  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
+  cpu->m_bus->WriteMemoryByte(physical_address, value);
 }
 
-void CPU::WriteMemoryWord(LinearMemoryAddress address, u16 value)
+void CPU::WriteMemoryWord(CPU* cpu, LinearMemoryAddress address, u16 value)
 {
-  AddMemoryCycle();
+  cpu->AddMemoryCycle();
 
   // Unaligned access?
   if ((address & (sizeof(u16) - 1)) != 0)
   {
     // Alignment access exception.
-    if (m_alignment_check_enabled)
+    if (cpu->m_alignment_check_enabled)
     {
-      RaiseException(Interrupt_AlignmentCheck, 0);
+      cpu->RaiseException(Interrupt_AlignmentCheck, 0);
       return;
     }
 
@@ -1218,28 +1218,28 @@ void CPU::WriteMemoryWord(LinearMemoryAddress address, u16 value)
     if ((address & PAGE_MASK) != ((address + sizeof(u16) - 1) & PAGE_MASK))
     {
       // Slowest path here.
-      WriteMemoryByte((address + 0), Truncate8(value));
-      WriteMemoryByte((address + 1), Truncate8(value >> 8));
+      WriteMemoryByte(cpu, (address + 0), Truncate8(value));
+      WriteMemoryByte(cpu, (address + 1), Truncate8(value >> 8));
       return;
     }
   }
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
-  m_bus->WriteMemoryWord(physical_address, value);
+  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
+  cpu->m_bus->WriteMemoryWord(physical_address, value);
 }
 
-void CPU::WriteMemoryDWord(LinearMemoryAddress address, u32 value)
+void CPU::WriteMemoryDWord(CPU* cpu, LinearMemoryAddress address, u32 value)
 {
-  AddMemoryCycle();
+  cpu->AddMemoryCycle();
 
   // Unaligned access?
   if ((address & (sizeof(u32) - 1)) != 0)
   {
     // Alignment access exception.
-    if (m_alignment_check_enabled)
+    if (cpu->m_alignment_check_enabled)
     {
-      RaiseException(Interrupt_AlignmentCheck, 0);
+      cpu->RaiseException(Interrupt_AlignmentCheck, 0);
       return;
     }
 
@@ -1247,15 +1247,15 @@ void CPU::WriteMemoryDWord(LinearMemoryAddress address, u32 value)
     if ((address & PAGE_MASK) != ((address + sizeof(u32) - 1) & PAGE_MASK))
     {
       // Fallback to word writes when it's split across pages.
-      WriteMemoryWord((address + 0), Truncate16(value));
-      WriteMemoryWord((address + 2), Truncate16(value >> 16));
+      WriteMemoryWord(cpu, (address + 0), Truncate16(value));
+      WriteMemoryWord(cpu, (address + 2), Truncate16(value >> 16));
       return;
     }
   }
 
   PhysicalMemoryAddress physical_address;
-  TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
-  m_bus->WriteMemoryDWord(physical_address, value);
+  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
+  cpu->m_bus->WriteMemoryDWord(physical_address, value);
 }
 
 u8 CPU::ReadSegmentMemoryByte(Segment segment, VirtualMemoryAddress address)
@@ -2009,29 +2009,29 @@ void CPU::DispatchExternalInterrupt()
   SetupInterruptCall(interrupt_number, false, false, 0, m_registers.EIP);
 }
 
-void CPU::RaiseException(u32 interrupt, u32 error_code /* = 0 */)
+void CPU::RaiseException(CPU* cpu, u32 interrupt, u32 error_code /* = 0 */)
 {
   if (interrupt == Interrupt_PageFault)
   {
     Log_DebugPrintf("Raise exception %u error code 0x%08X EIP 0x%08X address 0x%08X", interrupt, error_code,
-                    m_current_EIP, m_registers.CR2);
+                    cpu->m_current_EIP, cpu->m_registers.CR2);
   }
   else
   {
-    Log_DebugPrintf("Raise exception %u error code 0x%08X EIP 0x%08X", interrupt, error_code, m_current_EIP);
+    Log_DebugPrintf("Raise exception %u error code 0x%08X EIP 0x%08X", interrupt, error_code, cpu->m_current_EIP);
   }
 
   // If we're throwing an exception on a double-fault, this is a triple fault, and the CPU should reset.
-  if (m_current_exception == Interrupt_DoubleFault)
+  if (cpu->m_current_exception == Interrupt_DoubleFault)
   {
     // Failed double-fault, issue a triple fault.
     Log_WarningPrintf("Triple fault");
-    Reset();
-    AbortCurrentInstruction();
+    cpu->Reset();
+    cpu->AbortCurrentInstruction();
     return;
   }
   // If this is a nested exception, we issue a double-fault.
-  else if (m_current_exception != Interrupt_Count)
+  else if (cpu->m_current_exception != Interrupt_Count)
   {
     // Change exception to double-fault.
     interrupt = Interrupt_DoubleFault;
@@ -2045,15 +2045,15 @@ void CPU::RaiseException(u32 interrupt, u32 error_code /* = 0 */)
 
   // Restore stack before entering the interrupt handler, in case of
   // partially-executed instructions, or a nested exception.
-  m_registers.ESP = m_current_ESP;
-  m_current_exception = interrupt;
-  m_execution_stats.exceptions_raised++;
+  cpu->m_registers.ESP = cpu->m_current_ESP;
+  cpu->m_current_exception = interrupt;
+  cpu->m_execution_stats.exceptions_raised++;
 
   // Set up the call to the corresponding interrupt vector.
-  SetupInterruptCall(interrupt, false, push_error_code, error_code, m_current_EIP);
+  cpu->SetupInterruptCall(interrupt, false, push_error_code, error_code, cpu->m_current_EIP);
 
   // Abort the current instruction that is executing.
-  AbortCurrentInstruction();
+  cpu->AbortCurrentInstruction();
 }
 
 void CPU::SoftwareInterrupt(u8 interrupt)

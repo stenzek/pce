@@ -1,5 +1,7 @@
 #pragma once
+#include "common/jit_code_buffer.h"
 #include "pce/cpu_x86/cpu_x86.h"
+#include <array>
 
 namespace CPU_X86::Recompiler {
 
@@ -23,6 +25,19 @@ public:
   static u16 PopWord(CPU* cpu);
   static u32 PopDWord(CPU* cpu);
   static void BranchTo(CPU* cpu, u32 address);
+};
+
+class ASMFunctions
+{
+public:
+  u8 (*read_memory_byte)(u8 segment, u32 address);
+  u16 (*read_memory_word)(u8 segment, u32 address);
+  u32 (*read_memory_dword)(u8 segment, u32 address);
+  void (*write_memory_byte)(u8 segment, u32 address, u8 value);
+  void (*write_memory_word)(u8 segment, u32 address, u16 value);
+  void (*write_memory_dword)(u8 segment, u32 address, u32 value);
+
+  static ASMFunctions Generate(JitCodeBuffer* code_buffer);
 };
 
 } // namespace CPU_X86::Recompiler

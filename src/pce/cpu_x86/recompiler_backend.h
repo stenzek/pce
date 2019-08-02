@@ -3,6 +3,7 @@
 #include "common/jit_code_buffer.h"
 #include "pce/cpu_x86/code_cache_backend.h"
 #include "pce/cpu_x86/cpu_x86.h"
+#include "pce/cpu_x86/recompiler_thunks.h"
 #include "pce/cpu_x86/recompiler_types.h"
 #include <unordered_map>
 #include <utility>
@@ -38,6 +39,8 @@ protected:
   void DestroyBlock(BlockBase* block) override;
 
   void ExecuteBlock();
+
+  ASMFunctions m_asm_functions = {};
 
 #ifdef Y_COMPILER_MSVC
 #pragma warning(push)

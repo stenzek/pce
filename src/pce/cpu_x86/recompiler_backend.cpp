@@ -15,7 +15,10 @@ extern u32 TRACE_EXECUTION_LAST_EIP;
 
 namespace CPU_X86::Recompiler {
 
-Backend::Backend(CPU* cpu) : CodeCacheBackend(cpu), m_code_space(std::make_unique<JitCodeBuffer>()) {}
+Backend::Backend(CPU* cpu) : CodeCacheBackend(cpu), m_code_space(std::make_unique<JitCodeBuffer>())
+{
+  m_asm_functions = ASMFunctions::Generate(m_code_space.get());
+}
 
 Backend::~Backend() {}
 
@@ -170,6 +173,9 @@ void Backend::FlushCodeCache()
 
   CodeCacheBackend::FlushCodeCache();
   m_code_space->Reset();
+
+  // recompile asm functions
+  m_asm_functions = ASMFunctions::Generate(m_code_space.get());
 }
 
 BlockBase* Backend::AllocateBlock(const BlockKey key)
@@ -191,7 +197,7 @@ bool Backend::CompileBlock(BlockBase* block)
     return false;
   }
 
-  CodeGenerator codegen(m_cpu, m_code_space.get());
+  CodeGenerator codegen(m_cpu, m_code_space.get(), m_asm_functions);
   if (!codegen.CompileBlock(block, &cblock->code_pointer, &cblock->code_size))
   {
     Log_WarningPrintf("Failed to compile block at paddr %08X", block->key.eip_physical_address);

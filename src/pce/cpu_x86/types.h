@@ -764,13 +764,13 @@ union SEGMENT_DESCRIPTOR_ACCESS_BITS
   u8 bits;
 
   BitField<u8, bool, 0, 1> accessed;
-  BitField<u32, bool, 3, 1> is_code;
-  BitField<u32, bool, 1, 1> code_readable;
-  BitField<u32, bool, 2, 1> code_confirming;
-  BitField<u32, bool, 1, 1> data_expand_down;
-  BitField<u32, bool, 2, 1> data_writable;
-  BitField<u32, u8, 5, 2> dpl;
-  BitField<u32, bool, 7, 1> present;
+  BitField<u8, bool, 3, 1> is_code;
+  BitField<u8, bool, 1, 1> code_readable;
+  BitField<u8, bool, 2, 1> code_confirming;
+  BitField<u8, bool, 1, 1> data_expand_down;
+  BitField<u8, bool, 2, 1> data_writable;
+  BitField<u8, u8, 5, 2> dpl;
+  BitField<u8, bool, 7, 1> present;
 };
 
 union DESCRIPTOR_ENTRY

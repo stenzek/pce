@@ -21,6 +21,7 @@ namespace Recompiler {
 class Backend;
 class CodeGenerator;
 class Thunks;
+class ThunkGenerator;
 } // namespace Recompiler
 
 class Backend;
@@ -41,6 +42,7 @@ class CPU : public ::CPU
   friend Recompiler::Backend;
   friend Recompiler::CodeGenerator;
   friend Recompiler::Thunks;
+  friend Recompiler::ThunkGenerator;
 
 public:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
@@ -253,6 +255,7 @@ public:
     VirtualMemoryAddress limit_high;
     SEGMENT_DESCRIPTOR_ACCESS_BITS access;
     AccessTypeMask access_mask;
+    u8 pad[2];
   };
 
   struct TSSCache
@@ -359,12 +362,19 @@ public:
 
   // Linear memory reads/writes
   // These should only be used within instruction handlers, or jit code, as they raise exceptions.
-  u8 ReadMemoryByte(LinearMemoryAddress address);
-  u16 ReadMemoryWord(LinearMemoryAddress address);
-  u32 ReadMemoryDWord(LinearMemoryAddress address);
-  void WriteMemoryByte(LinearMemoryAddress address, u8 value);
-  void WriteMemoryWord(LinearMemoryAddress address, u16 value);
-  void WriteMemoryDWord(LinearMemoryAddress address, u32 value);
+  // Static versions are so we can call directly from the JIT.
+  u8 ReadMemoryByte(LinearMemoryAddress address) { return ReadMemoryByte(this, address); }
+  u16 ReadMemoryWord(LinearMemoryAddress address) { return ReadMemoryWord(this, address); }
+  u32 ReadMemoryDWord(LinearMemoryAddress address) { return ReadMemoryDWord(this, address); }
+  void WriteMemoryByte(LinearMemoryAddress address, u8 value) { WriteMemoryByte(this, address, value); }
+  void WriteMemoryWord(LinearMemoryAddress address, u16 value) { WriteMemoryWord(this, address, value); }
+  void WriteMemoryDWord(LinearMemoryAddress address, u32 value) { WriteMemoryDWord(this, address, value); }
+  static u8 ReadMemoryByte(CPU* cpu, LinearMemoryAddress address);
+  static u16 ReadMemoryWord(CPU* cpu, LinearMemoryAddress address);
+  static u32 ReadMemoryDWord(CPU* cpu, LinearMemoryAddress address);
+  static void WriteMemoryByte(CPU* cpu, LinearMemoryAddress address, u8 value);
+  static void WriteMemoryWord(CPU* cpu, LinearMemoryAddress address, u16 value);
+  static void WriteMemoryDWord(CPU* cpu, LinearMemoryAddress address, u32 value);
 
   // Reads/writes memory based on the specified segment and offset.
   // These should only be used within instruction handlers, or jit code, as they raise exceptions.
@@ -493,7 +503,8 @@ protected:
   void ClearInaccessibleSegmentSelectors();
 
   // Throws an exception, leaving IP containing the address of the current instruction
-  void RaiseException(u32 interrupt, u32 error_code = 0);
+  void RaiseException(u32 interrupt, u32 error_code = 0) { RaiseException(this, interrupt, error_code); }
+  static void RaiseException(CPU* cpu, u32 interrupt, u32 error_code = 0);
 
   // Raises a software interrupt (INT3, INTO, BOUND). Does not abort the current instruction.
   // EIP is set to the next instruction, not the excepting instruction. ESP is not reset.
