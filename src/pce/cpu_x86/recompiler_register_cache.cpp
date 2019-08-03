@@ -711,17 +711,17 @@ bool RegisterCache::EvictOneGuestRegister()
   const auto [reg_size, reg_idx] = DecodeRegisterCode(m_guest_register_order[m_guest_register_order_count - 1]);
   if (reg_size == OperandSize_8)
   {
-    Log_WarningPrintf("Evicting guest register %s", Decoder::GetRegisterName(static_cast<Reg8>(reg_idx)));
+    Log_ProfilePrintf("Evicting guest register %s", Decoder::GetRegisterName(static_cast<Reg8>(reg_idx)));
     FlushGuestRegister(static_cast<Reg8>(reg_idx), true);
   }
   else if (reg_size == OperandSize_16)
   {
-    Log_WarningPrintf("Evicting guest register %s", Decoder::GetRegisterName(static_cast<Reg16>(reg_idx)));
+    Log_ProfilePrintf("Evicting guest register %s", Decoder::GetRegisterName(static_cast<Reg16>(reg_idx)));
     FlushGuestRegister(static_cast<Reg16>(reg_idx), true);
   }
   else if (reg_size == OperandSize_32)
   {
-    Log_WarningPrintf("Evicting guest register %s", Decoder::GetRegisterName(static_cast<Reg32>(reg_idx)));
+    Log_ProfilePrintf("Evicting guest register %s", Decoder::GetRegisterName(static_cast<Reg32>(reg_idx)));
     FlushGuestRegister(static_cast<Reg32>(reg_idx), true);
   }
 

@@ -165,6 +165,7 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
 
     case Operation_MOVS:
     case Operation_LODS:
+    case Operation_STOS:
       result = Compile_String(instruction);
       break;
 

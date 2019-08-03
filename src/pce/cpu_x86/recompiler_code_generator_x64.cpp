@@ -1580,16 +1580,14 @@ bool CodeGenerator::Compile_String(const Instruction& instruction)
     ((instruction.GetAddressSize() == AddressSize_32) ? OperandSize_32 : OperandSize_16);
   const bool is_rep = instruction.IsRep();
   const bool is_32bit = (instruction.GetAddressSize() == AddressSize_32);
-  const bool needs_eax = (instruction.operation == Operation_STOS || instruction.operation == Operation_SCAS);
+  const bool needs_eax = (instruction.operation == Operation_LODS || instruction.operation == Operation_STOS ||
+                          instruction.operation == Operation_SCAS);
   const bool needs_esi = (instruction.operation == Operation_MOVS || instruction.operation == Operation_CMPS ||
                           instruction.operation == Operation_LODS);
   const bool needs_edi = (instruction.operation == Operation_MOVS || instruction.operation == Operation_CMPS ||
                           instruction.operation == Operation_STOS || instruction.operation == Operation_SCAS);
-  const bool needs_lhs = (instruction.operation == Operation_MOVS || instruction.operation == Operation_LODS ||
-                          instruction.operation == Operation_CMPS);
+  const bool needs_lhs = (instruction.operation == Operation_MOVS || instruction.operation == Operation_CMPS);
   const bool needs_rhs = (instruction.operation == Operation_CMPS);
-  if (is_rep)
-    return Compile_Fallback(instruction);
 
   InstructionPrologue(instruction, cycles_base, true);
 
@@ -1629,7 +1627,7 @@ bool CodeGenerator::Compile_String(const Instruction& instruction)
   if (needs_rhs)
     rhs = m_register_cache.AllocateScratch(instruction.operands[0].size);
   if (needs_eax)
-    eax = m_register_cache.ReadGuestRegister(reg_address_size, Reg32_EAX, true, true);
+    eax = m_register_cache.ReadGuestRegister(instruction.operands[0].size, Reg32_EAX, true, true);
   if (needs_esi)
     esi = m_register_cache.ReadGuestRegister(reg_address_size, Reg32_ESI, true, true);
   if (needs_edi)
@@ -1638,7 +1636,7 @@ bool CodeGenerator::Compile_String(const Instruction& instruction)
     ecx = m_register_cache.ReadGuestRegister(reg_address_size, Reg32_ECX, true, true);
 
   // everything should be in the register cache still
-  Assert((!needs_eax || m_register_cache.IsGuestRegisterInHostReg(reg_address_size, Reg32_EAX)) &&
+  Assert((!needs_eax || m_register_cache.IsGuestRegisterInHostReg(instruction.operands[0].size, Reg32_EAX)) &&
          (!needs_esi || m_register_cache.IsGuestRegisterInHostReg(reg_address_size, Reg32_ESI)) &&
          (!needs_edi || m_register_cache.IsGuestRegisterInHostReg(reg_address_size, Reg32_EDI)) &&
          (!is_rep || m_register_cache.IsGuestRegisterInHostReg(reg_address_size, Reg32_ECX)));
@@ -1659,22 +1657,6 @@ bool CodeGenerator::Compile_String(const Instruction& instruction)
 
   switch (instruction.operation)
   {
-    case Operation_LODS:
-    {
-      // read from esi, write to (e)ax
-      if (is_32bit)
-      {
-        LoadSegmentMemory(&lhs, lhs.size, esi, instruction.GetMemorySegment());
-      }
-      else
-      {
-        EmitZeroExtend(address.GetHostRegister(), OperandSize_32, esi.GetHostRegister(), OperandSize_16);
-        LoadSegmentMemory(&lhs, lhs.size, address, instruction.GetMemorySegment());
-      }
-      m_register_cache.WriteGuestRegister(lhs.size, Reg32_EAX, std::move(lhs));
-    }
-    break;
-
     case Operation_MOVS:
     {
       // read from esi, write to es:edi
@@ -1693,6 +1675,37 @@ bool CodeGenerator::Compile_String(const Instruction& instruction)
     }
     break;
 
+    case Operation_LODS:
+    {
+      // read from esi, write to (e)ax
+      if (is_32bit)
+      {
+        LoadSegmentMemory(&eax, eax.size, esi, instruction.GetMemorySegment());
+      }
+      else
+      {
+        EmitZeroExtend(address.GetHostRegister(), OperandSize_32, esi.GetHostRegister(), OperandSize_16);
+        LoadSegmentMemory(&eax, eax.size, address, instruction.GetMemorySegment());
+      }
+      eax = m_register_cache.WriteGuestRegister(eax.size, Reg32_EAX, std::move(eax));
+    }
+    break;
+
+    case Operation_STOS:
+    {
+      // read from (e)ax, write to [es:edi]
+      if (is_32bit)
+      {
+        StoreSegmentMemory(eax, edi, Segment_ES);
+      }
+      else
+      {
+        EmitZeroExtend(address.GetHostRegister(), OperandSize_32, edi.GetHostRegister(), OperandSize_16);
+        StoreSegmentMemory(eax, address, Segment_ES);
+      }
+    }
+    break;
+
     default:
       UnreachableCode();
       break;
@@ -1702,19 +1715,19 @@ bool CodeGenerator::Compile_String(const Instruction& instruction)
   if (needs_esi)
   {
     EmitAdd(esi.GetHostRegister(), increment);
-    m_register_cache.WriteGuestRegister(reg_address_size, Reg32_ESI, std::move(esi));
+    esi = m_register_cache.WriteGuestRegister(reg_address_size, Reg32_ESI, std::move(esi));
   }
   if (needs_edi)
   {
     EmitAdd(edi.GetHostRegister(), increment);
-    m_register_cache.WriteGuestRegister(reg_address_size, Reg32_EDI, std::move(edi));
+    edi = m_register_cache.WriteGuestRegister(reg_address_size, Reg32_EDI, std::move(edi));
   }
 
   if (is_rep)
   {
     // reduce ecx
     EmitDec(ecx.GetHostRegister(), ecx.size);
-    m_register_cache.WriteGuestRegister(reg_address_size, Reg32_ECX, std::move(ecx));
+    ecx = m_register_cache.WriteGuestRegister(reg_address_size, Reg32_ECX, std::move(ecx));
 
     // flush new esi/edi/ecx values, since we can fault after the next loop
     if (needs_esi)
@@ -1736,17 +1749,6 @@ bool CodeGenerator::Compile_String(const Instruction& instruction)
 class ThunkGenerator
 {
 public:
-#if 0
-  static void AlignStack(Xbyak::CodeGenerator& emitter)
-  {
-    // since we jump to the CPU function not call it, we need to align to 16 bytes
-    emitter.lea(emitter.rsp, emitter.qword[emitter.rsp + (FUNCTION_CALL_STACK_ALIGNMENT - 1)]);
-
-    // we can be really evil here and just use SPL instead of RSP, and leave the upper bits intact
-    emitter.and_(emitter.spl, static_cast<u8>(~static_cast<u8>(FUNCTION_CALL_STACK_ALIGNMENT)));
-  }
-#endif
-
   template<typename DataType>
   static DataType (*CompileMemoryReadFunction(JitCodeBuffer* code_buffer))(u8, u32)
   {
