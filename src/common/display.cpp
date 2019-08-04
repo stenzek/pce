@@ -357,7 +357,7 @@ void Display::CopyFramebufferToRGBA8Buffer(const Framebuffer* fbuf, void* dst, u
           ocol |= ZeroExtend32(*(src_row_ptr++));       // R
           ocol |= ZeroExtend32(*(src_row_ptr++)) << 8;  // G
           ocol |= ZeroExtend32(*(src_row_ptr++)) << 16; // B
-          std::memcpy(&ocol, dst_row_ptr, sizeof(ocol));
+          std::memcpy(dst_row_ptr, &ocol, sizeof(ocol));
           dst_row_ptr += sizeof(ocol);
         }
 
