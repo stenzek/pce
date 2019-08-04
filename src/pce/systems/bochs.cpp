@@ -83,6 +83,9 @@ void Bochs::ConnectSystemIOPorts()
       }
     });
   }
+
+  // QEMU readback signature
+  m_bus->ConnectIOPortRead(0x0402, this, [](u16) { return static_cast<u8>(0xE9); });
 }
 
 void Bochs::SetCMOSVariables()
@@ -162,8 +165,14 @@ void Bochs::SetCMOSVariables()
   else
     m_cmos->SetConfigVariable(0x3D, 0x01);
 
+  // boot order - hdd, cdrom, floppy
+  const u16 boot_order = 0x132;
+  const u8 boot_flag_1 = Truncate8((boot_order & 0xF00) >> 4);
+  const u8 boot_flag_2 = Truncate8(boot_order);
+
   // Skip IPL validity check
-  m_cmos->SetConfigVariable(0x38, 0x01);
+  m_cmos->SetConfigVariable(0x38, boot_flag_1 | 0x01);
+  m_cmos->SetConfigVariable(0x3D, boot_flag_2);
 
   // HDD information
   if (m_hdd_controller->IsHDDPresent(0, 0))
