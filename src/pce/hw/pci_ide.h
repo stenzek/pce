@@ -54,7 +54,7 @@ protected:
       BitField<u8, u8, 5, 2> user;
       BitField<u8, bool, 2, 1> irq_requested;
       BitField<u8, bool, 1, 1> transfer_failed;
-      BitField<u8, bool, 0, 1> bus_dma_mode;
+      BitField<u8, bool, 0, 1> active; // BMIDEA
       u8 bits = 0;
     } status;
     u32 prdt_address = 0;

@@ -323,13 +323,16 @@ void PCIIDE::SetDMARequest(u32 channel, u32 drive, bool request)
 void PCIIDE::OnDMAStateChanged(u32 channel)
 {
   DMAState& ds = m_dma_state[channel];
+
+  // active is cleared when the command is cleared, or eot. it is set when the transfer is started.
+  // see PIIX3 datasheet
+  ds.status.active = ds.command.transfer_start;
+
   if (!ds.command.transfer_start)
   {
     // Transfer aborted.
     if (ds.active_drive_number != DEVICES_PER_CHANNEL)
       HDC::m_channels[channel].devices[ds.active_drive_number]->SetDMACK(false);
-
-    ds.status.bus_dma_mode = false;
   }
   else
   {
@@ -341,8 +344,6 @@ void PCIIDE::OnDMAStateChanged(u32 channel)
     // Transfer started.
     if (ds.active_drive_number != DEVICES_PER_CHANNEL)
       HDC::m_channels[channel].devices[ds.active_drive_number]->SetDMACK(true);
-
-    ds.status.bus_dma_mode = true;
   }
 }
 
@@ -425,7 +426,7 @@ u32 PCIIDE::DMATransfer(u32 channel, u32 drive, bool is_write, void* data, u32 s
   }
 
   if (ds.eot)
-    ds.status.bus_dma_mode = false;
+    ds.status.active = false;
 
   UpdateHostInterruptLine(channel);
   return size - remaining;
