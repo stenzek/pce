@@ -1,0 +1,40 @@
+diff --git a/src/fw/pciinit.c b/src/fw/pciinit.c
+index d5e87f0..d76c51e 100644
+--- a/src/fw/pciinit.c
++++ b/src/fw/pciinit.c
+@@ -507,6 +507,8 @@ static void mch_mem_addr_setup(struct pci_device *dev, void *arg)
+ static const struct pci_device_id pci_platform_tbl[] = {
+     PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82441,
+                i440fx_mem_addr_setup),
++    PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82437,
++               i440fx_mem_addr_setup),
+     PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_Q35_MCH,
+                mch_mem_addr_setup),
+     PCI_DEVICE_END
+diff --git a/src/fw/shadow.c b/src/fw/shadow.c
+index 4c627a8..8042524 100644
+--- a/src/fw/shadow.c
++++ b/src/fw/shadow.c
+@@ -135,6 +135,13 @@ make_bios_writable(void)
+             ShadowBDF = bdf;
+             return;
+         }
++        if (vendor == PCI_VENDOR_ID_INTEL
++            && device == PCI_DEVICE_ID_INTEL_82437) {
++            make_bios_writable_intel(bdf, I440FX_PAM0);
++            code_mutable_preinit();
++            ShadowBDF = bdf;
++            return;
++        }
+         if (vendor == PCI_VENDOR_ID_INTEL
+             && device == PCI_DEVICE_ID_INTEL_Q35_MCH) {
+             make_bios_writable_intel(bdf, Q35_HOST_BRIDGE_PAM0);
+@@ -160,7 +167,7 @@ make_bios_readonly(void)
+     }
+ 
+     u16 device = pci_config_readw(ShadowBDF, PCI_DEVICE_ID);
+-    if (device == PCI_DEVICE_ID_INTEL_82441)
++    if (device == PCI_DEVICE_ID_INTEL_82441 || device == PCI_DEVICE_ID_INTEL_82437)
+         make_bios_readonly_intel(ShadowBDF, I440FX_PAM0);
+     else
+         make_bios_readonly_intel(ShadowBDF, Q35_HOST_BRIDGE_PAM0);
