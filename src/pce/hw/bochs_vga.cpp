@@ -471,15 +471,25 @@ void BochsVGA::LatchStartAddress()
     return;
   }
 
-  const u32 bytes_per_pixel = (ZeroExtend32(m_vbe_bpp) + 7) / 8;
-
   m_render_latch = {};
   m_render_latch.graphics_mode = true;
   m_render_latch.render_width = ZeroExtend32(m_vbe_width);
   m_render_latch.render_height = ZeroExtend32(m_vbe_height);
-  m_render_latch.pitch = bytes_per_pixel * ZeroExtend32(m_vbe_virt_width);
-  m_render_latch.start_address =
-    (ZeroExtend32(m_vbe_offset_y) * m_render_latch.pitch) + (ZeroExtend32(m_vbe_offset_x) * bytes_per_pixel);
+
+  if (m_vbe_bpp < 8)
+  {
+    m_render_latch.pitch = ((ZeroExtend32(m_vbe_virt_width) * m_vbe_bpp) + 31) / 32;
+    m_render_latch.start_address =
+      (ZeroExtend32(m_vbe_offset_y) * m_render_latch.pitch) + ((ZeroExtend32(m_vbe_offset_x) * m_vbe_bpp) / 32);
+    m_render_latch.horizontal_panning = Truncate8((m_vbe_offset_x % 32) / m_vbe_bpp / 4);
+  }
+  else
+  {
+    const u32 bytes_per_pixel = (ZeroExtend32(m_vbe_bpp) + 7) / 8;
+    m_render_latch.pitch = bytes_per_pixel * ZeroExtend32(m_vbe_virt_width);
+    m_render_latch.start_address =
+      (ZeroExtend32(m_vbe_offset_y) * m_render_latch.pitch) + (ZeroExtend32(m_vbe_offset_x) * bytes_per_pixel);
+  }
 
   if ((m_render_latch.start_address + (m_render_latch.pitch * m_render_latch.render_height)) > m_vram_size)
   {
@@ -505,7 +515,7 @@ void BochsVGA::RenderGraphicsMode()
   switch (m_vbe_bpp)
   {
     case 4:
-      BaseClass::RenderGraphicsMode();
+      Render4BPP();
       break;
     case 8:
       Render8BPP();
@@ -518,6 +528,51 @@ void BochsVGA::RenderGraphicsMode()
       break;
     default:
       break;
+  }
+}
+
+void BochsVGA::Render4BPP()
+{
+  SetOutputPalette16();
+
+  const s32 render_width = static_cast<s32>(m_render_latch.render_width);
+  const s32 horizontal_panning = static_cast<s32>(m_render_latch.horizontal_panning);
+
+  u8* fb_ptr = m_display->GetFramebufferPointer();
+  const u32 fb_stride = m_display->GetFramebufferStride();
+  for (u32 row = 0; row < m_render_latch.render_height; row++)
+  {
+    u32 address_counter = row * m_render_latch.pitch;
+    u8* fb_row_ptr = fb_ptr;
+
+    // 16 color mode.
+    // Output 8 pixels for one dword
+    for (s32 col = -horizontal_panning; col < render_width;)
+    {
+      u32 all_planes = ReadVRAMPlanes(m_render_latch.start_address, address_counter, row);
+      address_counter++;
+
+      u8 pl0 = Truncate8((all_planes >> 0) & 0xFF);
+      u8 pl1 = Truncate8((all_planes >> 8) & 0xFF);
+      u8 pl2 = Truncate8((all_planes >> 16) & 0xFF);
+      u8 pl3 = Truncate8((all_planes >> 24) & 0xFF);
+
+      for (u32 subindex = 0; col < render_width && subindex < 8;)
+      {
+        if (col >= 0 && col < render_width)
+          *fb_row_ptr++ = (pl0 >> 7) | ((pl1 >> 7) << 1) | ((pl2 >> 7) << 2) | ((pl3 >> 7) << 3);
+
+        pl0 <<= 1;
+        pl1 <<= 1;
+        pl2 <<= 1;
+        pl3 <<= 1;
+
+        col++;
+        subindex++;
+      }
+    }
+
+    fb_ptr += fb_stride;
   }
 }
 

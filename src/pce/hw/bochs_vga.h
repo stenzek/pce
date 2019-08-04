@@ -95,6 +95,7 @@ private:
   u16 IOReadVBEDataRegister();
   void IOWriteVBEDataRegister(u16 value);
 
+  void Render4BPP();
   void Render8BPP();
   void RenderDirect();
 
