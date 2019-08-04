@@ -32,11 +32,11 @@ void TimingEvent::Reschedule(CycleCount cycles)
   DebugAssert(m_active);
 
   // We should really be up to date already in terms of cycles, so only take the partial cycles.
-  CycleCount partial_cycles_nodiv = (m_downcount < 0) ? -m_downcount : (m_downcount % m_cycle_period);
+  CycleCount partial_cycles_nodiv = m_time_since_last_run % m_cycle_period;
 
   // Update the interval and new downcount, subtracting any partial cycles.
   m_interval = cycles;
-  m_downcount = (cycles * m_cycle_period) - partial_cycles_nodiv;
+  m_downcount = m_system->GetPendingEventTime() + ((cycles * m_cycle_period) - partial_cycles_nodiv);
 
   // If this is a call from an IO handler for example, re-sort the event queue.
   m_system->SortEvents();
@@ -67,8 +67,12 @@ void TimingEvent::InvokeEarly(bool force /* = false */)
   // Try to maintain partial cycles as best as possible.
   CycleCount cycles_to_execute = m_time_since_last_run / m_cycle_period;
   CycleCount partial_time = m_time_since_last_run % m_cycle_period;
-  m_time_since_last_run -= cycles_to_execute * m_cycle_period;
   m_downcount = (m_interval * m_cycle_period) - partial_time;
+  m_time_since_last_run = partial_time;
+
+  // Run any pending cycles.
+  if (force || cycles_to_execute > 0)
+    m_callback(this, cycles_to_execute, 0);
 
   // Re-add the pending time. Since we're re-scheduling, we want the event to occur after
   // the current time (which includes pending time).
@@ -77,10 +81,6 @@ void TimingEvent::InvokeEarly(bool force /* = false */)
 
   // Since we've changed the downcount, we need to re-sort the events.
   m_system->SortEvents();
-
-  // Run any pending cycles.
-  if (force || cycles_to_execute > 0)
-    m_callback(this, cycles_to_execute, 0);
 }
 
 void TimingEvent::Activate()
