@@ -299,7 +299,7 @@ u8 HDC::IOReadStatusRegister(u32 channel)
     return u8(1 << 7);
 
   const ATADevice* device = GetCurrentDevice(channel);
-  const u8 value = device ? device->ReadStatusRegister() : 0xFF;
+  const u8 value = device ? device->ReadStatusRegister() : 0x00;
   Log_TracePrintf("ATA read status register %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
                   ZeroExtend32(value));
   return value;
@@ -311,7 +311,7 @@ u8 HDC::IOReadAltStatusRegister(u32 channel)
     return u8(1 << 7);
 
   const ATADevice* device = GetCurrentDevice(channel);
-  const u8 value = device ? device->ReadStatusRegister() : 0xFF;
+  const u8 value = device ? device->ReadStatusRegister() : 0x00;
   Log_TracePrintf("ATA read alt status register %u/%u <- 0x%02X", channel, GetCurrentDeviceIndex(channel),
                   ZeroExtend32(value));
   return value;
