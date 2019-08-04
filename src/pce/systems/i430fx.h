@@ -44,10 +44,8 @@ public:
 protected:
   static constexpr u32 PHYSICAL_MEMORY_BITS = 32;
   static constexpr PhysicalMemoryAddress BIOS_ROM_ADDRESS = 0xE0000;
+  static constexpr PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFE0000;
   static constexpr u32 BIOS_ROM_SIZE = 131072;
-  static constexpr PhysicalMemoryAddress BIOS_ROM_MIRROR_ADDRESS = 0xFFFF0000;
-  static constexpr u32 BIOS_ROM_MIRROR_START = 0x10000;
-  static constexpr u32 BIOS_ROM_MIRROR_SIZE = 65536;
 
   void ConnectSystemIOPorts();
   void AddComponents();
