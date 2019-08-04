@@ -128,11 +128,13 @@ void PCIDevice::InitPCIMemoryRegion(u8 function, MemoryRegion region, PhysicalMe
 {
   DebugAssert(function < m_num_pci_functions);
   DebugAssert(!io || region != MemoryRegion_ExpansionROM);
+  DebugAssert(Common::IsPow2(size));
 
   m_config_space[function].memory_regions[region].default_address = default_address;
   m_config_space[function].memory_regions[region].size = size;
   m_config_space[function].memory_regions[region].is_io = io;
   m_config_space[function].memory_regions[region].is_prefetchable = prefetchable;
+  SetDefaultAddressForRegion(function, region);
 }
 
 u8 PCIDevice::GetConfigSpaceByte(u8 function, u8 byte_offset) const
@@ -197,6 +199,12 @@ bool PCIDevice::IsPCIIOActive(u8 function) const
   return m_config_space[function].header.command.enable_io_space;
 }
 
+bool PCIDevice::IsPCIExpansionROMActive(u8 function) const
+{
+  DebugAssert(function < m_num_pci_functions);
+  return (m_config_space[function].header.rom_base_address & u32(0x01)) != 0;
+}
+
 void PCIDevice::ResetConfigSpace(u8 function)
 {
   auto& cs = m_config_space[function];
@@ -220,15 +228,23 @@ void PCIDevice::ResetConfigSpace(u8 function)
     const auto& mr = cs.memory_regions[j];
     if (mr.size > 0)
     {
-      const u32 base = (j == MemoryRegion_ExpansionROM) ? (0x30 / 4) : ((0x10 / 4) + static_cast<u32>(j));
-      if (!mr.is_io)
-        cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFF0)) | BoolToUInt32(mr.is_prefetchable);
-      else
-        cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFFC)) | 0x01;
-
+      SetDefaultAddressForRegion(function, static_cast<MemoryRegion>(j));
       OnMemoryRegionChanged(function, static_cast<MemoryRegion>(j), false);
     }
   }
+}
+
+void PCIDevice::SetDefaultAddressForRegion(u8 function, MemoryRegion region)
+{
+  auto& cs = m_config_space[function];
+  const auto& mr = cs.memory_regions[region];
+  const u32 base = (region == MemoryRegion_ExpansionROM) ? (0x30 / 4) : ((0x10 / 4) + static_cast<u32>(region));
+  if (region == MemoryRegion_ExpansionROM)
+    cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFF800));
+  else if (!mr.is_io)
+    cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFF0)) | BoolToUInt32(mr.is_prefetchable);
+  else
+    cs.dwords[base] = (mr.default_address & UINT32_C(0xFFFFFFFC)) | 0x01;
 }
 
 void PCIDevice::OnCommandRegisterChanged(u8 function) {}
@@ -342,14 +358,9 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
     case 0x25:
     case 0x26:
     case 0x27:
-    case 0x30:
-    case 0x31:
-    case 0x32:
-    case 0x33:
     {
       // Memory region registers.
-      const MemoryRegion region =
-        (offset >= 0x30) ? MemoryRegion_ExpansionROM : static_cast<MemoryRegion>((offset - 0x10) / 4);
+      const MemoryRegion region = static_cast<MemoryRegion>((offset - 0x10) / 4);
       const auto& mr = cs.memory_regions[region];
       if (mr.size == 0)
       {
@@ -368,8 +379,12 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
         cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFF0)) | (cs.dwords[offset / 4] & 0xF));
 
         // Last byte? Call the update handler.
-        if ((offset & 3) == 3 && m_config_space[function].header.command.enable_memory_space)
+        if ((offset & 3) == 3 && IsPCIMemoryActive(function))
+        {
+          Log_DevPrintf("PCI BAR %u changed to memory 0x%08X", static_cast<u32>(region),
+                        GetMemoryRegionBaseAddress(function, region));
           OnMemoryRegionChanged(function, region, true);
+        }
       }
       else
       {
@@ -378,9 +393,46 @@ void PCIDevice::WriteConfigSpace(u8 function, u8 offset, u8 value)
         PhysicalMemoryAddress base_address = cs.dwords[offset / 4] & UINT32_C(0xFFFFFFFC);
         base_address = Common::AlignDown(base_address, mr.size);
         cs.dwords[offset / 4] = ((base_address & UINT32_C(0xFFFFFFFC)) | (cs.dwords[offset / 4] & 0x3));
-        if ((offset & 3) == 3 && m_config_space[function].header.command.enable_io_space)
+        if ((offset & 3) == 3 && IsPCIIOActive(function))
+        {
+          Log_DevPrintf("PCI BAR %u changed to I/O 0x%08X", static_cast<u32>(region),
+                        GetMemoryRegionBaseAddress(function, region));
+
           OnMemoryRegionChanged(function, region, true);
+        }
       }
+    }
+    break;
+
+    case 0x30:
+    case 0x31:
+    case 0x32:
+    case 0x33:
+    {
+      // Expansion ROM memory region.
+      const auto& mr = cs.memory_regions[MemoryRegion_ExpansionROM];
+      if (mr.size == 0)
+        return;
+
+      DebugAssert(!mr.is_io);
+
+      // bit 0 - enable, bit 1..10 - reserved, bit 11..31 address
+      const u32 old_dword = cs.dwords[0x30 / 4];
+      cs.bytes[offset] = value;
+
+      // only allow setting address bits
+      u32 new_dword = (old_dword & UINT32_C(0x000007FE)) | (cs.dwords[0x30 / 4] & UINT32_C(0xFFFFF801));
+
+      // Mask away the bits, so that the address is aligned to the size.
+      PhysicalMemoryAddress base_address = new_dword & UINT32_C(0xFFFFF800);
+      base_address = Common::AlignDown(base_address, mr.size);
+
+      new_dword = base_address | (new_dword & UINT32_C(0x01));
+      cs.dwords[0x30 / 4] = new_dword;
+
+      // changed?
+      if (offset == 0x33)
+        OnMemoryRegionChanged(function, MemoryRegion_ExpansionROM, IsPCIExpansionROMActive(function));
     }
     break;
 
