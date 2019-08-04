@@ -12,7 +12,6 @@ class BochsVGA final : public VGABase, public PCIDevice
 
 public:
   static constexpr uint32 SERIALIZATION_ID = MakeSerializationID('V', 'G', 'A');
-  static constexpr uint32 MAX_BIOS_SIZE = 65536;
 
 public:
   BochsVGA(const String& identifier, const ObjectTypeInfo* type_info = &s_type_info);
@@ -24,6 +23,12 @@ public:
   bool SaveState(BinaryWriter& writer) override;
 
 private:
+  enum : u32
+  {
+    BIOS_ROM_LOCATION = 0xC0000,
+    BIOS_ROM_SIZE = 0x10000
+  };
+
   enum : u32
   {
     VBE_DISPI_TOTAL_VIDEO_MEMORY_BYTES = 16 * 1024 * 1024,
@@ -89,6 +94,8 @@ private:
 
   void RenderGraphicsMode() override;
 
+  void UpdateBIOSMemoryMapping();
+
   bool IsLFBEnabled() const;
   void UpdateFramebufferFormat();
 
@@ -99,10 +106,12 @@ private:
   void Render8BPP();
   void RenderDirect();
 
+  MMIO* m_bios_mmio = nullptr;
   MMIO* m_vga_mmio = nullptr;
   MMIO* m_lfb_mmio = nullptr;
 
   String m_bios_file_path;
+  std::vector<u8> m_bios_rom_data;
 
   u16 m_vbe_index_register = 0;
 

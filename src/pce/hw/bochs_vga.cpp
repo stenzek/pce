@@ -21,11 +21,11 @@ BochsVGA::BochsVGA(const String& identifier, const ObjectTypeInfo* type_info /* 
   : BaseClass(identifier, type_info), PCIDevice(this, 1), m_bios_file_path("romimages\\VGABIOS-lgpl-latest")
 {
   m_vram_size = VBE_DISPI_TOTAL_VIDEO_MEMORY_BYTES;
-
   InitPCIID(0, 0x1234, 0x1111);
   InitPCIClass(0, 0x03, 0x00, 0x00, 0x00);
   InitPCIMemoryRegion(0, PCIDevice::MemoryRegion_BAR0, VBE_DISPI_DEFAULT_LFB_PHYSICAL_ADDRESS, m_vram_size, false,
                       false);
+  InitPCIMemoryRegion(0, PCIDevice::MemoryRegion_ExpansionROM, BIOS_ROM_LOCATION, BIOS_ROM_SIZE, false, true);
 }
 
 BochsVGA::~BochsVGA()
@@ -43,6 +43,7 @@ bool BochsVGA::Initialize(System* system, Bus* bus)
     return false;
 
   ConnectIOPorts();
+  UpdateBIOSMemoryMapping();
   UpdateVGAMemoryMapping();
   return true;
 }
@@ -116,8 +117,45 @@ bool BochsVGA::SaveState(BinaryWriter& writer)
 
 bool BochsVGA::LoadBIOSROM()
 {
-  const PhysicalMemoryAddress bios_load_location = 0xC0000;
-  return BaseClass::m_bus->CreateROMRegionFromFile(m_bios_file_path, 0, bios_load_location);
+  auto data = System::ReadFileToBuffer(m_bios_file_path, 0, 0);
+  if (!data.first)
+    return false;
+
+  if (data.second > BIOS_ROM_SIZE)
+  {
+    Log_ErrorPrintf("VGA BIOS ROM '%s' too large (max %u bytes)", m_bios_file_path.GetCharArray(), BIOS_ROM_SIZE);
+    return false;
+  }
+
+  m_bios_rom_data.resize(BIOS_ROM_SIZE);
+  std::memcpy(m_bios_rom_data.data(), data.first.get(), data.second);
+  return true;
+}
+
+void BochsVGA::UpdateBIOSMemoryMapping()
+{
+  PhysicalMemoryAddress addr = GetMemoryRegionBaseAddress(0, PCIDevice::MemoryRegion_ExpansionROM);
+  const bool was_enabled = (m_bios_mmio != nullptr);
+  const bool enabled = IsPCIExpansionROMActive(0);
+
+  if (m_bios_mmio)
+  {
+    m_bus->DisconnectMMIO(m_bios_mmio);
+    m_bios_mmio->Release();
+    m_bios_mmio = nullptr;
+  }
+
+  if (enabled)
+  {
+    Log_InfoPrintf("Map bios to 0x%08X", addr);
+    m_bios_mmio =
+      MMIO::CreateDirect(addr, static_cast<u32>(m_bios_rom_data.size()), m_bios_rom_data.data(), true, false, true);
+    m_bus->ConnectMMIO(m_bios_mmio);
+  }
+  else
+  {
+    Log_InfoPrintf("Unmap bios");
+  }
 }
 
 void BochsVGA::ConnectIOPorts()
@@ -404,11 +442,24 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
 void BochsVGA::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active)
 {
   PCIDevice::OnMemoryRegionChanged(function, region, active);
-  if (function != 0x00 || region != PCIDevice::MemoryRegion_BAR0)
+  if (function != 0x00)
     return;
 
-  if (IsLFBEnabled())
-    UpdateVGAMemoryMapping();
+  switch (region)
+  {
+    case PCIDevice::MemoryRegion_BAR0:
+    {
+      if (IsLFBEnabled())
+        UpdateVGAMemoryMapping();
+    }
+    break;
+
+    case PCIDevice::MemoryRegion_ExpansionROM:
+    {
+      UpdateBIOSMemoryMapping();
+    }
+    break;
+  }
 }
 
 bool BochsVGA::IsLFBEnabled() const
@@ -429,9 +480,9 @@ void BochsVGA::UpdateFramebufferFormat()
   else if (m_vbe_bpp <= 8)
     m_display->ChangeFramebufferFormat(Display::FramebufferFormat::C8RGBX8);
   else if (m_vbe_bpp <= 15)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGB555);
+    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::BGR555);
   else if (m_vbe_bpp <= 16)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGB565);
+    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::BGR565);
   else if (m_vbe_bpp <= 24)
     m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGB8);
   else // if (m_vbe_bpp <= 32)
