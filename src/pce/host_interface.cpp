@@ -564,12 +564,10 @@ void HostInterface::ThrottleEvent()
 #ifdef Y_BUILD_CONFIG_RELEASE
     // Don't display the slow messages in debug, it'll always be slow...
     // Limit how often the messages are displayed.
-    if (m_speed_lost_time_timestamp.GetTimeSeconds() >= 2.0f)
+    if (m_speed_lost_time_timestamp.GetTimeSeconds() >= 1.0f)
     {
-      AddOSDMessage(
-        SmallString::FromFormat("System too %s, lost %.2f ms", sleep_time < 0 ? "slow" : "fast",
-                                static_cast<double>(std::abs(sleep_time) - GetMaxSimulationVarianceTime()) / 1000000.0),
-        2.0f);
+      Log_WarningPrintf("System too %s, lost %.2f ms", sleep_time < 0 ? "slow" : "fast",
+                        static_cast<double>(std::abs(sleep_time) - GetMaxSimulationVarianceTime()) / 1000000.0);
       m_speed_lost_time_timestamp.Reset();
     }
 #endif
