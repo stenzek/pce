@@ -361,11 +361,61 @@ public:
 
   // Translates linear address -> physical address if paging is enabled.
   bool TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,
-                              AccessFlags flags);
+                              AccessFlags flags)
+  {
+    // Skip if paging is not enabled.
+    if ((m_registers.CR0 & CR0Bit_PG) == 0)
+    {
+      *out_physical_address = linear_address;
+      return true;
+    }
+
+#ifdef ENABLE_TLB_EMULATION
+    // Check TLB.
+    const size_t tlb_index = GetTLBEntryIndex(linear_address);
+    const u8 tlb_user_bit = BoolToUInt8(InUserMode() && !HasAccessFlagBit(flags, AccessFlags::UseSupervisorPrivileges));
+    const u8 tlb_type = static_cast<u8>(GetAccessTypeFromFlags(flags));
+    TLBEntry& tlb_entry = m_tlb_entries[tlb_user_bit][tlb_type][tlb_index];
+    if (tlb_entry.linear_address == ((linear_address & PAGE_MASK) | m_tlb_counter_bits))
+    {
+      // TLB hit!
+      *out_physical_address = tlb_entry.physical_address + (linear_address & PAGE_OFFSET_MASK);
+      return true;
+    }
+#endif
+
+    return LookupPageTable(out_physical_address, linear_address, flags);
+  }
 
   // Checks if a given offset is valid into the specified segment.
   template<u32 size, AccessType access>
-  bool CheckSegmentAccess(Segment segment, VirtualMemoryAddress offset, bool raise_gp_fault);
+  bool CheckSegmentAccess(Segment segment, VirtualMemoryAddress offset, bool raise_gp_fault)
+  {
+    const SegmentCache* segcache = &m_segment_cache[segment];
+    DebugAssert(segment < Segment_Count && size > 0);
+
+    // These read/write checks should be done at segment load time.
+    // Non-CS segments should be data or code+readable
+    // SS segments should be data+writable
+    // Everything else should be code or writable
+    // TODO: Add a flag for 4G segments so we can skip the limit check.
+
+    // First we check if we have read/write/execute access.
+    // Then check against the segment limit (can be expand up or down, but calculated at load time).
+    // This computation can overflow (e.g. address FFFFFFFF + size 4), so use 64-bit for the upper bounds.
+    if (((segcache->access_mask & static_cast<AccessTypeMask>(1 << static_cast<u8>(access))) == AccessTypeMask::None) ||
+        (offset < segcache->limit_low) ||
+        ((static_cast<u64>(offset) + static_cast<u64>(size - 1)) > static_cast<u64>(segcache->limit_high)))
+    {
+      // For the SS selector we issue SF not GPF.
+      if (raise_gp_fault)
+        RaiseException((segment == Segment_SS) ? Interrupt_StackFault : Interrupt_GeneralProtectionFault, 0);
+
+      return false;
+    }
+
+    return true;
+  }
 
   // Linear memory reads/writes
   // These should only be used within instruction handlers, or jit code, as they raise exceptions.
@@ -698,34 +748,5 @@ protected:
   u32 m_prefetch_queue_size = 0;
 #endif
 };
-
-template<u32 size, AccessType access>
-bool CPU_X86::CPU::CheckSegmentAccess(Segment segment, VirtualMemoryAddress offset, bool raise_gp_fault)
-{
-  const SegmentCache* segcache = &m_segment_cache[segment];
-  DebugAssert(segment < Segment_Count && size > 0);
-
-  // These read/write checks should be done at segment load time.
-  // Non-CS segments should be data or code+readable
-  // SS segments should be data+writable
-  // Everything else should be code or writable
-  // TODO: Add a flag for 4G segments so we can skip the limit check.
-
-  // First we check if we have read/write/execute access.
-  // Then check against the segment limit (can be expand up or down, but calculated at load time).
-  // This computation can overflow (e.g. address FFFFFFFF + size 4), so use 64-bit for the upper bounds.
-  if (((segcache->access_mask & static_cast<AccessTypeMask>(1 << static_cast<u8>(access))) == AccessTypeMask::None) ||
-      (offset < segcache->limit_low) ||
-      ((static_cast<u64>(offset) + static_cast<u64>(size - 1)) > static_cast<u64>(segcache->limit_high)))
-  {
-    // For the SS selector we issue SF not GPF.
-    if (raise_gp_fault)
-      RaiseException((segment == Segment_SS) ? Interrupt_StackFault : Interrupt_GeneralProtectionFault, 0);
-
-    return false;
-  }
-
-  return true;
-}
 
 } // namespace CPU_X86
