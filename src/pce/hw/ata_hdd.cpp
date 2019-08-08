@@ -471,6 +471,7 @@ void ATAHDD::OnReadWriteEnd()
   else
   {
     // Reads - do the read.
+    m_registers.status.SetBusy();
     SetupReadWriteEvent(0, next_transfer_sectors);
   }
 }
@@ -792,6 +793,7 @@ void ATAHDD::HandleATATransfer(bool dma, bool write, bool extended, bool multipl
   if (!write)
   {
     // Reads are delayed.
+    m_registers.status.SetBusy();
     SetupReadWriteEvent(0, std::min(m_transfer_remaining_sectors, m_transfer_block_size));
   }
   else
