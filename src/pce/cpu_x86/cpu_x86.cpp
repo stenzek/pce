@@ -951,12 +951,6 @@ void CPU::LoadSpecialRegister(Reg32 reg, u32 value)
   }
 }
 
-PhysicalMemoryAddress CPU::CalculateLinearAddress(Segment segment, VirtualMemoryAddress offset)
-{
-  DebugAssert(segment < Segment_Count);
-  return m_segment_cache[segment].base_address + offset;
-}
-
 bool CPU::TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,
                                  AccessFlags flags)
 {

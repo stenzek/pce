@@ -1,7 +1,7 @@
 #pragma once
-
 #include "../cpu.h"
 #include "../system.h"
+#include "YBaseLib/Assert.h"
 #include "cycles.h"
 #include "types.h"
 #include <functional>
@@ -353,7 +353,11 @@ public:
 
   // Calculates the physical address of memory with the specified segment and offset.
   // If code is set, it is assumed to be reading instructions, otherwise data.
-  PhysicalMemoryAddress CalculateLinearAddress(Segment segment, VirtualMemoryAddress offset);
+  PhysicalMemoryAddress CalculateLinearAddress(Segment segment, VirtualMemoryAddress offset)
+  {
+    DebugAssert(segment < Segment_Count);
+    return m_segment_cache[segment].base_address + offset;
+  }
 
   // Translates linear address -> physical address if paging is enabled.
   bool TranslateLinearAddress(PhysicalMemoryAddress* out_physical_address, LinearMemoryAddress linear_address,
