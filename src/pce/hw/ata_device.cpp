@@ -212,7 +212,10 @@ void ATADevice::ReadDataPort(void* buffer, u32 size)
   m_buffer.position += bytes_to_copy;
 
   if (m_buffer.position == m_buffer.size)
+  {
+    m_buffer.valid = false;
     OnBufferEnd();
+  }
 }
 
 void ATADevice::WriteDataPort(const void* buffer, u32 size)
@@ -225,7 +228,10 @@ void ATADevice::WriteDataPort(const void* buffer, u32 size)
   m_buffer.position += bytes_to_copy;
 
   if (m_buffer.position == m_buffer.size)
+  {
+    m_buffer.valid = false;
     OnBufferEnd();
+  }
 }
 
 void ATADevice::SetupBuffer(u32 size, bool is_write, bool dma)
