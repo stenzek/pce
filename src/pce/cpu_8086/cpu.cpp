@@ -223,9 +223,7 @@ void CPU::Execute()
   }
 }
 
-void CPU::FlushCodeCache()
-{
-}
+void CPU::FlushCodeCache() {}
 
 void CPU::GetExecutionStats(ExecutionStats* stats) const
 {
@@ -236,8 +234,11 @@ void CPU::CommitPendingCycles()
 {
   m_execution_stats.cycles_executed += m_pending_cycles;
   m_execution_downcount -= m_pending_cycles;
-  m_system->AddSimulationTime(m_pending_cycles * GetCyclePeriod());
-  m_pending_cycles = 0;
+
+  // Convert to/from simulation time, keeping track of partial nanoseconds.
+  const SimulationTime simtime = CyclesToSimulationTime(m_pending_cycles);
+  m_pending_cycles -= SimulationTimeToCycles(simtime);
+  m_system->AddSimulationTime(simtime);
 }
 
 void CPU::AbortCurrentInstruction()
