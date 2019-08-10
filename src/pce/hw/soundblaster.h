@@ -77,6 +77,12 @@ private:
     DSP_COMMAND_UNKNOWN_E2 = 0xE2,
     DSP_COMMAND_UNKNOWN_E3 = 0xE3,
     DSP_COMMAND_UNKNOWN_F8 = 0xF8,
+    DSP_COMMAND_ASP_SET_CODEC_PARAMETER = 0x05,
+    DSP_COMMAND_ASP_GET_VERSION = 0x08,
+    DSP_COMMAND_UNKNOWN_03 = 0x03,
+    DSP_COMMAND_ASP_SET_MODE_REGISTER = 0x04,
+    DSP_COMMAND_ASP_SET_REGISTER = 0x0E,
+    DSP_COMMAND_ASP_GET_REGISTER = 0x0F,
 
     // DSP2.0+ only
     DSP_COMMAND_DMA_8_BIT_PCM_OUTPUT_AUTOINIT = 0x1C,
@@ -104,8 +110,8 @@ private:
     DSP_COMMAND_PROGRAM_DMA_8 = 0xC0,  // 0xB0-0xBF
     DSP_COMMAND_PROGRAM_DMA_16 = 0xB0, // 0xC0-0xCF
     DSP_COMMAND_PAUSE_DMA_16 = 0xD5,
-    DSP_COMMAND_CONTINUE_DMA_16 = 0xD6,
-    DSP_COMMAND_STOP_AUTOINIT_DMA_16 = 0xD6,
+    DSP_COMMAND_RESUME_DMA_16 = 0xD6,
+    DSP_COMMAND_STOP_AUTOINIT_DMA_16 = 0xD9,
     DSP_COMMAND_INTERRUPT_REQUEST_16 = 0xF3,
   };
 
@@ -223,6 +229,7 @@ private:
   void HandleDSPCommand();
   void DACSampleEvent(CycleCount cycles);
   void UpdateDACSampleEventState();
+  void UpdateDACDMARequest();
   void SetDACSampleRate(float frequency);
 
   s16 DecodeDACOutputSample(s16 last_sample);

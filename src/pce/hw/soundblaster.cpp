@@ -593,24 +593,25 @@ void SoundBlaster::HandleDSPCommand()
     break;
 
     case DSP_COMMAND_PAUSE_DMA:
+    case DSP_COMMAND_PAUSE_DMA_16:
     {
       Log_DevPrintf("DAC pause DMA");
       m_dac_state.dma_paused = true;
       if (m_dac_state.dma_active)
       {
-        SetDMARequest(m_adc_state.dma_16, false);
         UpdateDACSampleEventState();
+        UpdateDACDMARequest();
       }
     }
     break;
 
     case DSP_COMMAND_RESUME_DMA:
+    case DSP_COMMAND_RESUME_DMA_16:
     {
       Log_DevPrintf("DAC resume DMA");
       m_dac_state.dma_paused = false;
       UpdateDACSampleEventState();
-      if (m_dac_state.dma_active && !IsDACFIFOFull())
-        SetDMARequest(m_dac_state.dma_16, true);
+      UpdateDACDMARequest();
     }
     break;
 
@@ -844,6 +845,14 @@ void SoundBlaster::HandleDSPCommand()
     }
     break;
 
+    case DSP_COMMAND_STOP_AUTOINIT_DMA:
+    case DSP_COMMAND_STOP_AUTOINIT_DMA_16:
+    {
+      Log_DevPrintf("DSP stop autoinit DMA");
+      StopDACDMA();
+    }
+    break;
+
     case DSP_COMMAND_INTERRUPT_REQUEST:
     {
       Log_DevPrintf("DSP interrupt request");
@@ -943,6 +952,49 @@ void SoundBlaster::HandleDSPCommand()
     case DSP_COMMAND_UNKNOWN_F8:
       ClearAndWriteDSPOutputBuffer(0x00);
       break;
+
+    case DSP_COMMAND_ASP_SET_CODEC_PARAMETER:
+    {
+      if (!has_word_param)
+        return;
+
+      Log_WarningPrintf("ASP set codec parameter %04X", ZeroExtend32(GetDSPCommandParameterWord()));
+    }
+    break;
+
+    case DSP_COMMAND_UNKNOWN_03:
+      ClearAndWriteDSPOutputBuffer(0xFF);
+      break;
+
+    case DSP_COMMAND_ASP_SET_MODE_REGISTER:
+    {
+      if (!has_byte_param)
+        return;
+
+      Log_WarningPrintf("ASP set mode register %02X", ZeroExtend32(GetDSPCommandParameterByte()));
+    }
+    break;
+
+    case DSP_COMMAND_ASP_GET_REGISTER:
+    {
+      if (!has_byte_param)
+        return;
+
+      Log_WarningPrintf("ASP get register %02X", ZeroExtend32(GetDSPCommandParameterByte()));
+      ClearAndWriteDSPOutputBuffer(0xFF);
+    }
+    break;
+
+    case DSP_COMMAND_ASP_SET_REGISTER:
+    {
+      if (!has_word_param)
+        return;
+
+      const u8 reg = m_dsp_input_buffer[1];
+      const u8 value = m_dsp_input_buffer[2];
+      Log_WarningPrintf("ASP set register %02X <- %02X", ZeroExtend32(reg), ZeroExtend32(value));
+    }
+    break;
 
     default:
       Log_ErrorPrintf("Unhandled DSP command 0x%02X", ZeroExtend32(command));
@@ -1045,6 +1097,21 @@ void SoundBlaster::UpdateDACSampleEventState()
       m_dac_state.sample_event->Queue(interval);
     else if (m_dac_state.sample_event->GetInterval() != interval)
       m_dac_state.sample_event->Reschedule(interval);
+  }
+}
+
+void SoundBlaster::UpdateDACDMARequest()
+{
+  // FIFO full?
+  if (IsDACFIFOFull())
+  {
+    // Set DMA to inactive until we need a new byte
+    SetDMARequest(m_dac_state.dma_16, false);
+  }
+  else
+  {
+    if (m_dac_state.dma_active && !m_dac_state.dma_paused)
+      SetDMARequest(m_dac_state.dma_16, true);
   }
 }
 
@@ -1177,11 +1244,7 @@ s16 SoundBlaster::DecodeDACOutputSample(s16 last_sample)
   }
 
   // If the FIFO is empty, we need a new byte from DMA
-  if (!IsDACFIFOFull())
-  {
-    if (m_dac_state.dma_active && !m_dac_state.dma_paused)
-      SetDMARequest(m_dac_state.dma_16, true);
-  }
+  UpdateDACDMARequest();
 
 #if 0
     static FILE* fp = nullptr;
@@ -1438,12 +1501,7 @@ void SoundBlaster::DMAWriteCallback(IOPortDataSize size, u32 value, u32 remainin
     state.remaining_bytes -= data_size;
   }
 
-  // FIFO full?
-  if (IsDACFIFOFull())
-  {
-    // Set DMA to inactive until we need a new byte
-    SetDMARequest(is_16_bit, false);
-  }
+  UpdateDACDMARequest();
 }
 
 u8 SoundBlaster::ReadMixerIndexPort()
@@ -1669,5 +1727,4 @@ void SoundBlaster::ResetMixer()
 {
   m_mixer_state.master_volume.fill(1.0f);
 }
-
 } // namespace HW
