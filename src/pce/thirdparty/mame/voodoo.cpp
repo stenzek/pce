@@ -793,12 +793,15 @@ void voodoo_device::swap_buffers(voodoo_device* vd)
   if (LOG_VBLANK_SWAP)
     Log_DevPrintf("--- swap_buffers @ %d", current_line);
 
+#if 0
   /* force a partial update if we swapped in the middle of scanout */
+  /* currently disabled because we need to invalidate the display next frame, after the half frame is displayed */
   if (current_line < vd->m_display_timing.GetVerticalVisible())
   {
     poly_wait(vd->poly, "swap_buffers scanout");
     vd->voodoo_update(current_line);
   }
+#endif
 
   /* keep a history of swap intervals */
   vd->reg[fbiSwapHistory].u = (vd->reg[fbiSwapHistory].u << 4) | std::min<u32>(vd->fbi.vblank_count, 15);
