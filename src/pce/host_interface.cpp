@@ -169,13 +169,18 @@ bool HostInterface::SetCPUBackend(CPU::BackendType backend)
 void HostInterface::SetCPUFrequency(float frequency)
 {
   Assert(m_system);
-  m_system->GetCPU()->SetFrequency(frequency);
+  QueueExternalEvent([this, frequency]() { m_system->GetCPU()->SetFrequency(frequency); }, false);
 }
 
 void HostInterface::FlushCPUCodeCache()
 {
   Assert(m_system);
-  m_system->GetCPU()->FlushCodeCache();
+  QueueExternalEvent(
+    [this]() {
+      m_system->GetCPU()->FlushCodeCache();
+      ReportMessage("Flushed code cache.");
+    },
+    false);
 }
 
 void HostInterface::SetSpeedLimiterEnabled(bool enabled)
