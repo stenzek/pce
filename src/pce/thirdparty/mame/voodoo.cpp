@@ -295,8 +295,6 @@ void voodoo_device::voodoo_update(u32 end_line)
 
   int changed = fbi.video_changed;
   int drawbuf = fbi.frontbuf;
-  int statskey;
-  int x, y;
 
   /* reset the video changed flag */
   fbi.video_changed = false;
@@ -327,10 +325,10 @@ void voodoo_device::voodoo_update(u32 end_line)
       fbi.clut[32] = 0x20ffffff;
 
     /* compute the R/G/B pens first */
-    for (x = 0; x < 32; x++)
+    for (u32 x = 0; x < 32; x++)
     {
       /* treat X as a 5-bit value, scale up to 8 bits, and linear interpolate for red/blue */
-      y = (x << 3) | (x >> 2);
+      u32 y = (x << 3) | (x >> 2);
       rtable[x] = (fbi.clut[y >> 3].r() * (8 - (y & 7)) + fbi.clut[(y >> 3) + 1].r() * (y & 7)) >> 3;
       btable[x] = (fbi.clut[y >> 3].b() * (8 - (y & 7)) + fbi.clut[(y >> 3) + 1].b() * (y & 7)) >> 3;
 
@@ -346,11 +344,11 @@ void voodoo_device::voodoo_update(u32 end_line)
     }
 
     /* now compute the actual pens array */
-    for (x = 0; x < 65536; x++)
+    for (u32 x = 0; x < 65536; x++)
     {
-      int r = rtable[(x >> 11) & 0x1f];
-      int g = gtable[(x >> 5) & 0x3f];
-      int b = btable[x & 0x1f];
+      const u8 r = rtable[(x >> 11) & 0x1f];
+      const u8 g = gtable[(x >> 5) & 0x3f];
+      const u8 b = btable[x & 0x1f];
       fbi.pen[x] = rgb_t(r, g, b);
     }
 
@@ -360,11 +358,11 @@ void voodoo_device::voodoo_update(u32 end_line)
   }
 
   /* copy from the current front buffer */
-  for (y = m_last_rendered_line; y < end_line; y++)
+  for (u32 y = m_last_rendered_line; y < end_line; y++)
   {
     uint16_t* src = (uint16_t*)(fbi.ram + fbi.rgboffs[drawbuf]) + y * fbi.rowpixels;
     u32* dst = reinterpret_cast<u32*>(m_display->GetFramebufferPointer() + (y * m_display->GetFramebufferStride()));
-    for (x = 0; x < fbi.width; x++)
+    for (u32 x = 0; x < fbi.width; x++)
       dst[x] = fbi.pen[src[x]];
   }
 
@@ -375,11 +373,11 @@ void voodoo_device::voodoo_update(u32 end_line)
   /* update render override */
   if (DEBUG_DEPTH && stats.render_override)
   {
-    for (y = m_last_rendered_line; y < end_line; y++)
+    for (u32 y = m_last_rendered_line; y < end_line; y++)
     {
       uint16_t* src = (uint16_t*)(fbi.ram + fbi.auxoffs) + y * fbi.rowpixels;
       u32* dst = reinterpret_cast<u32*>(m_display->GetFramebufferPointer() + (y * m_display->GetFramebufferStride()));
-      for (x = 0; x < fbi.width; x++)
+      for (u32 x = 0; x < fbi.width; x++)
         dst[x] = ((src[x] << 8) & 0xff0000) | ((src[x] >> 0) & 0xff00) | ((src[x] >> 8) & 0xff);
     }
   }
@@ -4714,42 +4712,43 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
     tdiv = divisor * 65536.0f * 65536.0f;
     if (vd->reg[sSetupMode].u & (1 << 3))
     {
-      vd->fbi.startw = vd->tmu[0].startw = vd->tmu[1].startw = (s64)(vd->fbi.svert[0].wb * 65536.0f * 65536.0f);
-      vd->fbi.dwdx = vd->tmu[0].dwdx = vd->tmu[1].dwdx =
-        ((vd->fbi.svert[0].wb - vd->fbi.svert[1].wb) * dx1 - (vd->fbi.svert[0].wb - vd->fbi.svert[2].wb) * dx2) * tdiv;
-      vd->fbi.dwdy = vd->tmu[0].dwdy = vd->tmu[1].dwdy =
-        ((vd->fbi.svert[0].wb - vd->fbi.svert[2].wb) * dy1 - (vd->fbi.svert[0].wb - vd->fbi.svert[1].wb) * dy2) * tdiv;
+      vd->fbi.startw = vd->tmu[0].startw = vd->tmu[1].startw =
+        static_cast<s64>(vd->fbi.svert[0].wb * 65536.0f * 65536.0f);
+      vd->fbi.dwdx = vd->tmu[0].dwdx = vd->tmu[1].dwdx = static_cast<s64>(
+        ((vd->fbi.svert[0].wb - vd->fbi.svert[1].wb) * dx1 - (vd->fbi.svert[0].wb - vd->fbi.svert[2].wb) * dx2) * tdiv);
+      vd->fbi.dwdy = vd->tmu[0].dwdy = vd->tmu[1].dwdy = static_cast<s64>(
+        ((vd->fbi.svert[0].wb - vd->fbi.svert[2].wb) * dy1 - (vd->fbi.svert[0].wb - vd->fbi.svert[1].wb) * dy2) * tdiv);
     }
 
     /* set up W0 */
     if (vd->reg[sSetupMode].u & (1 << 4))
     {
-      vd->tmu[0].startw = vd->tmu[1].startw = (s64)(vd->fbi.svert[0].w0 * 65536.0f * 65536.0f);
-      vd->tmu[0].dwdx = vd->tmu[1].dwdx =
-        ((vd->fbi.svert[0].w0 - vd->fbi.svert[1].w0) * dx1 - (vd->fbi.svert[0].w0 - vd->fbi.svert[2].w0) * dx2) * tdiv;
-      vd->tmu[0].dwdy = vd->tmu[1].dwdy =
-        ((vd->fbi.svert[0].w0 - vd->fbi.svert[2].w0) * dy1 - (vd->fbi.svert[0].w0 - vd->fbi.svert[1].w0) * dy2) * tdiv;
+      vd->tmu[0].startw = vd->tmu[1].startw = static_cast<s64>(vd->fbi.svert[0].w0 * 65536.0f * 65536.0f);
+      vd->tmu[0].dwdx = vd->tmu[1].dwdx = static_cast<s64>(
+        ((vd->fbi.svert[0].w0 - vd->fbi.svert[1].w0) * dx1 - (vd->fbi.svert[0].w0 - vd->fbi.svert[2].w0) * dx2) * tdiv);
+      vd->tmu[0].dwdy = vd->tmu[1].dwdy = static_cast<s64>(
+        ((vd->fbi.svert[0].w0 - vd->fbi.svert[2].w0) * dy1 - (vd->fbi.svert[0].w0 - vd->fbi.svert[1].w0) * dy2) * tdiv);
     }
 
     /* set up S0,T0 */
     if (vd->reg[sSetupMode].u & (1 << 5))
     {
-      vd->tmu[0].starts = vd->tmu[1].starts = (s64)(vd->fbi.svert[0].s0 * 65536.0f * 65536.0f);
-      vd->tmu[0].dsdx = vd->tmu[1].dsdx =
-        ((vd->fbi.svert[0].s0 - vd->fbi.svert[1].s0) * dx1 - (vd->fbi.svert[0].s0 - vd->fbi.svert[2].s0) * dx2) * tdiv;
-      vd->tmu[0].dsdy = vd->tmu[1].dsdy =
-        ((vd->fbi.svert[0].s0 - vd->fbi.svert[2].s0) * dy1 - (vd->fbi.svert[0].s0 - vd->fbi.svert[1].s0) * dy2) * tdiv;
+      vd->tmu[0].starts = vd->tmu[1].starts = static_cast<s64>(vd->fbi.svert[0].s0 * 65536.0f * 65536.0f);
+      vd->tmu[0].dsdx = vd->tmu[1].dsdx = static_cast<s64>(
+        ((vd->fbi.svert[0].s0 - vd->fbi.svert[1].s0) * dx1 - (vd->fbi.svert[0].s0 - vd->fbi.svert[2].s0) * dx2) * tdiv);
+      vd->tmu[0].dsdy = vd->tmu[1].dsdy = static_cast<s64>(
+        ((vd->fbi.svert[0].s0 - vd->fbi.svert[2].s0) * dy1 - (vd->fbi.svert[0].s0 - vd->fbi.svert[1].s0) * dy2) * tdiv);
       vd->tmu[0].startt = vd->tmu[1].startt = (s64)(vd->fbi.svert[0].t0 * 65536.0f * 65536.0f);
-      vd->tmu[0].dtdx = vd->tmu[1].dtdx =
-        ((vd->fbi.svert[0].t0 - vd->fbi.svert[1].t0) * dx1 - (vd->fbi.svert[0].t0 - vd->fbi.svert[2].t0) * dx2) * tdiv;
-      vd->tmu[0].dtdy = vd->tmu[1].dtdy =
-        ((vd->fbi.svert[0].t0 - vd->fbi.svert[2].t0) * dy1 - (vd->fbi.svert[0].t0 - vd->fbi.svert[1].t0) * dy2) * tdiv;
+      vd->tmu[0].dtdx = vd->tmu[1].dtdx = static_cast<s64>(
+        ((vd->fbi.svert[0].t0 - vd->fbi.svert[1].t0) * dx1 - (vd->fbi.svert[0].t0 - vd->fbi.svert[2].t0) * dx2) * tdiv);
+      vd->tmu[0].dtdy = vd->tmu[1].dtdy = static_cast<s64>(
+        ((vd->fbi.svert[0].t0 - vd->fbi.svert[2].t0) * dy1 - (vd->fbi.svert[0].t0 - vd->fbi.svert[1].t0) * dy2) * tdiv);
     }
 
     /* set up W1 */
     if (vd->reg[sSetupMode].u & (1 << 6))
     {
-      vd->tmu[1].startw = (s64)(vd->fbi.svert[0].w1 * 65536.0f * 65536.0f);
+      vd->tmu[1].startw = static_cast<s64>(vd->fbi.svert[0].w1 * 65536.0f * 65536.0f);
       vd->tmu[1].dwdx =
         ((vd->fbi.svert[0].w1 - vd->fbi.svert[1].w1) * dx1 - (vd->fbi.svert[0].w1 - vd->fbi.svert[2].w1) * dx2) * tdiv;
       vd->tmu[1].dwdy =
@@ -4759,16 +4758,16 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
     /* set up S1,T1 */
     if (vd->reg[sSetupMode].u & (1 << 7))
     {
-      vd->tmu[1].starts = (s64)(vd->fbi.svert[0].s1 * 65536.0f * 65536.0f);
-      vd->tmu[1].dsdx =
-        ((vd->fbi.svert[0].s1 - vd->fbi.svert[1].s1) * dx1 - (vd->fbi.svert[0].s1 - vd->fbi.svert[2].s1) * dx2) * tdiv;
-      vd->tmu[1].dsdy =
-        ((vd->fbi.svert[0].s1 - vd->fbi.svert[2].s1) * dy1 - (vd->fbi.svert[0].s1 - vd->fbi.svert[1].s1) * dy2) * tdiv;
-      vd->tmu[1].startt = (s64)(vd->fbi.svert[0].t1 * 65536.0f * 65536.0f);
-      vd->tmu[1].dtdx =
-        ((vd->fbi.svert[0].t1 - vd->fbi.svert[1].t1) * dx1 - (vd->fbi.svert[0].t1 - vd->fbi.svert[2].t1) * dx2) * tdiv;
-      vd->tmu[1].dtdy =
-        ((vd->fbi.svert[0].t1 - vd->fbi.svert[2].t1) * dy1 - (vd->fbi.svert[0].t1 - vd->fbi.svert[1].t1) * dy2) * tdiv;
+      vd->tmu[1].starts = static_cast<s64>(vd->fbi.svert[0].s1 * 65536.0f * 65536.0f);
+      vd->tmu[1].dsdx = static_cast<s64>(
+        ((vd->fbi.svert[0].s1 - vd->fbi.svert[1].s1) * dx1 - (vd->fbi.svert[0].s1 - vd->fbi.svert[2].s1) * dx2) * tdiv);
+      vd->tmu[1].dsdy = static_cast<s64>(
+        ((vd->fbi.svert[0].s1 - vd->fbi.svert[2].s1) * dy1 - (vd->fbi.svert[0].s1 - vd->fbi.svert[1].s1) * dy2) * tdiv);
+      vd->tmu[1].startt = static_cast<s64>(vd->fbi.svert[0].t1 * 65536.0f * 65536.0f);
+      vd->tmu[1].dtdx = static_cast<s64>(
+        ((vd->fbi.svert[0].t1 - vd->fbi.svert[1].t1) * dx1 - (vd->fbi.svert[0].t1 - vd->fbi.svert[2].t1) * dx2) * tdiv);
+      vd->tmu[1].dtdy = static_cast<s64>(
+        ((vd->fbi.svert[0].t1 - vd->fbi.svert[2].t1) * dy1 - (vd->fbi.svert[0].t1 - vd->fbi.svert[1].t1) * dy2) * tdiv);
     }
 
     /* draw the triangle */
