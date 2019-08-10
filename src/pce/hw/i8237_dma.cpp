@@ -310,12 +310,12 @@ void i8237_DMA::Transfer(u32 channel_index, size_t count)
   if (use_word_transfers)
   {
     // TODO: Should bytes_remaining be multiplied by two?
-    actual_address = (u32(channel->page_address) << 16) | u32(u16(channel->address << 1));
+    actual_address = (ZeroExtend32(channel->page_address) << 16) | (ZeroExtend32(channel->address) << 1);
     actual_bytes_remaining = channel->bytes_remaining;
   }
   else
   {
-    actual_address = (u32(channel->page_address) << 16) | u32(channel->address);
+    actual_address = (ZeroExtend32(channel->page_address) << 16) | ZeroExtend32(channel->address);
     actual_bytes_remaining = channel->bytes_remaining;
   }
 
