@@ -172,11 +172,11 @@ inline s32 mul_32x32_shift(s32 a, s32 b, s8 shift)
 #define DEBUG_DEPTH (0)
 #define DEBUG_LOD (0)
 
-#define LOG_VBLANK_SWAP (1)
-#define LOG_FIFO (1)
+#define LOG_VBLANK_SWAP (0)
+#define LOG_FIFO (0)
 #define LOG_FIFO_VERBOSE (0)
 #define LOG_REGISTERS (0)
-#define LOG_WAITS (1)
+#define LOG_WAITS (0)
 #define LOG_LFB (0)
 #define LOG_TEXTURE_RAM (0)
 #define LOG_RASTERIZERS (0)
@@ -1007,6 +1007,14 @@ void voodoo_device::soft_reset()
   reg[fbiTrianglesOut].u = 0;
   fbi.fifo.reset();
   pci.fifo.reset();
+
+  fbi.frontbuf = 0;
+  fbi.backbuf = 1;
+  fbi.swaps_pending = 0;
+  fbi.vblank_swap_pending = 0;
+  fbi.vblank_swap = 0;
+  fbi.vblank_dont_swap = 0;
+  fbi.video_changed = true;
 }
 
 /*************************************
