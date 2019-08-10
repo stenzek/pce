@@ -196,7 +196,6 @@ BlockBase* CodeCacheBackend::GetNextBlock()
   {
     Log_WarningPrintf("Failed to compile block %08X", key.eip_physical_address);
     DestroyBlock(block);
-    m_blocks.emplace(key, nullptr);
     return nullptr;
   }
 
@@ -365,8 +364,7 @@ bool CodeCacheBackend::CompileBlockBase(BlockBase* block)
             return;
 
           // Can't span more than two pages.
-          u32 page_span = (physical_page - first_physical_page) >> 12;
-          if (page_span > 1)
+          if (first_physical_page != last_physical_page)
             return;
 
           last_physical_page = physical_page;
