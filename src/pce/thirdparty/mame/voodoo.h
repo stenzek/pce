@@ -1229,6 +1229,7 @@ protected:
   s32 lfb_direct_w(u32 offset, u32 data, u32 mem_mask);
   void stall_cpu(int state);
   void soft_reset();
+  void reset_video_timing();
   void recompute_video_memory();
   static s32 fastfill(voodoo_device* vd);
   static s32 triangle(voodoo_device* vd);

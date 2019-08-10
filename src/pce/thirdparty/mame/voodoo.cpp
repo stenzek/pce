@@ -1017,6 +1017,21 @@ void voodoo_device::soft_reset()
   fbi.video_changed = true;
 }
 
+void voodoo_device::reset_video_timing()
+{
+  fbi.vblank = false;
+  fbi.vsync_start_timer->SetActive(false);
+  fbi.vsync_stop_timer->SetActive(false);
+  if (!m_display_timing.IsValid() || !m_display_timing.IsClockEnabled())
+  {
+    m_display->ClearFramebuffer();
+    return;
+  }
+
+  m_display_timing.ResetClock(m_system->GetSimulationTime());
+  fbi.vsync_start_timer->Queue(m_display_timing.GetVerticalBlankStartTime());
+}
+
 /*************************************
  *
  *  Recompute video memory layout
@@ -2675,21 +2690,16 @@ s32 voodoo_device::register_w(voodoo_device* vd, u32 offset, u32 data)
           else                                    // if (new_height <= 1024)
             dt.SetPixelClock(65.000 * 1000000.0); // 1024x768 @ 60hz
 
-          /* recompute the time of VBLANK */
-          // if (vd->m_display_timing.IsValid())
+          if (dt.IsValid())
           {
-            vd->fbi.vsync_start_timer->SetActive(false);
-            vd->fbi.vsync_stop_timer->SetActive(false);
-            if (vd->m_display_timing.IsValid())
-            {
-              dt.ResetClock(vd->m_system->GetSimulationTime());
-              vd->fbi.vsync_start_timer->Queue(dt.GetVerticalSyncStartTime());
-
-              SmallString str;
-              dt.ToString(&str);
-              Log_DevPrintf("Voodoo Timings: %s", str.GetCharArray());
-            }
+            SmallString str;
+            dt.ToString(&str);
+            Log_DevPrintf("Voodoo Timings: %s", str.GetCharArray());
           }
+
+          /* recompute the time of VBLANK */
+          if (!FBIINIT1_VIDEO_TIMING_RESET(vd->reg[fbiInit1].u))
+            vd->reset_video_timing();
 
           /* if changing dimensions, update video memory layout */
           if (regnum == videoDimensions)
@@ -2734,9 +2744,17 @@ s32 voodoo_device::register_w(voodoo_device* vd, u32 offset, u32 data)
       poly_wait(vd->poly, vd->regnames[regnum]);
       if ((chips & 1) && INITEN_ENABLE_HW_INIT(vd->pci.init_enable))
       {
+        const u32 changed_bits = vd->reg[regnum].u ^ data;
+
         vd->reg[regnum].u = data;
         vd->recompute_video_memory();
         vd->fbi.video_changed = true;
+
+        if (regnum == fbiInit1 && FBIINIT1_VIDEO_TIMING_RESET(changed_bits))
+        {
+          vd->m_display_timing.SetClockEnable(!FBIINIT1_VIDEO_TIMING_RESET(data));
+          vd->reset_video_timing();
+        }
       }
       break;
 
