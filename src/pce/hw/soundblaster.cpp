@@ -631,9 +631,10 @@ void SoundBlaster::HandleDSPCommand()
       if (!has_word_param)
         return;
 
-      u16 param = GetDSPCommandParameterWord();
-      Log_DevPrintf("DAC set frequency %u hz", ZeroExtend32(param));
-      SetDACSampleRate(static_cast<float>(param));
+      // This is byte swapped (big endian) compared to the usual parameters.
+      const float rate = static_cast<float>(Y_byteswap_uint16(GetDSPCommandParameterWord()));
+      Log_DevPrintf("DAC set frequency %f hz", rate);
+      SetDACSampleRate(rate);
     }
     break;
 
