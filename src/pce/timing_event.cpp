@@ -41,7 +41,11 @@ void TimingEvent::Reschedule(CycleCount cycles)
 
   // Update the interval and new downcount, subtracting any partial cycles.
   m_interval = cycles;
-  m_downcount = m_system->GetPendingEventTime() + ((cycles * m_cycle_period) - partial_cycles_nodiv);
+  m_downcount = ((cycles * m_cycle_period) - partial_cycles_nodiv);
+
+  // Factor in partial time if this was rescheduled outside of an event handler. Say, an MMIO write.
+  if (!m_system->m_running_events)
+    m_downcount += m_system->GetPendingEventTime();
 
   // If this is a call from an IO handler for example, re-sort the event queue.
   m_system->SortEvents();

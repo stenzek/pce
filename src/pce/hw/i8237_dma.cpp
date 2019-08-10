@@ -398,9 +398,12 @@ void i8237_DMA::Transfer(u32 channel_index, size_t count)
       {
         channel->address = channel->start_address;
         channel->bytes_remaining = channel->count;
+        Log_DebugPrintf("DMA channel %u transfer complete, resetting to %u bytes", u32(channel_index),
+                        u32(channel->bytes_remaining) + 1u);
       }
       else
       {
+        Log_DebugPrintf("DMA channel %u transfer complete", u32(channel_index));
         break;
       }
     }
