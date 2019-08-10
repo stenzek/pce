@@ -22,14 +22,16 @@ class SoundBlaster final : public Component
 public:
   enum class Type : u32
   {
-    SoundBlaster10,
-    SoundBlaster20,
+    Invalid,
+    SoundBlaster1_0,
+    SoundBlaster1_5,
+    SoundBlaster2_0,
     SoundBlasterPro,
     SoundBlasterPro2,
     SoundBlaster16
   };
 
-  SoundBlaster(const String& identifier, Type type = Type::SoundBlaster10, u32 iobase = 0x220, u32 irq = 7, u32 dma = 1,
+  SoundBlaster(const String& identifier, Type type = Type::SoundBlaster16, u32 iobase = 0x220, u32 irq = 7, u32 dma = 1,
                u32 dma16 = 5, const ObjectTypeInfo* type_info = &s_type_info);
   ~SoundBlaster();
 

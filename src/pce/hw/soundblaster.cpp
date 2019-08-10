@@ -27,9 +27,10 @@ u32 SoundBlaster::GetDSPVersion(Type type)
 {
   switch (type)
   {
-    case Type::SoundBlaster10:
+    case Type::SoundBlaster1_0:
+    case Type::SoundBlaster1_5:
       return DSP_VERSION_SB10;
-    case Type::SoundBlaster20:
+    case Type::SoundBlaster2_0:
       return DSP_VERSION_SB20;
     case Type::SoundBlasterPro:
       return DSP_VERSION_SBPRO;
@@ -46,9 +47,10 @@ YMF262::Mode SoundBlaster::GetOPLMode(Type type)
 {
   switch (type)
   {
-    case Type::SoundBlaster10:
+    case Type::SoundBlaster1_0:
+    case Type::SoundBlaster1_5:
       return YMF262::Mode::OPL2;
-    case Type::SoundBlaster20:
+    case Type::SoundBlaster2_0:
       return YMF262::Mode::OPL2;
     case Type::SoundBlasterPro:
       return YMF262::Mode::DualOPL2;
@@ -61,7 +63,7 @@ YMF262::Mode SoundBlaster::GetOPLMode(Type type)
   }
 }
 
-SoundBlaster::SoundBlaster(const String& identifier, Type type /* = Type::SoundBlaster10 */, u32 iobase /* = 0x220 */,
+SoundBlaster::SoundBlaster(const String& identifier, Type type /* = Type::SoundBlaster16 */, u32 iobase /* = 0x220 */,
                            u32 irq /* = 7 */, u32 dma /* = 1 */, u32 dma16 /* = 5 */,
                            const ObjectTypeInfo* type_info /* = &s_type_info */)
   : BaseClass(identifier, type_info), m_type(type), m_io_base(iobase), m_irq(irq), m_dma_channel(dma),
@@ -76,7 +78,7 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus) || !m_ymf262.Initialize(system))
     return false;
 
-  if (m_type < Type::SoundBlaster10 || m_type > Type::SoundBlaster16)
+  if (m_type <= Type::Invalid || m_type > Type::SoundBlaster16)
   {
     Log_ErrorPrintf("Invalid board type");
     return false;
@@ -325,6 +327,13 @@ u8 SoundBlaster::IOPortRead(u16 port)
 {
   switch (port & 0x0F)
   {
+    case 0x00:
+    case 0x01:
+    case 0x02:
+    case 0x03:
+      // ???
+      return 0;
+
       // mixer index
     case 0x04:
       return ReadMixerIndexPort();
@@ -368,6 +377,13 @@ void SoundBlaster::IOPortWrite(u16 port, u8 value)
 {
   switch (port & 0x0F)
   {
+    case 0x00:
+    case 0x01:
+    case 0x02:
+    case 0x03:
+      // ???
+      break;
+
       // mixer index
     case 0x04:
       WriteMixerIndexPort(value);
@@ -1513,7 +1529,7 @@ u8 SoundBlaster::ReadMixerDataPort()
 {
   switch (m_type)
   {
-    case Type::SoundBlaster20:
+    case Type::SoundBlaster2_0:
       return ReadMixerDataPortCT1335();
     case Type::SoundBlasterPro:
       return ReadMixerDataPortCT1345();
@@ -1533,7 +1549,7 @@ void SoundBlaster::WriteMixerDataPort(u8 value)
 {
   switch (m_type)
   {
-    case Type::SoundBlaster20:
+    case Type::SoundBlaster2_0:
       WriteMixerDataPortCT1335(value);
       break;
     case Type::SoundBlasterPro:

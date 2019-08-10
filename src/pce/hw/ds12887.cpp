@@ -265,7 +265,7 @@ void DS12887::IOWriteDataPort(u8 value)
   const u8 index = m_index_register & m_index_register_mask;
 
 #ifdef Y_BUILD_CONFIG_DEBUG
-  if (index >= RTC_REGISTER_STATUS_REGISTER_D && index != RTC_REGISTER_CENTURY)
+  if (index >= RTC_REGISTER_STATUS_REGISTER_D && index != RTC_REGISTER_CENTURY && index != 0x0F) // Shutdown status
     Log_DebugPrintf("Write register 0x%02X value=0x%02X", ZeroExtend32(index), ZeroExtend32(value));
 #endif
 
