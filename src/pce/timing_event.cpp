@@ -21,6 +21,11 @@ SimulationTime TimingEvent::GetTimeSinceLastExecution() const
   return m_system->GetPendingEventTime() + m_time_since_last_run;
 }
 
+SimulationTime TimingEvent::GetTimeUntilNextExecution() const
+{
+  return std::max(m_downcount - m_system->GetPendingEventTime(), static_cast<SimulationTime>(0));
+}
+
 CycleCount TimingEvent::GetCyclesSinceLastExecution() const
 {
   return GetTimeSinceLastExecution() / m_cycle_period;

@@ -38,6 +38,7 @@ public:
 
   // Includes pending time.
   SimulationTime GetTimeSinceLastExecution() const;
+  SimulationTime GetTimeUntilNextExecution() const;
   CycleCount GetCyclesSinceLastExecution() const;
 
   void Reschedule(CycleCount cycles);

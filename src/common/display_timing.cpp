@@ -184,6 +184,18 @@ SimulationTime DisplayTiming::GetTimeUntilVSync(SimulationTime time) const
     return (m_vertical_total_duration - time_in_frame) + m_vertical_sync_start_time;
 }
 
+SimulationTime DisplayTiming::GetTimeUntilVBlank(SimulationTime time) const
+{
+  if (!m_clock_enable || !IsValid())
+    return 0;
+
+  const s32 time_in_frame = GetTimeInFrame(time);
+  if (time_in_frame >= m_vertical_active_duration)
+    return ((m_vertical_total_duration - time_in_frame) + m_vertical_active_duration);
+  else
+    return (m_vertical_active_duration - time_in_frame);
+}
+
 void DisplayTiming::ToString(String* str) const
 {
   const s32 horizontal_sync_start = m_horizontal_visible + m_horizontal_front_porch;

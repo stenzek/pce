@@ -172,11 +172,11 @@ inline s32 mul_32x32_shift(s32 a, s32 b, s8 shift)
 #define DEBUG_DEPTH (0)
 #define DEBUG_LOD (0)
 
-#define LOG_VBLANK_SWAP (0)
-#define LOG_FIFO (0)
+#define LOG_VBLANK_SWAP (1)
+#define LOG_FIFO (1)
 #define LOG_FIFO_VERBOSE (0)
 #define LOG_REGISTERS (0)
-#define LOG_WAITS (0)
+#define LOG_WAITS (1)
 #define LOG_LFB (0)
 #define LOG_TEXTURE_RAM (0)
 #define LOG_RASTERIZERS (0)
@@ -789,25 +789,24 @@ void voodoo_device::update_statistics(bool accumulate)
 
 void voodoo_device::swap_buffers(voodoo_device* vd)
 {
-  int count;
-
   s32 current_line = vd->m_display_timing.GetCurrentLine(vd->m_system->GetSimulationTime());
   if (LOG_VBLANK_SWAP)
     Log_DevPrintf("--- swap_buffers @ %d", current_line);
 
-  /* force a partial update */
-  // vd->voodoo_update(std::min(current_line, vd->fbi.height));
-  vd->fbi.video_changed = true;
+  /* force a partial update if we swapped in the middle of scanout */
+  if (current_line < vd->m_display_timing.GetVerticalVisible())
+  {
+    poly_wait(vd->poly, "swap_buffers scanout");
+    vd->voodoo_update(current_line);
+  }
 
   /* keep a history of swap intervals */
-  count = vd->fbi.vblank_count;
-  if (count > 15)
-    count = 15;
-  vd->reg[fbiSwapHistory].u = (vd->reg[fbiSwapHistory].u << 4) | count;
+  vd->reg[fbiSwapHistory].u = (vd->reg[fbiSwapHistory].u << 4) | std::min<u32>(vd->fbi.vblank_count, 15);
 
   /* rotate the buffers */
   if (vd->vd_type < TYPE_VOODOO_2 || !vd->fbi.vblank_dont_swap)
   {
+    vd->fbi.video_changed = true;
     if (vd->fbi.rgboffs[2] == ~0)
     {
       vd->fbi.frontbuf = 1 - vd->fbi.frontbuf;
@@ -831,7 +830,6 @@ void voodoo_device::swap_buffers(voodoo_device* vd)
   {
     if (LOG_VBLANK_SWAP)
       Log_DevPrintf("---- swap_buffers flush begin");
-    vd->pci.op_end_time = vd->m_system->GetSimulationTime();
     flush_fifos(vd);
     if (LOG_VBLANK_SWAP)
       Log_DevPrintf("---- swap_buffers flush end");
@@ -900,10 +898,18 @@ void voodoo_device::pciint(bool state)
   Log_WarningPrint("pciint");
 }
 
+SimulationTime voodoo_device::time_until_vblank() const
+{
+  return m_display_timing.GetTimeUntilVSync(m_system->GetSimulationTime());
+}
+
 void voodoo_device::vblank_callback(CycleCount time_late)
 {
   if (LOG_VBLANK_SWAP)
     Log_DevPrintf("--- vblank start");
+
+  poly_wait(poly, "vblank scanout");
+  voodoo_update(m_display_timing.GetVerticalVisible());
 
   /* flush the pipes */
   if (pci.op_pending)
@@ -914,9 +920,6 @@ void voodoo_device::vblank_callback(CycleCount time_late)
     if (LOG_VBLANK_SWAP)
       Log_DevPrintf("---- vblank flush end");
   }
-
-  poly_wait(poly, "vblank scanout");
-  voodoo_update(m_display_timing.GetVerticalVisible());
 
   /* increment the count */
   fbi.vblank_count++;
@@ -931,7 +934,14 @@ void voodoo_device::vblank_callback(CycleCount time_late)
 
   /* if we're past the swap count, do the swap */
   if (fbi.vblank_swap_pending && fbi.vblank_count >= fbi.vblank_swap)
+  {
     swap_buffers(this);
+    if (pci.op_pending)
+    {
+      pci.op_end_time = m_system->GetSimulationTime();
+      flush_fifos(this);
+    }
+  }
 
   /* set internal state and call the client */
   fbi.vblank = true;
@@ -2016,7 +2026,7 @@ void voodoo_device::cmdfifo_w(voodoo_device* vd, cmdfifo_info* f, u32 offset, u3
     if (cycles > 0)
     {
       vd->pci.op_pending = true;
-      vd->pci.op_end_time = vd->m_system->GetSimulationTime() + ((SimulationTime)cycles * vd->attoseconds_per_cycle);
+      vd->pci.op_end_time = vd->m_system->GetSimulationTime() + ((SimulationTime)cycles * vd->cycle_period);
 
       if (LOG_FIFO_VERBOSE)
       {
@@ -2666,7 +2676,7 @@ s32 voodoo_device::register_w(voodoo_device* vd, u32 offset, u32 data)
             {
               dt.ResetClock(vd->m_system->GetSimulationTime());
               vd->fbi.vsync_start_timer->Queue(dt.GetVerticalSyncStartTime());
-              
+
               SmallString str;
               dt.ToString(&str);
               Log_DevPrintf("Voodoo Timings: %s", str.GetCharArray());
@@ -3685,7 +3695,7 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
       cycles += extra_cycles;
 
       /* account for those cycles */
-      vd->pci.op_end_time += ((SimulationTime)cycles * vd->attoseconds_per_cycle);
+      vd->pci.op_end_time += ((SimulationTime)cycles * vd->cycle_period);
 
       if (LOG_FIFO_VERBOSE)
       {
@@ -3746,9 +3756,14 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
           {
             /* track swap buffers regardless */
             if ((offset & 0xff) == swapbufferCMD)
+            {
               fbi.swaps_pending++;
+            }
+            else
+            {
+              Log_WarningPrintf("Ignoring write to %s in CMDFIFO mode", regnames[offset & 0xff]);
+            }
 
-            Log_WarningPrintf("Ignoring write to %s in CMDFIFO mode", regnames[offset & 0xff]);
             return;
           }
         }
@@ -3795,7 +3810,7 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
       if (cycles)
       {
         pci.op_pending = true;
-        pci.op_end_time = m_system->GetSimulationTime() + ((SimulationTime)cycles * attoseconds_per_cycle);
+        pci.op_end_time = m_system->GetSimulationTime() + ((SimulationTime)cycles * cycle_period);
 
         if (LOG_FIFO_VERBOSE)
         {
@@ -4258,7 +4273,7 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
       tmu_config |= 0xc0; // two TMUs
 
     chipmask = 0x01;
-    attoseconds_per_cycle = SimulationTime(1000000000) / freq;
+    cycle_period = SimulationTime(1000000000) / freq;
 
     /* build the rasterizer table */
     for (info = predef_raster_table; info->callback; info++)
@@ -4398,6 +4413,9 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
 
   s32 voodoo_device::swapbuffer(voodoo_device * vd, u32 data)
   {
+    Log_DebugPrintf("swapbuffer command, sync/wait = %s, backbuf=%u (frontbuf after swap)",
+                    (data & 1) ? "true" : "false", vd->fbi.backbuf);
+
     /* set the don't swap value for Voodoo 2 */
     vd->fbi.vblank_swap_pending = true;
     vd->fbi.vblank_swap = (data >> 1) & 0xff;
@@ -4410,9 +4428,8 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
       return 0;
     }
 
-    /* determine how many cycles to wait; we deliberately overshoot here because */
-    /* the final count gets updated on the VBLANK */
-    return (vd->fbi.vblank_swap + 1) * vd->freq / 10;
+    // Intentionally overshoot here so we stall until the buffers are actually swapped.
+    return static_cast<s32>(vd->freq);
   }
 
   /*-------------------------------------------------
@@ -4962,37 +4979,43 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
         break;
       case 3:
       {
-        const u32 dst_x = vd->reg[bltDstXY].u & 0x7FFu;
-        const u32 dst_y = (vd->reg[bltDstXY].u >> 16) & 0x7FFu;
-        const u32 cols = vd->reg[bltSize].u & 0x1FFu;
-        const u32 rows = (vd->reg[bltSize].u >> 16) & 0x1FFu;
+        // A page is made up of 2 32x32 tiles, laid out horizontally. 4K in size (32x32 x 2 bytes per pixel x 2 tiles).
+        // bltSizeXY(24:16) contains the starting page number, bltDstXY(24:16) contains the number of pages to fill
+        const u32 start_page_number = (vd->reg[bltDstXY].u >> 16) & 0x1FFu;
+        const u32 num_pages_sub1 = ((vd->reg[bltSize].u >> 16) & 0x1FFu);
+
+        // bltDstXY(0:8) contains the starting column to fill,  bltSize(0:8) contains the number of columns to fill
+        // Each column is 8 bytes in size? Is this correct?
+        const u32 start_column_number = vd->reg[bltDstXY].u & 0x1FFu;
+        const u32 num_columns_sub1 = (vd->reg[bltSize].u & 0x1FFu);
         const u32 fgcolor = vd->reg[bltColor].u & 0xFFFFu;
-        const u32 stride = 4 << vd->fbi.lfb_stride;
-        Log_DebugPrintf("SGRAM fill %u %u - %u %u - %04X", dst_x, dst_y, cols, rows, fgcolor);
+        const u64 column_fill_value = (ZeroExtend64(fgcolor) | (ZeroExtend64(fgcolor) << 16) |
+                                       (ZeroExtend64(fgcolor) << 32) | (ZeroExtend64(fgcolor) << 48));
+        Log_DebugPrintf("SGRAM fill rows %u-%u, columns %u-%u - %04X", start_page_number,
+                        start_page_number + num_pages_sub1 + 1u, start_column_number,
+                        start_column_number + num_columns_sub1 + 1u, fgcolor);
 
-        u32 offset = dst_y * stride;
-        for (u32 row = 0; row <= rows; row++)
+        u32 current_address = start_page_number * 4096u;
+        for (u32 page = 0; page <= num_pages_sub1; page++)
         {
-          u32 addr, size;
-          if (row == 0)
-          {
-            addr = (offset + (dst_x * 2)) & vd->fbi.mask;
-            size = (stride / 2) - dst_x;
-          }
-          else
-          {
-            addr = offset & vd->fbi.mask;
-            size = (row == rows) ? cols : (stride / 2);
-          }
+          current_address &= vd->fbi.mask;
 
-          for (u32 col = 0; col < size; col++, addr += 2)
-          {
-            // NOTE: assumes little-endian.
-            std::memcpy(&vd->fbi.ram[addr], &fgcolor, sizeof(u16));
-          }
+          // TODO: Is this correct?
+          const u32 row_start_col = ((page == 0) ? start_column_number : 0);
+          const u32 row_end_col_sub1 =
+            (row_start_col + ((page == num_pages_sub1) ? num_columns_sub1 : u32(511))) & u32(511);
+          u8* row_ptr = &vd->fbi.ram[current_address];
+          current_address += 4096u;
 
-          offset += stride;
+          // Fill 8 bytes (a column) at a time.
+          for (u32 col = row_start_col; col <= row_end_col_sub1; col++)
+          {
+            std::memcpy(row_ptr, &column_fill_value, sizeof(column_fill_value));
+            row_ptr += sizeof(column_fill_value);
+          }
         }
+
+        vd->fbi.video_changed = true;
       }
       break;
       default:

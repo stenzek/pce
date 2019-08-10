@@ -13,6 +13,7 @@ public:
   bool IsValid() const { return m_valid; }
 
   // Enables the clock at the specified start time.
+  bool IsClockEnabled() const { return m_clock_enable; }
   void SetClockEnable(bool enable) { m_clock_enable = enable; }
   void ResetClock(SimulationTime start_time);
 
@@ -83,6 +84,9 @@ public:
   bool InVerticalSync(SimulationTime time) const;
   u32 GetCurrentLine(SimulationTime time) const;
   SimulationTime GetTimeUntilVSync(SimulationTime time) const;
+
+  // Returns the amount of time until the next vertical blank starts.
+  SimulationTime GetTimeUntilVBlank(SimulationTime time) const;
 
   // Writes frequency information to the log.
   void ToString(String* str) const;

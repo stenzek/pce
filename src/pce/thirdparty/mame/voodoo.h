@@ -947,6 +947,7 @@ public:
   // This is for internally generated PCI interrupts in Voodoo3
   std::function<void()> m_pciint;
 
+  SimulationTime time_until_vblank() const;
   void vblank_callback(CycleCount time_late);
   void vblank_off_callback(CycleCount time_late);
 
@@ -1283,7 +1284,7 @@ public:
   const u8 vd_type;                     // type of system
   u8 chipmask;                          // mask for which chips are available
   u32 freq;                             // operating frequency
-  SimulationTime attoseconds_per_cycle; // attoseconds per cycle
+  SimulationTime cycle_period; // attoseconds per cycle
   u32 extra_cycles;                     // extra cycles not yet accounted for
 
   voodoo_reg reg[0x400];       // raw registers
