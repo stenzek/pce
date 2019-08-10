@@ -1,6 +1,7 @@
 #include "pce/hw/soundblaster.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
+#include "YBaseLib/Endian.h"
 #include "YBaseLib/Log.h"
 #include "pce/bus.h"
 #include "pce/dma_controller.h"
@@ -81,6 +82,7 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
     return false;
   }
 
+  m_dsp_version = GetDSPVersion(m_type);
   m_interrupt_controller = system->GetComponentByType<InterruptController>();
   if (!m_interrupt_controller)
   {
