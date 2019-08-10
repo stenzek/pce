@@ -484,9 +484,9 @@ void BochsVGA::UpdateFramebufferFormat()
   else if (m_vbe_bpp <= 16)
     m_display->ChangeFramebufferFormat(Display::FramebufferFormat::BGR565);
   else if (m_vbe_bpp <= 24)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGB8);
+    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::BGR8);
   else // if (m_vbe_bpp <= 32)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::RGBX8);
+    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::BGRX8);
 }
 
 void BochsVGA::GetDisplayTiming(DisplayTiming& timing) const
