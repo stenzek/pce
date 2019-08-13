@@ -3,7 +3,6 @@
 #include <memory>
 
 #include "YBaseLib/Common.h"
-#include "YBaseLib/PODArray.h"
 #include "YBaseLib/String.h"
 
 #include "component.h"
@@ -178,7 +177,7 @@ private:
       callback(ev);
   }
 
-  PODArray<Component*> m_components;
+  std::vector<Component*> m_components;
   State m_state = State::Initializing;
   std::atomic_bool m_interrupt_execution{false};
   String m_base_path;

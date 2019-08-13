@@ -35,7 +35,7 @@ void System::SetState(State state)
 
 void System::AddComponent(Component* component)
 {
-  m_components.Add(component);
+  m_components.push_back(component);
 }
 
 bool System::Initialize()
@@ -132,9 +132,9 @@ bool System::DoAllState(StateWrapper& sw)
 
 bool System::DoComponentsState(StateWrapper& sw)
 {
-  u32 num_components = static_cast<u32>(m_components.GetSize());
+  u32 num_components = static_cast<u32>(m_components.size());
   sw.Do(&num_components);
-  if (sw.HasError() || num_components != m_components.GetSize())
+  if (sw.HasError() || num_components != m_components.size())
   {
     Log_ErrorPrintf("Incorrect number of components");
     return false;
