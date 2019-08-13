@@ -5,6 +5,7 @@
 
 class BinaryReader;
 class BinaryWriter;
+class StateWrapper;
 
 class Bus;
 class System;
@@ -37,6 +38,7 @@ public:
 
   virtual bool LoadState(BinaryReader& reader);
   virtual bool SaveState(BinaryWriter& writer);
+  virtual bool DoState(StateWrapper& sw);
 
 protected:
   String m_identifier;

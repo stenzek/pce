@@ -15,9 +15,7 @@
 #include "pce/mmio.h"
 #include "pce/types.h"
 
-class ByteStream;
-class BinaryReader;
-class BinaryWriter;
+class StateWrapper;
 class TimingManager;
 
 class Bus : public Object
@@ -30,7 +28,6 @@ public:
   using CodeHashType = u64;
   using CodeInvalidateCallback = std::function<void(PhysicalMemoryAddress)>;
 
-  static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('B', 'U', 'S');
   static constexpr u32 MEMORY_PAGE_SIZE = 0x1000; // 4KiB
   static constexpr u32 MEMORY_PAGE_OFFSET_MASK = PhysicalMemoryAddress(MEMORY_PAGE_SIZE - 1);
   static constexpr u32 MEMORY_PAGE_MASK = ~MEMORY_PAGE_OFFSET_MASK;
@@ -41,9 +38,7 @@ public:
 
   virtual bool Initialize(System* system);
   virtual void Reset();
-
-  virtual bool LoadState(BinaryReader& reader);
-  virtual bool SaveState(BinaryWriter& writer);
+  virtual bool DoState(StateWrapper& sw);
 
   PhysicalMemoryAddress GetMemoryAddressMask() const { return m_physical_memory_address_mask; }
   void SetMemoryAddressMask(PhysicalMemoryAddress mask) { m_physical_memory_address_mask = mask; }

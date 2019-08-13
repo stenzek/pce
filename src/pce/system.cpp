@@ -3,6 +3,7 @@
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
 #include "bus.h"
+#include "common/state_wrapper.h"
 #include "component.h"
 #include "cpu.h"
 #include "host_interface.h"
@@ -69,72 +70,35 @@ void System::Reset()
   UpdateCPUDowncount();
 }
 
-template<class Callback>
-static bool LoadComponentStateHelper(BinaryReader& reader, Callback callback)
+bool System::LoadState(ByteStream* stream)
 {
-  u32 component_state_size;
-  if (!reader.SafeReadUInt32(&component_state_size))
-    return false;
-
-  u64 expected_offset = reader.GetStreamPosition() + component_state_size;
-  if (!callback())
-    return false;
-
-  if (reader.GetStreamPosition() != expected_offset)
-  {
-    Log_ErrorPrintf("Incorrect offset after reading component");
-    return false;
-  }
-
-  if (reader.GetErrorState())
-    return false;
-
-  return true;
+  // TODO: Save old state before loading, instead of resetting.
+  StateWrapper sw(stream, StateWrapper::Mode::Read);
+  return DoAllState(sw);
 }
 
-template<class Callback>
-static bool SaveComponentStateHelper(BinaryWriter& writer, Callback callback)
+bool System::SaveState(ByteStream* stream)
 {
-  u64 size_offset = writer.GetStreamPosition();
-
-  // Reserve space for component size
-  if (!writer.SafeWriteUInt32(0))
-    return false;
-
-  u64 start_offset = writer.GetStreamPosition();
-  if (!callback())
-    return false;
-
-  u64 end_offset = writer.GetStreamPosition();
-  u32 component_size = Truncate32(end_offset - start_offset);
-  if (!writer.SafeSeekAbsolute(size_offset) || !writer.SafeWriteUInt32(component_size) ||
-      !writer.SafeSeekAbsolute(end_offset))
-  {
-    return false;
-  }
-
-  return true;
+  StateWrapper sw(stream, StateWrapper::Mode::Write);
+  return DoAllState(sw);
 }
 
-bool System::LoadState(BinaryReader& reader)
+bool System::DoAllState(StateWrapper& sw)
 {
-  u32 signature, version;
-  if (!reader.SafeReadUInt32(&signature) || !reader.SafeReadUInt32(&version))
+  if (!sw.DoMarker("HEADER"))
     return false;
 
-  if (signature != SAVE_STATE_SIGNATURE)
-  {
-    Log_ErrorPrintf("Incorrect save state signature");
-    return false;
-  }
+  u32 version = SAVE_STATE_VERSION;
+  sw.Do(&version);
   if (version != SAVE_STATE_VERSION)
   {
     Log_ErrorPrintf("Incorrect save state version");
     return false;
   }
 
-  SmallString system_class_name;
-  if (!reader.SafeReadSizePrefixedString(&system_class_name) || system_class_name != m_type_info->GetTypeName())
+  SmallString system_class_name(m_type_info->GetTypeName());
+  sw.Do(&system_class_name);
+  if (system_class_name != m_type_info->GetTypeName())
   {
     Log_ErrorPrintf("System class mismatch, we are '%s' and the save state is '%s'", m_type_info->GetTypeName(),
                     system_class_name.GetCharArray());
@@ -142,98 +106,70 @@ bool System::LoadState(BinaryReader& reader)
   }
 
   // Global state
-  if (!reader.SafeReadInt64(&m_simulation_time) || !reader.SafeReadInt64(&m_last_event_run_time))
+  sw.Do(&m_simulation_time);
+  sw.Do(&m_last_event_run_time);
+  if (sw.HasError())
     return false;
 
-  // Load system (this class) state
-  if (!LoadComponentStateHelper(reader, [&]() { return LoadSystemState(reader); }))
+  // Load system (this class) state, then the bus state
+  if (!sw.DoMarker("SYSTEM") || !DoState(sw))
     return false;
 
   // Load bus state next
-  if (!LoadComponentStateHelper(reader, [&]() { return m_bus->LoadState(reader); }))
+  if (!sw.DoMarker("BUS") || !m_bus->DoState(sw))
     return false;
 
-  // And finally the components
-  if (!LoadComponentsState(reader) || !LoadEventsState(reader))
+  // Then the components
+  if (!sw.DoMarker("COMPONENTS") || !DoComponentsState(sw))
     return false;
 
-  return !reader.GetErrorState();
+  // Finally, load events
+  if (!sw.DoMarker("EVENTS") || !DoEventsState(sw))
+    return false;
+
+  return !sw.HasError();
 }
 
-bool System::SaveState(BinaryWriter& writer)
+bool System::DoComponentsState(StateWrapper& sw)
 {
-  if (!writer.SafeWriteUInt32(SAVE_STATE_SIGNATURE) || !writer.SafeWriteUInt32(SAVE_STATE_VERSION) ||
-      !writer.SafeWriteSizePrefixedString(m_type_info->GetTypeName()))
+  u32 num_components = static_cast<u32>(m_components.GetSize());
+  sw.Do(&num_components);
+  if (sw.HasError() || num_components != m_components.GetSize())
   {
+    Log_ErrorPrintf("Incorrect number of components");
     return false;
   }
+  for (Component* component : m_components)
+  {
+    if (!component->DoState(sw))
+      return false;
+  }
 
-  // Global state
-  if (!writer.SafeWriteInt64(m_simulation_time) || !writer.SafeWriteInt64(m_last_event_run_time))
-    return false;
-
-  // Save system (this class) state
-  if (!SaveComponentStateHelper(writer, [&]() { return SaveSystemState(writer); }))
-    return false;
-
-  // Save bus state next
-  if (!SaveComponentStateHelper(writer, [&]() { return m_bus->SaveState(writer); }))
-    return false;
-
-  // And finally the components
-  if (!SaveComponentsState(writer) || !SaveEventsState(writer))
-    return false;
-
-  return !writer.InErrorState();
+  return !sw.HasError();
 }
 
 bool System::LoadSystemState(BinaryReader& reader)
 {
-  if (reader.ReadUInt32() != SYSTEM_SERIALIZATION_ID)
-    return false;
-
   return true;
 }
 
 bool System::SaveSystemState(BinaryWriter& writer)
 {
-  writer.WriteUInt32(SYSTEM_SERIALIZATION_ID);
   return true;
 }
 
-bool System::LoadComponentsState(BinaryReader& reader)
+bool System::DoState(StateWrapper& sw)
 {
-  u32 num_components = 0;
-  if (!reader.SafeReadUInt32(&num_components) || num_components != m_components.GetSize())
+  if (sw.IsReading())
   {
-    Log_ErrorPrintf("Incorrect number of components");
-    return false;
+    BinaryReader bw(sw.GetStream());
+    return LoadSystemState(bw);
   }
-
-  for (u32 i = 0; i < num_components; i++)
+  else
   {
-    Component* component = m_components[i];
-    auto callback = [component, &reader]() { return component->LoadState(reader); };
-    if (!LoadComponentStateHelper(reader, callback))
-      return false;
+    BinaryWriter bw(sw.GetStream());
+    return SaveSystemState(bw);
   }
-
-  return true;
-}
-
-bool System::SaveComponentsState(BinaryWriter& writer)
-{
-  writer.WriteUInt32(Truncate32(m_components.GetSize()));
-
-  for (u32 i = 0; i < m_components.GetSize(); i++)
-  {
-    Component* component = m_components[i];
-    auto callback = [component, &writer]() { return component->SaveState(writer); };
-    if (!SaveComponentStateHelper(writer, callback))
-      return false;
-  }
-
-  return true;
 }
 
 void System::Run()
@@ -482,92 +418,67 @@ void System::UpdateCPUDowncount()
   m_cpu->SetExecutionDowncount(std::max(next_event_time, SimulationTime(0)));
 }
 
-bool System::LoadEventsState(BinaryReader& reader)
+bool System::DoEventsState(StateWrapper& sw)
 {
-  u32 signature;
-  if (!reader.SafeReadUInt32(&signature) || signature != EVENTS_SERIALIZATION_ID)
+  if (sw.IsReading())
   {
-    Log_ErrorPrintf("Invalid signature.");
-    return false;
-  }
+    // Load timestamps for the clock events.
+    // Any oneshot events should be recreated by the load state method, so we can fix up their times here.
+    u32 event_count = 0;
+    sw.Do(&event_count);
 
-  // Load timestamps for the clock events.
-  // Any oneshot events should be recreated by the load state method, so we can fix up their times here.
-  u32 event_count;
-  if (!reader.SafeReadUInt32(&event_count))
-    return false;
-
-  SmallString event_name;
-  for (u32 i = 0; i < event_count; i++)
-  {
-    if (!reader.SafeReadCString(&event_name))
-      return false;
-
-    float frequency;
-    SimulationTime cycle_period;
-    CycleCount interval;
-    SimulationTime downcount, time_since_last_run;
-    if (!reader.SafeReadFloat(&frequency) || !reader.SafeReadInt64(&cycle_period) || !reader.SafeReadInt64(&interval) ||
-        !reader.SafeReadInt64(&downcount) || !reader.SafeReadInt64(&time_since_last_run))
+    for (u32 i = 0; i < event_count; i++)
     {
-      return false;
+      SmallString event_name;
+      float frequency;
+      SimulationTime cycle_period;
+      CycleCount interval;
+      SimulationTime downcount, time_since_last_run;
+      sw.Do(&event_name);
+      sw.Do(&frequency);
+      sw.Do(&cycle_period);
+      sw.Do(&interval);
+      sw.Do(&downcount);
+      sw.Do(&time_since_last_run);
+      if (sw.HasError())
+        return false;
+
+      TimingEvent* event = FindActiveEvent(event_name);
+      if (!event)
+      {
+        Log_WarningPrintf("Save state has event '%s', but couldn't find this event when loading.",
+                          event_name.GetCharArray());
+        continue;
+      }
+
+      // Using reschedule is safe here since we call sort afterwards.
+      event->m_frequency = frequency;
+      event->m_cycle_period = cycle_period;
+      event->m_interval = interval;
+      event->m_downcount = downcount;
+      event->m_time_since_last_run = time_since_last_run;
     }
 
-    TimingEvent* event = FindActiveEvent(event_name);
-    if (!event)
+    Log_DevPrintf("Loaded %u events from save state.", event_count);
+    SortEvents();
+  }
+  else
+  {
+    u32 event_count = static_cast<u32>(m_events.size());
+    sw.Do(&event_count);
+
+    for (TimingEvent* evt : m_events)
     {
-      Log_WarningPrintf("Save state has event '%s', but couldn't find this event when loading.",
-                        event_name.GetCharArray());
-      continue;
+      sw.Do(&evt->m_name);
+      sw.Do(&evt->m_frequency);
+      sw.Do(&evt->m_cycle_period);
+      sw.Do(&evt->m_interval);
+      sw.Do(&evt->m_downcount);
+      sw.Do(&evt->m_time_since_last_run);
     }
 
-    // Using reschedule is safe here since we call sort afterwards.
-    event->m_frequency = frequency;
-    event->m_cycle_period = cycle_period;
-    event->m_interval = interval;
-    event->m_downcount = downcount;
-    event->m_time_since_last_run = time_since_last_run;
+    Log_DevPrintf("Wrote %u events to save state.", event_count);
   }
 
-  SortEvents();
-
-  Log_DevPrintf("Loaded %u events from save state.", event_count);
-  return true;
-}
-
-bool System::SaveEventsState(BinaryWriter& writer)
-{
-  if (!writer.SafeWriteUInt32(EVENTS_SERIALIZATION_ID))
-    return false;
-
-  // Event count placeholder.
-  u64 count_offset = writer.GetStreamPosition();
-  if (!writer.SafeWriteUInt32(0))
-    return false;
-
-  u32 event_count = 0;
-  for (const TimingEvent* evt : m_events)
-  {
-    if (!writer.SafeWriteCString(evt->GetName()))
-      return false;
-
-    if (!writer.SafeWriteFloat(evt->m_frequency) || !writer.SafeWriteInt64(evt->m_cycle_period) ||
-        !writer.SafeWriteInt64(evt->m_interval) || !writer.SafeWriteInt64(evt->m_downcount) ||
-        !writer.SafeWriteInt64(evt->m_time_since_last_run))
-    {
-      return false;
-    }
-
-    event_count++;
-  }
-
-  u64 end_offset = writer.GetStreamPosition();
-  if (!writer.SafeSeekAbsolute(count_offset) || !writer.SafeWriteUInt32(event_count) ||
-      !writer.SafeSeekAbsolute(end_offset))
-  {
-    return false;
-  }
-
-  Log_DevPrintf("Wrote %u events to save state.", event_count);
-  return true;
+  return !sw.HasError();
 }

@@ -1,4 +1,7 @@
 #include "pce/component.h"
+#include "YBaseLib/BinaryReader.h"
+#include "YBaseLib/BinaryWriter.h"
+#include "common/state_wrapper.h"
 #include <chrono>
 #include <cinttypes>
 #include <random>
@@ -36,4 +39,21 @@ bool Component::LoadState(BinaryReader& reader)
 bool Component::SaveState(BinaryWriter& writer)
 {
   return true;
+}
+
+bool Component::DoState(StateWrapper& sw)
+{
+  if (!sw.DoMarker(m_type_info->GetTypeName()) || !sw.DoMarker(m_identifier.GetCharArray()))
+    return false;
+
+  if (sw.IsReading())
+  {
+    BinaryReader bw(sw.GetStream());
+    return LoadState(bw);
+  }
+  else
+  {
+    BinaryWriter bw(sw.GetStream());
+    return SaveState(bw);
+  }
 }

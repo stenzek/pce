@@ -6,6 +6,7 @@
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
 #include "YBaseLib/Memory.h"
+#include "common/state_wrapper.h"
 #include "pce/cpu.h"
 #include "pce/mmio.h"
 #include "pce/system.h"
@@ -65,40 +66,27 @@ void Bus::Reset()
     std::memset(m_ram_ptr, 0, m_ram_size);
 }
 
-bool Bus::LoadState(BinaryReader& reader)
+bool Bus::DoState(StateWrapper& sw)
 {
-  if (reader.ReadUInt32() != SERIALIZATION_ID)
-    return false;
-
-  u32 physical_page_count = reader.ReadUInt32();
+  u32 physical_page_count = m_num_physical_memory_pages;
+  sw.Do(&physical_page_count);
   if (physical_page_count != m_num_physical_memory_pages)
   {
     Log_ErrorPrintf("Incorrect number of physical memory pages");
     return false;
   }
 
-  m_physical_memory_address_mask = reader.ReadUInt32();
-
-  u32 ram_size = reader.ReadUInt32();
+  u32 ram_size = m_ram_size;
+  sw.Do(&ram_size);
   if (ram_size != m_ram_size)
   {
     Log_ErrorPrintf("Incorrect RAM size");
     return false;
   }
 
-  reader.ReadBytes(m_ram_ptr, m_ram_size);
-  return true;
-}
-
-bool Bus::SaveState(BinaryWriter& writer)
-{
-  writer.WriteUInt32(SERIALIZATION_ID);
-
-  writer.WriteUInt32(m_num_physical_memory_pages);
-  writer.WriteUInt32(m_physical_memory_address_mask);
-  writer.WriteUInt32(m_ram_size);
-  writer.WriteBytes(m_ram_ptr, m_ram_size);
-  return true;
+  sw.Do(&m_physical_memory_address_mask);
+  sw.DoBytes(m_ram_ptr, m_ram_size);
+  return !sw.HasError();
 }
 
 void Bus::CheckForMemoryBreakpoint(PhysicalMemoryAddress address, u32 size, bool is_write, u32 value)
@@ -289,7 +277,7 @@ u8 Bus::ReadIOPortByte(u16 port)
     if (current->read_byte_handler)
       return current->read_byte_handler(port);
   }
-  
+
   Log_DebugPrintf("Unknown IO port 0x%04X (read)", port);
   return 0xFF;
 }

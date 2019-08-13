@@ -75,8 +75,7 @@ bool HostInterface::LoadSystemState(const char* filename, Error* error)
   bool result = false;
   QueueExternalEvent(
     [this, stream, error, &result]() {
-      BinaryReader reader(stream);
-      if (!m_system->LoadState(reader))
+      if (!m_system->LoadState(stream))
       {
         // Stream load failed, reset system, as it is now in an unknown state.
         error->SetErrorUserFormatted(0, "Loading state failed.");
@@ -108,8 +107,7 @@ void HostInterface::SaveSystemState(const char* filename)
 
   QueueExternalEvent(
     [this, stream]() {
-      BinaryWriter writer(stream);
-      if (!m_system->SaveState(writer))
+      if (!m_system->SaveState(stream))
       {
         // Stream load failed, reset system, as it is now in an unknown state.
         stream->Discard();

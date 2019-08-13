@@ -18,6 +18,7 @@ class Component;
 class CPU;
 class Error;
 class HostInterface;
+class StateWraper;
 class TimingEvent;
 
 class System : public Object
@@ -65,8 +66,8 @@ public:
   virtual void Reset();
 
   // State loading/saving
-  bool LoadState(BinaryReader& reader);
-  bool SaveState(BinaryWriter& writer);
+  bool LoadState(ByteStream* stream);
+  bool SaveState(ByteStream* stream);
 
   // Main CPU run loop. Does not return until the system is interrupted or stopped.
   void Run();
@@ -144,22 +145,20 @@ protected:
   // State loading/saving.
   virtual bool LoadSystemState(BinaryReader& reader);
   virtual bool SaveSystemState(BinaryWriter& writer);
+  virtual bool DoState(StateWrapper& sw);
 
   HostInterface* m_host_interface = nullptr;
   CPU* m_cpu = nullptr;
   Bus* m_bus = nullptr;
 
 private:
-  static constexpr u32 SYSTEM_SERIALIZATION_ID = Component::MakeSerializationID('S', 'Y', 'S');
-  static constexpr u32 COMPONENTS_SERIALIZATION_ID = Component::MakeSerializationID('C', 'O', 'M', 'P');
-  static constexpr u32 EVENTS_SERIALIZATION_ID = Component::MakeSerializationID('E', 'V', 'T', 'S');
-
   // The downcount used when there are no active events.
   static constexpr SimulationTime POLL_FREQUENCY = INT64_C(100000000);
 
-  // Inner serialization of components.
-  bool LoadComponentsState(BinaryReader& reader);
-  bool SaveComponentsState(BinaryWriter& writer);
+  // Serialization.
+  bool DoAllState(StateWrapper& sw);
+  bool DoComponentsState(StateWrapper& sw);
+  bool DoEventsState(StateWrapper& sw);
 
   // Active event management
   void AddActiveEvent(TimingEvent* event);
@@ -178,10 +177,6 @@ private:
     for (const TimingEvent* ev : m_events)
       callback(ev);
   }
-
-  // Inner serialization of events.
-  bool LoadEventsState(BinaryReader& reader);
-  bool SaveEventsState(BinaryWriter& writer);
 
   PODArray<Component*> m_components;
   State m_state = State::Initializing;
