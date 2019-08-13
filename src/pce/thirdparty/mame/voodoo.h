@@ -10,6 +10,7 @@
 #pragma once
 #include "common/display.h"
 #include "common/display_timing.h"
+#include "common/state_wrapper.h"
 #include "common/types.h"
 #include "palette.h"
 #include "pce/bus.h"
@@ -927,6 +928,7 @@ public:
 
   void initialize(System* system, Bus* bus, Display* display);
   void reset();
+  bool do_state(StateWrapper& sw);
 
   void set_fbmem(int value) { m_fbmem = value; }
   void set_tmumem(int value1, int value2)
@@ -950,8 +952,6 @@ public:
   SimulationTime time_until_vblank() const;
   void vblank_callback(CycleCount time_late);
   void vblank_off_callback(CycleCount time_late);
-
-  void voodoo_postload();
 
   void voodoo_update(u32 end_line);
   int voodoo_get_type();
@@ -1146,11 +1146,11 @@ protected:
 
     std::unique_ptr<TimingEvent> vsync_stop_timer;  // VBLANK End timer
     std::unique_ptr<TimingEvent> vsync_start_timer; // VBLANK timer
-    u8 vblank;                              // VBLANK state
-    u8 vblank_count;                        // number of VBLANKs since last swap
-    u8 vblank_swap_pending;                 // a swap is pending, waiting for a vblank
-    u8 vblank_swap;                         // swap when we hit this count
-    u8 vblank_dont_swap;                    // don't actually swap when we hit this point
+    u8 vblank;                                      // VBLANK state
+    u8 vblank_count;                                // number of VBLANKs since last swap
+    u8 vblank_swap_pending;                         // a swap is pending, waiting for a vblank
+    u8 vblank_swap;                                 // swap when we hit this count
+    u8 vblank_dont_swap;                            // don't actually swap when we hit this point
 
     /* triangle setup info */
     u8 cheating_allowed;                // allow cheating?
@@ -1254,8 +1254,6 @@ protected:
   s32 cmdfifo_execute_if_ready(cmdfifo_info& f);
   static void cmdfifo_w(voodoo_device* vd, cmdfifo_info* f, u32 offset, u32 data);
 
-  static void init_save_state(voodoo_device* vd);
-
   static void raster_fastfill(void* dest, s32 scanline, const poly_extent* extent, const void* extradata, int threadid);
   static void raster_generic_0tmu(void* dest, s32 scanline, const poly_extent* extent, const void* extradata,
                                   int threadid);
@@ -1281,12 +1279,12 @@ protected:
 
   // FIXME: this stuff should not be public
 public:
-  u8 index;                             // index of board
-  const u8 vd_type;                     // type of system
-  u8 chipmask;                          // mask for which chips are available
-  u32 freq;                             // operating frequency
+  u8 index;                    // index of board
+  const u8 vd_type;            // type of system
+  u8 chipmask;                 // mask for which chips are available
+  u32 freq;                    // operating frequency
   SimulationTime cycle_period; // attoseconds per cycle
-  u32 extra_cycles;                     // extra cycles not yet accounted for
+  u32 extra_cycles;            // extra cycles not yet accounted for
 
   voodoo_reg reg[0x400];       // raw registers
   const u8* regaccess;         // register access array
@@ -1304,9 +1302,6 @@ public:
   stats_block* thread_stats; // per-thread statistics
 
   voodoo_stats stats; // internal statistics
-
-  u32 last_status_pc;    // PC of last status description (for logging)
-  u32 last_status_value; // value of last status read (for logging)
 
   int next_rasterizer;                        // next rasterizer index
   raster_info rasterizer[MAX_RASTERIZERS];    // array of rasterizers

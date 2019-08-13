@@ -6,6 +6,7 @@
 #include "../thirdparty/mame/voodoo.h"
 #include "YBaseLib/Log.h"
 #include "common/display.h"
+#include "common/state_wrapper.h"
 Log_SetChannel(Voodoo);
 
 namespace HW {
@@ -76,14 +77,22 @@ void Voodoo::Reset()
   m_device->reset();
 }
 
-bool Voodoo::LoadState(BinaryReader& reader)
+bool Voodoo::DoState(StateWrapper& sw)
 {
-  return BaseClass::LoadState(reader) && PCIDevice::LoadState(reader);
-}
+  if (!BaseClass::DoState(sw) || !PCIDevice::DoState(sw))
+    return false;
 
-bool Voodoo::SaveState(BinaryWriter& writer)
-{
-  return BaseClass::SaveState(writer) && PCIDevice::SaveState(writer);
+  sw.Do(&m_type);
+  sw.Do(&m_clock_frequency);
+
+  u32 fb_mem_size = m_fb_mem_size;
+  u32 tmu_mem_size = m_tmu_mem_size;
+  sw.Do(&fb_mem_size);
+  sw.Do(&tmu_mem_size);
+  if (fb_mem_size != m_fb_mem_size || tmu_mem_size != m_tmu_mem_size)
+    return false;
+
+  return m_device->do_state(sw);
 }
 
 void Voodoo::ResetConfigSpace(u8 function)
@@ -229,8 +238,7 @@ void Voodoo::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active
         MMIO::Handlers handlers;
         handlers.read_byte = std::bind(&Voodoo::HandleBusByteRead, this, std::placeholders::_1);
         handlers.read_word = std::bind(&Voodoo::HandleBusWordRead, this, std::placeholders::_1);
-        handlers.read_dword =
-          std::bind(&Voodoo::HandleBusDWordRead, this, std::placeholders::_1);
+        handlers.read_dword = std::bind(&Voodoo::HandleBusDWordRead, this, std::placeholders::_1);
         handlers.write_byte =
           std::bind(&Voodoo::HandleBusByteWrite, this, std::placeholders::_1, std::placeholders::_2);
         handlers.write_word =

@@ -561,183 +561,6 @@ void voodoo_device::tmu_state::init(u8 vdt, tmu_shared_state& share, voodoo_reg*
   }
 }
 
-void voodoo_device::voodoo_postload()
-{
-  fbi.clut_dirty = true;
-  for (int tmu_index = 0; tmu_index < countof(tmu); tmu_index++)
-  {
-    tmu[tmu_index].regdirty = true;
-    for (int subindex = 0; subindex < countof(tmu[tmu_index].ncc); subindex++)
-      tmu[tmu_index].ncc[subindex].dirty = true;
-  }
-
-  /* recompute video memory to get the FBI FIFO base recomputed */
-  if (vd_type <= TYPE_VOODOO_2)
-    recompute_video_memory();
-}
-
-#if 0
-void voodoo_device::init_save_state(voodoo_device *vd)
-{
-  int index, subindex;
-
-  vd->machine().save().register_postload(save_prepost_delegate(FUNC(voodoo_device::voodoo_postload), vd));
-
-  /* register states: core */
-  vd->save_item(NAME(vd->extra_cycles));
-  vd->save_pointer(NAME(&vd->reg[0].u), ARRAY_LENGTH(vd->reg));
-  vd->save_item(NAME(vd->alt_regmap));
-
-  /* register states: pci */
-  vd->save_item(NAME(vd->pci.fifo.in));
-  vd->save_item(NAME(vd->pci.fifo.out));
-  vd->save_item(NAME(vd->pci.init_enable));
-  vd->save_item(NAME(vd->pci.stall_state));
-  vd->save_item(NAME(vd->pci.op_pending));
-  vd->save_item(NAME(vd->pci.op_end_time));
-  vd->save_item(NAME(vd->pci.fifo_mem));
-
-  /* register states: dac */
-  vd->save_item(NAME(vd->dac.reg));
-  vd->save_item(NAME(vd->dac.read_result));
-
-  /* register states: fbi */
-  vd->save_pointer(NAME(vd->fbi.ram), vd->fbi.mask + 1);
-  vd->save_item(NAME(vd->fbi.rgboffs));
-  vd->save_item(NAME(vd->fbi.auxoffs));
-  vd->save_item(NAME(vd->fbi.frontbuf));
-  vd->save_item(NAME(vd->fbi.backbuf));
-  vd->save_item(NAME(vd->fbi.swaps_pending));
-  vd->save_item(NAME(vd->fbi.video_changed));
-  vd->save_item(NAME(vd->fbi.yorigin));
-  vd->save_item(NAME(vd->fbi.lfb_base));
-  vd->save_item(NAME(vd->fbi.lfb_stride));
-  vd->save_item(NAME(vd->fbi.width));
-  vd->save_item(NAME(vd->fbi.height));
-  vd->save_item(NAME(vd->fbi.xoffs));
-  vd->save_item(NAME(vd->fbi.yoffs));
-  vd->save_item(NAME(vd->fbi.vsyncstart));
-  vd->save_item(NAME(vd->fbi.vsyncstop));
-  vd->save_item(NAME(vd->fbi.rowpixels));
-  vd->save_item(NAME(vd->fbi.vblank));
-  vd->save_item(NAME(vd->fbi.vblank_count));
-  vd->save_item(NAME(vd->fbi.vblank_swap_pending));
-  vd->save_item(NAME(vd->fbi.vblank_swap));
-  vd->save_item(NAME(vd->fbi.vblank_dont_swap));
-  vd->save_item(NAME(vd->fbi.cheating_allowed));
-  vd->save_item(NAME(vd->fbi.sign));
-  vd->save_item(NAME(vd->fbi.ax));
-  vd->save_item(NAME(vd->fbi.ay));
-  vd->save_item(NAME(vd->fbi.bx));
-  vd->save_item(NAME(vd->fbi.by));
-  vd->save_item(NAME(vd->fbi.cx));
-  vd->save_item(NAME(vd->fbi.cy));
-  vd->save_item(NAME(vd->fbi.startr));
-  vd->save_item(NAME(vd->fbi.startg));
-  vd->save_item(NAME(vd->fbi.startb));
-  vd->save_item(NAME(vd->fbi.starta));
-  vd->save_item(NAME(vd->fbi.startz));
-  vd->save_item(NAME(vd->fbi.startw));
-  vd->save_item(NAME(vd->fbi.drdx));
-  vd->save_item(NAME(vd->fbi.dgdx));
-  vd->save_item(NAME(vd->fbi.dbdx));
-  vd->save_item(NAME(vd->fbi.dadx));
-  vd->save_item(NAME(vd->fbi.dzdx));
-  vd->save_item(NAME(vd->fbi.dwdx));
-  vd->save_item(NAME(vd->fbi.drdy));
-  vd->save_item(NAME(vd->fbi.dgdy));
-  vd->save_item(NAME(vd->fbi.dbdy));
-  vd->save_item(NAME(vd->fbi.dady));
-  vd->save_item(NAME(vd->fbi.dzdy));
-  vd->save_item(NAME(vd->fbi.dwdy));
-  vd->save_item(NAME(vd->fbi.lfb_stats.pixels_in));
-  vd->save_item(NAME(vd->fbi.lfb_stats.pixels_out));
-  vd->save_item(NAME(vd->fbi.lfb_stats.chroma_fail));
-  vd->save_item(NAME(vd->fbi.lfb_stats.zfunc_fail));
-  vd->save_item(NAME(vd->fbi.lfb_stats.afunc_fail));
-  vd->save_item(NAME(vd->fbi.lfb_stats.clip_fail));
-  vd->save_item(NAME(vd->fbi.lfb_stats.stipple_count));
-  vd->save_item(NAME(vd->fbi.sverts));
-  for (index = 0; index < ARRAY_LENGTH(vd->fbi.svert); index++)
-  {
-    vd->save_item(NAME(vd->fbi.svert[index].x), index);
-    vd->save_item(NAME(vd->fbi.svert[index].y), index);
-    vd->save_item(NAME(vd->fbi.svert[index].a), index);
-    vd->save_item(NAME(vd->fbi.svert[index].r), index);
-    vd->save_item(NAME(vd->fbi.svert[index].g), index);
-    vd->save_item(NAME(vd->fbi.svert[index].b), index);
-    vd->save_item(NAME(vd->fbi.svert[index].z), index);
-    vd->save_item(NAME(vd->fbi.svert[index].wb), index);
-    vd->save_item(NAME(vd->fbi.svert[index].w0), index);
-    vd->save_item(NAME(vd->fbi.svert[index].s0), index);
-    vd->save_item(NAME(vd->fbi.svert[index].t0), index);
-    vd->save_item(NAME(vd->fbi.svert[index].w1), index);
-    vd->save_item(NAME(vd->fbi.svert[index].s1), index);
-    vd->save_item(NAME(vd->fbi.svert[index].t1), index);
-  }
-  vd->save_item(NAME(vd->fbi.fifo.size));
-  vd->save_item(NAME(vd->fbi.fifo.in));
-  vd->save_item(NAME(vd->fbi.fifo.out));
-  for (index = 0; index < ARRAY_LENGTH(vd->fbi.cmdfifo); index++)
-  {
-    vd->save_item(NAME(vd->fbi.cmdfifo[index].enable), index);
-    vd->save_item(NAME(vd->fbi.cmdfifo[index].count_holes), index);
-    vd->save_item(NAME(vd->fbi.cmdfifo[index].base), index);
-    vd->save_item(NAME(vd->fbi.cmdfifo[index].end), index);
-    vd->save_item(NAME(vd->fbi.cmdfifo[index].rdptr), index);
-    vd->save_item(NAME(vd->fbi.cmdfifo[index].amin), index);
-    vd->save_item(NAME(vd->fbi.cmdfifo[index].amax), index);
-    vd->save_item(NAME(vd->fbi.cmdfifo[index].depth), index);
-    vd->save_item(NAME(vd->fbi.cmdfifo[index].holes), index);
-  }
-  vd->save_item(NAME(vd->fbi.fogblend));
-  vd->save_item(NAME(vd->fbi.fogdelta));
-  vd->save_item(NAME(vd->fbi.clut));
-
-  /* register states: tmu */
-  for (index = 0; index < ARRAY_LENGTH(vd->tmu); index++)
-  {
-    tmu_state *tmu = &vd->tmu[index];
-    if (tmu->ram == nullptr)
-      continue;
-    if (tmu->ram != vd->fbi.ram)
-      vd->save_pointer(NAME(tmu->ram), tmu->mask + 1, index);
-    vd->save_item(NAME(tmu->starts), index);
-    vd->save_item(NAME(tmu->startt), index);
-    vd->save_item(NAME(tmu->startw), index);
-    vd->save_item(NAME(tmu->dsdx), index);
-    vd->save_item(NAME(tmu->dtdx), index);
-    vd->save_item(NAME(tmu->dwdx), index);
-    vd->save_item(NAME(tmu->dsdy), index);
-    vd->save_item(NAME(tmu->dtdy), index);
-    vd->save_item(NAME(tmu->dwdy), index);
-    for (subindex = 0; subindex < ARRAY_LENGTH(tmu->ncc); subindex++)
-    {
-      vd->save_item(NAME(tmu->ncc[subindex].ir), index * ARRAY_LENGTH(tmu->ncc) + subindex);
-      vd->save_item(NAME(tmu->ncc[subindex].ig), index * ARRAY_LENGTH(tmu->ncc) + subindex);
-      vd->save_item(NAME(tmu->ncc[subindex].ib), index * ARRAY_LENGTH(tmu->ncc) + subindex);
-      vd->save_item(NAME(tmu->ncc[subindex].qr), index * ARRAY_LENGTH(tmu->ncc) + subindex);
-      vd->save_item(NAME(tmu->ncc[subindex].qg), index * ARRAY_LENGTH(tmu->ncc) + subindex);
-      vd->save_item(NAME(tmu->ncc[subindex].qb), index * ARRAY_LENGTH(tmu->ncc) + subindex);
-      vd->save_item(NAME(tmu->ncc[subindex].y), index * ARRAY_LENGTH(tmu->ncc) + subindex);
-    }
-  }
-
-  /* register states: banshee */
-  if (vd->vd_type >= TYPE_VOODOO_BANSHEE)
-  {
-    vd->save_item(NAME(vd->banshee.io));
-    vd->save_item(NAME(vd->banshee.agp));
-    vd->save_item(NAME(vd->banshee.vga));
-    vd->save_item(NAME(vd->banshee.crtc));
-    vd->save_item(NAME(vd->banshee.seq));
-    vd->save_item(NAME(vd->banshee.gc));
-    vd->save_item(NAME(vd->banshee.att));
-    vd->save_item(NAME(vd->banshee.attff));
-  }
-}
-#endif
-
 /*************************************
  *
  *  Statistics management
@@ -4354,6 +4177,188 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
     m_display_timing.SetClockEnable(true);
   }
 
+  void voodoo_device::reset()
+  {
+    poly_wait(poly, "reset");
+
+    soft_reset();
+    m_display_timing.Reset();
+    m_display_timing.SetClockEnable(true);
+    fbi.vsync_start_timer->SetActive(false);
+    fbi.vsync_stop_timer->SetActive(false);
+
+    memset(reg, 0, sizeof(reg));
+    pci.init_enable = 0;
+    reg[fbiInit0].u = (1 << 4) | (0x10 << 6);
+    reg[fbiInit1].u = (1 << 1) | (1 << 8) | (1 << 12) | (2 << 20);
+    reg[fbiInit2].u = (1 << 6) | (0x100 << 23);
+    reg[fbiInit3].u = (2 << 13) | (0xf << 17);
+    reg[fbiInit4].u = (1 << 0);
+
+    fbi.clut_dirty = true;
+    for (size_t index = 0; index < countof(tmu); index++)
+    {
+      tmu_state& tmu_ = tmu[index];
+      if (!tmu_.ram)
+        continue;
+
+      tmu_.regdirty = true;
+      for (size_t subindex = 0; subindex < countof(tmu_.ncc); subindex++)
+        tmu_.ncc[subindex].dirty = true;
+    }
+
+    // recompute video memory to get the FBI FIFO base recomputed
+    if (vd_type <= TYPE_VOODOO_2)
+      recompute_video_memory();
+
+    m_display->SetEnable(false);
+  }
+
+  bool voodoo_device::do_state(StateWrapper & sw)
+  {
+    poly_wait(poly, "do_state");
+
+    /* register states: core */
+    sw.Do(&extra_cycles);
+    sw.DoArray(&reg[0].u, countof(reg));
+    sw.Do(&alt_regmap);
+
+    /* register states: pci */
+    sw.Do(&pci.fifo.in);
+    sw.Do(&pci.fifo.out);
+    sw.Do(&pci.init_enable);
+    sw.Do(&pci.op_pending);
+    sw.Do(&pci.op_end_time);
+    sw.DoBytes(&pci.fifo_mem, sizeof(pci.fifo_mem));
+
+    /* register states: dac */
+    sw.DoPOD(&dac);
+
+    /* register states: fbi */
+    sw.DoBytes(fbi.ram, fbi.mask + 1);
+    sw.DoArray(fbi.rgboffs, countof(fbi.rgboffs));
+    sw.Do(&fbi.auxoffs);
+    sw.Do(&fbi.frontbuf);
+    sw.Do(&fbi.backbuf);
+    sw.Do(&fbi.swaps_pending);
+    sw.Do(&fbi.video_changed);
+    sw.Do(&fbi.yorigin);
+    sw.Do(&fbi.lfb_base);
+    sw.Do(&fbi.lfb_stride);
+    sw.Do(&fbi.width);
+    sw.Do(&fbi.height);
+    sw.Do(&fbi.rowpixels);
+    sw.Do(&fbi.vblank);
+    sw.Do(&fbi.vblank_count);
+    sw.Do(&fbi.vblank_swap_pending);
+    sw.Do(&fbi.vblank_swap);
+    sw.Do(&fbi.vblank_dont_swap);
+    sw.Do(&fbi.cheating_allowed);
+    sw.Do(&fbi.sign);
+    sw.Do(&fbi.ax);
+    sw.Do(&fbi.ay);
+    sw.Do(&fbi.bx);
+    sw.Do(&fbi.by);
+    sw.Do(&fbi.cx);
+    sw.Do(&fbi.cy);
+    sw.Do(&fbi.startr);
+    sw.Do(&fbi.startg);
+    sw.Do(&fbi.startb);
+    sw.Do(&fbi.starta);
+    sw.Do(&fbi.startz);
+    sw.Do(&fbi.startw);
+    sw.Do(&fbi.drdx);
+    sw.Do(&fbi.dgdx);
+    sw.Do(&fbi.dbdx);
+    sw.Do(&fbi.dadx);
+    sw.Do(&fbi.dzdx);
+    sw.Do(&fbi.dwdx);
+    sw.Do(&fbi.drdy);
+    sw.Do(&fbi.dgdy);
+    sw.Do(&fbi.dbdy);
+    sw.Do(&fbi.dady);
+    sw.Do(&fbi.dzdy);
+    sw.Do(&fbi.dwdy);
+    sw.DoPOD(&fbi.lfb_stats);
+    sw.Do(&fbi.sverts);
+    sw.DoPODArray(fbi.svert, countof(fbi.svert));
+    sw.Do(&fbi.fifo.size);
+    sw.Do(&fbi.fifo.in);
+    sw.Do(&fbi.fifo.out);
+    sw.DoPODArray(fbi.cmdfifo, countof(fbi.cmdfifo));
+    sw.DoArray(fbi.fogblend, countof(fbi.fogblend));
+    sw.DoArray(fbi.fogdelta, countof(fbi.fogdelta));
+    for (size_t i = 0; i < countof(fbi.clut); i++)
+    {
+      u32 val = fbi.clut[i];
+      sw.Do(&val);
+      fbi.clut[i] = val;
+    }
+
+    /* register states: tmu */
+    for (size_t index = 0; index < countof(tmu); index++)
+    {
+      tmu_state& tmu_ = tmu[index];
+      if (!tmu->ram)
+        continue;
+
+      sw.DoBytes(tmu_.ram, tmu_.mask + 1);
+      sw.Do(&tmu_.starts);
+      sw.Do(&tmu_.startt);
+      sw.Do(&tmu_.startw);
+      sw.Do(&tmu_.dsdx);
+      sw.Do(&tmu_.dtdx);
+      sw.Do(&tmu_.dwdx);
+      sw.Do(&tmu_.dsdy);
+      sw.Do(&tmu_.dtdy);
+      sw.Do(&tmu_.dwdy);
+      for (size_t subindex = 0; subindex < countof(tmu_.ncc); subindex++)
+      {
+        sw.DoArray(tmu_.ncc[subindex].ir, countof(tmu_.ncc[subindex].ir));
+        sw.DoArray(tmu_.ncc[subindex].ig, countof(tmu_.ncc[subindex].ig));
+        sw.DoArray(tmu_.ncc[subindex].ib, countof(tmu_.ncc[subindex].ib));
+        sw.DoArray(tmu_.ncc[subindex].qr, countof(tmu_.ncc[subindex].qr));
+        sw.DoArray(tmu_.ncc[subindex].qg, countof(tmu_.ncc[subindex].qg));
+        sw.DoArray(tmu_.ncc[subindex].qb, countof(tmu_.ncc[subindex].qb));
+        sw.DoArray(tmu_.ncc[subindex].y, countof(tmu_.ncc[subindex].y));
+      }
+    }
+
+    sw.DoPOD(&stats);
+    sw.Do(&send_config);
+    m_display_timing.DoState(sw);
+    sw.Do(&m_last_rendered_line);
+
+    if (sw.IsReading())
+    {
+      fbi.clut_dirty = true;
+      for (size_t index = 0; index < countof(tmu); index++)
+      {
+        tmu_state& tmu_ = tmu[index];
+        if (!tmu_.ram)
+          continue;
+
+        tmu_.regdirty = true;
+        for (size_t subindex = 0; subindex < countof(tmu_.ncc); subindex++)
+          tmu_.ncc[subindex].dirty = true;
+      }
+
+      // recompute video memory to get the FBI FIFO base recomputed
+      if (vd_type <= TYPE_VOODOO_2)
+        recompute_video_memory();
+
+      // update event state, the downcount is loaded later
+      fbi.vsync_start_timer->SetActive(m_display_timing.IsValid() && !fbi.vblank);
+      fbi.vsync_stop_timer->SetActive(m_display_timing.IsValid() && fbi.vblank);
+      m_display->SetEnable(FBIINIT0_VGA_PASSTHRU(reg[fbiInit0].u));
+
+      // always flag the video as changed so we re-render
+      fbi.video_changed = true;
+    }
+
+    return !sw.HasError();
+  }
+
   /***************************************************************************
       COMMAND HANDLERS
   ***************************************************************************/
@@ -5053,17 +5058,6 @@ s32 voodoo_device::lfb_w(voodoo_device* vd, u32 offset, u32 data, u32 mem_mask)
   }
 
   voodoo_device::voodoo_device(u32 clock, u8 vdt) : m_fbmem(4), m_tmumem0(8), m_tmumem1(8), vd_type(vdt), freq(clock) {}
-
-  //-------------------------------------------------
-  //  device_reset - device-specific reset
-  //-------------------------------------------------
-
-  void voodoo_device::reset()
-  {
-    fbi.vsync_start_timer->SetActive(false);
-    fbi.vsync_stop_timer->SetActive(false);
-    soft_reset();
-  }
 
   //-------------------------------------------------
   //  device_stop - device-specific stop

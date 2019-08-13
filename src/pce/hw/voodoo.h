@@ -1,5 +1,6 @@
 #pragma once
 #ifdef ENABLE_VOODOO
+#include "pce/component.h"
 #include "pce/hw/pci_device.h"
 
 class Display;
@@ -28,8 +29,7 @@ public:
   bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
 
-  bool LoadState(BinaryReader& reader) override;
-  bool SaveState(BinaryWriter& writer) override;
+  bool DoState(StateWrapper& sw) override;
 
 protected:
   static constexpr PhysicalMemoryAddress DEFAULT_MEMORY_REGION_ADDRESS = 0xFF000000;
