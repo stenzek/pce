@@ -40,6 +40,7 @@
     <ClInclude Include="object.h" />
     <ClInclude Include="object_type_info.h" />
     <ClInclude Include="property.h" />
+    <ClInclude Include="state_wrapper.h" />
     <ClInclude Include="types.h" />
     <ClInclude Include="type_registry.h" />
   </ItemGroup>
@@ -55,6 +56,7 @@
     <ClCompile Include="object.cpp" />
     <ClCompile Include="object_type_info.cpp" />
     <ClCompile Include="property.cpp" />
+    <ClCompile Include="state_wrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="bitfield.natvis" />
