@@ -1,5 +1,6 @@
 #include "display_timing.h"
 #include "YBaseLib/String.h"
+#include "common/state_wrapper.h"
 
 DisplayTiming::DisplayTiming() = default;
 
@@ -215,6 +216,70 @@ bool DisplayTiming::FrequenciesMatch(const DisplayTiming& timing) const
                   timing.m_horizontal_sync_length, timing.m_horizontal_back_porch, timing.m_horizontal_frequency,
                   timing.m_vertical_visible, timing.m_vertical_front_porch, timing.m_vertical_sync_length,
                   timing.m_vertical_back_porch, timing.m_vertical_frequency);
+}
+
+bool DisplayTiming::DoState(StateWrapper& sw)
+{
+  sw.Do(&m_clock_start_time);
+  sw.Do(&m_horizontal_visible);
+  sw.Do(&m_horizontal_front_porch);
+  sw.Do(&m_horizontal_sync_length);
+  sw.Do(&m_horizontal_back_porch);
+  sw.Do(&m_vertical_visible);
+  sw.Do(&m_vertical_front_porch);
+  sw.Do(&m_vertical_sync_length);
+  sw.Do(&m_vertical_back_porch);
+  sw.Do(&m_horizontal_total);
+  sw.Do(&m_vertical_total);
+  sw.Do(&m_pixel_clock);
+  sw.Do(&m_horizontal_frequency);
+  sw.Do(&m_vertical_frequency);
+  sw.Do(&m_horizontal_pixel_duration);
+  sw.Do(&m_horizontal_active_duration);
+  sw.Do(&m_horizontal_sync_start_time);
+  sw.Do(&m_horizontal_sync_end_time);
+  sw.Do(&m_horizontal_total_duration);
+  sw.Do(&m_vertical_active_duration);
+  sw.Do(&m_vertical_sync_start_time);
+  sw.Do(&m_vertical_sync_end_time);
+  sw.Do(&m_vertical_total_duration);
+  sw.Do(&m_clock_enable);
+  sw.Do(&m_valid);
+  return !sw.HasError();
+}
+
+void DisplayTiming::Reset()
+{
+  m_clock_start_time = 0;
+
+  m_horizontal_visible = 0;
+  m_horizontal_front_porch = 0;
+  m_horizontal_sync_length = 0;
+  m_horizontal_back_porch = 0;
+  m_vertical_visible = 0;
+  m_vertical_front_porch = 0;
+  m_vertical_sync_length = 0;
+  m_vertical_back_porch = 0;
+
+  m_horizontal_total = 0;
+  m_vertical_total = 0;
+
+  m_pixel_clock = 0.0;
+  m_horizontal_frequency = 0.0f;
+  m_vertical_frequency = 0.0f;
+
+  m_horizontal_pixel_duration = 0;
+  m_horizontal_active_duration = 0;
+  m_horizontal_sync_start_time = 0;
+  m_horizontal_sync_end_time = 0;
+  m_horizontal_total_duration = 0;
+  m_vertical_active_duration = 0;
+  m_vertical_sync_start_time = 0;
+  m_vertical_sync_end_time = 0;
+  m_vertical_total_duration = 0;
+
+  m_clock_enable = false;
+  m_valid = false;
 }
 
 DisplayTiming& DisplayTiming::operator=(const DisplayTiming& timing)

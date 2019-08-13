@@ -1,7 +1,7 @@
 #pragma once
 #include "types.h"
 
-class DisplayRenderer;
+class StateWrapper;
 class String;
 
 class DisplayTiming
@@ -94,10 +94,14 @@ public:
   // Tests whether frequencies and dimensions match.
   bool FrequenciesMatch(const DisplayTiming& timing) const;
 
+  // Serialization.
+  bool DoState(StateWrapper& sw);
+  void Reset();
+
   // Copy operator.
   DisplayTiming& operator=(const DisplayTiming& timing);
 
-  // TODO: Serialization, clock update to prevent wrap-around.
+  // TODO: clock update to prevent wrap-around.
 
 private:
   void UpdateHorizontalFrequency();

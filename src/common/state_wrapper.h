@@ -1,6 +1,7 @@
 #pragma once
 #include "YBaseLib/ByteStream.h"
 #include "types.h"
+#include <cstring>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -26,6 +27,7 @@ public:
   bool IsWriting() const { return (m_mode == Mode::Write); }
   Mode GetMode() const { return m_mode; }
 
+  /// Overload for integral or floating-point types. Writes bytes as-is.
   template<typename T, std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, int> = 0>
   void Do(T* value_ptr)
   {
@@ -41,6 +43,29 @@ public:
     }
   }
 
+  /// Overload for enum types. Uses the underlying type.
+  template<typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+  void Do(T* value_ptr)
+  {
+    using TType = std::underlying_type_t<T>;
+    if (m_mode == Mode::Read)
+    {
+      TType temp;
+      if (m_error || (m_error |= !m_stream->Read2(&temp, sizeof(TType))) == true)
+        temp = static_cast<TType>(0);
+
+      *value_ptr = static_cast<T>(temp);
+    }
+    else
+    {
+      TType temp;
+      std::memcpy(&temp, value_ptr, sizeof(TType));
+      if (!m_error)
+        m_error |= !m_stream->Write2(&temp, sizeof(TType));
+    }
+  }
+
+  /// Overload for POD types, such as structs.
   template<typename T, std::enable_if_t<std::is_pod_v<T>, int> = 0>
   void DoPOD(T* value_ptr)
   {
@@ -61,6 +86,13 @@ public:
   {
     for (size_t i = 0; i < count; i++)
       Do(&values[i]);
+  }
+
+  template<typename T>
+  void DoPODArray(T* values, size_t count)
+  {
+    for (size_t i = 0; i < count; i++)
+      DoPOD(&values[i]);
   }
 
   void DoBytes(void* data, size_t length);
