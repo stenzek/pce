@@ -29,7 +29,6 @@ public:
     Model_82077,
   };
 
-  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('F', 'D', 'C');
   static constexpr u32 SECTOR_SIZE = 512;
   static constexpr u32 MAX_DRIVES = 4;
 
@@ -39,8 +38,7 @@ public:
 
   bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
-  bool LoadState(BinaryReader& reader) override;
-  bool SaveState(BinaryWriter& writer) override;
+  bool DoState(StateWrapper& sw) override;
 
   Floppy::DriveType GetDriveType_(u32 drive) const;
   bool IsDrivePresent(u32 drive) const;

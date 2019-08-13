@@ -1,9 +1,8 @@
 #include "pce/hw/fdc.h"
-#include "YBaseLib/BinaryReader.h"
-#include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
 #include "YBaseLib/Log.h"
 #include "YBaseLib/Memory.h"
+#include "common/state_wrapper.h"
 #include "pce/bus.h"
 #include "pce/interrupt_controller.h"
 #include "pce/system.h"
@@ -131,140 +130,84 @@ void FDC::Reset(bool software_reset)
   }
 }
 
-bool FDC::LoadState(BinaryReader& reader)
+bool FDC::DoState(StateWrapper& sw)
 {
-  if (reader.ReadUInt32() != SERIALIZATION_ID)
+  if (!BaseClass::DoState(sw))
     return false;
 
   for (u32 i = 0; i < MAX_DRIVES; i++)
   {
     DriveState* drive = &m_drives[i];
-    const bool present = reader.ReadBool();
+    bool present = drive->floppy != nullptr;
+    sw.Do(&present);
     if (present && !drive->floppy)
     {
       Log_ErrorPrintf("Drive state mismatch");
       return false;
     }
 
-    reader.SafeReadUInt32(&drive->current_cylinder);
-    reader.SafeReadUInt32(&drive->current_head);
-    reader.SafeReadUInt32(&drive->current_sector);
-    reader.SafeReadUInt32(&drive->current_lba);
-    reader.SafeReadBool(&drive->data_was_read);
-    reader.SafeReadBool(&drive->data_was_written);
-    reader.SafeReadBool(&drive->step_latch);
-    reader.SafeReadBool(&drive->direction);
+    sw.Do(&drive->current_cylinder);
+    sw.Do(&drive->current_head);
+    sw.Do(&drive->current_sector);
+    sw.Do(&drive->current_lba);
+    sw.Do(&drive->data_was_read);
+    sw.Do(&drive->data_was_written);
+    sw.Do(&drive->step_latch);
+    sw.Do(&drive->direction);
   }
 
-  reader.SafeReadUInt8(&m_DOR.bits);
-  reader.SafeReadUInt8(&m_MSR.bits);
+  sw.Do(&m_DOR.bits);
+  sw.Do(&m_MSR.bits);
 
-  reader.SafeReadUInt8(&m_data_rate_index);
-  reader.SafeReadBool(&m_interrupt_pending);
-  reader.SafeReadBool(&m_disk_change_flag);
-  reader.SafeReadBool(&m_specify_lock);
+  sw.Do(&m_data_rate_index);
+  sw.Do(&m_interrupt_pending);
+  sw.Do(&m_disk_change_flag);
+  sw.Do(&m_specify_lock);
 
-  reader.SafeReadUInt8(&m_reset_sense_interrupt_count);
-  reader.SafeReadInt64(&m_reset_begin_time);
+  sw.Do(&m_reset_sense_interrupt_count);
+  sw.Do(&m_reset_begin_time);
 
-  reader.SafeReadBytes(m_fifo, sizeof(m_fifo));
-  reader.SafeReadUInt32(&m_fifo_result_size);
-  reader.SafeReadUInt32(&m_fifo_result_position);
+  sw.DoArray(m_fifo, sizeof(m_fifo));
+  sw.Do(&m_fifo_result_size);
+  sw.Do(&m_fifo_result_position);
 
-  reader.SafeReadUInt8(&m_step_rate_time);
-  reader.SafeReadUInt8(&m_head_load_time);
-  reader.SafeReadUInt8(&m_head_unload_time);
-  reader.SafeReadBool(&m_pio_mode);
-  reader.SafeReadBool(&m_implied_seeks);
-  reader.SafeReadBool(&m_polling_disabled);
-  reader.SafeReadBool(&m_fifo_disabled);
-  reader.SafeReadUInt8(&m_fifo_threshold);
-  reader.SafeReadUInt8(&m_precompensation_start_track);
-  reader.SafeReadUInt8(&m_perpendicular_mode);
+  sw.Do(&m_step_rate_time);
+  sw.Do(&m_head_load_time);
+  sw.Do(&m_head_unload_time);
+  sw.Do(&m_pio_mode);
+  sw.Do(&m_implied_seeks);
+  sw.Do(&m_polling_disabled);
+  sw.Do(&m_fifo_disabled);
+  sw.Do(&m_fifo_threshold);
+  sw.Do(&m_precompensation_start_track);
+  sw.Do(&m_perpendicular_mode);
 
-  reader.SafeReadBytes(m_current_command.buf, sizeof(m_current_command.buf));
-  reader.SafeReadUInt8(&m_current_command.command_length);
+  sw.DoBytes(m_current_command.buf, sizeof(m_current_command.buf));
+  sw.Do(&m_current_command.command_length);
 
-  // If the command buffer is present and full, this means a command was in progress
-  // when the state was saved. If we enable the command event now, the downcount
-  // will be fixed up later when events are loaded.
-  m_command_event->SetActive(false);
-  if (m_current_command.HasAllParameters())
-    m_command_event->Queue(1);
-
-  reader.SafeReadBool(&m_current_transfer.active);
-  reader.SafeReadBool(&m_current_transfer.multi_track);
-  reader.SafeReadUInt8(&m_current_transfer.drive);
-  reader.SafeReadUInt32(&m_current_transfer.bytes_per_sector);
-  reader.SafeReadUInt32(&m_current_transfer.sectors_per_track);
-  reader.SafeReadUInt32(&m_current_transfer.sector_offset);
-  reader.SafeReadBytes(m_current_transfer.sector_buffer, sizeof(m_current_transfer.sector_buffer));
-
-  reader.SafeReadUInt8(&m_st0);
-  reader.SafeReadUInt8(&m_st1);
-  reader.SafeReadUInt8(&m_st2);
-
-  return !reader.GetErrorState();
-}
-
-bool FDC::SaveState(BinaryWriter& writer)
-{
-  writer.WriteUInt32(SERIALIZATION_ID);
-
-  for (u32 i = 0; i < MAX_DRIVES; i++)
+  if (sw.IsReading())
   {
-    DriveState* drive = &m_drives[i];
-    writer.SafeWriteBool(drive->floppy != nullptr);
-    writer.SafeWriteUInt32(drive->current_cylinder);
-    writer.SafeWriteUInt32(drive->current_head);
-    writer.SafeWriteUInt32(drive->current_sector);
-    writer.SafeWriteUInt32(drive->current_lba);
-    writer.SafeWriteBool(drive->data_was_read);
-    writer.SafeWriteBool(drive->data_was_written);
-    writer.SafeWriteBool(drive->step_latch);
-    writer.SafeWriteBool(drive->direction);
+    // If the command buffer is present and full, this means a command was in progress
+    // when the state was saved. If we enable the command event now, the downcount
+    // will be fixed up later when events are loaded.
+    m_command_event->SetActive(false);
+    if (m_current_command.HasAllParameters())
+      m_command_event->Queue(1);
   }
 
-  writer.SafeWriteUInt8(m_DOR.bits);
-  writer.SafeWriteUInt8(m_MSR.bits);
-  writer.SafeWriteUInt8(m_data_rate_index);
-  writer.SafeWriteBool(m_interrupt_pending);
-  writer.SafeWriteBool(m_disk_change_flag);
-  writer.SafeWriteBool(m_specify_lock);
+  sw.Do(&m_current_transfer.active);
+  sw.Do(&m_current_transfer.multi_track);
+  sw.Do(&m_current_transfer.drive);
+  sw.Do(&m_current_transfer.bytes_per_sector);
+  sw.Do(&m_current_transfer.sectors_per_track);
+  sw.Do(&m_current_transfer.sector_offset);
+  sw.DoBytes(m_current_transfer.sector_buffer, sizeof(m_current_transfer.sector_buffer));
 
-  writer.SafeWriteUInt8(m_reset_sense_interrupt_count);
-  writer.SafeWriteInt64(m_reset_begin_time);
+  sw.Do(&m_st0);
+  sw.Do(&m_st1);
+  sw.Do(&m_st2);
 
-  writer.SafeWriteBytes(m_fifo, sizeof(m_fifo));
-  writer.SafeWriteUInt32(m_fifo_result_size);
-  writer.SafeWriteUInt32(m_fifo_result_position);
-
-  writer.SafeWriteUInt8(m_step_rate_time);
-  writer.SafeWriteUInt8(m_head_load_time);
-  writer.SafeWriteUInt8(m_head_unload_time);
-  writer.SafeWriteBool(m_pio_mode);
-  writer.SafeWriteBool(m_implied_seeks);
-  writer.SafeWriteBool(m_polling_disabled);
-  writer.SafeWriteBool(m_fifo_disabled);
-  writer.SafeWriteUInt8(m_fifo_threshold);
-  writer.SafeWriteUInt8(m_precompensation_start_track);
-  writer.SafeWriteUInt8(m_perpendicular_mode);
-
-  writer.SafeWriteBytes(m_current_command.buf, sizeof(m_current_command.buf));
-  writer.SafeWriteUInt8(m_current_command.command_length);
-
-  writer.SafeWriteBool(m_current_transfer.active);
-  writer.SafeWriteBool(m_current_transfer.multi_track);
-  writer.SafeWriteUInt8(m_current_transfer.drive);
-  writer.SafeWriteUInt32(m_current_transfer.bytes_per_sector);
-  writer.SafeWriteUInt32(m_current_transfer.sectors_per_track);
-  writer.SafeWriteUInt32(m_current_transfer.sector_offset);
-  writer.SafeWriteBytes(m_current_transfer.sector_buffer, sizeof(m_current_transfer.sector_buffer));
-  writer.SafeWriteUInt8(m_st0);
-  writer.SafeWriteUInt8(m_st1);
-  writer.SafeWriteUInt8(m_st2);
-
-  return true;
+  return !sw.HasError();
 }
 
 Floppy::DriveType FDC::GetDriveType_(u32 drive) const
@@ -920,9 +863,9 @@ u8 FDC::IOReadStatusRegisterA()
   // 0x01 - direction == 0
   const DriveState* ds = GetCurrentDrive();
   const u8 value = (BoolToUInt8(m_interrupt_pending) << 7) | (BoolToUInt8(m_dma->GetDMAState(DMA_CHANNEL)) << 6) |
-           (BoolToUInt8(ds->step_latch) << 5) | (BoolToUInt8(ds->current_cylinder == 0) << 4) |
-           (BoolToUInt8(ds->current_head == 0) << 3) | (BoolToUInt8(ds->current_sector == 0) << 2) |
-           (BoolToUInt8(ds->write_protect) << 1) | (BoolToUInt8(ds->direction) << 0);
+                   (BoolToUInt8(ds->step_latch) << 5) | (BoolToUInt8(ds->current_cylinder == 0) << 4) |
+                   (BoolToUInt8(ds->current_head == 0) << 3) | (BoolToUInt8(ds->current_sector == 0) << 2) |
+                   (BoolToUInt8(ds->write_protect) << 1) | (BoolToUInt8(ds->direction) << 0);
   return value;
 }
 
@@ -938,9 +881,9 @@ u8 FDC::IOReadStatusRegisterB()
   // 0x01 - not ds2
   const DriveState* ds = GetCurrentDrive();
   const u8 value = (BoolToUInt8(IsDrivePresent(1)) << 7) | (BoolToUInt8(GetCurrentDriveIndex() != 1) << 6) |
-           (BoolToUInt8(GetCurrentDriveIndex() != 0) << 5) | (BoolToUInt8(ds->data_was_written) << 4) |
-           (BoolToUInt8(ds->data_was_read) << 3) | (BoolToUInt8(ds->data_was_written) << 2) |
-           (BoolToUInt8(GetCurrentDriveIndex() != 3) << 1) | (BoolToUInt8(GetCurrentDriveIndex() != 2) << 0);
+                   (BoolToUInt8(GetCurrentDriveIndex() != 0) << 5) | (BoolToUInt8(ds->data_was_written) << 4) |
+                   (BoolToUInt8(ds->data_was_read) << 3) | (BoolToUInt8(ds->data_was_written) << 2) |
+                   (BoolToUInt8(GetCurrentDriveIndex() != 3) << 1) | (BoolToUInt8(GetCurrentDriveIndex() != 2) << 0);
   return value;
 }
 
