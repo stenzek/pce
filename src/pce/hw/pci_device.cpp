@@ -2,6 +2,7 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
+#include "common/state_wrapper.h"
 #include "pce/hw/pci_bus.h"
 Log_SetChannel(PCIDevice);
 
@@ -68,10 +69,6 @@ void PCIDevice::Reset()
 
 bool PCIDevice::LoadState(BinaryReader& reader)
 {
-  u32 serialization_id;
-  if (!reader.SafeReadUInt32(&serialization_id) || serialization_id != SERIALIZATION_ID)
-    return false;
-
   u32 num_functions;
   if (!reader.SafeReadUInt32(&num_functions) || num_functions != m_num_pci_functions)
     return false;
@@ -101,13 +98,43 @@ bool PCIDevice::LoadState(BinaryReader& reader)
 bool PCIDevice::SaveState(BinaryWriter& writer)
 {
   bool result = true;
-  result &= writer.SafeWriteUInt32(SERIALIZATION_ID);
   result &= writer.SafeWriteUInt32(m_num_pci_functions);
 
   for (u32 i = 0; i < m_num_pci_functions; i++)
     result &= writer.SafeWriteBytes(m_config_space[i].bytes, sizeof(m_config_space[i].bytes));
 
   return result;
+}
+
+bool PCIDevice::DoState(StateWrapper& sw)
+{
+  u8 num_functions = m_num_pci_functions;
+  sw.Do(&num_functions);
+  if (num_functions != m_num_pci_functions)
+    return false;
+
+  for (u8 i = 0; i < m_num_pci_functions; i++)
+  {
+    sw.DoBytes(m_config_space[i].bytes, sizeof(m_config_space[i].bytes));
+    if (sw.HasError())
+      return false;
+
+    if (sw.IsReading())
+    {
+      const bool io_active = m_config_space[i].header.command.enable_io_space;
+      const bool memory_active = m_config_space[i].header.command.enable_memory_space;
+      for (u32 j = 0; j < NumMemoryRegions; j++)
+      {
+        if (m_config_space[i].memory_regions[j].size > 0)
+        {
+          OnMemoryRegionChanged(i, static_cast<MemoryRegion>(j),
+                                m_config_space[i].memory_regions[j].is_io ? io_active : memory_active);
+        }
+      }
+    }
+  }
+
+  return !sw.HasError();
 }
 
 void PCIDevice::InitPCIID(u8 function, u16 vendor_id, u16 device_id)

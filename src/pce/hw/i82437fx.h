@@ -1,4 +1,5 @@
 #pragma once
+#include "pce/component.h"
 #include "pce/hw/pci_device.h"
 
 namespace HW {

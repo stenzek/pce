@@ -1,9 +1,13 @@
 #pragma once
 #include "common/bitfield.h"
-#include "pce/component.h"
+#include "pce/types.h"
 #include <vector>
 
+class BinaryReader;
+class BinaryWriter;
+class Component;
 class PCIBus;
+class StateWrapper;
 
 class PCIDevice
 {
@@ -29,6 +33,7 @@ public:
 
   bool LoadState(BinaryReader& reader);
   bool SaveState(BinaryWriter& writer);
+  bool DoState(StateWrapper& sw);
 
   virtual u8 ReadConfigSpace(u8 function, u8 offset);
   virtual void WriteConfigSpace(u8 function, u8 offset, u8 value);
@@ -153,8 +158,6 @@ protected:
   virtual void OnMemoryRegionChanged(u8 function, MemoryRegion region, bool active);
 
 private:
-  static constexpr u32 SERIALIZATION_ID = Component::MakeSerializationID('P', 'C', 'I', '-');
-
   Component* m_parent_component;
 
   void SetDefaultAddressForRegion(u8 function, MemoryRegion region);
