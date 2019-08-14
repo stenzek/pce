@@ -2064,11 +2064,16 @@ void CPU::RaiseDebugException()
   SetupInterruptCall(Interrupt_Debugger, false, false, 0, m_registers.EIP);
 }
 
+void CPU::BranchTo(CPU* cpu, u32 new_EIP)
+{
+  cpu->FlushPrefetchQueue();
+  cpu->m_registers.EIP = new_EIP;
+  cpu->m_backend->BranchTo(new_EIP);
+}
+
 void CPU::BranchTo(u32 new_EIP)
 {
-  FlushPrefetchQueue();
-  m_registers.EIP = new_EIP;
-  m_backend->BranchTo(new_EIP);
+  BranchTo(this, new_EIP);
 }
 
 void CPU::BranchFromException(u32 new_EIP)

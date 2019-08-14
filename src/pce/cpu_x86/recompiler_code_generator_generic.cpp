@@ -104,4 +104,13 @@ bool CodeGenerator::Compile_String(const Instruction& instruction, CycleCount cy
 
 #endif
 
+#if !defined(Y_CPU_X64)
+
+bool CodeGenerator::Compile_Jcc(const Instruction& instruction, CycleCount cycles, CycleCount cycles_not_taken)
+{
+  return Compile_Fallback(instruction);
+}
+
+#endif
+
 } // namespace CPU_X86::Recompiler

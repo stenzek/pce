@@ -795,4 +795,34 @@ bool RegisterCache::IsGuestRegisterInHostReg(OperandSize size, u8 guest_reg) con
   }
 }
 
+std::optional<HostReg> RegisterCache::GetHostRegisterForGuestRegister(OperandSize size, u8 guest_reg) const
+{
+  switch (size)
+  {
+    case OperandSize_8:
+    {
+      if (!m_guest_reg8_cache[guest_reg].IsInHostRegister())
+        return std::nullopt;
+      return m_guest_reg8_cache[guest_reg].GetHostRegister();
+    }
+
+    case OperandSize_16:
+    {
+      if (!m_guest_reg16_cache[guest_reg].IsInHostRegister())
+        return std::nullopt;
+      return m_guest_reg16_cache[guest_reg].GetHostRegister();
+    }
+
+    case OperandSize_32:
+    {
+      if (!m_guest_reg32_cache[guest_reg].IsInHostRegister())
+        return std::nullopt;
+      return m_guest_reg32_cache[guest_reg].GetHostRegister();
+    }
+
+    default:
+      return std::nullopt;
+  }
+}
+
 } // namespace CPU_X86::Recompiler

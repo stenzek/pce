@@ -583,6 +583,7 @@ protected:
   void DispatchExternalInterrupt();
 
   // Jump instructions
+  static void BranchTo(CPU* cpu, u32 new_EIP);
   void BranchTo(u32 new_EIP);
   void BranchFromException(u32 new_EIP);
   void AbortCurrentInstruction();

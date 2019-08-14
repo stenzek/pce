@@ -209,6 +209,10 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_POP(instruction);
       break;
 
+    case Operation_Jcc:
+      result = Compile_Jcc(instruction);
+      break;
+
     case Operation_JMP_Near:
       result = Compile_JMP_Near(instruction);
       break;
@@ -1353,6 +1357,14 @@ bool CodeGenerator::Compile_POP(const Instruction& instruction)
   // this is popping to memory.
   SyncCurrentESP();
   return true;
+}
+
+bool CodeGenerator::Compile_Jcc(const Instruction& instruction)
+{
+  const bool is_jcx = instruction.operands[0].jump_condition == JumpCondition_CXZero;
+  const CycleCount cycles = m_cpu->GetCycles(is_jcx ? CYCLES_JCXZ_TAKEN : CYCLES_Jcc_TAKEN);
+  const CycleCount cycles_not_taken = m_cpu->GetCycles(is_jcx ? CYCLES_JCXZ_NOT_TAKEN : CYCLES_Jcc_NOT_TAKEN);
+  return Compile_Jcc_Impl(instruction, cycles, cycles_not_taken);
 }
 
 bool CodeGenerator::Compile_JMP_Near(const Instruction& instruction)

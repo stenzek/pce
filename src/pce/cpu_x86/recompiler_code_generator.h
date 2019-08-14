@@ -176,6 +176,10 @@ private:
   Value GetZeroFlag(const Value& value);
   Value GetParityFlag(const Value& value);
 
+  /// Loads the guest flags into the corresponding host flags. Only guaranteed to load sign/overflow/carry/zero.
+  /// The mask specifies which bits *must* be loaded. Other bits may be loaded as an optimization.
+  void CopyGuestFlagsToHostFlags(u32 mask);
+
   //////////////////////////////////////////////////////////////////////////
   // Instruction Code Generators
   //////////////////////////////////////////////////////////////////////////
@@ -196,6 +200,8 @@ private:
   bool Compile_PUSH(const Instruction& instruction);
   bool Compile_PUSH_Sreg(const Instruction& instruction);
   bool Compile_POP(const Instruction& instruction);
+  bool Compile_Jcc(const Instruction& instruction);
+  bool Compile_Jcc_Impl(const Instruction& instruction, CycleCount cycles, CycleCount cycles_not_taken);
   bool Compile_JMP_Near(const Instruction& instruction);
   bool Compile_CALL_Near(const Instruction& instruction);
   bool Compile_RET_Near(const Instruction& instruction);

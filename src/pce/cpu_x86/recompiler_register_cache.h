@@ -193,6 +193,27 @@ public:
   bool IsGuestRegisterInHostReg(Reg32 guest_reg) const { return m_guest_reg32_cache[guest_reg].IsInHostRegister(); }
   bool IsGuestRegisterInHostReg(OperandSize size, u8 guest_reg) const;
 
+  /// Returns the host register if the guest register is cached.
+  std::optional<HostReg> GetHostRegisterForGuestRegister(Reg8 guest_reg) const
+  {
+    if (!m_guest_reg8_cache[guest_reg].IsInHostRegister())
+      return std::nullopt;
+    return m_guest_reg8_cache[guest_reg].GetHostRegister();
+  }
+  std::optional<HostReg> GetHostRegisterForGuestRegister(Reg16 guest_reg) const
+  {
+    if (!m_guest_reg16_cache[guest_reg].IsInHostRegister())
+      return std::nullopt;
+    return m_guest_reg16_cache[guest_reg].GetHostRegister();
+  }
+  std::optional<HostReg> GetHostRegisterForGuestRegister(Reg32 guest_reg) const
+  {
+    if (!m_guest_reg32_cache[guest_reg].IsInHostRegister())
+      return std::nullopt;
+    return m_guest_reg32_cache[guest_reg].GetHostRegister();
+  }
+  std::optional<HostReg> GetHostRegisterForGuestRegister(OperandSize size, u8 guest_reg) const;
+
   Value ReadGuestRegister(Reg8 guest_reg, bool cache = true, bool force_host_register = false);
   Value ReadGuestRegister(Reg16 guest_reg, bool cache = true, bool force_host_register = false);
   Value ReadGuestRegister(Reg32 guest_reg, bool cache = true, bool force_host_register = false);

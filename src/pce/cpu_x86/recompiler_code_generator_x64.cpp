@@ -1391,6 +1391,54 @@ Value CodeGenerator::GetZeroFlag(const Value& value)
   return ret;
 }
 
+void CodeGenerator::CopyGuestFlagsToHostFlags(u32 mask)
+{
+  // don't break load/store forwarding by loading a different size, just use 32-bits even when we don't need all of them
+  Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
+
+  const bool use_sahf = ((mask & ~(Flag_SF | Flag_ZF | Flag_AF | Flag_PF | Flag_CF)) == 0);
+  if (use_sahf)
+  {
+    // backup rax, load low part of flags to eax
+    const bool save_rax = m_register_cache.IsHostRegInUse(Xbyak::Operand::RAX);
+    if (save_rax)
+      m_emit.push(m_emit.rax);
+
+    // this breaks if eflags is in the high registers, because the rex prefix gets emitted and we touch spl.
+    if (eflags.GetHostRegister() > Xbyak::Operand::RBX)
+    {
+      // ... so shove the full thing into eax, then swap the low bits
+      m_emit.mov(m_emit.eax, GetHostReg32(eflags.GetHostRegister()));
+      m_emit.mov(m_emit.ah, m_emit.al);
+    }
+    else
+    {
+      // we can go direct from the register to ah
+      m_emit.mov(m_emit.ah, GetHostReg8(eflags.GetHostRegister()));
+    }
+    m_emit.sahf();
+
+    // restore old rax if used
+    if (save_rax)
+      m_emit.pop(m_emit.rax);
+  }
+  else
+  {
+    Value guest_bits = m_register_cache.AllocateScratch(OperandSize_16);
+    Value host_bits = m_register_cache.AllocateScratch(OperandSize_16);
+    m_emit.mov(GetHostReg16(guest_bits), GetHostReg16(eflags.GetHostRegister())); // guest_bits <- eflags
+    m_emit.and_(GetHostReg16(guest_bits), Truncate16(mask));                      // guest_bits &= mask
+    m_emit.db(0x66);                                                              // host_bits <- host_eflags
+    m_emit.pushf();
+    m_emit.pop(GetHostReg16(host_bits));
+    m_emit.and_(GetHostReg16(host_bits), Truncate16(~mask));       // host_bits &= ~mask
+    m_emit.or_(GetHostReg16(host_bits), GetHostReg16(guest_bits)); // host_bits |= guest_bits
+    m_emit.push(GetHostReg16(host_bits));
+    m_emit.db(0x66);
+    m_emit.popf(); // host_eflags <- host_bits
+  }
+}
+
 Value CodeGenerator::GetParityFlag(const Value& value)
 {
   Value ret = m_register_cache.AllocateScratch(OperandSize_32);
@@ -1742,6 +1790,102 @@ bool CodeGenerator::Compile_String(const Instruction& instruction)
     m_emit.jmp(rep_label);
   }
 
+  m_emit.L(done_label);
+  return true;
+}
+
+bool CodeGenerator::Compile_Jcc_Impl(const Instruction& instruction, CycleCount cycles, CycleCount cycles_not_taken)
+{
+  const JumpCondition cc = instruction.operands[0].jump_condition;
+  if (cc == JumpCondition_CXZero)
+    return Compile_Fallback(instruction);
+
+  InstructionPrologue(instruction, 1, true);
+  CalculateEffectiveAddress(instruction);
+  Value target = CalculateJumpTarget(instruction, 1);
+
+  // test the actual condition
+  Xbyak::Label take_jump_label, done_label;
+
+  switch (cc)
+  {
+#define FLAG_SET(cc, flag)                                                                                             \
+  case (cc):                                                                                                           \
+  {                                                                                                                    \
+    Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);                                       \
+    m_emit.test(GetHostReg32(eflags), (flag));                                                                         \
+    m_emit.jnz(take_jump_label);                                                                                       \
+  }                                                                                                                    \
+  break;
+
+#define FLAG_NOT_SET(cc, flag)                                                                                         \
+  case (cc):                                                                                                           \
+  {                                                                                                                    \
+    Value eflags = m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);                                       \
+    m_emit.test(GetHostReg32(eflags), (flag));                                                                         \
+    m_emit.jz(take_jump_label);                                                                                        \
+  }                                                                                                                    \
+  break;
+
+    FLAG_SET(JumpCondition_Overflow, Flag_OF);
+    FLAG_NOT_SET(JumpCondition_NotOverflow, Flag_OF);
+    FLAG_SET(JumpCondition_Sign, Flag_SF);
+    FLAG_NOT_SET(JumpCondition_NotSign, Flag_SF);
+    FLAG_SET(JumpCondition_Equal, Flag_ZF);
+    FLAG_NOT_SET(JumpCondition_NotEqual, Flag_ZF);
+    FLAG_SET(JumpCondition_Below, Flag_CF);
+    FLAG_NOT_SET(JumpCondition_AboveOrEqual, Flag_CF);
+    FLAG_SET(JumpCondition_Parity, Flag_PF);
+    FLAG_NOT_SET(JumpCondition_NotParity, Flag_PF);
+
+#undef FLAG_SET
+#undef FLAG_NOT_SET
+
+      // The remainder are more complex, so it's easier to abuse the host's flags in this case.
+
+    case JumpCondition_BelowOrEqual:
+      CopyGuestFlagsToHostFlags(Flag_CF | Flag_ZF);
+      m_emit.jbe(take_jump_label);
+      break;
+
+    case JumpCondition_Above:
+      CopyGuestFlagsToHostFlags(Flag_CF | Flag_ZF);
+      m_emit.ja(take_jump_label);
+      break;
+
+    case JumpCondition_Less:
+      CopyGuestFlagsToHostFlags(Flag_SF | Flag_OF);
+      m_emit.jl(take_jump_label);
+      break;
+
+    case JumpCondition_GreaterOrEqual:
+      CopyGuestFlagsToHostFlags(Flag_SF | Flag_OF);
+      m_emit.jge(take_jump_label);
+      break;
+
+    case JumpCondition_LessOrEqual:
+      CopyGuestFlagsToHostFlags(Flag_ZF | Flag_SF | Flag_OF);
+      m_emit.jle(take_jump_label);
+      break;
+
+    case JumpCondition_Greater:
+      CopyGuestFlagsToHostFlags(Flag_ZF | Flag_SF | Flag_OF);
+      m_emit.jg(take_jump_label);
+      break;
+
+    default:
+      Panic("Unhandled condition");
+      break;
+  }
+
+  // branch not taken
+  EmitAddCPUStructField(offsetof(CPU, m_pending_cycles), Value::FromConstantU64(static_cast<u64>(cycles_not_taken)));
+  m_emit.jmp(done_label);
+
+  // branch taken
+  m_emit.L(take_jump_label);
+  EmitAddCPUStructField(offsetof(CPU, m_pending_cycles), Value::FromConstantU64(static_cast<u64>(cycles)));
+  EmitFunctionCall(nullptr, static_cast<void (*)(CPU*, u32)>(&CPU::BranchTo), m_register_cache.GetCPUPtr(), target);
   m_emit.L(done_label);
   return true;
 }
