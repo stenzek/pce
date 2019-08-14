@@ -4,6 +4,10 @@
 namespace CPU_X86::Recompiler {
 
 #if !defined(Y_CPU_X64)
+void CodeGenerator::AlignCodeBuffer(JitCodeBuffer* code_buffer) {}
+#endif
+
+#if !defined(Y_CPU_X64)
 
 bool CodeGenerator::Compile_Bitwise_Impl(const Instruction& instruction, CycleCount cycles)
 {

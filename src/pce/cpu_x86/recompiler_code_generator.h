@@ -36,6 +36,7 @@ public:
   static u32 CalculateRegisterOffset(Reg32 reg);
   static u32 CalculateSegmentRegisterOffset(Segment segment);
   static const char* GetHostRegName(HostReg reg, OperandSize size = HostPointerSize);
+  static void AlignCodeBuffer(JitCodeBuffer* code_buffer);
 
   RegisterCache& GetRegisterCache() { return m_register_cache; }
   CodeEmitter& GetCodeEmitter() { return m_emit; }

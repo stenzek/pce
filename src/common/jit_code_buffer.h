@@ -12,6 +12,10 @@ public:
   void CommitCode(size_t length);
   void Reset();
 
+  /// Adjusts the free code pointer to the specified alignment, padding with bytes.
+  /// Assumes alignment is a power-of-two.
+  void Align(u32 alignment, u8 padding_value);
+
 private:
   void* m_code_ptr;
   void* m_free_code_ptr;

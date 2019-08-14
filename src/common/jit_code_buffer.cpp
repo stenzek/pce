@@ -56,3 +56,15 @@ void JitCodeBuffer::Reset()
   m_free_code_ptr = m_code_ptr;
   m_code_used = 0;
 }
+
+void JitCodeBuffer::Align(u32 alignment, u8 padding_value)
+{
+  DebugAssert(Common::IsPow2(alignment));
+  const size_t num_padding_bytes =
+    std::min(static_cast<size_t>(Common::AlignUpPow2(reinterpret_cast<uintptr_t>(m_free_code_ptr), alignment) -
+                                 reinterpret_cast<uintptr_t>(m_free_code_ptr)),
+             GetFreeCodeSpace());
+  std::memset(m_free_code_ptr, padding_value, num_padding_bytes);
+  m_free_code_ptr = reinterpret_cast<char*>(m_free_code_ptr) + num_padding_bytes;
+  m_code_used += num_padding_bytes;
+}

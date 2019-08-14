@@ -102,6 +102,11 @@ const char* CodeGenerator::GetHostRegName(HostReg reg, OperandSize size /*= Host
   }
 }
 
+void CodeGenerator::AlignCodeBuffer(JitCodeBuffer* code_buffer)
+{
+  code_buffer->Align(16, 0x90);
+}
+
 void CodeGenerator::InitHostRegs()
 {
 #if defined(ABI_WIN64)

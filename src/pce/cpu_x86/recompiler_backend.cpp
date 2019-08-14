@@ -197,6 +197,8 @@ bool Backend::CompileBlock(BlockBase* block)
     return false;
   }
 
+  CodeGenerator::AlignCodeBuffer(m_code_space.get());
+
   CodeGenerator codegen(m_cpu, m_code_space.get(), m_asm_functions);
   if (!codegen.CompileBlock(block, &cblock->code_pointer, &cblock->code_size))
   {
