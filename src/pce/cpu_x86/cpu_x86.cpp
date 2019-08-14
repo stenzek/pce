@@ -304,6 +304,8 @@ bool CPU::LoadState(BinaryReader& reader)
   std::memset(&idata, 0, sizeof(idata));
   m_execution_stats = {};
 
+  m_backend->FlushCodeCache();
+
   return !reader.GetErrorState();
 }
 
