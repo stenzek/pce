@@ -20,9 +20,6 @@ void Interpreter::ExecuteInstruction(CPU* cpu)
   cpu->m_current_ESP = cpu->m_registers.ESP;
   cpu->m_execution_stats.instructions_interpreted++;
 
-  // Cycle for this execution
-  cpu->AddCycle();
-
   // Initialize istate for this instruction
   std::memset(&cpu->idata, 0, sizeof(cpu->idata));
   cpu->idata.address_size = cpu->m_current_address_size;

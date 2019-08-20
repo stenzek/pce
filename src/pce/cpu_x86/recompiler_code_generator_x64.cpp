@@ -1805,7 +1805,7 @@ bool CodeGenerator::Compile_Jcc_Impl(const Instruction& instruction, CycleCount 
   if (cc == JumpCondition_CXZero)
     return Compile_Fallback(instruction);
 
-  InstructionPrologue(instruction, 1, true);
+  InstructionPrologue(instruction, 0, true);
   CalculateEffectiveAddress(instruction);
   Value target = CalculateJumpTarget(instruction, 1);
 

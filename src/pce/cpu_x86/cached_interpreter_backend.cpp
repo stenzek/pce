@@ -224,7 +224,6 @@ void CachedInterpreterBackend::ExecuteBlock()
     }
 #endif
 
-    m_cpu->AddCycle();
     m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
     m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
     m_cpu->m_registers.EIP = (m_cpu->m_registers.EIP + instruction.length) & m_cpu->m_EIP_mask;

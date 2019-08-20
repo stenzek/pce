@@ -992,8 +992,6 @@ void CodeGenerator::RaiseException(u32 exception, const Value& ec /*= Value::Fro
 void CodeGenerator::InstructionPrologue(const Instruction& instruction, CycleCount cycles,
                                         bool force_sync /* = false */)
 {
-  cycles++;
-
   if (!CanInstructionFault(&instruction) && !force_sync)
   {
     // Defer updates for non-faulting instructions.
