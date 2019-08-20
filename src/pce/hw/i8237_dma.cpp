@@ -274,16 +274,7 @@ void i8237_DMA::RescheduleTickEvent()
   for (Channel& channel : m_channels)
   {
     if (channel.IsActive())
-    {
-      if (channel.HasCallbacks())
-      {
-        downcount = 1;
-        break;
-      }
-
-      // Batch transfers without callbacks together.
-      downcount = std::min(downcount, CycleCount(channel.bytes_remaining));
-    }
+      downcount = std::min(downcount, CycleCount(channel.bytes_remaining + 1));
   }
 
   if (downcount != std::numeric_limits<CycleCount>::max())
