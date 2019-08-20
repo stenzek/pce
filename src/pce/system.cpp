@@ -377,6 +377,7 @@ void System::RunEvents()
       // the front of the queue again, and submit the next iteration then. This should reduce issues where
       // multiple events are dependent on one another, that may be caused if all cycles were executed at once.
       CycleCount cycles_to_execute = (evt->m_time_since_last_run - time_late) / evt->m_cycle_period;
+      DebugAssert(cycles_to_execute >= 0);
 
       // Calculate and set the new downcount for periodic events, taking into account late time.
       CycleCount cycles_late = time_late / evt->m_cycle_period;

@@ -69,7 +69,7 @@ void TimingEvent::InvokeEarly(bool force /* = false */)
   // Remove the pending time, since we want this to be included in the cycles we pass through.
   // We could just force an event sync here, but this would mean that InvokeEarly could be
   // called recursively, which would be a bad thing.
-  const u64 pending_time = m_system->GetPendingEventTime();
+  const u64 pending_time = m_system->m_running_events ? 0 : m_system->GetPendingEventTime();
   m_downcount -= pending_time;
   m_time_since_last_run += pending_time;
 
