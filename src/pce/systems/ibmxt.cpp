@@ -53,9 +53,6 @@ void IBMXT::Reset()
   BaseClass::Reset();
 
   m_nmi_mask = 0;
-
-  // We can save some CPU by not simulating the timer that triggers the DMA refresh.
-  m_dma_controller->SetDMAState(0, true);
 }
 
 bool IBMXT::LoadSystemState(BinaryReader& reader)
@@ -111,7 +108,7 @@ void IBMXT::ConnectSystemIOPorts()
   m_dma_controller->ConnectDMAChannel(0, [](IOPortDataSize, u32*, u32) {}, [](IOPortDataSize, u32, u32) {});
 
   // Connect channel 1 of the PIT to trigger memory refresh.
-  // m_timer->SetChannelOutputChangeCallback(1, [this](bool value) { m_dma_controller->SetDMAState(0, value); });
+  m_timer->SetChannelOutputChangeCallback(1, [this](bool value) { m_dma_controller->SetDMAState(0, value); });
 }
 
 void IBMXT::SetSwitches()
