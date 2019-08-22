@@ -9,9 +9,9 @@ END_OBJECT_PROPERTY_MAP()
 
 CPU::CPU(const String& identifier, float frequency, BackendType backend_type,
          const ObjectTypeInfo* type_info /* = &s_type_info */)
-  : BaseClass(identifier, type_info), m_cycle_period(static_cast<float>(double(1000000000) / double(frequency))),
-    m_frequency(frequency), m_backend_type(backend_type)
+  : BaseClass(identifier, type_info), m_frequency(frequency), m_backend_type(backend_type)
 {
+  UpdateCyclePeriod();
 }
 
 bool CPU::Initialize(System* system, Bus* bus)
@@ -80,4 +80,5 @@ const char* CPU::BackendTypeToString(BackendType type)
 void CPU::UpdateCyclePeriod()
 {
   m_cycle_period = static_cast<float>(double(1000000000) / double(m_frequency));
+  m_rcp_cycle_period = static_cast<float>(1.0 / (double(1000000000) / double(m_frequency)));
 }

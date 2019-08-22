@@ -1,6 +1,5 @@
 #pragma once
 #include "pce/component.h"
-#include <cmath>
 
 class DebuggerInterface;
 
@@ -48,22 +47,11 @@ public:
   /// Returns the cycle period (amount of time for each tick).
   float GetCyclePeriod() const { return m_cycle_period; }
 
-  /// Converts simulation time to clock cycles, rounding up.
-  CycleCount SimulationTimeToCycles(SimulationTime time)
-  {
-    return static_cast<CycleCount>(std::ceil(static_cast<float>(time) / m_cycle_period));
-  }
-
-  /// Converts clock cycles to simulation time, rounding down/truncating.
-  SimulationTime CyclesToSimulationTime(CycleCount cycles)
-  {
-    return static_cast<SimulationTime>(static_cast<float>(cycles) * m_cycle_period);
-  }
-
   /// Updates the downcount, or how long the CPU can execute for before running events.
   void SetExecutionDowncount(SimulationTime time_downcount)
   {
-    m_execution_downcount = SimulationTimeToCycles(time_downcount);
+    // Deliberately overshoot the cycle count, in case the time to the next event is shorter than a cycle.
+    m_execution_downcount = static_cast<CycleCount>(static_cast<float>(time_downcount) * m_rcp_cycle_period) + 1;
   }
 
   // IRQs are level-triggered
@@ -107,7 +95,8 @@ protected:
   float m_frequency;
 
   // Time for each cycle.
-  float m_cycle_period;
+  float m_cycle_period = 0.0f;
+  float m_rcp_cycle_period = 0.0f;
 
   // Currently-active backend type.
   BackendType m_backend_type;

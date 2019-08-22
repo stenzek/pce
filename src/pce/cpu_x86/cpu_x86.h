@@ -340,13 +340,14 @@ public:
 
   void CommitPendingCycles()
   {
-    m_tsc_cycles += m_pending_cycles;
-    m_execution_downcount -= m_pending_cycles;
-
     // Convert to/from simulation time, keeping track of partial nanoseconds.
-    const SimulationTime simtime = CyclesToSimulationTime(m_pending_cycles);
-    m_pending_cycles -= SimulationTimeToCycles(simtime);
+    const SimulationTime simtime = static_cast<SimulationTime>(static_cast<float>(m_pending_cycles) * m_cycle_period);
+    const CycleCount cycles = static_cast<CycleCount>(static_cast<float>(simtime) * m_rcp_cycle_period);
     m_system->AddSimulationTime(simtime);
+    m_execution_stats.cycles_executed += cycles;
+    m_execution_downcount -= cycles;
+    m_pending_cycles -= cycles;
+    m_tsc_cycles += cycles;
   }
 
   u64 ReadTSC() const { return static_cast<u64>(m_tsc_cycles + m_pending_cycles); }
