@@ -767,7 +767,7 @@ void FDC::EndCommand()
     {
       // Everything is already set up, we just need to kick the DMA transfer.
       // We leave the event active for the next sector.
-      m_dma->SetDMAState(DMA_CHANNEL, true);
+      m_dma->SetDMAState(DMA_CHANNEL, true, SECTOR_SIZE);
       m_command_event->Reschedule(CalculateSectorReadTime());
     }
     break;

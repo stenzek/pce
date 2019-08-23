@@ -93,6 +93,7 @@ bool i8237_DMA::LoadState(BinaryReader& reader)
     reader.SafeReadBool(&channel->masked);
     reader.SafeReadBool(&channel->request);
     reader.SafeReadBool(&channel->transfer_complete);
+    reader.SafeReadUInt32(&channel->batch_size);
   }
 
   reader.SafeReadBytes(m_flipflops, sizeof(m_flipflops));
@@ -120,6 +121,7 @@ bool i8237_DMA::SaveState(BinaryWriter& writer)
     writer.WriteBool(channel->masked);
     writer.WriteBool(channel->request);
     writer.WriteBool(channel->transfer_complete);
+    writer.WriteUInt32(channel->batch_size);
   }
 
   writer.WriteBytes(m_flipflops, sizeof(m_flipflops));
@@ -127,14 +129,14 @@ bool i8237_DMA::SaveState(BinaryWriter& writer)
   return true;
 }
 
-bool i8237_DMA::ConnectDMAChannel(u32 channel_index, DMAReadCallback&& read_callback, DMAWriteCallback&& write_callback)
+bool i8237_DMA::ConnectDMAChannel(u32 channel_index, DMAReadCallback read_callback, DMAWriteCallback write_callback)
 {
   if (channel_index >= NUM_CHANNELS || m_channels[channel_index].read_callback)
     return false;
 
   Channel* channel = &m_channels[channel_index];
-  channel->read_callback = read_callback;
-  channel->write_callback = write_callback;
+  channel->read_callback = std::move(read_callback);
+  channel->write_callback = std::move(write_callback);
   return true;
 }
 
@@ -153,7 +155,7 @@ bool i8237_DMA::GetDMAState(u32 channel_index)
   return channel->request;
 }
 
-void i8237_DMA::SetDMAState(u32 channel_index, bool request)
+void i8237_DMA::SetDMAState(u32 channel_index, bool request, u32 batch_size /* = 1 */)
 {
   // Prevent recursive calls to update, since we can go tick -> callback -> setstate -> tick.
   if (!m_tick_in_progress)
@@ -162,6 +164,7 @@ void i8237_DMA::SetDMAState(u32 channel_index, bool request)
   Channel* channel = &m_channels[channel_index];
   DebugAssert(channel_index < NUM_CHANNELS);
   channel->request = request;
+  channel->batch_size = batch_size;
 
   if (!m_tick_in_progress)
     RescheduleTickEvent();
@@ -270,19 +273,23 @@ void i8237_DMA::RescheduleTickEvent()
 {
   // Work out the downcount.
   // HACK: For DMA channel 0 we batch it all together as one transfer.
-  CycleCount downcount = std::numeric_limits<CycleCount>::max();
+  u32 downcount = std::numeric_limits<u32>::max();
   for (Channel& channel : m_channels)
   {
     if (channel.IsActive())
-      downcount = std::min(downcount, CycleCount(channel.bytes_remaining + 1));
+    {
+      const u32 channel_downcount = std::min<u32>(channel.bytes_remaining + 1, channel.batch_size);
+      downcount = std::min(downcount, channel_downcount);
+      // downcount = 1;
+    }
   }
 
-  if (downcount != std::numeric_limits<CycleCount>::max())
+  if (downcount != std::numeric_limits<u32>::max())
   {
     if (!m_tick_event->IsActive())
-      m_tick_event->Queue(downcount);
+      m_tick_event->Queue(static_cast<CycleCount>(downcount));
     else
-      m_tick_event->Reschedule(downcount);
+      m_tick_event->Reschedule(static_cast<CycleCount>(downcount));
   }
   else
   {

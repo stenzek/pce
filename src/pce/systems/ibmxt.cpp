@@ -105,10 +105,11 @@ void IBMXT::ConnectSystemIOPorts()
   m_bus->ConnectIOPortWriteToPointer(0x00A0, this, &m_nmi_mask);
 
   // We need to set up a fake DMA channel for memory refresh.
-  m_dma_controller->ConnectDMAChannel(0, [](IOPortDataSize, u32*, u32) {}, [](IOPortDataSize, u32, u32) {});
+  m_dma_controller->ConnectDMAChannel(
+    0, [](IOPortDataSize, u32*, u32) {}, [](IOPortDataSize, u32, u32) {});
 
   // Connect channel 1 of the PIT to trigger memory refresh.
-  m_timer->SetChannelOutputChangeCallback(1, [this](bool value) { m_dma_controller->SetDMAState(0, value); });
+  m_timer->SetChannelOutputChangeCallback(1, [this](bool value) { m_dma_controller->SetDMAState(0, value, 65536); });
 }
 
 void IBMXT::SetSwitches()

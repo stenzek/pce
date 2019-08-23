@@ -1,8 +1,8 @@
 #pragma once
-#include "common/bitfield.h"
 #include "../component.h"
 #include "../dma_controller.h"
 #include "../types.h"
+#include "common/bitfield.h"
 #include <memory>
 
 class TimingEvent;
@@ -40,10 +40,9 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
 
-  bool ConnectDMAChannel(u32 channel_index, DMAReadCallback&& read_callback,
-                         DMAWriteCallback&& write_callback) override;
+  bool ConnectDMAChannel(u32 channel_index, DMAReadCallback read_callback, DMAWriteCallback write_callback) override;
   bool GetDMAState(u32 channel_index) override;
-  void SetDMAState(u32 channel_index, bool request) override;
+  void SetDMAState(u32 channel_index, bool request, u32 batch_size = 1) override;
 
 private:
   static constexpr float CLOCK_FREQUENCY = 4772726; // 4.773 MHz
@@ -70,6 +69,7 @@ private:
 
     DMAReadCallback read_callback;
     DMAWriteCallback write_callback;
+    u32 batch_size = 1;
 
     bool HasCallbacks() const { return (read_callback || write_callback); }
 

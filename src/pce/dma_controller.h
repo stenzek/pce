@@ -23,10 +23,9 @@ public:
   using DMAWriteCallback = std::function<void(IOPortDataSize size, u32 value, u32 remaining_bytes)>;
 
   // Connect DMA channel to a device
-  virtual bool ConnectDMAChannel(u32 channel_index, DMAReadCallback&& read_callback,
-                                 DMAWriteCallback&& write_callback) = 0;
+  virtual bool ConnectDMAChannel(u32 channel_index, DMAReadCallback read_callback, DMAWriteCallback write_callback) = 0;
 
   // Sends DREQ signal from device
   virtual bool GetDMAState(u32 channel_index) = 0;
-  virtual void SetDMAState(u32 channel_index, bool request) = 0;
+  virtual void SetDMAState(u32 channel_index, bool request, u32 batch_size = 1) = 0;
 };
