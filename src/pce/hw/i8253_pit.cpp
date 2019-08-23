@@ -31,7 +31,8 @@ bool i8253_PIT::Initialize(System* system, Bus* bus)
   ConnectIOPorts(bus);
 
   // Create the tick event.
-  m_tick_event = m_system->CreateClockedEvent("i8253 PIT Tick", CLOCK_FREQUENCY, GetDowncount(), std::bind(&i8253_PIT::TickTimers, this, std::placeholders::_2), true);
+  m_tick_event = m_system->CreateClockedEvent("i8253 PIT Tick", CLOCK_FREQUENCY, GetDowncount(),
+                                              std::bind(&i8253_PIT::TickTimers, this, std::placeholders::_2), true);
   return true;
 }
 
@@ -179,16 +180,13 @@ void i8253_PIT::SetChannelOutputChangeCallback(size_t channel_index, ChannelOutp
 
 void i8253_PIT::ConnectIOPorts(Bus* bus)
 {
-  bus->ConnectIOPortRead(IOPORT_CHANNEL_0_DATA, this,
-                         std::bind(&i8253_PIT::ReadDataPort, this, 0));
+  bus->ConnectIOPortRead(IOPORT_CHANNEL_0_DATA, this, std::bind(&i8253_PIT::ReadDataPort, this, 0));
   bus->ConnectIOPortWrite(IOPORT_CHANNEL_0_DATA, this,
                           std::bind(&i8253_PIT::WriteDataPort, this, 0, std::placeholders::_2));
-  bus->ConnectIOPortRead(IOPORT_CHANNEL_1_DATA, this,
-                         std::bind(&i8253_PIT::ReadDataPort, this, 1));
+  bus->ConnectIOPortRead(IOPORT_CHANNEL_1_DATA, this, std::bind(&i8253_PIT::ReadDataPort, this, 1));
   bus->ConnectIOPortWrite(IOPORT_CHANNEL_1_DATA, this,
                           std::bind(&i8253_PIT::WriteDataPort, this, 1, std::placeholders::_2));
-  bus->ConnectIOPortRead(IOPORT_CHANNEL_2_DATA, this,
-                         std::bind(&i8253_PIT::ReadDataPort, this, 2));
+  bus->ConnectIOPortRead(IOPORT_CHANNEL_2_DATA, this, std::bind(&i8253_PIT::ReadDataPort, this, 2));
   bus->ConnectIOPortWrite(IOPORT_CHANNEL_2_DATA, this,
                           std::bind(&i8253_PIT::WriteDataPort, this, 2, std::placeholders::_2));
   bus->ConnectIOPortWrite(IOPORT_COMMAND_REGISTER, this,
@@ -470,8 +468,15 @@ void i8253_PIT::SetChannelReloadRegister(size_t channel_index, u16 reload_value)
 
       // The reload value can be changed at any time, however the new value will not effect the current count until the
       // current count is reloaded (when it is decreased from two to one, or the gate input going low then high).
-      channel->reload_value_set = channel->waiting_for_reload;
-      channel->waiting_for_reload = false;
+      if (!channel->waiting_for_reload)
+      {
+        channel->reload_value_set = true;
+      }
+      else
+      {
+        channel->count = GetFrequencyFromReloadValue(channel);
+        channel->waiting_for_reload = false;
+      }
     }
     break;
 
