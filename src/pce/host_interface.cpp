@@ -6,6 +6,7 @@
 #include "YBaseLib/FileSystem.h"
 #include "YBaseLib/Log.h"
 #include "YBaseLib/Thread.h"
+#include "common/audio.h"
 #include "common/display_renderer.h"
 #include "system.h"
 #include <cmath>
@@ -195,6 +196,10 @@ void HostInterface::SetSpeedLimiterEnabled(bool enabled)
 
   // Not a big deal if this races.
   m_speed_limiter_enabled = enabled;
+
+  // Flush audio buffers so we can start fresh and in-sync.
+  if (enabled)
+    GetAudioMixer()->ClearBuffers();
 }
 
 void HostInterface::PauseSimulation()
@@ -330,6 +335,7 @@ void HostInterface::OnSystemReset()
   m_speed_elapsed_real_time.Reset();
   m_speed_elapsed_simulation_time = m_system->GetSimulationTime();
   m_system->GetCPU()->GetExecutionStats(&m_last_cpu_execution_stats);
+  GetAudioMixer()->ClearBuffers();
   ReportFormattedMessage("System reset.");
   Log_InfoPrintf("System reset.");
 }
@@ -344,6 +350,7 @@ void HostInterface::OnSystemStateLoaded()
   m_speed_elapsed_kernel_time = 0;
   m_speed_elapsed_user_time = 0;
   m_system->GetCPU()->GetExecutionStats(&m_last_cpu_execution_stats);
+  GetAudioMixer()->ClearBuffers();
 }
 
 void HostInterface::OnSimulationStatsUpdate(const SimulationStats& stats) {}
