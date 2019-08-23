@@ -37,8 +37,7 @@ public:
 
   bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
-  bool LoadState(BinaryReader& reader) override;
-  bool SaveState(BinaryWriter& writer) override;
+  bool DoState(StateWrapper& sw) override;
 
   bool ConnectDMAChannel(u32 channel_index, DMAReadCallback read_callback, DMAWriteCallback write_callback) override;
   bool GetDMAState(u32 channel_index) override;

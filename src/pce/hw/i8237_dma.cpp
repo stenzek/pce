@@ -1,7 +1,6 @@
 #include "pce/hw/i8237_dma.h"
-#include "YBaseLib/BinaryReader.h"
-#include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
+#include "common/state_wrapper.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"
 #include "pce/interrupt_controller.h"
@@ -68,65 +67,38 @@ void i8237_DMA::Reset()
   RescheduleTickEvent();
 }
 
-bool i8237_DMA::LoadState(BinaryReader& reader)
+bool i8237_DMA::DoState(StateWrapper& sw)
 {
-  if (reader.ReadUInt32() != SERIALIZATION_ID)
+  if (!BaseClass::DoState(sw))
     return false;
 
   for (u32 i = 0; i < NUM_CHANNELS; i++)
   {
     Channel* channel = &m_channels[i];
-    reader.SafeReadUInt16(&channel->start_address);
-    reader.SafeReadUInt16(&channel->bytes_remaining);
-    reader.SafeReadUInt16(&channel->address);
-    reader.SafeReadUInt16(&channel->count);
-    reader.SafeReadUInt8(&channel->page_address);
+    sw.Do(&channel->start_address);
+    sw.Do(&channel->bytes_remaining);
+    sw.Do(&channel->address);
+    sw.Do(&channel->count);
+    sw.Do(&channel->page_address);
 
-    u8 transfer_type, mode;
-    reader.SafeReadUInt8(&transfer_type);
-    reader.SafeReadUInt8(&mode);
-    channel->transfer_type = static_cast<DMATransferType>(transfer_type);
-    channel->mode = static_cast<DMAMode>(mode);
+    sw.Do(&channel->transfer_type);
+    sw.Do(&channel->mode);
 
-    reader.SafeReadBool(&channel->decrement);
-    reader.SafeReadBool(&channel->auto_reset);
-    reader.SafeReadBool(&channel->masked);
-    reader.SafeReadBool(&channel->request);
-    reader.SafeReadBool(&channel->transfer_complete);
-    reader.SafeReadUInt32(&channel->batch_size);
+    sw.Do(&channel->decrement);
+    sw.Do(&channel->auto_reset);
+    sw.Do(&channel->masked);
+    sw.Do(&channel->request);
+    sw.Do(&channel->transfer_complete);
+    sw.Do(&channel->batch_size);
   }
 
-  reader.SafeReadBytes(m_flipflops, sizeof(m_flipflops));
-  reader.SafeReadBytes(m_unused_page_registers, sizeof(m_unused_page_registers));
-  RescheduleTickEvent();
-  return true;
-}
+  sw.DoArray(m_flipflops, countof(m_flipflops));
+  sw.DoArray(m_unused_page_registers, countof(m_unused_page_registers));
 
-bool i8237_DMA::SaveState(BinaryWriter& writer)
-{
-  writer.WriteUInt32(SERIALIZATION_ID);
+  if (sw.GetMode() == StateWrapper::Mode::Read)
+    RescheduleTickEvent();
 
-  for (u32 i = 0; i < NUM_CHANNELS; i++)
-  {
-    Channel* channel = &m_channels[i];
-    writer.WriteUInt16(channel->start_address);
-    writer.WriteUInt16(channel->bytes_remaining);
-    writer.WriteUInt16(channel->address);
-    writer.WriteUInt16(channel->count);
-    writer.WriteUInt8(channel->page_address);
-    writer.WriteUInt8(static_cast<u8>(channel->transfer_type));
-    writer.WriteUInt8(static_cast<u8>(channel->mode));
-    writer.WriteBool(channel->decrement);
-    writer.WriteBool(channel->auto_reset);
-    writer.WriteBool(channel->masked);
-    writer.WriteBool(channel->request);
-    writer.WriteBool(channel->transfer_complete);
-    writer.WriteUInt32(channel->batch_size);
-  }
-
-  writer.WriteBytes(m_flipflops, sizeof(m_flipflops));
-  writer.WriteBytes(m_unused_page_registers, sizeof(m_unused_page_registers));
-  return true;
+  return !sw.HasError();
 }
 
 bool i8237_DMA::ConnectDMAChannel(u32 channel_index, DMAReadCallback read_callback, DMAWriteCallback write_callback)
