@@ -1585,12 +1585,12 @@ public:
     CalculateEffectiveAddress<src_mode>(cpu);
 
     const u16 port_number = ReadZeroExtendedWordOperand<dst_size, dst_mode, dst_constant>(cpu);
-    if constexpr (dst_size == OperandSize_8)
+    if constexpr (src_size == OperandSize_8)
     {
       u8 value = ReadByteOperand<src_mode, src_constant>(cpu);
       cpu->m_bus->WriteIOPortByte(port_number, value);
     }
-    else if constexpr (dst_size == OperandSize_16)
+    else if constexpr (src_size == OperandSize_16)
     {
       u16 value = ReadWordOperand<src_mode, src_constant>(cpu);
       cpu->m_bus->WriteIOPortWord(port_number, value);
