@@ -48,11 +48,7 @@ public:
   float GetCyclePeriod() const { return m_cycle_period; }
 
   /// Updates the downcount, or how long the CPU can execute for before running events.
-  void SetExecutionDowncount(SimulationTime time_downcount)
-  {
-    // Deliberately overshoot the cycle count, in case the time to the next event is shorter than a cycle.
-    m_execution_downcount = static_cast<CycleCount>(static_cast<float>(time_downcount) * m_rcp_cycle_period) + 1;
-  }
+  void SetExecutionDowncount(SimulationTime time_downcount);
 
   // IRQs are level-triggered
   virtual void SetIRQState(bool state);

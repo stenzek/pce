@@ -50,6 +50,13 @@ void CPU::SetFrequency(float frequency)
   UpdateCyclePeriod();
 }
 
+void CPU::SetExecutionDowncount(SimulationTime time_downcount)
+{
+  m_execution_downcount = static_cast<CycleCount>(static_cast<float>(time_downcount) * m_rcp_cycle_period);
+  if ((static_cast<SimulationTime>(m_execution_downcount) * m_cycle_period) < time_downcount)
+    m_execution_downcount++;
+}
+
 void CPU::SetIRQState(bool state) {}
 
 void CPU::SignalNMI() {}

@@ -835,6 +835,10 @@ void CPU::Halt()
 
   // Eat all cycles until the next event.
   m_pending_cycles += std::max(m_execution_downcount - m_pending_cycles, CycleCount(0));
+
+  // The downcount must be zeroed, otherwise we'll execute the next instruction. This will result in the downcount going
+  // negative once the cycles are committed, but the next event will reset it anyway.
+  m_execution_downcount = 0;
 }
 
 void CPU::LoadSpecialRegister(Reg32 reg, u32 value)

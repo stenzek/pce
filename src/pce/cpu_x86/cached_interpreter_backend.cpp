@@ -34,7 +34,6 @@ void CachedInterpreterBackend::Execute()
     if (m_cpu->m_halted)
     {
       m_cpu->m_pending_cycles += m_cpu->m_execution_downcount;
-      m_cpu->m_execution_downcount = 0;
       m_cpu->CommitPendingCycles();
       m_system->RunEvents();
       continue;
