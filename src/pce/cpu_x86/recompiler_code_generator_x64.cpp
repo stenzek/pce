@@ -1565,6 +1565,117 @@ bool CodeGenerator::Compile_Shift_Impl(const Instruction& instruction, CycleCoun
   return true;
 }
 
+bool CodeGenerator::Compile_DoublePrecisionShift_Impl(const Instruction& instruction, CycleCount cycles)
+{
+  constexpr auto rcx = Xbyak::Operand::RCX;
+  InstructionPrologue(instruction, cycles);
+  CalculateEffectiveAddress(instruction);
+
+  if (instruction.operands[2].mode != OperandMode_Immediate)
+    m_register_cache.EnsureHostRegFree(rcx);
+
+  const OperandSize size = instruction.operands[0].size;
+  Value amount = ReadOperand(instruction, 2, OperandSize_8, false, false, rcx);
+  if (amount.HasConstantValue(0))
+    return true;
+
+  Value value = ReadOperand(instruction, 0, size, false, true);
+  Value shift_in = ReadOperand(instruction, 1, size, false, true);
+
+  if (amount.IsInHostRegister())
+    m_emit.and_(GetHostReg8(amount), 0x1F);
+  else
+    amount.constant_value &= 0x1F;
+
+  // allocate storage for the host flags before the jump, because it can save
+  // a callee-saved register. also read/cache the flags for the same reason
+  Value host_flags = m_register_cache.AllocateScratch(OperandSize_32);
+  m_register_cache.ReadGuestRegister(Reg32_EFLAGS, true, true);
+
+  Xbyak::Label noop_label;
+  if (!amount.IsConstant())
+  {
+    m_emit.test(GetHostReg8(amount), GetHostReg8(amount));
+    m_emit.jz(noop_label);
+  }
+
+  switch (instruction.operation)
+  {
+    case Operation_SHLD:
+    {
+      switch (size)
+      {
+        case OperandSize_16:
+        {
+          if (amount.IsConstant())
+            m_emit.shld(GetHostReg16(value), GetHostReg16(shift_in), static_cast<u8>(amount.constant_value));
+          else
+            m_emit.shld(GetHostReg16(value), GetHostReg16(shift_in), GetHostReg8(amount));
+        }
+        break;
+
+        case OperandSize_32:
+        {
+          if (amount.IsConstant())
+            m_emit.shld(GetHostReg32(value), GetHostReg32(shift_in), static_cast<u8>(amount.constant_value));
+          else
+            m_emit.shld(GetHostReg32(value), GetHostReg32(shift_in), GetHostReg8(amount));
+        }
+        break;
+
+        default:
+          UnreachableCode();
+          break;
+      }
+    }
+    break;
+
+    case Operation_SHRD:
+    {
+      switch (size)
+      {
+        case OperandSize_16:
+        {
+          if (amount.IsConstant())
+            m_emit.shrd(GetHostReg16(value), GetHostReg16(shift_in), static_cast<u8>(amount.constant_value));
+          else
+            m_emit.shrd(GetHostReg16(value), GetHostReg16(shift_in), GetHostReg8(amount));
+        }
+        break;
+
+        case OperandSize_32:
+        {
+          if (amount.IsConstant())
+            m_emit.shrd(GetHostReg32(value), GetHostReg32(shift_in), static_cast<u8>(amount.constant_value));
+          else
+            m_emit.shrd(GetHostReg32(value), GetHostReg32(shift_in), GetHostReg8(amount));
+        }
+        break;
+
+        default:
+          UnreachableCode();
+          break;
+      }
+    }
+    break;
+
+    default:
+      UnreachableCode();
+      break;
+  }
+
+  ReadFlagsFromHost(&host_flags);
+  WriteOperand(instruction, 0, std::move(value));
+
+  const u32 copy_flags_mask = Flag_CF | Flag_OF | Flag_SF | Flag_ZF | Flag_PF;
+  UpdateEFLAGS(std::move(host_flags), 0, copy_flags_mask, 0);
+
+  if (!amount.IsConstant())
+    m_emit.L(noop_label);
+
+  return true;
+}
+
 bool CodeGenerator::Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles)
 {
   InstructionPrologue(instruction, cycles);

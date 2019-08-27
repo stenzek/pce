@@ -198,7 +198,7 @@ HostReg RegisterCache::AllocateHostReg(HostRegState state /* = HostRegState::InU
 
 bool RegisterCache::AllocateHostReg(HostReg reg, HostRegState state /*= HostRegState::InUse*/)
 {
-  if ((m_host_register_state[reg] & (HostRegState::Usable | HostRegState::InUse)) != HostRegState::Usable)
+  if ((m_host_register_state[reg] & HostRegState::InUse) == HostRegState::InUse)
     return false;
 
   m_host_register_state[reg] |= state;
@@ -237,14 +237,48 @@ void RegisterCache::FreeHostReg(HostReg reg)
   m_host_register_state[reg] &= ~HostRegState::InUse;
 }
 
+void RegisterCache::EnsureHostRegFree(HostReg reg)
+{
+  if (!IsHostRegInUse(reg))
+    return;
+
+  for (u8 i = 0; i < Reg8_Count; i++)
+  {
+    if (m_guest_reg8_cache[i].IsInHostRegister() && m_guest_reg8_cache[i].GetHostRegister() == reg)
+      FlushGuestRegister(m_guest_reg8_cache[i], OperandSize_8, i, true);
+  }
+
+  for (u8 i = 0; i < Reg16_Count; i++)
+  {
+    if (m_guest_reg16_cache[i].IsInHostRegister() && m_guest_reg16_cache[i].GetHostRegister() == reg)
+      FlushGuestRegister(m_guest_reg16_cache[i], OperandSize_16, i, true);
+  }
+
+  for (u8 i = 0; i < Reg32_Count; i++)
+  {
+    if (m_guest_reg32_cache[i].IsInHostRegister() && m_guest_reg32_cache[i].GetHostRegister() == reg)
+      FlushGuestRegister(m_guest_reg32_cache[i], OperandSize_32, i, true);
+  }
+}
+
 Value RegisterCache::GetCPUPtr()
 {
   return Value::FromHostReg(this, m_cpu_ptr_host_register, HostPointerSize);
 }
 
-Value RegisterCache::AllocateScratch(OperandSize size)
+Value RegisterCache::AllocateScratch(OperandSize size, HostReg reg /* = HostReg_Invalid */)
 {
-  const HostReg reg = AllocateHostReg();
+  if (reg == HostReg_Invalid)
+  {
+    reg = AllocateHostReg();
+  }
+  else
+  {
+    Assert(!IsHostRegInUse(reg));
+    if (!AllocateHostReg(reg))
+      Panic("Failed to allocate specific host register");
+  }
+
   Log_DebugPrintf("Allocating host register %s as scratch", m_code_generator.GetHostRegName(reg));
   return Value::FromScratch(this, reg, size);
 }
@@ -433,39 +467,62 @@ void RegisterCache::FlushOverlappingGuestRegisters(OperandSize size, u8 guest_re
   }
 }
 
-Value RegisterCache::ReadGuestRegister(Reg8 guest_reg, bool cache /* = true */, bool force_host_register /* = false */)
+Value RegisterCache::ReadGuestRegister(Reg8 guest_reg, bool cache /* = true */, bool force_host_register /* = false */,
+                                       HostReg forced_host_reg /* = HostReg_Invalid */)
 {
   return ReadGuestRegister(m_guest_reg8_cache[guest_reg], OperandSize_8, static_cast<u8>(guest_reg), cache,
-                           force_host_register);
+                           force_host_register, forced_host_reg);
 }
 
-Value RegisterCache::ReadGuestRegister(Reg16 guest_reg, bool cache /* = true */, bool force_host_register /* = false */)
+Value RegisterCache::ReadGuestRegister(Reg16 guest_reg, bool cache /* = true */, bool force_host_register /* = false */,
+                                       HostReg forced_host_reg /* = HostReg_Invalid */)
 {
   return ReadGuestRegister(m_guest_reg16_cache[guest_reg], OperandSize_16, static_cast<u8>(guest_reg), cache,
-                           force_host_register);
+                           force_host_register, forced_host_reg);
 }
 
-Value RegisterCache::ReadGuestRegister(Reg32 guest_reg, bool cache /* = true */, bool force_host_register /* = false */)
+Value RegisterCache::ReadGuestRegister(Reg32 guest_reg, bool cache /* = true */, bool force_host_register /* = false */,
+                                       HostReg forced_host_reg /* = HostReg_Invalid */)
 {
   return ReadGuestRegister(m_guest_reg32_cache[guest_reg], OperandSize_32, static_cast<u8>(guest_reg), cache,
-                           force_host_register);
+                           force_host_register, forced_host_reg);
 }
 
 Value RegisterCache::ReadGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, bool cache,
-                                       bool force_host_register)
+                                       bool force_host_register, HostReg forced_host_reg)
 {
   if (cache_value.IsValid())
   {
     if (cache_value.IsInHostRegister())
     {
       PushRegisterToOrder(size, guest_reg);
+
+      // if it's in the wrong register, return it as scratch
+      if (forced_host_reg == HostReg_Invalid || cache_value.GetHostRegister() == forced_host_reg)
+        return cache_value;
+
+      Value temp = AllocateScratch(size, forced_host_reg);
+      m_code_generator.EmitCopyValue(forced_host_reg, cache_value);
+      return temp;
     }
     else if (force_host_register)
     {
       // if it's not in a register, it should be constant
       DebugAssert(cache_value.IsConstant());
 
-      const HostReg host_reg = AllocateHostReg();
+      HostReg host_reg;
+      if (forced_host_reg == HostReg_Invalid)
+      {
+        host_reg = AllocateHostReg();
+      }
+      else
+      {
+        Assert(!IsHostRegInUse(forced_host_reg));
+        if (!AllocateHostReg(forced_host_reg))
+          Panic("Failed to allocate specific host register");
+        host_reg = forced_host_reg;
+      }
+
       Log_DebugPrintf("Allocated host register %s for constant guest register %s (0x%" PRIX64 ")",
                       m_code_generator.GetHostRegName(host_reg), Decoder::GetRegisterName(size, guest_reg),
                       cache_value.constant_value);
@@ -477,14 +534,30 @@ Value RegisterCache::ReadGuestRegister(Value& cache_value, OperandSize size, u8 
       // if we're forcing a host register, we're probably going to be changing the value,
       // in which case the constant won't be correct anyway. so just drop it.
       cache_value.ClearConstant();
+      return cache_value;
     }
-
-    return cache_value;
+    else
+    {
+      // constant
+      return cache_value;
+    }
   }
 
   FlushOverlappingGuestRegisters(size, guest_reg);
 
-  const HostReg host_reg = AllocateHostReg();
+  HostReg host_reg;
+  if (forced_host_reg == HostReg_Invalid)
+  {
+    host_reg = AllocateHostReg();
+  }
+  else
+  {
+    Assert(!IsHostRegInUse(forced_host_reg));
+    if (!AllocateHostReg(forced_host_reg))
+      Panic("Failed to allocate specific host register");
+    host_reg = forced_host_reg;
+  }
+
   m_code_generator.EmitLoadGuestRegister(host_reg, size, guest_reg);
 
   Log_DebugPrintf("Loading guest register %s to host register %s%s", Decoder::GetRegisterName(size, guest_reg),
@@ -504,17 +577,21 @@ Value RegisterCache::ReadGuestRegister(Value& cache_value, OperandSize size, u8 
   }
 }
 
-Value RegisterCache::ReadGuestRegister(OperandSize size, u8 guest_reg, bool cache /*=true*/,
-                                       bool force_host_register /*= false*/)
+Value RegisterCache::ReadGuestRegister(OperandSize size, u8 guest_reg, bool cache /* = true */,
+                                       bool force_host_register /* = false */,
+                                       HostReg forced_host_reg /* = HostReg_Invalid */)
 {
   switch (size)
   {
     case OperandSize_8:
-      return ReadGuestRegister(m_guest_reg8_cache[guest_reg], size, guest_reg, cache, force_host_register);
+      return ReadGuestRegister(m_guest_reg8_cache[guest_reg], size, guest_reg, cache, force_host_register,
+                               forced_host_reg);
     case OperandSize_16:
-      return ReadGuestRegister(m_guest_reg16_cache[guest_reg], size, guest_reg, cache, force_host_register);
+      return ReadGuestRegister(m_guest_reg16_cache[guest_reg], size, guest_reg, cache, force_host_register,
+                               forced_host_reg);
     case OperandSize_32:
-      return ReadGuestRegister(m_guest_reg32_cache[guest_reg], size, guest_reg, cache, force_host_register);
+      return ReadGuestRegister(m_guest_reg32_cache[guest_reg], size, guest_reg, cache, force_host_register,
+                               forced_host_reg);
     default:
       UnreachableCode();
       return Value();
@@ -824,5 +901,4 @@ std::optional<HostReg> RegisterCache::GetHostRegisterForGuestRegister(OperandSiz
       return std::nullopt;
   }
 }
-
 } // namespace CPU_X86::Recompiler

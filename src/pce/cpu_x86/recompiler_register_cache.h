@@ -169,6 +169,9 @@ public:
   /// Frees a host register, making it usable in future allocations.
   void FreeHostReg(HostReg reg);
 
+  /// Ensures a host register is free, removing any value cached.
+  void EnsureHostRegFree(HostReg reg);
+
   /// Push/pop volatile host registers. Returns the number of registers pushed/popped.
   u32 PushCallerSavedRegisters() const;
   u32 PopCallerSavedRegisters() const;
@@ -180,7 +183,7 @@ public:
   // Scratch Register Allocation
   //////////////////////////////////////////////////////////////////////////
   Value GetCPUPtr();
-  Value AllocateScratch(OperandSize size);
+  Value AllocateScratch(OperandSize size, HostReg reg = HostReg_Invalid);
 
   //////////////////////////////////////////////////////////////////////////
   // Guest Register Caching
@@ -214,10 +217,10 @@ public:
   }
   std::optional<HostReg> GetHostRegisterForGuestRegister(OperandSize size, u8 guest_reg) const;
 
-  Value ReadGuestRegister(Reg8 guest_reg, bool cache = true, bool force_host_register = false);
-  Value ReadGuestRegister(Reg16 guest_reg, bool cache = true, bool force_host_register = false);
-  Value ReadGuestRegister(Reg32 guest_reg, bool cache = true, bool force_host_register = false);
-  Value ReadGuestRegister(OperandSize size, u8 guest_reg, bool cache = true, bool force_host_register = false);
+  Value ReadGuestRegister(Reg8 guest_reg, bool cache = true, bool force_host_register = false, HostReg forced_host_reg = HostReg_Invalid);
+  Value ReadGuestRegister(Reg16 guest_reg, bool cache = true, bool force_host_register = false, HostReg forced_host_reg = HostReg_Invalid);
+  Value ReadGuestRegister(Reg32 guest_reg, bool cache = true, bool force_host_register = false, HostReg forced_host_reg = HostReg_Invalid);
+  Value ReadGuestRegister(OperandSize size, u8 guest_reg, bool cache = true, bool force_host_register = false, HostReg forced_host_reg = HostReg_Invalid);
 
   /// Creates a copy of value, and stores it to guest_reg.
   Value WriteGuestRegister(Reg8 guest_reg, Value&& value);
@@ -244,7 +247,7 @@ private:
   }
   static constexpr u32 INVALID_REGISTER_CODE = UINT32_C(0xFFFFFFFF);
 
-  Value ReadGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, bool cache, bool force_host_register);
+  Value ReadGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, bool cache, bool force_host_register, HostReg forced_host_reg);
   Value WriteGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, Value&& value);
   void FlushGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg, bool invalidate);
   void InvalidateGuestRegister(Value& cache_value, OperandSize size, u8 guest_reg);

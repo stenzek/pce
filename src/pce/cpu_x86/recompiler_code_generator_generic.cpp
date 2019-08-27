@@ -79,6 +79,11 @@ bool CodeGenerator::Compile_Shift_Impl(const Instruction& instruction, CycleCoun
   return Compile_Fallback(instruction);
 }
 
+bool CodeGenerator::Compile_DoublePrecisionShift_Impl(const Instruction& instruction, CycleCount cycles)
+{
+  return Compile_Fallback(instruction);
+}
+
 #endif
 
 #if !defined(Y_CPU_X64)

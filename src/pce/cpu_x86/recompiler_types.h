@@ -17,6 +17,7 @@ class RegisterCache;
 using HostReg = Xbyak::Operand::Code;
 using CodeEmitter = Xbyak::CodeGenerator;
 constexpr u32 HostReg_Count = 16;
+constexpr HostReg HostReg_Invalid = static_cast<HostReg>(HostReg_Count);
 constexpr OperandSize HostPointerSize = OperandSize_64;
 
 // A reasonable "maximum" number of bytes per instruction.
@@ -26,6 +27,7 @@ constexpr u32 MaximumBytesPerInstruction = 128;
 using HostReg = void;
 using CodeEmitter = void;
 constexpr u32 HostReg_Count = 0;
+constexpr HostReg HostReg_Invalid = static_cast<HostReg>(HostReg_Count);
 constexpr OperandSize HostPointerSize = OperandSize_64;
 #endif
 

@@ -163,7 +163,7 @@ private:
   Value CalculateOperandMemoryAddress(const Instruction& instruction, size_t index);
   Value CalculateJumpTarget(const Instruction& instruction, size_t index = 0);
   Value ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size, bool sign_extend,
-                    bool force_host_register = false);
+                    bool force_host_register = false, HostReg forced_host_register = HostReg_Invalid);
   Value WriteOperand(const Instruction& instruction, size_t index, Value&& value);
   void LoadSegmentMemory(Value* dest_value, OperandSize size, const Value& address, Segment segment);
   void StoreSegmentMemory(const Value& value, const Value& address, Segment segment);
@@ -193,6 +193,8 @@ private:
   bool Compile_Bitwise_Impl(const Instruction& instruction, CycleCount cycles);
   bool Compile_Shift(const Instruction& instruction);
   bool Compile_Shift_Impl(const Instruction& instruction, CycleCount cycles);
+  bool Compile_DoublePrecisionShift(const Instruction& instruction);
+  bool Compile_DoublePrecisionShift_Impl(const Instruction& instruction, CycleCount cycles);
   bool Compile_NOT(const Instruction& instruction);
   bool Compile_AddSub(const Instruction& instruction);
   bool Compile_AddSub_Impl(const Instruction& instruction, CycleCount cycles);

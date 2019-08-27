@@ -182,6 +182,11 @@ bool CodeGenerator::CompileInstruction(const Instruction& instruction)
       result = Compile_Shift(instruction);
       break;
 
+    case Operation_SHLD:
+    case Operation_SHRD:
+      result = Compile_DoublePrecisionShift(instruction);
+      break;
+
     case Operation_NOT:
       result = Compile_NOT(instruction);
       break;
@@ -486,7 +491,8 @@ void CodeGenerator::GuestBranch(const Value& branch_address)
 }
 
 Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, OperandSize output_size,
-                                 bool sign_extend, bool force_host_register /* = false */)
+                                 bool sign_extend, bool force_host_register /* = false */,
+                                 HostReg forced_host_register /* = HostReg_Invalid */)
 {
   const Instruction::Operand* operand = &instruction.operands[index];
 
@@ -495,7 +501,8 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
     {
       case OperandSize_8:
       {
-        Value val = m_register_cache.ReadGuestRegister(static_cast<Reg8>(reg), true, force_host_register);
+        Value val =
+          m_register_cache.ReadGuestRegister(static_cast<Reg8>(reg), true, force_host_register, forced_host_register);
         if (output_size != OperandSize_8)
           val = ConvertValueSize(val, output_size, sign_extend);
 
@@ -504,7 +511,8 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
 
       case OperandSize_16:
       {
-        Value val = m_register_cache.ReadGuestRegister(static_cast<Reg16>(reg), true, force_host_register);
+        Value val =
+          m_register_cache.ReadGuestRegister(static_cast<Reg16>(reg), true, force_host_register, forced_host_register);
         if (output_size != OperandSize_16)
           val = ConvertValueSize(val, output_size, sign_extend);
 
@@ -513,7 +521,8 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
 
       case OperandSize_32:
       {
-        Value val = m_register_cache.ReadGuestRegister(static_cast<Reg32>(reg), true, force_host_register);
+        Value val =
+          m_register_cache.ReadGuestRegister(static_cast<Reg32>(reg), true, force_host_register, forced_host_register);
         if (output_size != OperandSize_32)
           val = ConvertValueSize(val, output_size, sign_extend);
 
@@ -528,7 +537,7 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
 
   auto MakeMemoryAccess = [&]() -> Value {
     // we get the result back in eax, which we can use as a temporary.
-    Value val = m_register_cache.AllocateScratch(operand->size);
+    Value val = m_register_cache.AllocateScratch(operand->size, forced_host_register);
     LoadSegmentMemory(&val, operand->size, m_operand_memory_addresses[index], instruction.GetMemorySegment());
 
     // handle sign-extension
@@ -644,7 +653,7 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
     case OperandMode_SegmentRegister:
     {
       // slow path for this for now..
-      val = m_register_cache.AllocateScratch(OperandSize_16);
+      val = m_register_cache.AllocateScratch(OperandSize_16, forced_host_register);
       EmitLoadCPUStructField(val.host_reg, OperandSize_16, CalculateSegmentRegisterOffset(operand->segreg));
       if (output_size == OperandSize_32)
       {
@@ -673,7 +682,7 @@ Value CodeGenerator::ReadOperand(const Instruction& instruction, size_t index, O
 
   if (force_host_register && !val.IsInHostRegister())
   {
-    Value temp = m_register_cache.AllocateScratch(val.size);
+    Value temp = m_register_cache.AllocateScratch(val.size, forced_host_register);
     EmitCopyValue(temp.host_reg, val);
     val = std::move(temp);
   }
@@ -1188,6 +1197,19 @@ bool CodeGenerator::Compile_Shift(const Instruction& instruction)
   CycleCount cycles = m_cpu->GetCyclesRM(CYCLES_ALU_RM_MEM_REG, instruction.ModRM_RM_IsReg());
 
   if (!Compile_Shift_Impl(instruction, cycles))
+    return Compile_Fallback(instruction);
+
+  if (OperandIsESP(instruction, 0))
+    SyncCurrentESP();
+
+  return true;
+}
+
+bool CodeGenerator::Compile_DoublePrecisionShift(const Instruction& instruction)
+{
+  CycleCount cycles = m_cpu->GetCyclesRM(CYCLES_SHLD_RM_MEM, instruction.ModRM_RM_IsReg());
+
+  if (!Compile_DoublePrecisionShift_Impl(instruction, cycles))
     return Compile_Fallback(instruction);
 
   if (OperandIsESP(instruction, 0))
