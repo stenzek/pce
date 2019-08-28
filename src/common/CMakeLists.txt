@@ -19,6 +19,8 @@ set(SRCS
     object_type_info.h
     property.cpp
     property.h
+    state_wrapper.cpp
+    state_wrapper.h
     types.h
     type_registry.h
 )
