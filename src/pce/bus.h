@@ -29,6 +29,7 @@ public:
   using CodeInvalidateCallback = std::function<void(PhysicalMemoryAddress)>;
 
   static constexpr u32 MEMORY_PAGE_SIZE = 0x1000; // 4KiB
+  static constexpr u32 MEMORY_PAGE_NUMBER_SHIFT = 12;
   static constexpr u32 MEMORY_PAGE_OFFSET_MASK = PhysicalMemoryAddress(MEMORY_PAGE_SIZE - 1);
   static constexpr u32 MEMORY_PAGE_MASK = ~MEMORY_PAGE_OFFSET_MASK;
   static constexpr u32 NUM_IOPORTS = 0x10000;
@@ -134,9 +135,6 @@ public:
   void ReadMemoryBlock(PhysicalMemoryAddress address, u32 length, void* destination);
   void WriteMemoryBlock(PhysicalMemoryAddress address, u32 length, const void* source);
 
-  // Get pointer to memory. Must lie within the same 64KiB page and be RAM not MMIO.
-  byte* GetRAMPointer(PhysicalMemoryAddress address);
-
   // MMIO handlers
   void ConnectMMIO(MMIO* mmio);
   void DisconnectMMIO(MMIO* mmio);
@@ -163,7 +161,14 @@ public:
   // Hold the bus, stalling the main CPU for the specified amount of time.
   void Stall(SimulationTime time);
 
-protected:
+  // Gets the RAM pointer index - one pointer per page. If null, can't write to RAM directory, must go through Bus.
+  byte** GetRAMPointerIndex() const { return m_physical_memory_page_ram_index; }
+  byte* GetRAMPagePointer(PhysicalMemoryAddress address) const
+  {
+    return m_physical_memory_page_ram_index[(address & m_physical_memory_address_mask) >> MEMORY_PAGE_NUMBER_SHIFT];
+  }
+
+public:
   struct PhysicalMemoryPage
   {
     enum Type : u8
@@ -185,6 +190,10 @@ protected:
     bool IsMMIO() const { return (mmio_handler != nullptr); }
     bool IsReadableMMIO() const { return IsMMIO() && !IsReadableRAM(); }
     bool IsWritableMMIO() const { return IsMMIO() && !IsWritableRAM(); }
+    bool IsReadableWritableRAM() const
+    {
+      return ((type & (kReadableRAM | kWritableRAM)) == (kReadableRAM | kWritableRAM));
+    }
   };
 
   struct IOPortConnection
@@ -222,16 +231,17 @@ protected:
 
   System* m_system = nullptr;
 
-  // IO ports
-  IOPortConnection** m_ioport_handlers = nullptr;
-  std::unordered_map<const void*, std::vector<u16>> m_ioport_owners;
-
   // System memory map
   PhysicalMemoryPage* m_physical_memory_pages = nullptr;
+  byte** m_physical_memory_page_ram_index = nullptr;
   u32 m_num_physical_memory_pages = 0;
 
   // Physical address mask, by default this is set to the maximum address
   PhysicalMemoryAddress m_physical_memory_address_mask = ~0u;
+
+  // IO ports
+  IOPortConnection** m_ioport_handlers = nullptr;
+  std::unordered_map<const void*, std::vector<u16>> m_ioport_owners;
 
   // Code invalidate callback - executed when pages marked as code are modified.
   CodeInvalidateCallback m_code_invalidate_callback;

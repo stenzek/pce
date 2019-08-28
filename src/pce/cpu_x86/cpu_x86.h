@@ -331,9 +331,6 @@ public:
 
   // Cycle tracking when executing.
   void AddCycle() { m_pending_cycles++; }
-  void AddMemoryCycle()
-  { /*m_pending_cycles++;*/
-  }
   void AddCycles(CYCLE_GROUP group) { m_pending_cycles += GetCycles(group); }
   void AddCyclesPMode(CYCLE_GROUP group) { m_pending_cycles += GetCyclesPMode(group); }
   void AddCyclesRM(CYCLE_GROUP group, bool rm_reg) { m_pending_cycles += GetCyclesRM(group, rm_reg); }

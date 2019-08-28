@@ -971,7 +971,6 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
   // Read the page directory entry.
   PAGE_DIRECTORY_ENTRY directory_entry;
   directory_entry.bits = m_bus->ReadMemoryDWord(dir_entry_address);
-  AddMemoryCycle();
 
   // Check for present bits.
   // TODO: Permissions
@@ -991,7 +990,6 @@ bool CPU::LookupPageTable(PhysicalMemoryAddress* out_physical_address, LinearMem
   // Read the page table entry.
   PAGE_TABLE_ENTRY table_entry;
   table_entry.bits = m_bus->ReadMemoryDWord(table_entry_address);
-  AddMemoryCycle();
 
   // Check for present bits.
   if (!table_entry.present)
@@ -1098,19 +1096,21 @@ void CPU::RaisePageFault(LinearMemoryAddress linear_address, AccessFlags flags, 
 
 u8 CPU::ReadMemoryByte(CPU* cpu, LinearMemoryAddress address)
 {
-  cpu->AddMemoryCycle();
+  cpu->TranslateLinearAddress(&address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
 
-  PhysicalMemoryAddress physical_address;
-  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
+  u8* ram_page_ptr = cpu->m_bus->GetRAMPagePointer(address);
+  if (ram_page_ptr)
+  {
+    u8 value;
+    std::memcpy(&value, &ram_page_ptr[address & Bus::MEMORY_PAGE_OFFSET_MASK], sizeof(value));
+    return value;
+  }
 
-  // TODO: Optimize Bus
-  return cpu->m_bus->ReadMemoryByte(physical_address);
+  return cpu->m_bus->ReadMemoryByte(address);
 }
 
 u16 CPU::ReadMemoryWord(CPU* cpu, LinearMemoryAddress address)
 {
-  cpu->AddMemoryCycle();
-
   // Unaligned access?
   if ((address & (sizeof(u16) - 1)) != 0)
   {
@@ -1131,15 +1131,21 @@ u16 CPU::ReadMemoryWord(CPU* cpu, LinearMemoryAddress address)
     }
   }
 
-  PhysicalMemoryAddress physical_address;
-  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
-  return cpu->m_bus->ReadMemoryWord(physical_address);
+  cpu->TranslateLinearAddress(&address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
+
+  u8* ram_page_ptr = cpu->m_bus->GetRAMPagePointer(address);
+  if (ram_page_ptr)
+  {
+    u16 value;
+    std::memcpy(&value, &ram_page_ptr[address & Bus::MEMORY_PAGE_OFFSET_MASK], sizeof(value));
+    return value;
+  }
+
+  return cpu->m_bus->ReadMemoryWord(address);
 }
 
 u32 CPU::ReadMemoryDWord(CPU* cpu, LinearMemoryAddress address)
 {
-  cpu->AddMemoryCycle();
-
   // Unaligned access?
   if ((address & (sizeof(u32) - 1)) != 0)
   {
@@ -1160,23 +1166,35 @@ u32 CPU::ReadMemoryDWord(CPU* cpu, LinearMemoryAddress address)
     }
   }
 
-  PhysicalMemoryAddress physical_address;
-  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
-  return cpu->m_bus->ReadMemoryDWord(physical_address);
+  cpu->TranslateLinearAddress(&address, address, AddAccessTypeToFlags(AccessType::Read, AccessFlags::Normal));
+
+  u8* ram_page_ptr = cpu->m_bus->GetRAMPagePointer(address);
+  if (ram_page_ptr)
+  {
+    u32 value;
+    std::memcpy(&value, &ram_page_ptr[address & Bus::MEMORY_PAGE_OFFSET_MASK], sizeof(value));
+    return value;
+  }
+
+  return cpu->m_bus->ReadMemoryDWord(address);
 }
 
 void CPU::WriteMemoryByte(CPU* cpu, LinearMemoryAddress address, u8 value)
 {
-  cpu->AddMemoryCycle();
-  PhysicalMemoryAddress physical_address;
-  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
-  cpu->m_bus->WriteMemoryByte(physical_address, value);
+  cpu->TranslateLinearAddress(&address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
+
+  u8* ram_page_ptr = cpu->m_bus->GetRAMPagePointer(address);
+  if (ram_page_ptr)
+  {
+    std::memcpy(&ram_page_ptr[address & Bus::MEMORY_PAGE_OFFSET_MASK], &value, sizeof(value));
+    return;
+  }
+
+  cpu->m_bus->WriteMemoryByte(address, value);
 }
 
 void CPU::WriteMemoryWord(CPU* cpu, LinearMemoryAddress address, u16 value)
 {
-  cpu->AddMemoryCycle();
-
   // Unaligned access?
   if ((address & (sizeof(u16) - 1)) != 0)
   {
@@ -1197,15 +1215,20 @@ void CPU::WriteMemoryWord(CPU* cpu, LinearMemoryAddress address, u16 value)
     }
   }
 
-  PhysicalMemoryAddress physical_address;
-  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
-  cpu->m_bus->WriteMemoryWord(physical_address, value);
+  cpu->TranslateLinearAddress(&address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
+
+  u8* ram_page_ptr = cpu->m_bus->GetRAMPagePointer(address);
+  if (ram_page_ptr)
+  {
+    std::memcpy(&ram_page_ptr[address & Bus::MEMORY_PAGE_OFFSET_MASK], &value, sizeof(value));
+    return;
+  }
+
+  cpu->m_bus->WriteMemoryWord(address, value);
 }
 
 void CPU::WriteMemoryDWord(CPU* cpu, LinearMemoryAddress address, u32 value)
 {
-  cpu->AddMemoryCycle();
-
   // Unaligned access?
   if ((address & (sizeof(u32) - 1)) != 0)
   {
@@ -1226,9 +1249,16 @@ void CPU::WriteMemoryDWord(CPU* cpu, LinearMemoryAddress address, u32 value)
     }
   }
 
-  PhysicalMemoryAddress physical_address;
-  cpu->TranslateLinearAddress(&physical_address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
-  cpu->m_bus->WriteMemoryDWord(physical_address, value);
+  cpu->TranslateLinearAddress(&address, address, AddAccessTypeToFlags(AccessType::Write, AccessFlags::Normal));
+
+  u8* ram_page_ptr = cpu->m_bus->GetRAMPagePointer(address);
+  if (ram_page_ptr)
+  {
+    std::memcpy(&ram_page_ptr[address & Bus::MEMORY_PAGE_OFFSET_MASK], &value, sizeof(value));
+    return;
+  }
+
+  cpu->m_bus->WriteMemoryDWord(address, value);
 }
 
 u8 CPU::ReadSegmentMemoryByte(Segment segment, VirtualMemoryAddress address)

@@ -547,14 +547,6 @@ void Bus::WriteMemoryBlock(PhysicalMemoryAddress address, u32 length, const void
   }
 }
 
-byte* Bus::GetRAMPointer(PhysicalMemoryAddress address)
-{
-  const u32 page_number = (address & m_physical_memory_address_mask) / MEMORY_PAGE_SIZE;
-  const PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
-  return (page.type & PhysicalMemoryPage::kReadableRAM) ? (page.ram_ptr + (address & MEMORY_PAGE_OFFSET_MASK)) :
-                                                          nullptr;
-}
-
 void Bus::AllocateMemoryPages(u32 memory_address_bits)
 {
   u32 num_pages = u32((u64(1) << memory_address_bits) / u64(MEMORY_PAGE_SIZE));
@@ -562,7 +554,9 @@ void Bus::AllocateMemoryPages(u32 memory_address_bits)
   // Allocate physical pages
   DebugAssert(num_pages > 0);
   m_physical_memory_pages = new PhysicalMemoryPage[num_pages];
+  m_physical_memory_page_ram_index = new byte*[num_pages];
   std::memset(m_physical_memory_pages, 0, sizeof(PhysicalMemoryPage) * num_pages);
+  std::fill_n(m_physical_memory_page_ram_index, num_pages, nullptr);
   m_physical_memory_address_mask = u32((u64(1) << memory_address_bits) - 1);
   m_num_physical_memory_pages = num_pages;
 }
@@ -604,6 +598,7 @@ u32 Bus::CreateRAMRegion(PhysicalMemoryAddress start, PhysicalMemoryAddress end)
     Assert(!page->ram_ptr && remaining_ram >= MEMORY_PAGE_SIZE);
     page->ram_ptr = m_ram_ptr + m_ram_assigned;
     page->type = PhysicalMemoryPage::kReadableRAM | PhysicalMemoryPage::kWritableRAM;
+    m_physical_memory_page_ram_index[current_page] = page->ram_ptr;
     m_ram_assigned += MEMORY_PAGE_SIZE;
     allocated_ram += MEMORY_PAGE_SIZE;
     remaining_ram -= MEMORY_PAGE_SIZE;
@@ -716,6 +711,11 @@ void Bus::ConnectMMIO(MMIO* mmio)
   Assert((mmio->GetSize() & u32(sizeof(u32) - 1)) == 0);
 
   auto callback = [this, mmio](u32 page_number, PhysicalMemoryPage* page) {
+    if (page->IsReadableRAM() || page->IsWritableRAM())
+    {
+      Log_WarningPrintf("Registering MMIO region 0x%08X in RAM area, MMIO will be ignored",
+                        page_number * MEMORY_PAGE_SIZE);
+    }
     if (page->mmio_handler)
     {
       Log_WarningPrintf("Page %08X already has a MMIO handler, ignoring new handler",
@@ -781,19 +781,32 @@ void Bus::MarkPageAsCode(PhysicalMemoryAddress address)
   u32 page_number = address / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
   m_physical_memory_pages[page_number].type |= PhysicalMemoryPage::kCachedCode;
+  m_physical_memory_page_ram_index[page_number] = nullptr;
 }
 
 void Bus::UnmarkPageAsCode(PhysicalMemoryAddress address)
 {
   u32 page_number = address / MEMORY_PAGE_SIZE;
   DebugAssert(page_number < m_num_physical_memory_pages);
-  m_physical_memory_pages[page_number].type &= ~PhysicalMemoryPage::kCachedCode;
+
+  PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
+  page.type &= ~PhysicalMemoryPage::kCachedCode;
+  if (page.IsReadableWritableRAM())
+    m_physical_memory_page_ram_index[page_number] = page.ram_ptr;
 }
 
 void Bus::ClearPageCodeFlags()
 {
   for (u32 i = 0; i < m_num_physical_memory_pages; i++)
-    m_physical_memory_pages[i].type &= ~PhysicalMemoryPage::kCachedCode;
+  {
+    PhysicalMemoryPage& page = m_physical_memory_pages[i];
+    if (!(page.type & PhysicalMemoryPage::kCachedCode))
+      continue;
+
+    page.type &= ~PhysicalMemoryPage::kCachedCode;
+    if (page.IsReadableWritableRAM())
+      m_physical_memory_page_ram_index[i] = page.ram_ptr;
+  }
 }
 
 void Bus::SetCodeInvalidationCallback(CodeInvalidateCallback callback)
@@ -808,7 +821,8 @@ void Bus::ClearCodeInvalidationCallback()
 
 void Bus::SetPageRAMState(PhysicalMemoryAddress page_address, bool readable_memory, bool writable_memory)
 {
-  PhysicalMemoryPage& page = m_physical_memory_pages[page_address / MEMORY_PAGE_SIZE];
+  const u32 page_number = page_address / MEMORY_PAGE_SIZE;
+  PhysicalMemoryPage& page = m_physical_memory_pages[page_number];
   DebugAssert((page_address % MEMORY_PAGE_SIZE) == 0);
 
   // RAM flags are ignored when there is no RAM.
@@ -828,6 +842,8 @@ void Bus::SetPageRAMState(PhysicalMemoryAddress page_address, bool readable_memo
     page.type |= PhysicalMemoryPage::kWritableRAM;
   else
     page.type &= ~PhysicalMemoryPage::kWritableRAM;
+
+  m_physical_memory_page_ram_index[page_number] = page.IsReadableWritableRAM() ? page.ram_ptr : nullptr;
 }
 
 void Bus::SetPagesRAMState(PhysicalMemoryAddress start_address, u32 size, bool readable_memory, bool writable_memory)

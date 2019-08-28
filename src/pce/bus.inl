@@ -13,8 +13,8 @@ T Bus::ReadMemoryTyped(PhysicalMemoryAddress address)
   address &= m_physical_memory_address_mask;
 
   // Since we allocate the page array based on the address mask, this should never overflow.
-  u32 page_number = address / MEMORY_PAGE_SIZE;
-  u32 page_offset = address % MEMORY_PAGE_SIZE;
+  const u32 page_number = address >> MEMORY_PAGE_NUMBER_SHIFT;
+  const u32 page_offset = address & MEMORY_PAGE_OFFSET_MASK;
   DebugAssert(page_number < m_num_physical_memory_pages);
 
   // Fast path - page is RAM.
@@ -67,8 +67,8 @@ void Bus::WriteMemoryTyped(PhysicalMemoryAddress address, T value)
 #endif
 
   // Since we allocate the page array based on the address mask, this should never overflow.
-  u32 page_number = address / MEMORY_PAGE_SIZE;
-  u32 page_offset = address % MEMORY_PAGE_SIZE;
+  const u32 page_number = address >> MEMORY_PAGE_NUMBER_SHIFT;
+  const u32 page_offset = address & MEMORY_PAGE_OFFSET_MASK;
   DebugAssert(page_number < m_num_physical_memory_pages);
 
   // Fast path - page is RAM.
