@@ -326,7 +326,7 @@ void PCIIDE::OnDMAStateChanged(u32 channel)
 
   // active is cleared when the command is cleared, or eot. it is set when the transfer is started.
   // see PIIX3 datasheet
-  ds.status.active = ds.command.transfer_start;
+  ds.status.active = ds.command.transfer_start.GetValue();
 
   if (!ds.command.transfer_start)
   {
