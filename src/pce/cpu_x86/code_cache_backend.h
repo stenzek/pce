@@ -4,6 +4,7 @@
 #include "pce/cpu_x86/cpu_x86.h"
 #include "pce/cpu_x86/instruction.h"
 #include "pce/cpu_x86/code_cache_types.h"
+#include "YBaseLib/PODArray.h"
 #include <unordered_map>
 
 namespace CPU_X86 {
@@ -54,7 +55,9 @@ protected:
   void InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page_address);
 
   /// Removes the physical page -> block mapping for block.
+  void AddBlockPhysicalMapping(PhysicalMemoryAddress address, BlockBase* block);
   void AddBlockPhysicalMappings(BlockBase* block);
+  void RemoveBlockPhysicalMapping(PhysicalMemoryAddress address, BlockBase* block);
   void RemoveBlockPhysicalMappings(BlockBase* block);
 
   /// Returns the hash of memory occupied by the block.
@@ -82,7 +85,9 @@ protected:
   Bus* m_bus;
 
   std::unordered_map<BlockKey, BlockBase*, BlockKeyHash> m_blocks;
-  std::unordered_map<PhysicalMemoryAddress, std::vector<BlockBase*>> m_physical_page_blocks;
+
+  using BlockArray = PODArray<BlockBase*>;
+  std::unique_ptr<BlockArray[]> m_physical_page_blocks;
   bool m_branched = false;
 };
 } // namespace CPU_X86

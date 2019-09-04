@@ -19,6 +19,7 @@ extern u32 TRACE_EXECUTION_LAST_EIP;
 
 CodeCacheBackend::CodeCacheBackend(CPU* cpu) : m_cpu(cpu), m_system(cpu->GetSystem()), m_bus(cpu->GetBus())
 {
+  m_physical_page_blocks = std::make_unique<BlockArray[]>(m_bus->GetMemoryPageCount());
   m_bus->SetCodeInvalidationCallback(
     std::bind(&CodeCacheBackend::InvalidateBlocksWithPhysicalPage, this, std::placeholders::_1));
 }
@@ -49,8 +50,8 @@ void CodeCacheBackend::BranchFromException(u32 new_EIP)
 
 void CodeCacheBackend::InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page_address)
 {
-  auto map_iter = m_physical_page_blocks.find(physical_page_address);
-  if (map_iter == m_physical_page_blocks.end())
+  PODArray<BlockBase*>& block_list = m_physical_page_blocks[Bus::GetMemoryPageIndex(physical_page_address)];
+  if (block_list.IsEmpty())
     return;
 
   // We unmark all pages as code, and invalidate the blocks.
@@ -58,11 +59,14 @@ void CodeCacheBackend::InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress ph
   m_bus->UnmarkPageAsCode(physical_page_address);
 
   // Move the list out, so we don't disturb it while iterating.
-  auto blocks = std::move(map_iter->second);
-  m_physical_page_blocks.erase(map_iter);
+  PODArray<BlockBase*> temp_block_list;
+  temp_block_list.Swap(block_list);
 
-  for (BlockBase* block : blocks)
+  for (BlockBase* block : temp_block_list)
     InvalidateBlock(block);
+
+  temp_block_list.Swap(block_list);
+  block_list.Clear();
 }
 
 Bus::CodeHashType CodeCacheBackend::GetBlockCodeHash(BlockBase* block)
@@ -253,62 +257,42 @@ size_t CodeCacheBackend::GetCodeBlockCount() const
 
 void CodeCacheBackend::FlushCodeCache()
 {
-  m_physical_page_blocks.clear();
+  for (u32 i = 0; i < m_bus->GetMemoryPageCount(); i++)
+    m_physical_page_blocks[i].Clear();
   for (auto& iter : m_blocks)
     DestroyBlock(iter.second);
   m_blocks.clear();
   m_bus->ClearPageCodeFlags();
 }
 
+void CodeCacheBackend::AddBlockPhysicalMapping(PhysicalMemoryAddress address, BlockBase* block)
+{
+  const u32 page_index = Bus::GetMemoryPageIndex(address);
+  m_physical_page_blocks[page_index].Add(block);
+  m_bus->MarkPageAsCode(address);
+}
+
 void CodeCacheBackend::AddBlockPhysicalMappings(BlockBase* block)
 {
-#define ADD_PAGE(page_address)                                                                                         \
-  do                                                                                                                   \
-  {                                                                                                                    \
-    auto iter = m_physical_page_blocks.find(page_address);                                                             \
-    if (iter == m_physical_page_blocks.end())                                                                          \
-    {                                                                                                                  \
-      m_physical_page_blocks[page_address].push_back(block);                                                           \
-      m_bus->MarkPageAsCode(page_address);                                                                             \
-    }                                                                                                                  \
-    else                                                                                                               \
-    {                                                                                                                  \
-      iter->second.push_back(block);                                                                                   \
-    }                                                                                                                  \
-  } while (0)
-
-  ADD_PAGE(block->GetPhysicalPageAddress());
+  AddBlockPhysicalMapping(block->GetPhysicalPageAddress(), block);
   if (block->CrossesPage())
-    ADD_PAGE(block->GetNextPhysicalPageAddress());
+    AddBlockPhysicalMapping(block->GetNextPhysicalPageAddress(), block);
+}
 
-#undef ADD_PAGE
+void CodeCacheBackend::RemoveBlockPhysicalMapping(PhysicalMemoryAddress address, BlockBase* block)
+{
+  const u32 page_index = Bus::GetMemoryPageIndex(address);
+  auto& block_list = m_physical_page_blocks[page_index];
+  block_list.FastRemoveItem(block);
+  if (block_list.IsEmpty())
+    m_bus->UnmarkPageAsCode(address);
 }
 
 void CodeCacheBackend::RemoveBlockPhysicalMappings(BlockBase* block)
 {
-#define REMOVE_PAGE(page_address)                                                                                      \
-  do                                                                                                                   \
-  {                                                                                                                    \
-    auto iter = m_physical_page_blocks.find(page_address);                                                             \
-    if (iter != m_physical_page_blocks.end())                                                                          \
-    {                                                                                                                  \
-      auto& page_blocks = iter->second;                                                                                \
-      auto iter2 = std::find(page_blocks.begin(), page_blocks.end(), block);                                           \
-      if (iter2 != page_blocks.end())                                                                                  \
-        page_blocks.erase(iter2);                                                                                      \
-      if (page_blocks.empty())                                                                                         \
-      {                                                                                                                \
-        m_bus->UnmarkPageAsCode(page_address);                                                                         \
-        m_physical_page_blocks.erase(iter);                                                                            \
-      }                                                                                                                \
-    }                                                                                                                  \
-  } while (0)
-
-  REMOVE_PAGE(block->GetPhysicalPageAddress());
+  RemoveBlockPhysicalMapping(block->GetPhysicalPageAddress(), block);
   if (block->CrossesPage())
-    REMOVE_PAGE(block->GetNextPhysicalPageAddress());
-
-#undef REMOVE_PAGE
+    RemoveBlockPhysicalMapping(block->GetNextPhysicalPageAddress(), block);
 }
 
 bool CodeCacheBackend::CompileBlockBase(BlockBase* block)

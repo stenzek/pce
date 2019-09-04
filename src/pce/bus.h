@@ -34,6 +34,8 @@ public:
   static constexpr u32 MEMORY_PAGE_MASK = ~MEMORY_PAGE_OFFSET_MASK;
   static constexpr u32 NUM_IOPORTS = 0x10000;
 
+  static constexpr u32 GetMemoryPageIndex(PhysicalMemoryAddress address) { return address >> MEMORY_PAGE_NUMBER_SHIFT; }
+
   Bus(u32 memory_address_bits, const ObjectTypeInfo* type_info = &s_type_info);
   ~Bus();
 
