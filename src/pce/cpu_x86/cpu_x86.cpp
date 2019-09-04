@@ -4258,12 +4258,6 @@ void CPU::DumpStack()
   }
 }
 
-size_t CPU::GetTLBEntryIndex(u32 linear_address)
-{
-  // Maybe a better hash function should be used here?
-  return size_t(linear_address >> 12) % TLB_ENTRY_COUNT;
-}
-
 void CPU::InvalidateAllTLBEntries(bool force_clear /* = false */)
 {
 #ifdef ENABLE_TLB_EMULATION
@@ -4281,7 +4275,7 @@ void CPU::InvalidateTLBEntry(u32 linear_address)
 {
 #ifdef ENABLE_TLB_EMULATION
   const u32 compare_linear_address = (linear_address & PAGE_MASK) | m_tlb_counter_bits;
-  const size_t index = GetTLBEntryIndex(linear_address);
+  const u32 index = GetTLBEntryIndex(linear_address);
   for (u32 user_supervisor = 0; user_supervisor < 2; user_supervisor++)
   {
     for (u32 write_read = 0; write_read < 2; write_read++)

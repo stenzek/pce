@@ -370,7 +370,7 @@ public:
 
 #ifdef ENABLE_TLB_EMULATION
     // Check TLB.
-    const size_t tlb_index = GetTLBEntryIndex(linear_address);
+    const u32 tlb_index = GetTLBEntryIndex(linear_address);
     const u8 tlb_user_bit = BoolToUInt8(InUserMode() && !HasAccessFlagBit(flags, AccessFlags::UseSupervisorPrivileges));
     const u8 tlb_type = static_cast<u8>(GetAccessTypeFromFlags(flags));
     TLBEntry& tlb_entry = m_tlb_entries[tlb_user_bit][tlb_type][tlb_index];
@@ -636,7 +636,11 @@ protected:
   void DumpStack();
 
   // TLB emulation
-  size_t GetTLBEntryIndex(u32 linear_address);
+  u32 GetTLBEntryIndex(LinearMemoryAddress linear_address)
+  {
+    // Maybe a better hash function should be used here?
+    return static_cast<u32>(linear_address >> PAGE_SHIFT) % TLB_ENTRY_COUNT;
+  }
   void InvalidateAllTLBEntries(bool force_clear = false);
   void InvalidateTLBEntry(u32 linear_address);
 
