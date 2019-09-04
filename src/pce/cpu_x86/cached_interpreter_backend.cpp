@@ -16,11 +16,6 @@ CachedInterpreterBackend::CachedInterpreterBackend(CPU* cpu) : CodeCacheBackend(
 
 CachedInterpreterBackend::~CachedInterpreterBackend() {}
 
-void CachedInterpreterBackend::Reset()
-{
-  CodeCacheBackend::Reset();
-}
-
 void CachedInterpreterBackend::Execute()
 {
   BlockKey key;
@@ -137,16 +132,6 @@ void CachedInterpreterBackend::AbortCurrentInstruction()
 
   m_cpu->CommitPendingCycles();
   fastjmp_jmp(&m_jmp_buf);
-}
-
-void CachedInterpreterBackend::BranchTo(u32 new_EIP)
-{
-  CodeCacheBackend::BranchTo(new_EIP);
-}
-
-void CachedInterpreterBackend::BranchFromException(u32 new_EIP)
-{
-  CodeCacheBackend::BranchFromException(new_EIP);
 }
 
 void CachedInterpreterBackend::FlushCodeCache()

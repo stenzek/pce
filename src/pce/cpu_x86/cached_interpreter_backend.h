@@ -13,11 +13,8 @@ public:
   CachedInterpreterBackend(CPU* cpu);
   ~CachedInterpreterBackend();
 
-  void Reset() override;
   void Execute() override;
   void AbortCurrentInstruction() override;
-  void BranchTo(u32 new_EIP) override;
-  void BranchFromException(u32 new_EIP) override;
   void FlushCodeCache() override;
 
 protected:

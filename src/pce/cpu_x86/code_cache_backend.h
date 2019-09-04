@@ -15,11 +15,6 @@ public:
   CodeCacheBackend(CPU* cpu);
   ~CodeCacheBackend();
 
-  virtual void Reset() override;
-  virtual void OnControlRegisterLoaded(Reg32 reg, u32 old_value, u32 new_value) override;
-  virtual void BranchTo(u32 new_EIP) override;
-  virtual void BranchFromException(u32 new_EIP) override;
-
   virtual size_t GetCodeBlockCount() const override;
   virtual void FlushCodeCache() override;
 

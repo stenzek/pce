@@ -10,13 +10,8 @@ public:
   InterpreterBackend(CPU* cpu);
   ~InterpreterBackend();
 
-  void Reset() override;
   void Execute() override;
   void AbortCurrentInstruction() override;
-  void BranchTo(u32 new_EIP) override;
-  void BranchFromException(u32 new_EIP) override;
-
-  void OnControlRegisterLoaded(Reg32 reg, u32 old_value, u32 new_value) override;
 
   size_t GetCodeBlockCount() const override;
   void FlushCodeCache() override;

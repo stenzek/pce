@@ -22,11 +22,6 @@ Backend::Backend(CPU* cpu) : CodeCacheBackend(cpu), m_code_space(std::make_uniqu
 
 Backend::~Backend() {}
 
-void Backend::Reset()
-{
-  CodeCacheBackend::Reset();
-}
-
 void Backend::Execute()
 {
   BlockKey key;
@@ -152,16 +147,6 @@ void Backend::AbortCurrentInstruction()
 
   m_cpu->CommitPendingCycles();
   fastjmp_jmp(&m_jmp_buf);
-}
-
-void Backend::BranchTo(u32 new_EIP)
-{
-  CodeCacheBackend::BranchTo(new_EIP);
-}
-
-void Backend::BranchFromException(u32 new_EIP)
-{
-  CodeCacheBackend::BranchFromException(new_EIP);
 }
 
 void Backend::FlushCodeCache()

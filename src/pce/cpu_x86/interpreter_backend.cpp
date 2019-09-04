@@ -10,8 +10,6 @@ InterpreterBackend::InterpreterBackend(CPU* cpu) : m_cpu(cpu), m_system(cpu->Get
 
 InterpreterBackend::~InterpreterBackend() {}
 
-void InterpreterBackend::Reset() {}
-
 void InterpreterBackend::Execute()
 {
   fastjmp_set(&m_jmp_buf);
@@ -63,12 +61,6 @@ void InterpreterBackend::AbortCurrentInstruction()
   m_cpu->CommitPendingCycles();
   fastjmp_jmp(&m_jmp_buf);
 }
-
-void InterpreterBackend::BranchTo(u32 new_EIP) {}
-
-void InterpreterBackend::BranchFromException(u32 new_EIP) {}
-
-void InterpreterBackend::OnControlRegisterLoaded(Reg32 reg, u32 old_value, u32 new_value) {}
 
 size_t InterpreterBackend::GetCodeBlockCount() const
 {

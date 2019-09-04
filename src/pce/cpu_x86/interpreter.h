@@ -17,10 +17,10 @@ public:
   using HandlerFunction = void (*)(CPU*);
   static HandlerFunction GetInterpreterHandlerForInstruction(const Instruction* instruction);
 
+  static void RaiseInvalidOpcode(CPU* cpu);
+
 private:
   // Helper routines
-  static inline void RaiseInvalidOpcode(CPU* cpu);
-
   static inline void FetchModRM(CPU* cpu);
 
   template<OperandSize op_size, OperandMode op_mode, u32 op_constant>

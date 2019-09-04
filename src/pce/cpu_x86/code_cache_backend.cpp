@@ -30,24 +30,6 @@ CodeCacheBackend::~CodeCacheBackend()
   m_bus->ClearPageCodeFlags();
 }
 
-void CodeCacheBackend::Reset()
-{
-  // When we reset, we assume we're not in a block.
-  FlushCodeCache();
-}
-
-void CodeCacheBackend::OnControlRegisterLoaded(Reg32 reg, u32 old_value, u32 new_value) {}
-
-void CodeCacheBackend::BranchTo(u32 new_EIP)
-{
-  m_branched = true;
-}
-
-void CodeCacheBackend::BranchFromException(u32 new_EIP)
-{
-  m_branched = true;
-}
-
 void CodeCacheBackend::InvalidateBlocksWithPhysicalPage(PhysicalMemoryAddress physical_page_address)
 {
   PODArray<BlockBase*>& block_list = m_physical_page_blocks[Bus::GetMemoryPageIndex(physical_page_address)];
@@ -545,34 +527,23 @@ void CodeCacheBackend::UnlinkBlockBase(BlockBase* block)
 
 void CodeCacheBackend::InterpretUncachedBlock()
 {
+  auto fetchb = [this](u8* val) {
+    *val = m_cpu->FetchInstructionByte();
+    return true;
+  };
+  auto fetchw = [this](u16* val) {
+    *val = m_cpu->FetchInstructionWord();
+    return true;
+  };
+  auto fetchd = [this](u32* val) {
+    *val = m_cpu->FetchInstructionDWord();
+    return true;
+  };
+
   // The prefetch queue is an unknown state, and likely not in sync with our execution.
   m_cpu->FlushPrefetchQueue();
 
-#if 1
-  // Execute until we hit a branch.
-  // This isn't our "formal" block exit, but it's a point where we know we'll be in a good state.
-  m_branched = false;
-  while (!m_branched && !m_cpu->IsHalted() && m_cpu->m_execution_downcount > 0)
-  {
-    if (m_cpu->HasExternalInterrupt())
-    {
-      m_cpu->DispatchExternalInterrupt();
-      break;
-    }
-
-    if (TRACE_EXECUTION && m_cpu->m_registers.EIP != TRACE_EXECUTION_LAST_EIP)
-    {
-      m_cpu->PrintCurrentStateAndInstruction(m_cpu->m_registers.EIP, nullptr);
-      TRACE_EXECUTION_LAST_EIP = m_cpu->m_registers.EIP;
-    }
-
-    Interpreter::ExecuteInstruction(m_cpu);
-  }
-
-  m_cpu->CommitPendingCycles();
-
-#else
-  // This is slower, but the trace output will match the cached variant.
+  Instruction instruction;
   for (;;)
   {
     if (TRACE_EXECUTION && m_cpu->m_registers.EIP != TRACE_EXECUTION_LAST_EIP)
@@ -581,36 +552,35 @@ void CodeCacheBackend::InterpretUncachedBlock()
       TRACE_EXECUTION_LAST_EIP = m_cpu->m_registers.EIP;
     }
 
-    u32 fetch_EIP = m_cpu->m_registers.EIP;
-    auto fetchb = [this, &fetch_EIP](u8* val) {
-      m_cpu->SafeReadMemoryByte(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger);
-      fetch_EIP = (fetch_EIP + sizeof(u8)) & m_cpu->m_EIP_mask;
-      return true;
-    };
-    auto fetchw = [this, &fetch_EIP](u16* val) {
-      m_cpu->SafeReadMemoryWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger);
-      fetch_EIP = (fetch_EIP + sizeof(u16)) & m_cpu->m_EIP_mask;
-      return true;
-    };
-    auto fetchd = [this, &fetch_EIP](u32* val) {
-      m_cpu->SafeReadMemoryDWord(m_cpu->CalculateLinearAddress(Segment_CS, fetch_EIP), val, AccessFlags::Debugger);
-      fetch_EIP = (fetch_EIP + sizeof(u32)) & m_cpu->m_EIP_mask;
-      return true;
-    };
+    m_cpu->m_trap_after_instruction = m_cpu->m_registers.EFLAGS.TF;
+    m_cpu->m_current_EIP = m_cpu->m_registers.EIP;
+    m_cpu->m_current_ESP = m_cpu->m_registers.ESP;
 
     // Try to decode the instruction first.
-    Instruction instruction;
-    bool instruction_valid = Decoder::DecodeInstruction(
-      &instruction, m_cpu->m_current_address_size, m_cpu->m_current_operand_size, fetch_EIP, fetchb, fetchw, fetchd);
+    if (!Decoder::DecodeInstruction(&instruction, m_cpu->m_current_address_size, m_cpu->m_current_operand_size,
+                                    m_cpu->m_registers.EIP, fetchb, fetchw, fetchd))
+    {
+      Interpreter::RaiseInvalidOpcode(m_cpu);
+      break;
+    }
 
-    Interpreter::ExecuteInstruction(m_cpu);
+    auto handler = Interpreter::GetInterpreterHandlerForInstruction(&instruction);
+    m_cpu->m_registers.EIP = (m_cpu->m_registers.EIP + instruction.length) & m_cpu->m_EIP_mask;
+    std::memcpy(&m_cpu->idata, &instruction.data, sizeof(m_cpu->idata));
+    m_cpu->m_execution_stats.instructions_interpreted++;
+    handler(m_cpu);
 
-    m_cpu->CommitPendingCycles();
+    if (m_cpu->m_trap_after_instruction)
+    {
+      m_cpu->RaiseDebugException();
+      break;
+    }
 
-    if (!instruction_valid || IsExitBlockInstruction(&instruction))
-      return;
+    if (IsExitBlockInstruction(&instruction))
+      break;
   }
-#endif
+
+  m_cpu->CommitPendingCycles();
 }
 
 } // namespace CPU_X86

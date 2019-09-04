@@ -85,7 +85,7 @@ bool CPU::Initialize(System* system, Bus* bus)
   InvalidateAllTLBEntries(true);
 #endif
 
-  CreateBackend();
+  // Backend is created on reset.
   return true;
 }
 
@@ -186,7 +186,8 @@ void CPU::Reset()
   std::memset(&idata, 0, sizeof(idata));
   m_execution_stats = {};
 
-  m_backend->Reset();
+  m_backend.reset();
+  CreateBackend();
 }
 
 bool CPU::LoadState(BinaryReader& reader)
@@ -848,7 +849,6 @@ void CPU::LoadSpecialRegister(Reg32 reg, u32 value)
     case Reg32_CR0:
     {
       u32 CHANGE_MASK = CR0Bit_PE | CR0Bit_NW | CR0Bit_CD | CR0Bit_EM | CR0Bit_PG;
-      u32 old_value = m_registers.CR0;
 
       // 486 introduced WP bit
       if (m_model >= MODEL_486)
@@ -880,8 +880,6 @@ void CPU::LoadSpecialRegister(Reg32 reg, u32 value)
 
       m_registers.CR0 = new_value;
       UpdateAlignmentCheckMask();
-
-      m_backend->OnControlRegisterLoaded(Reg32_CR0, old_value, m_registers.CR0);
     }
     break;
 
@@ -891,9 +889,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, u32 value)
       if (m_registers.CR2 != value)
         Log_DebugPrintf("CR2 <- 0x%08X", value);
 
-      u32 old_value = m_registers.CR2;
       m_registers.CR2 = value;
-      m_backend->OnControlRegisterLoaded(Reg32_CR2, old_value, value);
     }
     break;
 
@@ -902,11 +898,9 @@ void CPU::LoadSpecialRegister(Reg32 reg, u32 value)
       if (m_registers.CR3 != value)
         Log_DebugPrintf("CR3 <- 0x%08X", value);
 
-      u32 old_value = m_registers.CR3;
       m_registers.CR3 = value;
       InvalidateAllTLBEntries();
       FlushPrefetchQueue();
-      m_backend->OnControlRegisterLoaded(Reg32_CR3, old_value, value);
     }
     break;
 
@@ -916,9 +910,7 @@ void CPU::LoadSpecialRegister(Reg32 reg, u32 value)
       if (m_registers.CR4.bits != value)
         Log_DebugPrintf("CR4 <- 0x%08X", value);
 
-      u32 old_value = m_registers.CR4.bits;
       m_registers.CR4.bits = value;
-      m_backend->OnControlRegisterLoaded(Reg32_CR4, old_value, value);
     }
     break;
 
@@ -2102,7 +2094,6 @@ void CPU::BranchTo(CPU* cpu, u32 new_EIP)
 {
   cpu->FlushPrefetchQueue();
   cpu->m_registers.EIP = new_EIP;
-  cpu->m_backend->BranchTo(new_EIP);
 }
 
 void CPU::BranchTo(u32 new_EIP)
@@ -2121,7 +2112,6 @@ void CPU::BranchFromException(u32 new_EIP)
 
   FlushPrefetchQueue();
   m_registers.EIP = new_EIP;
-  m_backend->BranchFromException(new_EIP);
 }
 
 void CPU::AbortCurrentInstruction()
