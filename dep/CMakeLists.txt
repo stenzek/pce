@@ -13,7 +13,6 @@ set(YBASELIB_SRC_BASE ${CMAKE_SOURCE_DIR}/dep/YBaseLib/Source)
 set(YBASELIB_INCLUDES ${CMAKE_SOURCE_DIR}/dep/YBaseLib/Include)
 set(YBASELIB_SRC_FILES
     ${YBASELIB_SRC_BASE}/YBaseLib/Android
-    ${YBASELIB_SRC_BASE}/YBaseLib/Android/AndroidBarrier.cpp
     ${YBASELIB_SRC_BASE}/YBaseLib/Android/AndroidConditionVariable.cpp
     ${YBASELIB_SRC_BASE}/YBaseLib/Android/AndroidEvent.cpp
     ${YBASELIB_SRC_BASE}/YBaseLib/Android/AndroidFileSystem.cpp
@@ -52,7 +51,6 @@ set(YBASELIB_SRC_FILES
     ${YBASELIB_SRC_BASE}/YBaseLib/NameTable.cpp
     ${YBASELIB_SRC_BASE}/YBaseLib/NumericLimits.cpp
     ${YBASELIB_SRC_BASE}/YBaseLib/POSIX
-    ${YBASELIB_SRC_BASE}/YBaseLib/POSIX/POSIXBarrier.cpp
     ${YBASELIB_SRC_BASE}/YBaseLib/POSIX/POSIXConditionVariable.cpp
     ${YBASELIB_SRC_BASE}/YBaseLib/POSIX/POSIXFileSystem.cpp
     ${YBASELIB_SRC_BASE}/YBaseLib/POSIX/POSIXPlatform.cpp
