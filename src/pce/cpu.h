@@ -36,8 +36,7 @@ public:
   virtual bool Initialize(System* system, Bus* bus) override;
   virtual void Reset() override;
 
-  virtual bool LoadState(BinaryReader& reader) override;
-  virtual bool SaveState(BinaryWriter& writer) override;
+  virtual bool DoState(StateWrapper& sw) override;
 
   virtual const char* GetModelString() const = 0;
 

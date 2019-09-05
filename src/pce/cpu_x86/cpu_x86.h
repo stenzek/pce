@@ -45,7 +45,6 @@ class CPU : public ::CPU
   friend Recompiler::ThunkGenerator;
 
 public:
-  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'P', 'U', 'C');
   static constexpr u32 PAGE_SIZE = 4096;
   static constexpr u32 PAGE_OFFSET_MASK = (PAGE_SIZE - 1);
   static constexpr u32 PAGE_MASK = ~PAGE_OFFSET_MASK;
@@ -455,8 +454,7 @@ public:
   // Component functions
   bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
-  bool LoadState(BinaryReader& reader) override;
-  bool SaveState(BinaryWriter& writer) override;
+  bool DoState(StateWrapper& sw) override;
   void SetIRQState(bool state) override;
   void SignalNMI() override;
   ::DebuggerInterface* GetDebuggerInterface() override;

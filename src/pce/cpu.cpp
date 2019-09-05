@@ -1,6 +1,5 @@
 #include "cpu.h"
-#include "YBaseLib/BinaryReader.h"
-#include "YBaseLib/BinaryWriter.h"
+#include "common/state_wrapper.h"
 
 DEFINE_OBJECT_TYPE_INFO(CPU);
 BEGIN_OBJECT_PROPERTY_MAP(CPU)
@@ -27,19 +26,25 @@ void CPU::Reset()
   m_execution_downcount = 0;
 }
 
-bool CPU::LoadState(BinaryReader& reader)
+bool CPU::DoState(StateWrapper& sw)
 {
-  if (!reader.SafeReadFloat(&m_frequency) || m_frequency <= 0.0f)
+  if (!BaseClass::DoState(sw))
     return false;
 
-  UpdateCyclePeriod();
-  return true;
-}
+  sw.Do(&m_pending_cycles);
+  sw.Do(&m_execution_downcount);
 
-bool CPU::SaveState(BinaryWriter& writer)
-{
-  if (!writer.SafeWriteFloat(m_frequency))
-    return false;
+  double frequency = m_frequency;
+  sw.Do(&frequency);
+
+  if (sw.IsReading())
+  {
+    if (frequency <= 0.0f)
+      return false;
+
+    m_frequency = frequency;
+    UpdateCyclePeriod();
+  }
 
   return true;
 }

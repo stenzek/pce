@@ -28,8 +28,6 @@ class CPU : public ::CPU
   friend Instructions;
 
 public:
-  static constexpr u32 SERIALIZATION_ID = MakeSerializationID('8', '0', '8', '6');
-
 #pragma pack(push, 1)
   // Needed because the 8-bit register indices are all low bits -> all high bits
   struct Reg8Access
@@ -163,8 +161,7 @@ public:
   // Component functions
   bool Initialize(System* system, Bus* bus) override;
   void Reset() override;
-  bool LoadState(BinaryReader& reader) override;
-  bool SaveState(BinaryWriter& writer) override;
+  bool DoState(StateWrapper& sw) override;
   void SetIRQState(bool state) override;
   void SignalNMI() override;
   ::DebuggerInterface* GetDebuggerInterface() override;

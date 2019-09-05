@@ -1,9 +1,8 @@
 #include "pce/cpu_x86/cpu_x86.h"
 #include "YBaseLib/Assert.h"
-#include "YBaseLib/BinaryReader.h"
-#include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
 #include "YBaseLib/Memory.h"
+#include "common/state_wrapper.h"
 #include "pce/bus.h"
 #include "pce/cpu_x86/backend.h"
 #include "pce/cpu_x86/cached_interpreter_backend.h"
@@ -190,219 +189,92 @@ void CPU::Reset()
   CreateBackend();
 }
 
-bool CPU::LoadState(BinaryReader& reader)
+bool CPU::DoState(StateWrapper& sw)
 {
-  if (!BaseClass::LoadState(reader))
+  if (!BaseClass::DoState(sw))
     return false;
 
-  if (reader.ReadUInt32() != SERIALIZATION_ID)
-    return false;
-
-  Model model = static_cast<Model>(reader.ReadUInt8());
+  Model model = m_model;
+  sw.Do(&model);
   if (model != m_model)
   {
     Log_ErrorPrintf("Incompatible CPU models");
     return false;
   }
 
-  reader.SafeReadInt64(&m_pending_cycles);
-  reader.SafeReadInt64(&m_execution_downcount);
-  reader.SafeReadInt64(&m_tsc_cycles);
-  reader.SafeReadUInt32(&m_current_EIP);
-  reader.SafeReadUInt32(&m_current_ESP);
+  sw.Do(&m_tsc_cycles);
+  sw.Do(&m_current_EIP);
+  sw.Do(&m_current_ESP);
 
-  // reader.SafeReadBytes(&m_registers, sizeof(m_registers));
-  for (u32 i = 0; i < Reg32_Count; i++)
-    reader.SafeReadUInt32(&m_registers.reg32[i]);
-  for (u32 i = 0; i < Segment_Count; i++)
-    reader.SafeReadUInt16(&m_registers.segment_selectors[i]);
-  reader.SafeReadUInt16(&m_registers.LDTR);
-  reader.SafeReadUInt16(&m_registers.TR);
+  sw.DoArray(m_registers.reg32, Reg32_Count);
+  sw.DoArray(m_registers.segment_selectors, Segment_Count);
+  sw.Do(&m_registers.LDTR);
+  sw.Do(&m_registers.TR);
 
   for (u32 i = 0; i < countof(m_fpu_registers.ST); i++)
   {
-    reader.SafeReadUInt64(&m_fpu_registers.ST[i].low);
-    reader.SafeReadUInt16(&m_fpu_registers.ST[i].high);
+    sw.Do(&m_fpu_registers.ST[i].low);
+    sw.Do(&m_fpu_registers.ST[i].high);
   }
-  reader.SafeReadUInt16(&m_fpu_registers.CW.bits);
-  reader.SafeReadUInt16(&m_fpu_registers.SW.bits);
-  reader.SafeReadUInt16(&m_fpu_registers.TW.bits);
+  sw.Do(&m_fpu_registers.CW.bits);
+  sw.Do(&m_fpu_registers.SW.bits);
+  sw.Do(&m_fpu_registers.TW.bits);
 
-  u8 current_address_size = 0;
-  u8 current_operand_size = 0;
-  u8 stack_address_size = 0;
-  reader.SafeReadUInt8(&current_address_size);
-  reader.SafeReadUInt8(&current_operand_size);
-  reader.SafeReadUInt8(&stack_address_size);
-  m_current_address_size = static_cast<AddressSize>(current_address_size);
-  m_current_operand_size = static_cast<OperandSize>(current_operand_size);
-  m_stack_address_size = static_cast<AddressSize>(stack_address_size);
-  reader.SafeReadUInt32(&m_EIP_mask);
+  sw.Do(&m_current_address_size);
+  sw.Do(&m_current_operand_size);
+  sw.Do(&m_stack_address_size);
+  sw.Do(&m_EIP_mask);
 
-  auto ReadDescriptorTablePointer = [&reader](DescriptorTablePointer* ptr) {
-    reader.SafeReadUInt32(&ptr->base_address);
-    reader.SafeReadUInt32(&ptr->limit);
-  };
-  ReadDescriptorTablePointer(&m_idt_location);
-  ReadDescriptorTablePointer(&m_gdt_location);
-  ReadDescriptorTablePointer(&m_ldt_location);
+  sw.DoPOD(&m_idt_location);
+  sw.DoPOD(&m_gdt_location);
+  sw.DoPOD(&m_ldt_location);
+  sw.DoPOD(&m_tss_location);
 
-  reader.SafeReadUInt32(&m_tss_location.base_address);
-  reader.SafeReadUInt32(&m_tss_location.limit);
-  u8 ts_type = 0;
-  reader.SafeReadUInt8(&ts_type);
-  m_tss_location.type = static_cast<DESCRIPTOR_TYPE>(ts_type);
+  sw.DoPODArray(m_segment_cache, Segment_Count);
 
-  auto ReadSegmentCache = [&reader](SegmentCache* ptr) {
-    reader.SafeReadUInt32(&ptr->base_address);
-    reader.SafeReadUInt32(&ptr->limit_low);
-    reader.SafeReadUInt32(&ptr->limit_high);
-    reader.SafeReadUInt8(&ptr->access.bits);
-    reader.SafeReadUInt8(reinterpret_cast<u8*>(&ptr->access_mask));
-  };
-  for (u32 i = 0; i < Segment_Count; i++)
-    ReadSegmentCache(&m_segment_cache[i]);
+  sw.DoArray(m_msr_registers.raw_regs, countof(m_msr_registers.raw_regs));
 
-  for (u32 i = 0; i < countof(m_msr_registers.raw_regs); i++)
-    reader.SafeReadUInt32(&m_msr_registers.raw_regs[i]);
+  sw.Do(&m_cpl);
+  sw.Do(&m_tlb_user_bit);
+  sw.Do(&m_alignment_check_enabled);
+  sw.Do(&m_halted);
 
-  reader.SafeReadUInt8(&m_cpl);
-  reader.SafeReadUInt8(&m_tlb_user_bit);
-  reader.SafeReadBool(&m_alignment_check_enabled);
-  reader.SafeReadBool(&m_halted);
-
-  reader.SafeReadBool(&m_nmi_state);
-  reader.SafeReadBool(&m_irq_state);
+  sw.Do(&m_nmi_state);
+  sw.Do(&m_irq_state);
 
 #ifdef ENABLE_TLB_EMULATION
-  u32 tlb_entry_count;
-  if (!reader.SafeReadUInt32(&tlb_entry_count) || tlb_entry_count != Truncate32(TLB_ENTRY_COUNT))
+  u32 tlb_entry_count = Truncate32(TLB_ENTRY_COUNT);
+  sw.Do(&tlb_entry_count);
+  if (tlb_entry_count != Truncate32(TLB_ENTRY_COUNT))
     return false;
   for (u32 user_supervisor = 0; user_supervisor < 2; user_supervisor++)
   {
-    for (u32 write_read = 0; write_read < 2; write_read++)
-    {
-      for (auto& entry : m_tlb_entries[user_supervisor][write_read])
-      {
-        reader.SafeReadUInt32(&entry.linear_address);
-        reader.SafeReadUInt32(&entry.physical_address);
-      }
-    }
+    for (u32 write_read = 0; write_read < 3; write_read++)
+      sw.DoPODArray(m_tlb_entries[user_supervisor][write_read], TLB_ENTRY_COUNT);
   }
-  reader.SafeReadUInt32(&m_tlb_counter_bits);
+  sw.Do(&m_tlb_counter_bits);
 #endif
 
 #ifdef ENABLE_PREFETCH_EMULATION
-  u32 prefetch_queue_size;
-  if (!reader.SafeReadUInt32(&prefetch_queue_size) || prefetch_queue_size != PREFETCH_QUEUE_SIZE)
+  u32 prefetch_queue_size = PREFETCH_QUEUE_SIZE;
+  sw.Do(&prefetch_queue_size);
+  if (prefetch_queue_size != PREFETCH_QUEUE_SIZE)
     return false;
-  reader.SafeReadBytes(m_prefetch_queue, PREFETCH_QUEUE_SIZE);
-  reader.SafeReadUInt32(&m_prefetch_queue_position);
-  reader.SafeReadUInt32(&m_prefetch_queue_size);
+  sw.DoBytes(m_prefetch_queue, PREFETCH_QUEUE_SIZE);
+  sw.Do(&m_prefetch_queue_position);
+  sw.Do(&m_prefetch_queue_size);
 #endif
 
-  m_effective_address = 0;
-  std::memset(&idata, 0, sizeof(idata));
-  m_execution_stats = {};
-
-  m_backend->FlushCodeCache();
-
-  return !reader.GetErrorState();
-}
-
-bool CPU::SaveState(BinaryWriter& writer)
-{
-  if (!BaseClass::SaveState(writer))
-    return false;
-
-  writer.WriteUInt32(SERIALIZATION_ID);
-  writer.WriteUInt8(static_cast<u8>(m_model));
-
-  writer.WriteInt64(m_pending_cycles);
-  writer.WriteInt64(m_execution_downcount);
-  writer.WriteInt64(m_tsc_cycles);
-  writer.WriteUInt32(m_current_EIP);
-  writer.WriteUInt32(m_current_ESP);
-
-  // writer.WriteBytes(&m_registers, sizeof(m_registers));
-  for (u32 i = 0; i < Reg32_Count; i++)
-    writer.WriteUInt32(m_registers.reg32[i]);
-  for (u32 i = 0; i < Segment_Count; i++)
-    writer.WriteUInt16(m_registers.segment_selectors[i]);
-  writer.WriteUInt16(m_registers.LDTR);
-  writer.WriteUInt16(m_registers.TR);
-
-  for (u32 i = 0; i < countof(m_fpu_registers.ST); i++)
+  if (sw.IsReading())
   {
-    writer.WriteUInt64(m_fpu_registers.ST[i].low);
-    writer.WriteUInt16(m_fpu_registers.ST[i].high);
+    m_effective_address = 0;
+    std::memset(&idata, 0, sizeof(idata));
+    m_execution_stats = {};
+
+    m_backend->FlushCodeCache();
   }
-  writer.WriteUInt16(m_fpu_registers.CW.bits);
-  writer.WriteUInt16(m_fpu_registers.SW.bits);
-  writer.WriteUInt16(m_fpu_registers.TW.bits);
 
-  writer.WriteUInt8(static_cast<u8>(m_current_address_size));
-  writer.WriteUInt8(static_cast<u8>(m_current_operand_size));
-  writer.WriteUInt8(static_cast<u8>(m_stack_address_size));
-  writer.WriteUInt32(m_EIP_mask);
-
-  auto WriteDescriptorTablePointer = [&writer](DescriptorTablePointer* ptr) {
-    writer.WriteUInt32(ptr->base_address);
-    writer.WriteUInt32(ptr->limit);
-  };
-  WriteDescriptorTablePointer(&m_idt_location);
-  WriteDescriptorTablePointer(&m_gdt_location);
-  WriteDescriptorTablePointer(&m_ldt_location);
-
-  writer.WriteUInt32(m_tss_location.base_address);
-  writer.WriteUInt32(m_tss_location.limit);
-  writer.WriteUInt8(static_cast<u8>(m_tss_location.type));
-
-  auto WriteSegmentCache = [&writer](SegmentCache* ptr) {
-    writer.WriteUInt32(ptr->base_address);
-    writer.WriteUInt32(ptr->limit_low);
-    writer.WriteUInt32(ptr->limit_high);
-    writer.WriteUInt8(ptr->access.bits);
-    writer.WriteUInt8(static_cast<u8>(ptr->access_mask));
-  };
-  for (u32 i = 0; i < Segment_Count; i++)
-    WriteSegmentCache(&m_segment_cache[i]);
-
-  for (u32 i = 0; i < countof(m_msr_registers.raw_regs); i++)
-    writer.WriteUInt32(m_msr_registers.raw_regs[i]);
-
-  writer.WriteUInt8(m_cpl);
-  writer.WriteUInt8(m_tlb_user_bit);
-  writer.WriteBool(m_alignment_check_enabled);
-  writer.WriteBool(m_halted);
-
-  writer.WriteBool(m_nmi_state);
-  writer.WriteBool(m_irq_state);
-
-#ifdef ENABLE_TLB_EMULATION
-  writer.WriteUInt32(Truncate32(TLB_ENTRY_COUNT));
-  for (u32 user_supervisor = 0; user_supervisor < 2; user_supervisor++)
-  {
-    for (u32 write_read = 0; write_read < 2; write_read++)
-    {
-      for (const auto& entry : m_tlb_entries[user_supervisor][write_read])
-      {
-        writer.WriteUInt32(entry.linear_address);
-        writer.WriteUInt32(entry.physical_address);
-      }
-    }
-  }
-  writer.WriteUInt32(m_tlb_counter_bits);
-#endif
-
-#ifdef ENABLE_PREFETCH_EMULATION
-  writer.WriteUInt32(PREFETCH_QUEUE_SIZE);
-  writer.WriteBytes(m_prefetch_queue, PREFETCH_QUEUE_SIZE);
-  writer.WriteUInt32(m_prefetch_queue_position);
-  writer.WriteUInt32(m_prefetch_queue_size);
-#endif
-
-  return !writer.InErrorState();
+  return !sw.HasError();
 }
 
 void CPU::SetIRQState(bool state)
@@ -4268,7 +4140,7 @@ void CPU::InvalidateTLBEntry(u32 linear_address)
   const u32 index = GetTLBEntryIndex(linear_address);
   for (u32 user_supervisor = 0; user_supervisor < 2; user_supervisor++)
   {
-    for (u32 write_read = 0; write_read < 2; write_read++)
+    for (u32 write_read = 0; write_read < 3; write_read++)
     {
       TLBEntry& entry = m_tlb_entries[user_supervisor][write_read][index];
       if (entry.linear_address == compare_linear_address)

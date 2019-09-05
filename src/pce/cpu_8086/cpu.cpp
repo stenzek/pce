@@ -1,10 +1,9 @@
 #include "pce/cpu_8086/cpu.h"
 #include "YBaseLib/Assert.h"
-#include "YBaseLib/BinaryReader.h"
-#include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Log.h"
 #include "YBaseLib/Memory.h"
 #include "common/fastjmp.h"
+#include "common/state_wrapper.h"
 #include "pce/bus.h"
 #include "pce/cpu_8086/debugger_interface.h"
 #include "pce/cpu_8086/decoder.h"
@@ -76,74 +75,44 @@ void CPU::Reset()
   std::memset(&idata, 0, sizeof(idata));
 }
 
-bool CPU::LoadState(BinaryReader& reader)
+bool CPU::DoState(StateWrapper& sw)
 {
-  if (!BaseClass::LoadState(reader))
+  if (!BaseClass::DoState(sw))
     return false;
 
-  if (reader.ReadUInt32() != SERIALIZATION_ID)
-    return false;
-
-  Model model = static_cast<Model>(reader.ReadUInt8());
+  Model model = m_model;
+  sw.Do(&model);
   if (model != m_model)
   {
     Log_ErrorPrintf("Incompatible CPU models");
     return false;
   }
 
-  reader.SafeReadInt64(&m_pending_cycles);
-  reader.SafeReadInt64(&m_execution_downcount);
-  reader.SafeReadUInt16(&m_current_IP);
+  sw.Do(&m_current_IP);
 
-  for (u32 i = 0; i < Reg16_Count; i++)
-    reader.SafeReadUInt16(&m_registers.reg16[i]);
+  sw.DoArray(m_registers.reg16, Reg16_Count);
 
-  reader.SafeReadBool(&m_halted);
-  reader.SafeReadBool(&m_nmi_state);
-  reader.SafeReadBool(&m_irq_state);
+  sw.Do(&m_halted);
+  sw.Do(&m_nmi_state);
+  sw.Do(&m_irq_state);
 
 #ifdef ENABLE_PREFETCH_EMULATION
-  u32 prefetch_queue_size;
-  if (!reader.SafeReadUInt32(&prefetch_queue_size) || prefetch_queue_size != PREFETCH_QUEUE_SIZE)
+  u32 prefetch_queue_size = PREFETCH_QUEUE_SIZE;
+  sw.Do(&prefetch_queue_size);
+  if (prefetch_queue_size != PREFETCH_QUEUE_SIZE)
     return false;
-  reader.SafeReadBytes(m_prefetch_queue, PREFETCH_QUEUE_SIZE);
-  reader.SafeReadUInt32(&m_prefetch_queue_position);
-  reader.SafeReadUInt32(&m_prefetch_queue_size);
+  sw.DoBytes(m_prefetch_queue, PREFETCH_QUEUE_SIZE);
+  sw.Do(&m_prefetch_queue_position);
+  sw.Do(&m_prefetch_queue_size);
 #endif
 
-  m_effective_address = 0;
-  std::memset(&idata, 0, sizeof(idata));
+  if (sw.IsReading())
+  {
+    m_effective_address = 0;
+    std::memset(&idata, 0, sizeof(idata));
+  }
 
-  return !reader.GetErrorState();
-}
-
-bool CPU::SaveState(BinaryWriter& writer)
-{
-  if (!BaseClass::SaveState(writer))
-    return false;
-
-  writer.WriteUInt32(SERIALIZATION_ID);
-  writer.WriteUInt8(static_cast<u8>(m_model));
-
-  writer.WriteInt64(m_pending_cycles);
-  writer.WriteInt64(m_execution_downcount);
-  writer.WriteUInt16(m_current_IP);
-
-  for (u32 i = 0; i < Reg16_Count; i++)
-    writer.WriteUInt16(m_registers.reg16[i]);
-
-  writer.WriteBool(m_halted);
-  writer.WriteBool(m_nmi_state);
-  writer.WriteBool(m_irq_state);
-
-#ifdef ENABLE_PREFETCH_EMULATION
-  writer.WriteUInt32(PREFETCH_QUEUE_SIZE);
-  writer.WriteBytes(m_prefetch_queue, PREFETCH_QUEUE_SIZE);
-  writer.WriteUInt32(m_prefetch_queue_position);
-  writer.WriteUInt32(m_prefetch_queue_size);
-#endif
-
-  return !writer.InErrorState();
+  return !sw.HasError();
 }
 
 void CPU::SetIRQState(bool state)
