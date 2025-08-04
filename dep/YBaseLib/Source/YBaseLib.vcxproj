@@ -1,0 +1,547 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="DebugFast|Win32">
+      <Configuration>DebugFast</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugFast|x64">
+      <Configuration>DebugFast</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseLTCG|Win32">
+      <Configuration>ReleaseLTCG</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseLTCG|x64">
+      <Configuration>ReleaseLTCG</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="YBaseLib\Android\AndroidConditionVariable.cpp" />
+    <ClCompile Include="YBaseLib\Android\AndroidEvent.cpp" />
+    <ClCompile Include="YBaseLib\Android\AndroidFileSystem.cpp" />
+    <ClCompile Include="YBaseLib\Android\AndroidPlatform.cpp" />
+    <ClCompile Include="YBaseLib\Android\AndroidReadWriteLock.cpp" />
+    <ClCompile Include="YBaseLib\Android\AndroidThread.cpp" />
+    <ClCompile Include="YBaseLib\Assert.cpp" />
+    <ClCompile Include="YBaseLib\Atomic.cpp" />
+    <ClCompile Include="YBaseLib\BinaryBlob.cpp" />
+    <ClCompile Include="YBaseLib\BinaryReadBuffer.cpp" />
+    <ClCompile Include="YBaseLib\BinaryReader.cpp" />
+    <ClCompile Include="YBaseLib\BinaryWriteBuffer.cpp" />
+    <ClCompile Include="YBaseLib\BinaryWriter.cpp" />
+    <ClCompile Include="YBaseLib\ByteStream.cpp" />
+    <ClCompile Include="YBaseLib\CallbackQueue.cpp" />
+    <ClCompile Include="YBaseLib\CircularBuffer.cpp" />
+    <ClCompile Include="YBaseLib\CPUID.cpp" />
+    <ClCompile Include="YBaseLib\CRC32.cpp" />
+    <ClCompile Include="YBaseLib\CString.cpp" />
+    <ClCompile Include="YBaseLib\Endian.cpp" />
+    <ClCompile Include="YBaseLib\Error.cpp" />
+    <ClCompile Include="YBaseLib\Exception.cpp" />
+    <ClCompile Include="YBaseLib\FileSystem.cpp" />
+    <ClCompile Include="YBaseLib\HashTrait.cpp" />
+    <ClCompile Include="YBaseLib\HTML5\HTML5Barrier.cpp" />
+    <ClCompile Include="YBaseLib\HTML5\HTML5ConditionVariable.cpp" />
+    <ClCompile Include="YBaseLib\HTML5\HTML5FileSystem.cpp" />
+    <ClCompile Include="YBaseLib\HTML5\HTML5Platform.cpp" />
+    <ClCompile Include="YBaseLib\HTML5\HTML5ReadWriteLock.cpp" />
+    <ClCompile Include="YBaseLib\HTML5\HTML5Thread.cpp" />
+    <ClCompile Include="YBaseLib\Log.cpp" />
+    <ClCompile Include="YBaseLib\Math.cpp" />
+    <ClCompile Include="YBaseLib\MD5Digest.cpp" />
+    <ClCompile Include="YBaseLib\Memory.cpp" />
+    <ClCompile Include="YBaseLib\NameTable.cpp" />
+    <ClCompile Include="YBaseLib\NumericLimits.cpp" />
+    <ClCompile Include="YBaseLib\POSIX\POSIXConditionVariable.cpp" />
+    <ClCompile Include="YBaseLib\POSIX\POSIXFileSystem.cpp" />
+    <ClCompile Include="YBaseLib\POSIX\POSIXPlatform.cpp" />
+    <ClCompile Include="YBaseLib\POSIX\POSIXReadWriteLock.cpp" />
+    <ClCompile Include="YBaseLib\POSIX\POSIXSubprocess.cpp" />
+    <ClCompile Include="YBaseLib\POSIX\POSIXThread.cpp" />
+    <ClCompile Include="YBaseLib\ProgressCallbacks.cpp" />
+    <ClCompile Include="YBaseLib\ReferenceCounted.cpp" />
+    <ClCompile Include="YBaseLib\Sockets\Generic\BufferedStreamSocket.cpp" />
+    <ClCompile Include="YBaseLib\Sockets\Generic\ListenSocket.cpp" />
+    <ClCompile Include="YBaseLib\Sockets\Generic\SocketMultiplexer.cpp" />
+    <ClCompile Include="YBaseLib\Sockets\Generic\StreamSocket.cpp" />
+    <ClCompile Include="YBaseLib\Sockets\SocketAddress.cpp" />
+    <ClCompile Include="YBaseLib\String.cpp" />
+    <ClCompile Include="YBaseLib\StringConverter.cpp" />
+    <ClCompile Include="YBaseLib\StringParser.cpp" />
+    <ClCompile Include="YBaseLib\TaskQueue.cpp" />
+    <ClCompile Include="YBaseLib\TextReader.cpp" />
+    <ClCompile Include="YBaseLib\TextWriter.cpp" />
+    <ClCompile Include="YBaseLib\ThreadPool.cpp" />
+    <ClCompile Include="YBaseLib\Timer.cpp" />
+    <ClCompile Include="YBaseLib\Timestamp.cpp" />
+    <ClCompile Include="YBaseLib\Windows\WindowsBarrier.cpp" />
+    <ClCompile Include="YBaseLib\Windows\WindowsConditionVariable.cpp" />
+    <ClCompile Include="YBaseLib\Windows\WindowsFileSystem.cpp" />
+    <ClCompile Include="YBaseLib\Windows\WindowsPlatform.cpp" />
+    <ClCompile Include="YBaseLib\Windows\WindowsReadWriteLock.cpp" />
+    <ClCompile Include="YBaseLib\Windows\WindowsSubprocess.cpp" />
+    <ClCompile Include="YBaseLib\Windows\WindowsThread.cpp" />
+    <ClCompile Include="YBaseLib\XMLReader.cpp" />
+    <ClCompile Include="YBaseLib\XMLWriter.cpp" />
+    <ClCompile Include="YBaseLib\ZipArchive.cpp" />
+    <ClCompile Include="YBaseLib\ZLibHelpers.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Include\YBaseLib\AlignedMemArray.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidBarrier.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidConditionVariable.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidEvent.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidMutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidReadWriteLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidRecursiveMutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidSemaphore.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidThread.h" />
+    <ClInclude Include="..\Include\YBaseLib\Array.h" />
+    <ClInclude Include="..\Include\YBaseLib\Assert.h" />
+    <ClInclude Include="..\Include\YBaseLib\Atomic.h" />
+    <ClInclude Include="..\Include\YBaseLib\AutoReleasePtr.h" />
+    <ClInclude Include="..\Include\YBaseLib\Barrier.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryBlob.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryReadBuffer.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryReader.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryWriteBuffer.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryWriter.h" />
+    <ClInclude Include="..\Include\YBaseLib\BitSet.h" />
+    <ClInclude Include="..\Include\YBaseLib\ByteStream.h" />
+    <ClInclude Include="..\Include\YBaseLib\CallbackQueue.h" />
+    <ClInclude Include="..\Include\YBaseLib\CircularBuffer.h" />
+    <ClInclude Include="..\Include\YBaseLib\CIStringHashTable.h" />
+    <ClInclude Include="..\Include\YBaseLib\Common.h" />
+    <ClInclude Include="..\Include\YBaseLib\ConditionVariable.h" />
+    <ClInclude Include="..\Include\YBaseLib\CPUID.h" />
+    <ClInclude Include="..\Include\YBaseLib\CRC32.h" />
+    <ClInclude Include="..\Include\YBaseLib\CString.h" />
+    <ClInclude Include="..\Include\YBaseLib\Endian.h" />
+    <ClInclude Include="..\Include\YBaseLib\Error.h" />
+    <ClInclude Include="..\Include\YBaseLib\Event.h" />
+    <ClInclude Include="..\Include\YBaseLib\Exception.h" />
+    <ClInclude Include="..\Include\YBaseLib\FileSystem.h" />
+    <ClInclude Include="..\Include\YBaseLib\Functor.h" />
+    <ClInclude Include="..\Include\YBaseLib\HashTable.h" />
+    <ClInclude Include="..\Include\YBaseLib\HashTrait.h" />
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Barrier.h" />
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5ConditionVariable.h" />
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Event.h" />
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Mutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5ReadWriteLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5RecursiveMutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Semaphore.h" />
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Thread.h" />
+    <ClInclude Include="..\Include\YBaseLib\IntrusiveLinkedList.h" />
+    <ClInclude Include="..\Include\YBaseLib\KeyValuePair.h" />
+    <ClInclude Include="..\Include\YBaseLib\LinkedList.h" />
+    <ClInclude Include="..\Include\YBaseLib\Log.h" />
+    <ClInclude Include="..\Include\YBaseLib\Math.h" />
+    <ClInclude Include="..\Include\YBaseLib\MD5Digest.h" />
+    <ClInclude Include="..\Include\YBaseLib\MemArray.h" />
+    <ClInclude Include="..\Include\YBaseLib\Memory.h" />
+    <ClInclude Include="..\Include\YBaseLib\Mutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\MutexLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\NameTable.h" />
+    <ClInclude Include="..\Include\YBaseLib\NonCopyable.h" />
+    <ClInclude Include="..\Include\YBaseLib\NumericLimits.h" />
+    <ClInclude Include="..\Include\YBaseLib\Pair.h" />
+    <ClInclude Include="..\Include\YBaseLib\Platform.h" />
+    <ClInclude Include="..\Include\YBaseLib\PODArray.h" />
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXBarrier.h" />
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXConditionVariable.h" />
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXEvent.h" />
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXMutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXReadWriteLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXRecursiveMutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXSemaphore.h" />
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXSubprocess.h" />
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXThread.h" />
+    <ClInclude Include="..\Include\YBaseLib\ProgressCallbacks.h" />
+    <ClInclude Include="..\Include\YBaseLib\QueuedAllocator.h" />
+    <ClInclude Include="..\Include\YBaseLib\ReadWriteLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\RecursiveMutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\RecursiveMutexLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\ReferenceCounted.h" />
+    <ClInclude Include="..\Include\YBaseLib\ReferenceCountedHolder.h" />
+    <ClInclude Include="..\Include\YBaseLib\Semaphore.h" />
+    <ClInclude Include="..\Include\YBaseLib\Singleton.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\BaseSocket.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\BufferedStreamSocket.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Common.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\BaseSocket.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\BufferedStreamSocket.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\ListenSocket.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\SocketMultiplexer.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\StreamSocket.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\ListenSocket.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\SocketAddress.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\SocketMultiplexer.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\StreamSocket.h" />
+    <ClInclude Include="..\Include\YBaseLib\Sockets\SystemHeaders.h" />
+    <ClInclude Include="..\Include\YBaseLib\String.h" />
+    <ClInclude Include="..\Include\YBaseLib\StringConverter.h" />
+    <ClInclude Include="..\Include\YBaseLib\StringHashTable.h" />
+    <ClInclude Include="..\Include\YBaseLib\StringParser.h" />
+    <ClInclude Include="..\Include\YBaseLib\Subprocess.h" />
+    <ClInclude Include="..\Include\YBaseLib\TaskQueue.h" />
+    <ClInclude Include="..\Include\YBaseLib\TextReader.h" />
+    <ClInclude Include="..\Include\YBaseLib\TextWriter.h" />
+    <ClInclude Include="..\Include\YBaseLib\Thread.h" />
+    <ClInclude Include="..\Include\YBaseLib\ThreadPool.h" />
+    <ClInclude Include="..\Include\YBaseLib\Timer.h" />
+    <ClInclude Include="..\Include\YBaseLib\Timestamp.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsBarrier.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsConditionVariable.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsEvent.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsHeaders.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsMutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsReadWriteLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsRecursiveMutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsSemaphore.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsSubprocess.h" />
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsThread.h" />
+    <ClInclude Include="..\Include\YBaseLib\XMLReader.h" />
+    <ClInclude Include="..\Include\YBaseLib\XMLWriter.h" />
+    <ClInclude Include="..\Include\YBaseLib\ZipArchive.h" />
+    <ClInclude Include="..\Include\YBaseLib\ZLibHelpers.h" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B56CE698-7300-4FA5-9609-942F1D05C5A2}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>YBaseLib</RootNamespace>
+    <ProjectName>YBaseLib</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)Build\Binaries\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">
+    <OutDir>$(SolutionDir)Build\Binaries\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)Build\Binaries\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">
+    <OutDir>$(SolutionDir)Build\Binaries\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IntDir>$(SolutionDir)Build\Objects\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Configuration)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">
+    <IntDir>$(SolutionDir)Build\Objects\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Configuration)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IntDir>$(SolutionDir)Build\Objects\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Configuration)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">
+    <IntDir>$(SolutionDir)Build\Objects\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Configuration)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)Build\Binaries\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|Win32'">
+    <OutDir>$(SolutionDir)Build\Binaries\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)Build\Binaries\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|x64'">
+    <OutDir>$(SolutionDir)Build\Binaries\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IntDir>$(SolutionDir)Build\Objects\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Configuration)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|Win32'">
+    <IntDir>$(SolutionDir)Build\Objects\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Configuration)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IntDir>$(SolutionDir)Build\Objects\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Configuration)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|x64'">
+    <IntDir>$(SolutionDir)Build\Objects\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName)-$(Configuration)</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Lib />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;WIN32;_DEBUGFAST;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SupportJustMyCode>false</SupportJustMyCode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Lib />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Lib />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;WIN32;_DEBUGFAST;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SupportJustMyCode>false</SupportJustMyCode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Lib />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <AdditionalOptions>/Zo %(AdditionalOptions)</AdditionalOptions>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <Lib />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|Win32'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <AdditionalOptions>/Zo %(AdditionalOptions)</AdditionalOptions>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <Lib />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+      <AdditionalOptions>/Zo %(AdditionalOptions)</AdditionalOptions>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <Lib />
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTCG|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+      <AdditionalOptions>/Zo %(AdditionalOptions)</AdditionalOptions>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <Lib />
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

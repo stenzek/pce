@@ -1,0 +1,370 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="HTML5">
+      <UniqueIdentifier>{17fff738-4afb-4f1b-872b-d45e25f75fd0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="POSIX">
+      <UniqueIdentifier>{c5b137a7-45d0-4297-8ec3-971af0d394d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Windows">
+      <UniqueIdentifier>{d0363963-d0ed-488d-b350-f3957e697614}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Android">
+      <UniqueIdentifier>{2e66cba7-f275-4ee7-a2b9-cb18f7f291fe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sockets">
+      <UniqueIdentifier>{8f0e23da-e8ba-4434-93bf-88da9b18f055}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sockets\Generic">
+      <UniqueIdentifier>{8d99c922-c1ca-4870-bb5d-9ebe23dc4c3e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="YBaseLib\ZipArchive.cpp" />
+    <ClCompile Include="YBaseLib\ZLibHelpers.cpp" />
+    <ClCompile Include="YBaseLib\Assert.cpp" />
+    <ClCompile Include="YBaseLib\Atomic.cpp" />
+    <ClCompile Include="YBaseLib\BinaryBlob.cpp" />
+    <ClCompile Include="YBaseLib\BinaryReadBuffer.cpp" />
+    <ClCompile Include="YBaseLib\BinaryReader.cpp" />
+    <ClCompile Include="YBaseLib\BinaryWriteBuffer.cpp" />
+    <ClCompile Include="YBaseLib\BinaryWriter.cpp" />
+    <ClCompile Include="YBaseLib\ByteStream.cpp" />
+    <ClCompile Include="YBaseLib\CallbackQueue.cpp" />
+    <ClCompile Include="YBaseLib\CircularBuffer.cpp" />
+    <ClCompile Include="YBaseLib\CPUID.cpp" />
+    <ClCompile Include="YBaseLib\CRC32.cpp" />
+    <ClCompile Include="YBaseLib\CString.cpp" />
+    <ClCompile Include="YBaseLib\Endian.cpp" />
+    <ClCompile Include="YBaseLib\Error.cpp" />
+    <ClCompile Include="YBaseLib\Exception.cpp" />
+    <ClCompile Include="YBaseLib\FileSystem.cpp" />
+    <ClCompile Include="YBaseLib\HashTrait.cpp" />
+    <ClCompile Include="YBaseLib\Log.cpp" />
+    <ClCompile Include="YBaseLib\Math.cpp" />
+    <ClCompile Include="YBaseLib\MD5Digest.cpp" />
+    <ClCompile Include="YBaseLib\Memory.cpp" />
+    <ClCompile Include="YBaseLib\NameTable.cpp" />
+    <ClCompile Include="YBaseLib\NumericLimits.cpp" />
+    <ClCompile Include="YBaseLib\ProgressCallbacks.cpp" />
+    <ClCompile Include="YBaseLib\ReferenceCounted.cpp" />
+    <ClCompile Include="YBaseLib\String.cpp" />
+    <ClCompile Include="YBaseLib\StringConverter.cpp" />
+    <ClCompile Include="YBaseLib\StringParser.cpp" />
+    <ClCompile Include="YBaseLib\TaskQueue.cpp" />
+    <ClCompile Include="YBaseLib\TextReader.cpp" />
+    <ClCompile Include="YBaseLib\TextWriter.cpp" />
+    <ClCompile Include="YBaseLib\ThreadPool.cpp" />
+    <ClCompile Include="YBaseLib\Timer.cpp" />
+    <ClCompile Include="YBaseLib\Timestamp.cpp" />
+    <ClCompile Include="YBaseLib\XMLReader.cpp" />
+    <ClCompile Include="YBaseLib\XMLWriter.cpp" />
+    <ClCompile Include="YBaseLib\Android\AndroidFileSystem.cpp">
+      <Filter>Android</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Android\AndroidPlatform.cpp">
+      <Filter>Android</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Android\AndroidReadWriteLock.cpp">
+      <Filter>Android</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Android\AndroidThread.cpp">
+      <Filter>Android</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Android\AndroidConditionVariable.cpp">
+      <Filter>Android</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Android\AndroidEvent.cpp">
+      <Filter>Android</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\HTML5\HTML5FileSystem.cpp">
+      <Filter>HTML5</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\HTML5\HTML5Platform.cpp">
+      <Filter>HTML5</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\HTML5\HTML5ReadWriteLock.cpp">
+      <Filter>HTML5</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\HTML5\HTML5Thread.cpp">
+      <Filter>HTML5</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\HTML5\HTML5Barrier.cpp">
+      <Filter>HTML5</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\HTML5\HTML5ConditionVariable.cpp">
+      <Filter>HTML5</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\POSIX\POSIXFileSystem.cpp">
+      <Filter>POSIX</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\POSIX\POSIXPlatform.cpp">
+      <Filter>POSIX</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\POSIX\POSIXReadWriteLock.cpp">
+      <Filter>POSIX</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\POSIX\POSIXSubprocess.cpp">
+      <Filter>POSIX</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\POSIX\POSIXThread.cpp">
+      <Filter>POSIX</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\POSIX\POSIXConditionVariable.cpp">
+      <Filter>POSIX</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Sockets\SocketAddress.cpp">
+      <Filter>Sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Sockets\Generic\StreamSocket.cpp">
+      <Filter>Sockets\Generic</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Sockets\Generic\BufferedStreamSocket.cpp">
+      <Filter>Sockets\Generic</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Sockets\Generic\ListenSocket.cpp">
+      <Filter>Sockets\Generic</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Sockets\Generic\SocketMultiplexer.cpp">
+      <Filter>Sockets\Generic</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Windows\WindowsReadWriteLock.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Windows\WindowsSubprocess.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Windows\WindowsThread.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Windows\WindowsBarrier.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Windows\WindowsConditionVariable.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Windows\WindowsFileSystem.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="YBaseLib\Windows\WindowsPlatform.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Include\YBaseLib\ReferenceCounted.h" />
+    <ClInclude Include="..\Include\YBaseLib\ReferenceCountedHolder.h" />
+    <ClInclude Include="..\Include\YBaseLib\Singleton.h" />
+    <ClInclude Include="..\Include\YBaseLib\String.h" />
+    <ClInclude Include="..\Include\YBaseLib\StringConverter.h" />
+    <ClInclude Include="..\Include\YBaseLib\StringHashTable.h" />
+    <ClInclude Include="..\Include\YBaseLib\StringParser.h" />
+    <ClInclude Include="..\Include\YBaseLib\Subprocess.h" />
+    <ClInclude Include="..\Include\YBaseLib\TaskQueue.h" />
+    <ClInclude Include="..\Include\YBaseLib\TextReader.h" />
+    <ClInclude Include="..\Include\YBaseLib\TextWriter.h" />
+    <ClInclude Include="..\Include\YBaseLib\Thread.h" />
+    <ClInclude Include="..\Include\YBaseLib\ThreadPool.h" />
+    <ClInclude Include="..\Include\YBaseLib\Timer.h" />
+    <ClInclude Include="..\Include\YBaseLib\Timestamp.h" />
+    <ClInclude Include="..\Include\YBaseLib\XMLReader.h" />
+    <ClInclude Include="..\Include\YBaseLib\XMLWriter.h" />
+    <ClInclude Include="..\Include\YBaseLib\ZipArchive.h" />
+    <ClInclude Include="..\Include\YBaseLib\ZLibHelpers.h" />
+    <ClInclude Include="..\Include\YBaseLib\AlignedMemArray.h" />
+    <ClInclude Include="..\Include\YBaseLib\Array.h" />
+    <ClInclude Include="..\Include\YBaseLib\Assert.h" />
+    <ClInclude Include="..\Include\YBaseLib\Atomic.h" />
+    <ClInclude Include="..\Include\YBaseLib\AutoReleasePtr.h" />
+    <ClInclude Include="..\Include\YBaseLib\Barrier.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryBlob.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryReadBuffer.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryReader.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryWriteBuffer.h" />
+    <ClInclude Include="..\Include\YBaseLib\BinaryWriter.h" />
+    <ClInclude Include="..\Include\YBaseLib\BitSet.h" />
+    <ClInclude Include="..\Include\YBaseLib\ByteStream.h" />
+    <ClInclude Include="..\Include\YBaseLib\CallbackQueue.h" />
+    <ClInclude Include="..\Include\YBaseLib\CircularBuffer.h" />
+    <ClInclude Include="..\Include\YBaseLib\CIStringHashTable.h" />
+    <ClInclude Include="..\Include\YBaseLib\Common.h" />
+    <ClInclude Include="..\Include\YBaseLib\ConditionVariable.h" />
+    <ClInclude Include="..\Include\YBaseLib\CPUID.h" />
+    <ClInclude Include="..\Include\YBaseLib\CRC32.h" />
+    <ClInclude Include="..\Include\YBaseLib\CString.h" />
+    <ClInclude Include="..\Include\YBaseLib\Endian.h" />
+    <ClInclude Include="..\Include\YBaseLib\Error.h" />
+    <ClInclude Include="..\Include\YBaseLib\Event.h" />
+    <ClInclude Include="..\Include\YBaseLib\Exception.h" />
+    <ClInclude Include="..\Include\YBaseLib\FileSystem.h" />
+    <ClInclude Include="..\Include\YBaseLib\Functor.h" />
+    <ClInclude Include="..\Include\YBaseLib\HashTable.h" />
+    <ClInclude Include="..\Include\YBaseLib\HashTrait.h" />
+    <ClInclude Include="..\Include\YBaseLib\IntrusiveLinkedList.h" />
+    <ClInclude Include="..\Include\YBaseLib\KeyValuePair.h" />
+    <ClInclude Include="..\Include\YBaseLib\LinkedList.h" />
+    <ClInclude Include="..\Include\YBaseLib\Log.h" />
+    <ClInclude Include="..\Include\YBaseLib\Math.h" />
+    <ClInclude Include="..\Include\YBaseLib\MD5Digest.h" />
+    <ClInclude Include="..\Include\YBaseLib\MemArray.h" />
+    <ClInclude Include="..\Include\YBaseLib\Memory.h" />
+    <ClInclude Include="..\Include\YBaseLib\Mutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\MutexLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\NameTable.h" />
+    <ClInclude Include="..\Include\YBaseLib\NonCopyable.h" />
+    <ClInclude Include="..\Include\YBaseLib\NumericLimits.h" />
+    <ClInclude Include="..\Include\YBaseLib\Pair.h" />
+    <ClInclude Include="..\Include\YBaseLib\Platform.h" />
+    <ClInclude Include="..\Include\YBaseLib\PODArray.h" />
+    <ClInclude Include="..\Include\YBaseLib\ProgressCallbacks.h" />
+    <ClInclude Include="..\Include\YBaseLib\QueuedAllocator.h" />
+    <ClInclude Include="..\Include\YBaseLib\ReadWriteLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\RecursiveMutex.h" />
+    <ClInclude Include="..\Include\YBaseLib\RecursiveMutexLock.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidMutex.h">
+      <Filter>Android</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidReadWriteLock.h">
+      <Filter>Android</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidRecursiveMutex.h">
+      <Filter>Android</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidThread.h">
+      <Filter>Android</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidBarrier.h">
+      <Filter>Android</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidConditionVariable.h">
+      <Filter>Android</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidEvent.h">
+      <Filter>Android</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Mutex.h">
+      <Filter>HTML5</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5ReadWriteLock.h">
+      <Filter>HTML5</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5RecursiveMutex.h">
+      <Filter>HTML5</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Thread.h">
+      <Filter>HTML5</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Barrier.h">
+      <Filter>HTML5</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5ConditionVariable.h">
+      <Filter>HTML5</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Event.h">
+      <Filter>HTML5</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXEvent.h">
+      <Filter>POSIX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXMutex.h">
+      <Filter>POSIX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXReadWriteLock.h">
+      <Filter>POSIX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXRecursiveMutex.h">
+      <Filter>POSIX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXSubprocess.h">
+      <Filter>POSIX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXThread.h">
+      <Filter>POSIX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXBarrier.h">
+      <Filter>POSIX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXConditionVariable.h">
+      <Filter>POSIX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\BaseSocket.h">
+      <Filter>Sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\BufferedStreamSocket.h">
+      <Filter>Sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Common.h">
+      <Filter>Sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\ListenSocket.h">
+      <Filter>Sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\SocketAddress.h">
+      <Filter>Sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\SocketMultiplexer.h">
+      <Filter>Sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\StreamSocket.h">
+      <Filter>Sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\SystemHeaders.h">
+      <Filter>Sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\ListenSocket.h">
+      <Filter>Sockets\Generic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\SocketMultiplexer.h">
+      <Filter>Sockets\Generic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\StreamSocket.h">
+      <Filter>Sockets\Generic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\BaseSocket.h">
+      <Filter>Sockets\Generic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Sockets\Generic\BufferedStreamSocket.h">
+      <Filter>Sockets\Generic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsBarrier.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsConditionVariable.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsEvent.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsHeaders.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsMutex.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsReadWriteLock.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsRecursiveMutex.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsSubprocess.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsThread.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Windows\WindowsSemaphore.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\Semaphore.h" />
+    <ClInclude Include="..\Include\YBaseLib\Android\AndroidSemaphore.h">
+      <Filter>Android</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\POSIX\POSIXSemaphore.h">
+      <Filter>POSIX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\YBaseLib\HTML5\HTML5Semaphore.h">
+      <Filter>HTML5</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

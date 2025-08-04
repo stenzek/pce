@@ -1,0 +1,9 @@
+Tests/Build/Objects/*
+Tests/Build/Binaries/*
+ipch
+ipch/*
+*.vcxproj.user
+*.opensdf
+*.sdf
+*.suo
+*.VC.opendb
