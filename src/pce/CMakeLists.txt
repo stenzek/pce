@@ -153,31 +153,6 @@ else()
   message("Not building recompiler")
 endif()
 
-if(ENABLE_VOODOO)
-  target_sources(pce PRIVATE
-    hw/voodoo.h
-    hw/voodoo.cpp
-    thirdparty/mame/osdcomm.h
-    thirdparty/mame/osdcore.cpp
-    thirdparty/mame/osdcore.h
-    thirdparty/mame/osdsync.cpp
-    thirdparty/mame/osdsync.h
-    thirdparty/mame/palette.h
-    thirdparty/mame/polylgcy.cpp
-    thirdparty/mame/polylgcy.h
-    thirdparty/mame/rectangle.h
-    thirdparty/mame/rgbgen.cpp
-    thirdparty/mame/rgbgen.h
-    thirdparty/mame/rgbsse.cpp
-    thirdparty/mame/rgbsse.h
-    thirdparty/mame/rgbutil.h
-    thirdparty/mame/vooddefs.h
-    thirdparty/mame/voodoo.cpp
-    thirdparty/mame/voodoo.h
-    thirdparty/mame/voodoo_rast.hxx
-  )
-endif()
-
 # Disable operators, since it breaks on xbyak.
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set_target_properties(pce PROPERTIES COMPILE_FLAGS "-fno-operator-names")

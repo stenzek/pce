@@ -26,7 +26,6 @@
 #include "pce/hw/soundblaster.h"
 #include "pce/hw/vga.h"
 #include "pce/hw/vga_base.h"
-#include "pce/hw/voodoo.h"
 #include "pce/hw/xt_ide.h"
 #include "pce/hw/xt_ppi.h"
 #include "pce/system.h"
@@ -80,9 +79,6 @@ void RegisterAllTypes()
   REGISTER_HW_TYPE(SerialMouse);
   REGISTER_HW_TYPE(SoundBlaster);
   REGISTER_HW_TYPE(VGA);
-#ifdef ENABLE_VOODOO
-  REGISTER_HW_TYPE(Voodoo);
-#endif
   REGISTER_HW_TYPE(VGABase);
   REGISTER_HW_TYPE(BochsVGA);
   REGISTER_HW_TYPE(XT_IDE);
