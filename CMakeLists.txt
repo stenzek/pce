@@ -6,7 +6,6 @@ project(pce C CXX)
 option(ENABLE_OPENGL "Enables OpenGL support in renderer" ON)
 option(ENABLE_STANDALONE_DISASM "Compiles the standalone disassembler" ON)
 option(ENABLE_SDL_FRONTEND "Compiles the SDL frontend" ON)
-option(ENABLE_QT_FRONTEND "Compiles the Qt frontend" OFF)
 option(ENABLE_TESTS "Compiles the tests" ON)
 
 

@@ -9,7 +9,3 @@ endif()
 if(ENABLE_SDL_FRONTEND)
   add_subdirectory(pce-sdl)
 endif()
-if(ENABLE_QT_FRONTEND)
-  #add_subdirectory(pce-qt)
-endif()
-
