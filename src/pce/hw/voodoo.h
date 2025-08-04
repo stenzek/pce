@@ -3,6 +3,8 @@
 #include "pce/component.h"
 #include "pce/hw/pci_device.h"
 
+#include <memory>
+
 class Display;
 class MMIO;
 class TimingEvent;
