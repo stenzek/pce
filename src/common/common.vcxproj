@@ -35,7 +35,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="audio.h" />
     <ClInclude Include="bitfield.h" />
     <ClInclude Include="display_timing.h" />
     <ClInclude Include="fastjmp.h" />
@@ -50,7 +49,6 @@
     <ClInclude Include="type_registry.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="audio.cpp" />
     <ClCompile Include="display_timing.cpp" />
     <ClCompile Include="hdd_image.cpp" />
     <ClCompile Include="jit_code_buffer.cpp" />

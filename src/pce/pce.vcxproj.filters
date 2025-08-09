@@ -187,6 +187,8 @@
       <Filter>cpu_x86</Filter>
     </ClCompile>
     <ClCompile Include="scancodes.cpp" />
+    <ClCompile Include="audio_component.cpp" />
+    <ClCompile Include="audio.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />
@@ -388,6 +390,8 @@
     <ClInclude Include="cpu_x86\recompiler_thunks.h">
       <Filter>cpu_x86</Filter>
     </ClInclude>
+    <ClInclude Include="audio_component.h" />
+    <ClInclude Include="audio.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="hw">

@@ -131,8 +131,8 @@ bool SoundBlaster::Initialize(System* system, Bus* bus)
   bus->ConnectIOPortWrite(0x0389, this, [this](u16, u8 value) { m_ymf262.WriteDataPort(0, value); });
 
   // DSP output channel
-  m_dac_state.output_channel = m_system->GetHostInterface()->GetAudioMixer()->CreateChannel(
-    "Sound Blaster DSP", 44100, Audio::SampleFormat::Signed16, IsStereo() ? 2 : 1);
+  m_dac_state.output_channel =
+    m_system->GetAudioMixer()->CreateChannel(44100, AudioSampleFormat::Signed16, IsStereo() ? 2 : 1);
   if (!m_dac_state.output_channel)
     Panic("Failed to create Sound blaster output channel");
 
@@ -170,6 +170,12 @@ void SoundBlaster::Reset()
   m_ymf262.Reset();
   ResetDSP(false);
   ResetMixer();
+}
+
+void SoundBlaster::SynchronizeAudioOutput()
+{
+  m_dac_state.sample_event->InvokeEarly();
+  m_ymf262.SynchronizeAudioOutput();
 }
 
 bool SoundBlaster::LoadState(BinaryReader& reader)

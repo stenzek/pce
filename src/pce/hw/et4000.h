@@ -519,7 +519,6 @@ private:
   // palette used when rendering
   void SetOutputPalette16(void* palette);
   void SetOutputPalette256(void* palette);
-  std::array<u32, 256> m_output_palette;
 
   // retrace event
   void RecalculateEventTiming();

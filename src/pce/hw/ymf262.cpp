@@ -23,15 +23,15 @@ YMF262::~YMF262()
   m_worker_thread.ExitWorkers();
 #endif
   if (m_output_channel)
-    m_system->GetHostInterface()->GetAudioMixer()->RemoveChannel(m_output_channel);
+    m_system->GetAudioMixer()->RemoveChannel(m_output_channel);
 }
 
 bool YMF262::Initialize(System* system)
 {
   m_system = system;
 
-  m_output_channel = m_system->GetHostInterface()->GetAudioMixer()->CreateChannel(
-    "YMF262", OUTPUT_FREQUENCY, Audio::SampleFormat::Signed16, IsStereo() ? 2 : 1);
+  m_output_channel =
+    m_system->GetAudioMixer()->CreateChannel(OUTPUT_FREQUENCY, AudioSampleFormat::Signed16, IsStereo() ? 2 : 1);
   if (!m_output_channel)
   {
     Panic("Failed to create YMF262 output channel");
@@ -40,7 +40,7 @@ bool YMF262::Initialize(System* system)
 
   // Render samples every 100ms, or when the level changes.
   m_render_sample_event =
-    m_system->CreateClockedEvent("YMF262 Render", OUTPUT_FREQUENCY, CycleCount(OUTPUT_FREQUENCY / Audio::MixFrequency),
+    m_system->CreateClockedEvent("YMF262 Render", OUTPUT_FREQUENCY, CycleCount(OUTPUT_FREQUENCY / 10),
                                  std::bind(&YMF262::RenderSampleEvent, this, std::placeholders::_2), true);
 
   // Timer events, start disabled
@@ -87,6 +87,11 @@ void YMF262::Reset()
     // Hopefully this clears out everything.
     chip.dbopl->Setup(static_cast<Bit32u>(OUTPUT_FREQUENCY));
   }
+}
+
+void YMF262::SynchronizeAudioOutput()
+{
+  m_render_sample_event->InvokeEarly();
 }
 
 bool YMF262::LoadChipState(size_t chip_index, BinaryReader& reader)

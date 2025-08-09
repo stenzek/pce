@@ -1,21 +1,14 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 #include <vector>
 
-#include "YBaseLib/CircularBuffer.h"
-#include "YBaseLib/Mutex.h"
-#include "YBaseLib/MutexLock.h"
-#include "YBaseLib/String.h"
-#include "types.h"
+#include "common/types.h"
 
-namespace Audio {
+class AudioChannel;
+class AudioMixer;
 
-class Channel;
-class Mixer;
-
-enum class SampleFormat
+enum class AudioSampleFormat
 {
   Signed8,
   Unsigned8,
@@ -32,60 +25,43 @@ constexpr size_t NumOutputChannels = 2;
 constexpr float InputBufferLengthInSeconds = 1.0f;
 constexpr float OutputBufferLengthInSeconds = 1.0f;
 
-// Audio render frequency. We render the elapsed simulated time worth of audio at this interval.
-// Currently it is every 50ms, or 20hz. For audio channels, it's recommended to render at twice this
-// frequency in order to ensure that there is always data ready. This could also be mitigated by buffering.
-constexpr u32 MixFrequency = 20;
-constexpr SimulationTime MixInterval = SimulationTime(1000000000) / SimulationTime(MixFrequency);
-
-// We buffer 10ms of input before rendering any samples, that way we don't get buffer underruns.
-constexpr SimulationTime ChannelDelayTimeInSimTime = SimulationTime(10000000);
-
 // Output format type.
-constexpr SampleFormat OutputFormat = SampleFormat::Float32;
+constexpr AudioSampleFormat OutputFormat = AudioSampleFormat::Float32;
 using OutputFormatType = float;
 
 // Get the number of bytes for each element of a sample format.
-size_t GetBytesPerSample(SampleFormat format);
+size_t GetBytesPerSample(AudioSampleFormat format);
 
 // Base audio class, handles mixing/resampling
-class Mixer
+class AudioMixer
 {
 public:
-  Mixer(float output_sample_rate);
-  virtual ~Mixer();
-
-  // Disable all outputs.
-  // This prevents any samples being written to the device, but still consumes samples.
-  bool IsMuted() const { return m_muted; }
-  void SetMuted(bool muted) { m_muted = muted; }
+  AudioMixer();
+  ~AudioMixer();
 
   // Adds a channel to the audio mixer.
   // This pointer is owned by the audio class.
-  Channel* CreateChannel(const char* name, float sample_rate, SampleFormat format, size_t channels);
+  AudioChannel* CreateChannel(float sample_rate, AudioSampleFormat format, size_t channels);
 
   // Drops a channel from the audio mixer.
-  void RemoveChannel(Channel* channel);
-
-  // Looks up channel by name. Shouldn't really be needed.
-  Channel* GetChannelByName(const char* name);
+  void RemoveChannel(AudioChannel* channel);
 
   // Clears all buffers. Use when changing speed limiter state, or loading state.
-  void ClearBuffers();
+  void ClearBuffers(SimulationTime new_time);
 
-protected:
-  void CheckRenderBufferSize(size_t num_samples);
+  // Generates output audio.
+  void Mix(SimulationTime time);
 
-  float m_output_sample_rate;
-  float m_output_sample_carry = 0.0f;
-  bool m_muted = false;
+private:
+  static constexpr float OUTPUT_SAMPLE_RATE = 44100.0f; // Default output sample rate
+  static constexpr SimulationTime OUTPUT_FRAME_SIM_PERIOD =
+    static_cast<SimulationTime>(1000000000.0 / OUTPUT_SAMPLE_RATE);
 
   // Input channels.
-  std::vector<std::unique_ptr<Channel>> m_channels;
-
-  // Output buffer.
-  std::vector<OutputFormatType> m_render_buffer;
-  std::unique_ptr<CircularBuffer> m_output_buffer;
+  std::vector<std::unique_ptr<AudioChannel>> m_channels;
+  std::vector<float> m_mix_buffer;
+  SimulationTime m_last_mix_time = 0;
+  void* m_output_stream = nullptr;
 };
 
 class AudioBuffer
@@ -114,15 +90,14 @@ private:
 };
 
 // A channel, or source of audio for the mixer.
-class Channel
+class AudioChannel
 {
 public:
-  Channel(const char* name, float output_sample_rate, float input_sample_rate, SampleFormat format, size_t channels);
-  ~Channel();
+  AudioChannel(float output_sample_rate, float input_sample_rate, AudioSampleFormat format, size_t channels);
+  ~AudioChannel();
 
-  const String& GetName() const { return m_name; }
   float GetSampleRate() const { return m_input_sample_rate; }
-  SampleFormat GetFormat() const { return m_format; }
+  AudioSampleFormat GetFormat() const { return m_format; }
   size_t GetChannels() const { return m_channels; }
 
   // When the channel is disabled, adding samples will have no effect, and it won't affect the output.
@@ -149,14 +124,12 @@ public:
 private:
   void InternalClearBuffer();
 
-  String m_name;
   float m_input_sample_rate;
   float m_output_sample_rate;
-  SampleFormat m_format;
+  AudioSampleFormat m_format;
   size_t m_channels;
   bool m_enabled;
 
-  Mutex m_lock;
   // std::unique_ptr<CircularBuffer> m_input_buffer;
   size_t m_input_sample_size;
   size_t m_input_frame_size;
@@ -167,18 +140,3 @@ private:
   double m_resample_ratio;
   void* m_resampler_state;
 };
-
-// Null audio sink/mixer
-class NullMixer : public Mixer
-{
-public:
-  NullMixer();
-  virtual ~NullMixer();
-
-  static std::unique_ptr<Mixer> Create();
-
-protected:
-  void RenderSamples(size_t output_samples);
-};
-
-} // namespace Audio

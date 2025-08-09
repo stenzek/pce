@@ -1,17 +1,17 @@
 #pragma once
 
-#include "common/audio.h"
 #include "common/bitfield.h"
-#include "../component.h"
+#include "../audio.h"
+#include "../audio_component.h"
 
 class TimingEvent;
 
 namespace HW {
 
 // This is kinda a garbage implementation of a PC speaker, considering it can't render amplitudes other than -1/+1.
-class PCSpeaker final : public Component
+class PCSpeaker final : public AudioComponent
 {
-  DECLARE_OBJECT_TYPE_INFO(PCSpeaker, Component);
+  DECLARE_OBJECT_TYPE_INFO(PCSpeaker, AudioComponent);
   DECLARE_OBJECT_NO_FACTORY(PCSpeaker);
   DECLARE_OBJECT_PROPERTY_MAP(PCSpeaker);
 
@@ -27,6 +27,7 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
   void Reset() override;
+  void SynchronizeAudioOutput() override;
 
   bool IsOutputEnabled() const { return m_output_enabled; }
   void SetOutputEnabled(bool enabled);
@@ -39,7 +40,7 @@ private:
 
   void RenderSampleEvent(CycleCount cycles);
 
-  Audio::Channel* m_output_channel = nullptr;
+  AudioChannel* m_output_channel = nullptr;
 
   bool m_output_enabled = false;
   bool m_level = false;

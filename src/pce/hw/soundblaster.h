@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../component.h"
-#include "common/audio.h"
+#include "../audio.h"
+#include "../audio_component.h"
 #include "common/bitfield.h"
 #include "ymf262.h"
 #include <array>
@@ -13,9 +13,9 @@ class TimingEvent;
 
 namespace HW {
 
-class SoundBlaster final : public Component
+class SoundBlaster final : public AudioComponent
 {
-  DECLARE_OBJECT_TYPE_INFO(SoundBlaster, Component);
+  DECLARE_OBJECT_TYPE_INFO(SoundBlaster, AudioComponent);
   DECLARE_GENERIC_COMPONENT_FACTORY(SoundBlaster);
   DECLARE_OBJECT_PROPERTY_MAP(SoundBlaster);
 
@@ -39,10 +39,11 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
   void Reset() override;
+  void SynchronizeAudioOutput() override;
 
 private:
   static constexpr u32 SERIALIZATION_ID = MakeSerializationID('C', 'L', 'S', 'B');
-  static constexpr Audio::SampleFormat DSP_OUTPUT_FORMAT = Audio::SampleFormat::Signed16;
+  static constexpr AudioSampleFormat DSP_OUTPUT_FORMAT = AudioSampleFormat::Signed16;
 
   enum : u32
   {
@@ -200,7 +201,7 @@ private:
 
   struct DACState
   {
-    Audio::Channel* output_channel = nullptr;
+    AudioChannel* output_channel = nullptr;
     std::unique_ptr<TimingEvent> sample_event;
 
     bool enable_speaker = false;

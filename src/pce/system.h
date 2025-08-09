@@ -14,6 +14,8 @@ class ByteStream;
 class BinaryReader;
 class BinaryWriter;
 class Component;
+class AudioComponent;
+class AudioMixer;
 class CPU;
 class Error;
 class HostInterface;
@@ -44,6 +46,7 @@ public:
 
   CPU* GetCPU() const { return m_cpu; }
   Bus* GetBus() const { return m_bus; }
+  AudioMixer* GetAudioMixer() const { return m_audio_mixer.get(); }
 
   // Returns true if the CPU run loop should continue.
   bool ShouldRunCPU() const;
@@ -173,6 +176,8 @@ private:
   void ExecuteMousePositionChangeCallbacks(s32 dx, s32 dy);
   void ExecuteMouseButtonChangeCallbacks(u32 button, bool state);
 
+  void SynchronizeAudioOutput();
+
   // Active event management
   void AddActiveEvent(TimingEvent* event);
   void RemoveActiveEvent(TimingEvent* event);
@@ -192,8 +197,10 @@ private:
   }
 
   std::vector<Component*> m_components;
-  std::atomic_bool m_interrupt_execution{false};
+  std::vector<AudioComponent*> m_audio_components;
   String m_base_path;
+
+  std::unique_ptr<AudioMixer> m_audio_mixer;
 
   std::vector<std::pair<const void*, KeyboardCallback>> m_keyboard_callbacks;
   std::vector<std::pair<const void*, MousePositionChangeCallback>> m_mouse_position_change_callbacks;
@@ -203,6 +210,7 @@ private:
   std::vector<TimingEvent*> m_events;
   SimulationTime m_simulation_time = 0;
   SimulationTime m_last_event_run_time = 0;
+  bool m_interrupt_execution = false;
   bool m_running_events = false;
   bool m_events_need_sorting = false;
 };

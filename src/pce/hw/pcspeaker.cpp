@@ -19,7 +19,7 @@ PCSpeaker::PCSpeaker(const String& identifier, const ObjectTypeInfo* type_info /
 PCSpeaker::~PCSpeaker()
 {
   if (m_output_channel)
-    m_system->GetHostInterface()->GetAudioMixer()->RemoveChannel(m_output_channel);
+    m_system->GetAudioMixer()->RemoveChannel(m_output_channel);
 }
 
 bool PCSpeaker::Initialize(System* system, Bus* bus)
@@ -27,15 +27,14 @@ bool PCSpeaker::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_output_channel = m_system->GetHostInterface()->GetAudioMixer()->CreateChannel("PC Speaker", OUTPUT_FREQUENCY,
-                                                                                  Audio::SampleFormat::Signed16, 1);
+  m_output_channel = m_system->GetAudioMixer()->CreateChannel(OUTPUT_FREQUENCY, AudioSampleFormat::Signed16, 1);
   if (!m_output_channel)
     Panic("Failed to create PC speaker output channel");
 
   // Render samples every 100ms, or when the level changes.
-  m_render_sample_event = m_system->CreateClockedEvent(
-    "PC Speaker Render", OUTPUT_FREQUENCY, CycleCount(OUTPUT_FREQUENCY / Audio::MixFrequency),
-    std::bind(&PCSpeaker::RenderSampleEvent, this, std::placeholders::_2), true);
+  m_render_sample_event =
+    m_system->CreateClockedEvent("PC Speaker Render", OUTPUT_FREQUENCY, CycleCount(OUTPUT_FREQUENCY / 10),
+                                 std::bind(&PCSpeaker::RenderSampleEvent, this, std::placeholders::_2), true);
 
   return true;
 }
@@ -68,6 +67,11 @@ void PCSpeaker::Reset()
   m_output_channel->ClearBuffer();
   m_output_enabled = false;
   m_level = false;
+}
+
+void PCSpeaker::SynchronizeAudioOutput()
+{
+  m_render_sample_event->InvokeEarly();
 }
 
 void PCSpeaker::SetOutputEnabled(bool enabled)

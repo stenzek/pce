@@ -5,7 +5,6 @@
     <ClInclude Include="types.h" />
     <ClInclude Include="fastjmp.h" />
     <ClInclude Include="hdd_image.h" />
-    <ClInclude Include="audio.h" />
     <ClInclude Include="object.h" />
     <ClInclude Include="object_type_info.h" />
     <ClInclude Include="property.h" />
@@ -17,7 +16,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hdd_image.cpp" />
-    <ClCompile Include="audio.cpp" />
     <ClCompile Include="object_type_info.cpp" />
     <ClCompile Include="property.cpp" />
     <ClCompile Include="object.cpp" />

@@ -5,7 +5,6 @@
 #include "YBaseLib/Error.h"
 #include "YBaseLib/FileSystem.h"
 #include "common/log.h"
-#include "common/audio.h"
 #include "system.h"
 #include <cmath>
 #include <cstdint>
@@ -15,7 +14,6 @@ Log_SetChannel(HostInterface);
 
 HostInterface::HostInterface()
 {
-  m_mixer = Audio::NullMixer::Create();
 }
 
 HostInterface::~HostInterface() {}
@@ -43,6 +41,11 @@ bool HostInterface::CreateSystem(const char* inifile, Error* error)
   return true;
 }
 
+void HostInterface::ShutdownSystem()
+{
+  m_system.reset();
+}
+
 bool HostInterface::LoadSystemState(const char* filename, Error* error)
 {
   ByteStream* stream = FileSystem::OpenFile(filename, BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_STREAMED);
@@ -54,9 +57,6 @@ bool HostInterface::LoadSystemState(const char* filename, Error* error)
 
   const bool result = m_system->LoadState(stream);
   stream->Release();
-  if (result)
-    GetAudioMixer()->ClearBuffers();
-
   return result;
 }
 

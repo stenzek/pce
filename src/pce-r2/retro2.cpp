@@ -26,52 +26,42 @@ static HostInterface s_host_interface;
 
 #define SYSTEM static_cast<System*>(userdata)
 
-static void R2CoreSessionReset(void* userdata)
-{
-  SYSTEM->Reset();
-}
-
-static void R2CoreSessionShutdown(void* userdata)
-{
-  delete SYSTEM;
-}
-
-static void R2CoreSessionRunLoop(void* userdata)
-{
-  SYSTEM->Run();
-}
-
 static size_t R2CoreSessionGetMaxStateBufferSize(void*)
 {
-  return 1 * 1024 * 1024;
+  return 128 * 1024 * 1024;
 }
 
-#if 0
-static bool R2CoreSessionLoadStateFromBuffer(void* userdata, const uint8_t* buffer, size_t buffer_size, uint32_t data_version,
-                                      Retro2Error* error)
+static bool R2CoreSessionLoadStateFromBuffer(void* userdata, const uint8_t* buffer, size_t buffer_size,
+                                             uint32_t data_version, Retro2Error* error)
 {
-  Error merror;
-  if (SYSTEM->LoadState(std::span<const u8>(buffer, buffer_size), &merror))
-    return true;
+  ReadOnlyMemoryByteStream* stream = new ReadOnlyMemoryByteStream(buffer, static_cast<u32>(buffer_size));
+  if (!SYSTEM->LoadState(stream))
+  {
+    R2Error.SetErrorString(error, "LoadState() failed");
+    stream->Release();
+    return false;
+  }
 
-  R2Error.SetErrorString(error, merror.GetDescription().c_str());
-  return false;
+  stream->Release();
+  return true;
 }
 
 static bool R2CoreSessionSaveStateToBuffer(void* userdata, uint8_t* buffer, size_t buffer_size, size_t* written_size,
-                                    uint32_t* data_version, Retro2Error* error)
+                                           uint32_t* data_version, Retro2Error* error)
 {
-  Error merror;
-  if (SYSTEM->SaveState(std::span<u8>(buffer, buffer_size), written_size, &merror))
+  MemoryByteStream* stream = new MemoryByteStream(buffer, static_cast<u32>(buffer_size));
+  if (!SYSTEM->SaveState(stream))
   {
-    *data_version = 1;
-    return true;
+    R2Error.SetErrorString(error, "SaveState() failed");
+    stream->Release();
+    return false;
   }
 
-  R2Error.SetErrorString(error, merror.GetDescription().c_str());
-  return false;
+  *data_version = 1;
+  *written_size = stream->GetPosition();
+  stream->Release();
+  return true;
 }
-#endif
 
 static void R2CoreSessionSettingsChanged(void* userdata)
 {
@@ -88,20 +78,20 @@ static bool R2CoreSessionProviderStartSessionFromPath(const Retro2StartSessionPa
     return false;
   }
 
-  // s_host_interface.SetCPUBackend(CPU::BackendType::CachedInterpreter);
+  s_host_interface.SetCPUBackend(CPU::BackendType::CachedInterpreter);
 
   IRetro2CoreSession core_session = {};
-  core_session.Shutdown = R2CoreSessionShutdown;
-  core_session.Reset = R2CoreSessionReset;
+  core_session.Shutdown = [](void* userdata) { s_host_interface.ShutdownSystem(); };
+  core_session.Reset = [](void* userdata) { SYSTEM->Reset(); };
   core_session.SettingsChanged = R2CoreSessionSettingsChanged;
   core_session.SetControllerInputValue = [](void* userdata, uint32_t controller_index, uint32_t input_index,
                                             float value) {
     SYSTEM->ReceiveHostInputValue(controller_index, input_index, value);
   };
-  core_session.RunLoop = R2CoreSessionRunLoop;
-  // core_session.GetMaxStateBufferSize = R2CoreGetMaxStateBufferSize;
-  // core_session.LoadStateFromBuffer = R2CoreLoadStateFromBuffer;
-  // core_session.SaveStateToBuffer = R2CoreSaveStateToBuffer;
+  core_session.RunLoop = [](void* userdata) { SYSTEM->Run(); };
+  core_session.GetMaxStateBufferSize = R2CoreSessionGetMaxStateBufferSize;
+  core_session.LoadStateFromBuffer = R2CoreSessionLoadStateFromBuffer;
+  core_session.SaveStateToBuffer = R2CoreSessionSaveStateToBuffer;
 
   if (!set_core_session(&core_session, RETRO2_CORE_SESSION_INTERFACE_VERSION, s_host_interface.GetSystem(), "pc",
                         RETRO2_SESSION_RUN_MODE_RUNLOOP, error))

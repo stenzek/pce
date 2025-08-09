@@ -1,16 +1,15 @@
 #pragma once
 
-#include "common/audio.h"
-#include "pce/component.h"
+#include "pce/audio_component.h"
 #include "pce/hw/ymf262.h"
 #include "pce/system.h"
 #include <array>
 
 namespace HW {
 
-class AdLib final : public Component
+class AdLib final : public AudioComponent
 {
-  DECLARE_OBJECT_TYPE_INFO(AdLib, Component);
+  DECLARE_OBJECT_TYPE_INFO(AdLib, AudioComponent);
   DECLARE_GENERIC_COMPONENT_FACTORY(AdLib);
   DECLARE_OBJECT_PROPERTY_MAP(AdLib);
 
@@ -22,6 +21,7 @@ public:
   bool LoadState(BinaryReader& reader) override;
   bool SaveState(BinaryWriter& writer) override;
   void Reset() override;
+  void SynchronizeAudioOutput() override;
 
 private:
   u8 IOPortRead(u16 port);

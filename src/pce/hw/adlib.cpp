@@ -42,6 +42,11 @@ void AdLib::Reset()
   m_chip.Reset();
 }
 
+void AdLib::SynchronizeAudioOutput()
+{
+  m_chip.SynchronizeAudioOutput();
+}
+
 bool AdLib::LoadState(BinaryReader& reader)
 {
   return m_chip.LoadState(reader);

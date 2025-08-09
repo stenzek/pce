@@ -478,7 +478,7 @@ bool MemoryByteStream::WriteByte(byte SourceByte)
 {
   if (m_iPosition < m_iSize)
   {
-    m_pMemory[m_iSize++] = SourceByte;
+    m_pMemory[m_iPosition++] = SourceByte;
     return true;
   }
 

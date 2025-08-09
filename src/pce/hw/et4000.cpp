@@ -2,13 +2,14 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
-#include "common/log.h"
 #include "YBaseLib/Memory.h"
+#include "common/log.h"
 #include "pce/bus.h"
 #include "pce/host_interface.h"
 #include "pce/mmio.h"
 #include "pce/system.h"
 #include <retro2/retro2_framebuffer.h>
+#include <retro2/retro2_session.h>
 Log_SetChannel(HW::ET4000);
 
 namespace HW {
@@ -40,8 +41,17 @@ bool ET4000::Initialize(System* system, Bus* bus)
   ConnectIOPorts();
   RegisterVRAMMMIO();
 
+  if (!m_system->CreateFramebufferVideo())
+    return false;
+
   // Retrace event will be scheduled after timing is calculated.
-  m_retrace_event = m_system->CreateFrequencyEvent("Retrace", 25175000.0f, std::bind(&ET4000::Render, this), false);
+  m_retrace_event = m_system->CreateFrequencyEvent(
+    "Retrace", 25175000.0f,
+    [this](TimingEvent* event, CycleCount cycles, CycleCount cycles_late) {
+      Render();
+      m_system->EndVideoFrame(true);
+    },
+    false);
   return true;
 }
 
@@ -125,7 +135,6 @@ bool ET4000::LoadState(BinaryReader& reader)
   reader.SafeReadUInt8(&m_dac_color_index);
   reader.SafeReadBytes(m_vram, sizeof(m_vram));
   reader.SafeReadUInt32(&m_latch);
-  reader.SafeReadBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   reader.SafeReadUInt8(&m_cursor_counter);
   reader.SafeReadBool(&m_cursor_state);
 
@@ -163,7 +172,6 @@ bool ET4000::SaveState(BinaryWriter& writer)
   writer.WriteUInt8(m_dac_color_index);
   writer.WriteBytes(m_vram, sizeof(m_vram));
   writer.WriteUInt32(m_latch);
-  writer.WriteBytes(m_output_palette.data(), Truncate32(sizeof(u32) * m_output_palette.size()));
   writer.WriteUInt8(m_cursor_counter);
   writer.WriteBool(m_cursor_state);
 
@@ -381,8 +389,7 @@ u8 ET4000::IOAttributeDataRead()
   const u8 register_index = m_attribute_address_register;
   const u8 value = m_attribute_registers.index[register_index];
 
-  Log_TracePrintf("Attribute register read: %u -> 0x%02X", u32(register_index),
-                  u32(value));
+  Log_TracePrintf("Attribute register read: %u -> 0x%02X", u32(register_index), u32(value));
 
   return value;
 }
@@ -435,8 +442,7 @@ u8 ET4000::IOSequencerDataRegisterRead()
   const u8 register_index = m_sequencer_address_register;
   const u8 value = m_sequencer_registers.index[register_index];
 
-  Log_TracePrintf("Sequencer register read: %u -> 0x%02X", u32(register_index),
-                  u32(value));
+  Log_TracePrintf("Sequencer register read: %u -> 0x%02X", u32(register_index), u32(value));
   return value;
 }
 
@@ -594,8 +600,7 @@ bool ET4000::MapToVRAMOffset(u32* offset)
     }
 
     case 3: // B8000-BFFFF (32K)
-    default:
-    {
+    default: {
       if (value < 0x18000)
         return false;
 
@@ -711,8 +716,7 @@ void ET4000::HandleVRAMWrite(u32 offset, u8 value)
     u32 all_planes_value = 0;
     switch (m_graphics_registers.mode.write_mode)
     {
-      case 0:
-      {
+      case 0: {
         // The input byte is rotated right by the amount specified in Rotate Count, with all bits shifted off being
         // fed into bit 7
         u8 rotated = (value >> m_graphics_registers.rotate_count) | (value << (8 - m_graphics_registers.rotate_count));
@@ -736,16 +740,14 @@ void ET4000::HandleVRAMWrite(u32 offset, u8 value)
       }
       break;
 
-      case 1:
-      {
+      case 1: {
         // In this mode, data is transferred directly from the 32 bit latch register to display memory, affected only
         // by the Memory Plane Write Enable field. The host data is not used in this mode.
         all_planes_value = m_latch;
       }
       break;
 
-      case 2:
-      {
+      case 2: {
         // In this mode, the bits 3-0 of the host data are replicated across all 8 bits of their respective planes.
         all_planes_value = mask16[value & 0x0F];
 
@@ -759,8 +761,7 @@ void ET4000::HandleVRAMWrite(u32 offset, u8 value)
       }
       break;
 
-      case 3:
-      {
+      case 3: {
         // In this mode, the data in the Set/Reset field is used as if the Enable Set/Reset field were set to 1111b.
         u32 set_reset_data = mask16[m_graphics_registers.set_reset];
 
@@ -870,9 +871,7 @@ void ET4000::RegisterVRAMMMIO()
 
   // BIOS region
   handlers = {};
-  handlers.read_byte = [this](u32 offset) {
-    return IsBIOSAddressMapped(offset, 1) ? m_bios_rom[offset] : 0xFF;
-  };
+  handlers.read_byte = [this](u32 offset) { return IsBIOSAddressMapped(offset, 1) ? m_bios_rom[offset] : 0xFF; };
   handlers.read_word = [this](u32 offset) {
     if (IsBIOSAddressMapped(offset, 2))
     {
@@ -1034,6 +1033,11 @@ void ET4000::RecalculateEventTiming()
     m_retrace_event->SetFrequency(m_timing.vertical_frequency);
   if (!m_retrace_event->IsActive())
     m_retrace_event->Activate();
+
+  R2Session.SetVideoFrameRate(vertical_frequency);
+  R2Session.SetVideoDisplayAspectRatio(4.0f / 3.0f);
+  R2Session.SetVideoDisplayGeometry(horizontal_total_pixels, vertical_total_lines, 0, 0, horizontal_total_pixels,
+                                    vertical_total_lines);
 }
 
 ET4000::ScanoutInfo ET4000::GetScanoutInfo()
@@ -1196,9 +1200,8 @@ void ET4000::RenderTextMode()
   // Get text palette colours
   void *framebuffer, *palette;
   size_t framebuffer_pitch;
-  R2FramebufferVideo.MapPaletteFramebuffer(screen_width, screen_height,
-                                           RETRO2_PIXEL_FORMAT_P8, RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer,
-                                           &framebuffer_pitch, &palette);
+  R2FramebufferVideo.MapPaletteFramebuffer(screen_width, screen_height, RETRO2_PIXEL_FORMAT_P8,
+                                           RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer, &framebuffer_pitch, &palette);
   SetOutputPalette16(palette);
 
   // Determine the starting address in VRAM of the text/attribute data from the CRTC registers
@@ -1250,17 +1253,17 @@ void ET4000::RenderTextMode()
       {
         default:
         case 8:
-          DrawTextGlyph8(fb_row_ptr, framebuffer_pitch, glyph, character_height, foreground_color, background_color, -1);
+          DrawTextGlyph8(fb_row_ptr, framebuffer_pitch, glyph, character_height, foreground_color, background_color,
+                         -1);
           break;
 
         case 9:
-          DrawTextGlyph8(fb_row_ptr, framebuffer_pitch, glyph, character_height, foreground_color,
-                         background_color, dup9);
+          DrawTextGlyph8(fb_row_ptr, framebuffer_pitch, glyph, character_height, foreground_color, background_color,
+                         dup9);
           break;
 
         case 16:
-          DrawTextGlyph16(fb_row_ptr, framebuffer_pitch, glyph, character_height, foreground_color,
-                          background_color);
+          DrawTextGlyph16(fb_row_ptr, framebuffer_pitch, glyph, character_height, foreground_color, background_color);
           break;
       }
 
@@ -1272,11 +1275,14 @@ void ET4000::RenderTextMode()
         // TODO: How is dup9 handled here?
         cursor_start_line = std::min(cursor_start_line, character_height);
         cursor_end_line = std::min(cursor_end_line, character_height);
-        u8* cursor_fb_ptr = fb_row_ptr;
+        u8* cursor_fb_ptr = static_cast<u8*>(framebuffer) +
+                            (((row * character_height) + cursor_start_line) * framebuffer_pitch) +
+                            (col * character_width);
         for (u32 cursor_line = cursor_start_line; cursor_line < cursor_end_line; cursor_line++)
         {
+          u8* cursor_fb_row_ptr = cursor_fb_ptr;
           for (u32 i = 0; i < character_width; i++)
-            *(cursor_fb_ptr++) = foreground_color;
+            *(cursor_fb_row_ptr++) = foreground_color;
           cursor_fb_ptr += framebuffer_pitch;
         }
       }
@@ -1284,7 +1290,7 @@ void ET4000::RenderTextMode()
       fb_row_ptr += character_width;
     }
 
-    fb_row_ptr += character_height * framebuffer_pitch;
+    fb_ptr += character_height * framebuffer_pitch;
   }
 
   R2FramebufferVideo.UnmapPaletteFramebuffer(framebuffer, palette);
@@ -1353,14 +1359,16 @@ void ET4000::DrawTextGlyph16(u8* fb_ptr, size_t fb_stride, const u8* glyph, u32 
 
 void ET4000::RenderGraphicsMode()
 {
-#if 0
   // TODO: FIXME
   u32 screen_width = m_crtc_registers.GetHorizontalDisplayed() * m_sequencer_registers.GetCharacterWidth();
   u32 screen_height = m_crtc_registers.GetVerticalDisplayed();
   u32 scanlines_per_row = m_crtc_registers.GetScanlinesPerRow();
   u32 line_compare = m_crtc_registers.GetLineCompare();
   if (screen_width == 0 || screen_height == 0)
+  {
+    R2FramebufferVideo.UploadFramebuffer(0, 0, NUM_RETRO2_PIXEL_FORMATS, nullptr, 0);
     return;
+  }
 
   // 200-line EGA/VGA modes set scanlines_per_row to 2, creating an effective 400 lines.
   // We can speed things up by only rendering one of these lines, if the only muxes which
@@ -1389,21 +1397,32 @@ void ET4000::RenderGraphicsMode()
     screen_width /= 2;
 
   // Update framebuffer size before drawing to it
+  const bool hicolor = ((m_dac_ctrl & 0xc0) != 0);
+  const bool hicolor_is_16bpp = !!(m_dac_ctrl & 0x40);
   void *framebuffer, *palette;
   size_t framebuffer_pitch;
-  R2FramebufferVideo.MapPaletteFramebuffer(screen_width, screen_height, RETRO2_PIXEL_FORMAT_P8,
-                                           RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer, &framebuffer_pitch, &palette);
-
-  // 4 or 16 color mode?
-  if (!m_graphics_registers.mode.shift_256)
+  if (!hicolor)
   {
-    // This initializes 16 colours when we only need 4, but whatever.
-    SetOutputPalette16(palette);
+    R2FramebufferVideo.MapPaletteFramebuffer(screen_width, screen_height, RETRO2_PIXEL_FORMAT_P8,
+                                             RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer, &framebuffer_pitch, &palette);
+
+    // 4 or 16 color mode?
+    if (!m_graphics_registers.mode.shift_256)
+    {
+      // This initializes 16 colours when we only need 4, but whatever.
+      SetOutputPalette16(palette);
+    }
+    else
+    {
+      // Initialize all palette colours beforehand.
+      SetOutputPalette256(palette);
+    }
   }
   else
   {
-    // Initialize all palette colours beforehand.
-    SetOutputPalette256(palette);
+    R2FramebufferVideo.MapFramebuffer(screen_width, screen_height, RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer,
+                                      &framebuffer_pitch);
+    palette = nullptr;
   }
 
   // Determine the starting address in VRAM of the data from the CRTC registers
@@ -1423,6 +1442,7 @@ void ET4000::RenderGraphicsMode()
   u32 row_scan_counter = m_crtc_registers.preset_row_scan;
 
   // Draw lines
+  u8* fb_ptr = static_cast<u8*>(framebuffer);
   for (u32 scanline = 0; scanline < screen_height; scanline++)
   {
     if (scanline == line_compare)
@@ -1435,30 +1455,35 @@ void ET4000::RenderGraphicsMode()
     }
 
     u32 address_counter = (data_base_address + (row_pitch * row_counter));
+    u8* fb_row_ptr = fb_ptr;
 
     // High colour modes
     // This is a hack. The palette should be disabled, and we should read like shift mode?
-    if ((m_dac_ctrl & 0xc0) != 0)
+    if (hicolor)
     {
-      const bool is_16bpp = !!(m_dac_ctrl & 0x40);
-      for (u32 col = 0; col < screen_width;)
+      for (u32 col = 0; col < screen_width; col += 2)
       {
         // Two pixels per dword
         u32 all_planes = CRTCReadVRAMPlanes(address_counter++, row_scan_counter);
-        u32 color1, color2;
-        if (is_16bpp)
+        u32 color;
+        if (hicolor_is_16bpp)
         {
-          color1 = ConvertBGR565ToRGB24(Truncate16(all_planes));
-          color2 = ConvertBGR565ToRGB24(Truncate16(all_planes >> 16));
+          color = ConvertBGR565ToRGB24(Truncate16(all_planes));
+          std::memcpy(fb_row_ptr, &color, sizeof(color));
+          fb_row_ptr += sizeof(color);
+          color = ConvertBGR565ToRGB24(Truncate16(all_planes >> 16));
+          std::memcpy(fb_row_ptr, &color, sizeof(color));
+          fb_row_ptr += sizeof(color);
         }
         else
         {
-          color1 = ConvertBGR555ToRGB24(Truncate16(all_planes));
-          color2 = ConvertBGR555ToRGB24(Truncate16(all_planes >> 16));
+          color = ConvertBGR555ToRGB24(Truncate16(all_planes));
+          std::memcpy(fb_row_ptr, &color, sizeof(color));
+          fb_row_ptr += sizeof(color);
+          color = ConvertBGR555ToRGB24(Truncate16(all_planes >> 16));
+          std::memcpy(fb_row_ptr, &color, sizeof(color));
+          fb_row_ptr += sizeof(color);
         }
-
-        m_display->SetPixel(col++, scanline, color1);
-        m_display->SetPixel(col++, scanline, color2);
       }
     }
     // 4 or 16 color mode?
@@ -1479,23 +1504,15 @@ void ET4000::RenderGraphicsMode()
           u8 index;
 
           // One pixel per input pixel
-          index = ((pl0 >> 6) & 3) | (((pl2 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl0 >> 4) & 3) | (((pl2 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl0 >> 2) & 3) | (((pl2 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl0 >> 0) & 3) | (((pl2 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          *(fb_row_ptr++) = ((pl0 >> 6) & 3) | (((pl2 >> 6) & 3) << 2);
+          *(fb_row_ptr++) = ((pl0 >> 4) & 3) | (((pl2 >> 6) & 3) << 2);
+          *(fb_row_ptr++) = ((pl0 >> 2) & 3) | (((pl2 >> 6) & 3) << 2);
+          *(fb_row_ptr++) = ((pl0 >> 0) & 3) | (((pl2 >> 6) & 3) << 2);
 
-          index = ((pl1 >> 6) & 3) | (((pl3 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl1 >> 4) & 3) | (((pl3 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl1 >> 2) & 3) | (((pl3 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
-          index = ((pl1 >> 0) & 3) | (((pl3 >> 6) & 3) << 2);
-          m_display->SetPixel(col++, scanline, m_output_palette[index]);
+          *(fb_row_ptr++) = ((pl1 >> 6) & 3) | (((pl3 >> 6) & 3) << 2);
+          *(fb_row_ptr++) = ((pl1 >> 4) & 3) | (((pl3 >> 6) & 3) << 2);
+          *(fb_row_ptr++) = ((pl1 >> 2) & 3) | (((pl3 >> 6) & 3) << 2);
+          *(fb_row_ptr++) = ((pl1 >> 0) & 3) | (((pl3 >> 6) & 3) << 2);
         }
       }
       else
@@ -1522,13 +1539,10 @@ void ET4000::RenderGraphicsMode()
             u8(((pl0 >> 1) & 1u) | (((pl1 >> 1) & 1u) << 1) | (((pl2 >> 1) & 1u) << 2) | (((pl3 >> 1) & 1u) << 3)),
             u8(((pl0 >> 0) & 1u) | (((pl1 >> 0) & 1u) << 1) | (((pl2 >> 0) & 1u) << 2) | (((pl3 >> 0) & 1u) << 3))};
 
-          for (u32 subindex = 0; col < (s32)screen_width && subindex < 8;)
+          for (u32 subindex = 0; col < (s32)screen_width && subindex < 8; col++, subindex++)
           {
             if (col >= 0 && col < (s32)screen_width)
-              m_display->SetPixel(col, scanline, m_output_palette[indices[subindex]]);
-
-            col++;
-            subindex++;
+              *(fb_row_ptr++) = indices[subindex];
           }
         }
       }
@@ -1547,29 +1561,25 @@ void ET4000::RenderGraphicsMode()
 
         for (u32 i = 0; i < 4; i++)
         {
-          u8 index = Truncate8(indices);
-          u32 color = m_output_palette[index];
-          indices >>= 8;
-
           if (col >= 0)
-            m_display->SetPixel(col, scanline, color);
-
+            *(fb_row_ptr++) = Truncate8(indices);
+          indices >>= 8;
           col++;
         }
       }
 
       // Fast loop without partial panning
-      while ((col + 4) <= screen_width_div2)
+      for (; (col + 4) <= screen_width_div2; col += 4)
       {
         // Load 4 pixels, one from each plane
         // Duplicate horizontally twice, this is the shift_256 stuff
         u32 indices = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
         address_counter++;
 
-        m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 0) & 0xFF]);
-        m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 8) & 0xFF]);
-        m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 16) & 0xFF]);
-        m_display->SetPixel(col++, scanline, m_output_palette[(indices >> 24) & 0xFF]);
+        *(fb_row_ptr++) = Truncate8((indices >> 0) & 0xFF);
+        *(fb_row_ptr++) = Truncate8((indices >> 8) & 0xFF);
+        *(fb_row_ptr++) = Truncate8((indices >> 16) & 0xFF);
+        *(fb_row_ptr++) = Truncate8((indices >> 24) & 0xFF);
       }
 
       // Slow loop to handle misaligned buffer when panning
@@ -1578,18 +1588,14 @@ void ET4000::RenderGraphicsMode()
         u32 indices = CRTCReadVRAMPlanes(address_counter, row_scan_counter);
         address_counter++;
 
-        for (u32 i = 0; i < 4; i++)
+        for (u32 i = 0; i < 4; i++, col++)
         {
-          u8 index = Truncate8(indices);
-          u32 color = m_output_palette[index];
-          indices >>= 8;
-
           if (col < screen_width_div2)
-            m_display->SetPixel(col, scanline, color);
+            *(fb_row_ptr++) = Truncate8(indices);
           else
             break;
 
-          col++;
+          indices >>= 8;
         }
       }
     }
@@ -1600,9 +1606,13 @@ void ET4000::RenderGraphicsMode()
       row_scan_counter = 0;
       row_counter++;
     }
+
+    fb_ptr += framebuffer_pitch;
   }
 
-  m_display->SwapFramebuffer();
-#endif
+  if (palette)
+    R2FramebufferVideo.UnmapPaletteFramebuffer(framebuffer, palette);
+  else
+    R2FramebufferVideo.UnmapFramebuffer(framebuffer);
 }
 } // namespace HW

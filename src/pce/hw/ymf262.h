@@ -1,7 +1,7 @@
 #pragma once
 
 #include "YBaseLib/TaskQueue.h"
-#include "common/audio.h"
+#include "pce/audio.h"
 #include "pce/component.h"
 #include "pce/system.h"
 #include <array>
@@ -37,6 +37,7 @@ public:
   bool LoadState(BinaryReader& reader);
   bool SaveState(BinaryWriter& writer) const;
   void Reset();
+  void SynchronizeAudioOutput();
 
   u8 ReadAddressPort(size_t chip_index);
   u8 ReadDataPort(size_t chip_index);
@@ -86,7 +87,7 @@ private:
   Mode m_mode = Mode::OPL2;
 
   System* m_system = nullptr;
-  Audio::Channel* m_output_channel = nullptr;
+  AudioChannel* m_output_channel = nullptr;
   std::unique_ptr<TimingEvent> m_render_sample_event;
 
   std::array<ChipState, 2> m_chips;

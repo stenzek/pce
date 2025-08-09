@@ -35,6 +35,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="audio.cpp" />
+    <ClCompile Include="audio_component.cpp" />
     <ClCompile Include="bus.cpp" />
     <ClCompile Include="component.cpp" />
     <ClCompile Include="cpu.cpp" />
@@ -108,6 +110,8 @@
     <ClCompile Include="types.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="audio.h" />
+    <ClInclude Include="audio_component.h" />
     <ClInclude Include="bus.h" />
     <ClInclude Include="component.h" />
     <ClInclude Include="cpu.h" />
@@ -361,7 +365,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -382,7 +386,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -403,7 +407,7 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUGFAST;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -426,7 +430,7 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUGFAST;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -448,7 +452,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -470,7 +474,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -493,7 +497,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -515,7 +519,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\Include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\msvc\include;$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\xbyak\xbyak;$(SolutionDir)dep\softfloat\include;$(SolutionDir)dep\xxhash\include;$(SolutionDir)dep\inih\cpp;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>

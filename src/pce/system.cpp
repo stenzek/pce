@@ -2,6 +2,8 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Error.h"
+#include "audio.h"
+#include "audio_component.h"
 #include "bus.h"
 #include "common/log.h"
 #include "common/state_wrapper.h"
@@ -19,10 +21,16 @@ DEFINE_OBJECT_TYPE_INFO(System);
 BEGIN_OBJECT_PROPERTY_MAP(System)
 END_OBJECT_PROPERTY_MAP()
 
-System::System(const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass(type_info) {}
+System::System(const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass(type_info)
+{
+  m_audio_mixer = std::make_unique<AudioMixer>();
+}
 
 System::~System()
 {
+  // Avoid downcount update.
+  m_events.clear();
+
   // We should be stopped first.
   for (Component* component : m_components)
     delete component;
@@ -32,7 +40,7 @@ System::~System()
 
 bool System::ShouldRunCPU() const
 {
-  return (R2Session.GetState() == RETRO2_SESSION_STATE_RUNNING && !m_interrupt_execution.load());
+  return (R2Session.GetState() == RETRO2_SESSION_STATE_RUNNING && !m_interrupt_execution);
 }
 
 #if 0
@@ -47,6 +55,8 @@ void System::SetState(State state)
 void System::AddComponent(Component* component)
 {
   m_components.push_back(component);
+  if (AudioComponent* audio_component = component->SafeCast<AudioComponent>())
+    m_audio_components.push_back(audio_component);
 }
 
 bool System::Initialize()
@@ -78,13 +88,19 @@ void System::Reset()
     component->Reset();
 
   UpdateCPUDowncount();
+
+  m_audio_mixer->ClearBuffers(m_simulation_time);
 }
 
 bool System::LoadState(ByteStream* stream)
 {
   // TODO: Save old state before loading, instead of resetting.
   StateWrapper sw(stream, StateWrapper::Mode::Read);
-  return DoAllState(sw);
+  if (!DoAllState(sw))
+    return false;
+
+  m_audio_mixer->ClearBuffers(m_simulation_time);
+  return true;
 }
 
 bool System::SaveState(ByteStream* stream)
@@ -185,12 +201,12 @@ bool System::DoState(StateWrapper& sw)
 void System::Run()
 {
   m_cpu->Execute();
-  m_interrupt_execution.store(false);
+  m_interrupt_execution = false;
 }
 
 void System::InterruptRunLoop()
 {
-  m_interrupt_execution.store(true);
+  m_interrupt_execution = true;
 }
 
 std::pair<std::unique_ptr<byte[]>, u32> System::ReadFileToBuffer(const char* filename, u32 offset, u32 expected_size)
@@ -242,6 +258,10 @@ bool System::CreateFramebufferVideo()
 
 void System::EndVideoFrame(bool is_unique_frame)
 {
+  for (AudioComponent* acomp : m_audio_components)
+    acomp->SynchronizeAudioOutput();
+  m_audio_mixer->Mix(m_simulation_time);
+
   R2Session.CoreEnqueueVideoFrame(false, is_unique_frame);
   R2Session.EndFrame();
   R2Session.PollInput();
@@ -265,8 +285,6 @@ void System::ReceiveHostInputValue(u32 controller_index, u32 input_index, float 
       return;
 
     // mouse
-    Log_WarningPrintf("Mouse input received on controller index %u, input index %u, value %f", controller_index,
-                      input_index, value);
     if (input_index == RETRO2_MOUSE_INPUT_ID_POINTER_X)
       ExecuteMousePositionChangeCallbacks(static_cast<s32>(value), 0);
     else if (input_index == RETRO2_MOUSE_INPUT_ID_POINTER_Y)
@@ -327,6 +345,8 @@ void System::ExecuteMouseButtonChangeCallbacks(u32 button, bool state)
   for (const auto& it : m_mouse_button_change_callbacks)
     it.second(button, state);
 }
+
+void System::SynchronizeAudioOutput() {}
 
 void System::SendCtrlAltDel()
 {

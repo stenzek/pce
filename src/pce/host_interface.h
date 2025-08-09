@@ -15,9 +15,6 @@
 
 class Error;
 
-namespace Audio {
-class Mixer;
-}
 class Component;
 class System;
 class TimingEvent;
@@ -63,9 +60,6 @@ public:
   bool SetCPUBackend(CPU::BackendType backend);
   void SetCPUFrequency(float frequency);
   void FlushCPUCodeCache();
-
-  // Audio
-  Audio::Mixer* GetAudioMixer() const { return m_mixer.get(); }
 
   // Error reporting. May block.
   virtual void ReportError(const char* message);
@@ -122,8 +116,6 @@ protected:
 
 private:
   void UpdateExecutionSpeed();
-
-  std::unique_ptr<Audio::Mixer> m_mixer;
 
   // Stats tracking
   CPU::ExecutionStats m_last_cpu_execution_stats = {};
