@@ -1,8 +1,8 @@
 #include "pce/hw/i8042_ps2.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
 #include "YBaseLib/String.h"
+#include "common/log.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"
 #include "pce/host_interface.h"
@@ -48,11 +48,11 @@ bool i8042_PS2::Initialize(System* system, Bus* bus)
   bus->ConnectIOPortRead(0x64, this, std::bind(&i8042_PS2::IOReadStatusRegister, this));
   bus->ConnectIOPortWrite(0x64, this, std::bind(&i8042_PS2::IOWriteCommandRegister, this, std::placeholders::_2));
 
-  m_system->GetHostInterface()->AddKeyboardCallback(
+  m_system->AddKeyboardCallback(
     this, std::bind(&i8042_PS2::OnHostKeyboardEvent, this, std::placeholders::_1, std::placeholders::_2));
-  m_system->GetHostInterface()->AddMousePositionChangeCallback(
+  m_system->AddMousePositionChangeCallback(
     this, std::bind(&i8042_PS2::OnHostMousePositionChanged, this, std::placeholders::_1, std::placeholders::_2));
-  m_system->GetHostInterface()->AddMouseButtonChangeCallback(
+  m_system->AddMouseButtonChangeCallback(
     this, std::bind(&i8042_PS2::OnHostMouseButtonChanged, this, std::placeholders::_1, std::placeholders::_2));
 
   return true;
@@ -614,8 +614,7 @@ bool i8042_PS2::HandleControllerCommand(u8 command, u8 data, bool has_data)
     case 0xFC:
     case 0xFD:
     case 0xFE:
-    case 0xFF:
-    {
+    case 0xFF: {
       if (m_output_port_written_callback)
       {
         u8 mask = (m_pending_command & 0x0F);

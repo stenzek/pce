@@ -1,13 +1,18 @@
 #include "system.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "YBaseLib/Error.h"
 #include "bus.h"
+#include "common/log.h"
 #include "common/state_wrapper.h"
 #include "component.h"
 #include "cpu.h"
 #include "host_interface.h"
 #include "save_state_version.h"
+#include "scancodes.h"
+#include <retro2/retro2_error.hpp>
+#include <retro2/retro2_framebuffer.h>
+#include <retro2/retro2_session.h>
 Log_SetChannel(System);
 
 DEFINE_OBJECT_TYPE_INFO(System);
@@ -19,19 +24,25 @@ System::System(const ObjectTypeInfo* type_info /* = &s_type_info */) : BaseClass
 System::~System()
 {
   // We should be stopped first.
-  Assert(m_state == State::Initializing || m_state == State::Stopped);
   for (Component* component : m_components)
     delete component;
 
   delete m_bus;
 }
 
+bool System::ShouldRunCPU() const
+{
+  return (R2Session.GetState() == RETRO2_SESSION_STATE_RUNNING && !m_interrupt_execution.load());
+}
+
+#if 0
 void System::SetState(State state)
 {
   m_state = state;
   if (state != State::Running)
     m_cpu->SetExecutionDowncount(0);
 }
+#endif
 
 void System::AddComponent(Component* component)
 {
@@ -40,8 +51,6 @@ void System::AddComponent(Component* component)
 
 bool System::Initialize()
 {
-  Assert(m_state == State::Initializing);
-
   m_bus->Initialize(this);
   for (Component* component : m_components)
   {
@@ -52,6 +61,7 @@ bool System::Initialize()
     }
   }
 
+  SetHostInputDevices();
   return true;
 }
 
@@ -215,6 +225,119 @@ std::pair<std::unique_ptr<byte[]>, u32> System::ReadFileToBuffer(const char* fil
 String System::GetMiscDataFilename(const char* suffix) const
 {
   return suffix ? String::FromFormat("%s%s", m_base_path.GetCharArray(), suffix) : m_base_path;
+}
+
+bool System::CreateFramebufferVideo()
+{
+  Retro2ErrorWrap r2error(R2Error);
+  if (!R2Session.GetVideoInterface(RETRO2_VIDEO_INTERFACE_FRAMEBUFFER, RETRO2_FRAMEBUFFER_VIDEO_INTERFACE_VERSION,
+                                   nullptr, &R2FramebufferVideo, &r2error))
+  {
+    Log_ErrorPrintf("Failed to get framebuffer video interface: %s", r2error.ErrorMessage);
+    return false;
+  }
+
+  return true;
+}
+
+void System::EndVideoFrame(bool is_unique_frame)
+{
+  R2Session.CoreEnqueueVideoFrame(false, is_unique_frame);
+  R2Session.EndFrame();
+  R2Session.PollInput();
+}
+
+void System::ReceiveHostInputValue(u32 controller_index, u32 input_index, float value)
+{
+  if (!(controller_index & RETRO2_INPUT_ID_SECONDARY))
+  {
+    if (controller_index != 0)
+      return;
+
+    // keyboard
+    const GenScanCode scancode = R2KeyCodeToGenScanCode(input_index);
+    if (scancode != GenScanCode_None)
+      ExecuteKeyboardCallbacks(scancode, (value >= 0.5f));
+  }
+  else
+  {
+    if ((controller_index & ~RETRO2_INPUT_ID_SECONDARY) != 0)
+      return;
+
+    // mouse
+    Log_WarningPrintf("Mouse input received on controller index %u, input index %u, value %f", controller_index,
+                      input_index, value);
+    if (input_index == RETRO2_MOUSE_INPUT_ID_POINTER_X)
+      ExecuteMousePositionChangeCallbacks(static_cast<s32>(value), 0);
+    else if (input_index == RETRO2_MOUSE_INPUT_ID_POINTER_Y)
+      ExecuteMousePositionChangeCallbacks(0, static_cast<s32>(value));
+    else if (input_index <= RETRO2_MOUSE_INPUT_ID_MIDDLE_BUTTON)
+      ExecuteMouseButtonChangeCallbacks(input_index - RETRO2_MOUSE_INPUT_ID_LEFT_BUTTON, (value >= 0.5f));
+  }
+}
+
+void System::AddKeyboardCallback(const void* owner, KeyboardCallback callback)
+{
+  m_keyboard_callbacks.emplace_back(owner, std::move(callback));
+}
+
+void System::InjectKeyEvent(GenScanCode sc, bool down)
+{
+  ExecuteKeyboardCallbacks(sc, down);
+}
+
+void System::AddMousePositionChangeCallback(const void* owner, MousePositionChangeCallback callback)
+{
+  m_mouse_position_change_callbacks.emplace_back(owner, std::move(callback));
+}
+
+void System::AddMouseButtonChangeCallback(const void* owner, MouseButtonChangeCallback callback)
+{
+  m_mouse_button_change_callbacks.emplace_back(owner, std::move(callback));
+}
+
+void System::SetHostInputDevices()
+{
+  const bool has_keyboard = !m_keyboard_callbacks.empty();
+  const bool has_mouse = !m_mouse_position_change_callbacks.empty() || !m_mouse_button_change_callbacks.empty();
+  if (!R2Session.SetControllerPairType(0, has_keyboard ? RETRO2_CONTROLLER_TYPE_KEYBOARD : RETRO2_CONTROLLER_TYPE_NONE,
+                                       0, has_mouse ? RETRO2_CONTROLLER_TYPE_MOUSE : RETRO2_CONTROLLER_TYPE_NONE, 0))
+  {
+    Log_ErrorPrint("Failed to set host input devices");
+  }
+}
+
+void System::ExecuteKeyboardCallbacks(GenScanCode scancode, bool key_down)
+{
+  Log_DevPrintf("Key scancode %u %s", u32(scancode), key_down ? "down" : "up");
+  for (const auto& it : m_keyboard_callbacks)
+    it.second(scancode, key_down);
+}
+
+void System::ExecuteMousePositionChangeCallbacks(s32 dx, s32 dy)
+{
+  Log_DevPrintf("Mouse position change: %d %d", dx, dy);
+  for (const auto& it : m_mouse_position_change_callbacks)
+    it.second(dx, dy);
+}
+
+void System::ExecuteMouseButtonChangeCallbacks(u32 button, bool state)
+{
+  Log_DevPrintf("Mouse button change: %u %s", button, state ? "down" : "up");
+  for (const auto& it : m_mouse_button_change_callbacks)
+    it.second(button, state);
+}
+
+void System::SendCtrlAltDel()
+{
+  // This has no delay, but the scancodes will still get enqueued.
+  InjectKeyEvent(GenScanCode_LeftControl, true);
+  InjectKeyEvent(GenScanCode_LeftAlt, true);
+  InjectKeyEvent(GenScanCode_Delete, true);
+  InjectKeyEvent(GenScanCode_LeftControl, false);
+  InjectKeyEvent(GenScanCode_LeftAlt, false);
+  InjectKeyEvent(GenScanCode_Delete, false);
+  R2Session.AddOSDMessage(nullptr, "Sent CTRL+ALT+DEL to machine.", 2.0f);
 }
 
 std::unique_ptr<TimingEvent> System::CreateClockedEvent(const char* name, float frequency, CycleCount interval,

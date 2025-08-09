@@ -113,3 +113,5 @@ enum GenScanCode : u8
 
   NumGenScanCodes
 };
+
+GenScanCode R2KeyCodeToGenScanCode(u32 code);

@@ -2,7 +2,7 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "pce/host_interface.h"
 #include "pce/system.h"
 #include <cinttypes>

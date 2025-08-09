@@ -5,8 +5,7 @@
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Error.h"
 #include "YBaseLib/FileSystem.h"
-#include "YBaseLib/Log.h"
-#include "common/hdd_image.h"
+#include "common/log.h"
 #include "fdc.h"
 Log_SetChannel(HW::Floppy);
 

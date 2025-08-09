@@ -2,12 +2,13 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
-#include "YBaseLib/Log.h"
 #include "YBaseLib/Memory.h"
-#include "common/display.h"
+#include "common/log.h"
 #include "pce/bus.h"
+#include "pce/host_interface.h"
 #include "pce/mmio.h"
 #include "pce/system.h"
+#include <retro2/retro2_framebuffer.h>
 Log_SetChannel(HW::BochsVGA);
 
 namespace HW {
@@ -64,7 +65,6 @@ void BochsVGA::Reset()
 
   CRTCTimingChanged();
   UpdateVGAMemoryMapping();
-  UpdateFramebufferFormat();
 }
 
 bool BochsVGA::LoadState(BinaryReader& reader)
@@ -89,7 +89,6 @@ bool BochsVGA::LoadState(BinaryReader& reader)
 
   CRTCTimingChanged();
   UpdateVGAMemoryMapping();
-  UpdateFramebufferFormat();
   return true;
 }
 
@@ -135,7 +134,6 @@ bool BochsVGA::LoadBIOSROM()
 void BochsVGA::UpdateBIOSMemoryMapping()
 {
   PhysicalMemoryAddress addr = GetMemoryRegionBaseAddress(0, PCIDevice::MemoryRegion_ExpansionROM);
-  const bool was_enabled = (m_bios_mmio != nullptr);
   const bool enabled = IsPCIExpansionROMActive(0);
 
   if (m_bios_mmio)
@@ -307,8 +305,7 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
 {
   switch (m_vbe_index_register)
   {
-    case VBE_DISPI_INDEX_ID:
-    {
+    case VBE_DISPI_INDEX_ID: {
       if (value < VBE_DISPI_ID0 || value > VBE_DISPI_ID5)
         Log_WarningPrintf("Invalid ID: %08X", ZeroExtend32(value));
       else
@@ -326,8 +323,7 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
       m_vbe_height = value;
       break;
 
-    case VBE_DISPI_INDEX_BPP:
-    {
+    case VBE_DISPI_INDEX_BPP: {
       if (!IsValidBPP(value))
       {
         Log_WarningPrintf("BPP %u is invalid", ZeroExtend32(value));
@@ -340,15 +336,12 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
       {
         // BPP can change the mapping (if switching to/from 4bpp).
         UpdateVGAMemoryMapping();
-        UpdateFramebufferFormat();
       }
     }
     break;
 
-    case VBE_DISPI_INDEX_ENABLE:
-    {
+    case VBE_DISPI_INDEX_ENABLE: {
       const bool old_enable = m_vbe_enable.enable;
-      const bool old_lfb_enable = m_vbe_enable.lfb_enable;
       const bool old_dac_8bit = m_vbe_enable.dac_8bit;
 
       m_vbe_enable.bits = value;
@@ -357,7 +350,6 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
       {
         CRTCTimingChanged();
         UpdateVGAMemoryMapping();
-        UpdateFramebufferFormat();
 
         if (m_vbe_enable.enable)
         {
@@ -397,8 +389,7 @@ void BochsVGA::IOWriteVBEDataRegister(u16 value)
     }
     break;
 
-    case VBE_DISPI_INDEX_BANK:
-    {
+    case VBE_DISPI_INDEX_BANK: {
       if ((ZeroExtend64(value + 1) * VBE_DISPI_BANK_SIZE) > ZeroExtend64(m_vram_size))
         Log_WarningPrintf("VBE bank 0x%04X is invalid", ZeroExtend32(value));
       else
@@ -447,15 +438,13 @@ void BochsVGA::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool acti
 
   switch (region)
   {
-    case PCIDevice::MemoryRegion_BAR0:
-    {
+    case PCIDevice::MemoryRegion_BAR0: {
       if (IsLFBEnabled())
         UpdateVGAMemoryMapping();
     }
     break;
 
-    case PCIDevice::MemoryRegion_ExpansionROM:
-    {
+    case PCIDevice::MemoryRegion_ExpansionROM: {
       UpdateBIOSMemoryMapping();
     }
     break;
@@ -465,28 +454,6 @@ void BochsVGA::OnMemoryRegionChanged(u8 function, MemoryRegion region, bool acti
 bool BochsVGA::IsLFBEnabled() const
 {
   return m_vbe_enable.enable && m_vbe_enable.lfb_enable;
-}
-
-void BochsVGA::UpdateFramebufferFormat()
-{
-  if (!m_vbe_enable.enable)
-  {
-    m_display->ChangeFramebufferFormat(BASE_FRAMEBUFFER_FORMAT);
-    return;
-  }
-
-  if (m_vbe_bpp <= 4)
-    m_display->ChangeFramebufferFormat(BASE_FRAMEBUFFER_FORMAT);
-  else if (m_vbe_bpp <= 8)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::C8RGBX8);
-  else if (m_vbe_bpp <= 15)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::BGR555);
-  else if (m_vbe_bpp <= 16)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::BGR565);
-  else if (m_vbe_bpp <= 24)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::BGR8);
-  else // if (m_vbe_bpp <= 32)
-    m_display->ChangeFramebufferFormat(Display::FramebufferFormat::BGRX8);
 }
 
 void BochsVGA::GetDisplayTiming(DisplayTiming& timing) const
@@ -584,13 +551,17 @@ void BochsVGA::RenderGraphicsMode()
 
 void BochsVGA::Render4BPP()
 {
-  SetOutputPalette16();
+  void *framebuffer, *palette;
+  size_t framebuffer_pitch;
+  R2FramebufferVideo.MapPaletteFramebuffer(m_render_latch.render_width, m_render_latch.render_height,
+                                           RETRO2_PIXEL_FORMAT_P8, RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer,
+                                           &framebuffer_pitch, &palette);
+  SetOutputPalette16(palette);
 
   const s32 render_width = static_cast<s32>(m_render_latch.render_width);
   const s32 horizontal_panning = static_cast<s32>(m_render_latch.horizontal_panning);
 
-  u8* fb_ptr = m_display->GetFramebufferPointer();
-  const u32 fb_stride = m_display->GetFramebufferStride();
+  u8* fb_ptr = static_cast<u8*>(framebuffer);
   for (u32 row = 0; row < m_render_latch.render_height; row++)
   {
     u32 address_counter = row * m_render_latch.pitch;
@@ -623,26 +594,47 @@ void BochsVGA::Render4BPP()
       }
     }
 
-    fb_ptr += fb_stride;
+    fb_ptr += framebuffer_pitch;
   }
+
+  R2FramebufferVideo.UnmapPaletteFramebuffer(framebuffer, palette);
 }
 
 void BochsVGA::Render8BPP()
 {
+  void *framebuffer, *palette;
+  size_t framebuffer_pitch;
+  R2FramebufferVideo.MapPaletteFramebuffer(m_render_latch.render_width, m_render_latch.render_height,
+                                           RETRO2_PIXEL_FORMAT_P8, RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer,
+                                           &framebuffer_pitch, &palette);
+
   // Use DAC palette directly if in 8-bit mode.
   if (m_vbe_enable.dac_8bit)
-    m_display->CopyPalette(0, Truncate32(m_dac_palette.size()), m_dac_palette.data());
+    std::memcpy(palette, m_dac_palette.data(), m_dac_palette.size() * sizeof(u32));
   else
-    SetOutputPalette256();
+    SetOutputPalette256(palette);
 
   // Direct copy indices to framebuffer.
-  m_display->CopyToFramebuffer(&m_vram[m_render_latch.start_address], m_render_latch.pitch);
+  StrideMemCpy(framebuffer, framebuffer_pitch, &m_vram[m_render_latch.start_address], m_render_latch.pitch,
+               m_render_latch.render_width, m_render_latch.render_height);
+  R2FramebufferVideo.UnmapPaletteFramebuffer(framebuffer, palette);
 }
 
 void BochsVGA::RenderDirect()
 {
   // Direct copy to framebuffer.
-  m_display->CopyToFramebuffer(&m_vram[m_render_latch.start_address], m_render_latch.pitch);
+  RETRO2_PIXEL_FORMAT pixel_format;
+  if (m_vbe_bpp <= 15)
+    pixel_format = RETRO2_PIXEL_FORMAT_A1BGR5;
+  else if (m_vbe_bpp <= 16)
+    pixel_format = RETRO2_PIXEL_FORMAT_RGB565;
+  else if (m_vbe_bpp <= 24)
+    pixel_format = RETRO2_PIXEL_FORMAT_RGBA8; // TODO: Wrong
+  else                                        // if (m_vbe_bpp <= 32)
+    pixel_format = RETRO2_PIXEL_FORMAT_RGBA8;
+
+  R2FramebufferVideo.UploadFramebuffer(m_render_latch.render_width, m_render_latch.render_height, pixel_format,
+                                       &m_vram[m_render_latch.start_address], m_render_latch.pitch);
 }
 
 } // namespace HW

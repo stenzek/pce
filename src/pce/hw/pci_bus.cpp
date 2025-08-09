@@ -1,5 +1,5 @@
 #include "pce/hw/pci_bus.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 Log_SetChannel(PCIBus);
 
 DEFINE_OBJECT_TYPE_INFO(PCIBus);

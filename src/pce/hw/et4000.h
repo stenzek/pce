@@ -7,7 +7,6 @@
 #include <optional>
 #include <string>
 
-class Display;
 class ByteStream;
 class MMIO;
 class TimingEvent;
@@ -52,12 +51,10 @@ private:
   void RenderTextMode();
   void RenderGraphicsMode();
 
-  void DrawTextGlyph8(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color, s32 dup9);
-  void DrawTextGlyph16(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color);
+  void DrawTextGlyph8(u8* fb_ptr, size_t fb_stride, const u8* glyph, u32 rows, u8 fg_color, u8 bg_color, s32 dup9);
+  void DrawTextGlyph16(u8* fb_ptr, size_t fb_stride, const u8* glyph, u32 rows, u8 fg_color, u8 bg_color);
 
   // void DrawGraphicsLine
-
-  std::unique_ptr<Display> m_display;
 
   // 03C2h: Status register 0
   u8 m_st0 = 0;
@@ -520,8 +517,8 @@ private:
   u32 m_latch = 0;
 
   // palette used when rendering
-  void SetOutputPalette16();
-  void SetOutputPalette256();
+  void SetOutputPalette16(void* palette);
+  void SetOutputPalette256(void* palette);
   std::array<u32, 256> m_output_palette;
 
   // retrace event
@@ -549,10 +546,6 @@ private:
     bool display_active;
   };
   ScanoutInfo GetScanoutInfo();
-
-  // We only keep this for stats purposes currently, but it could be extended to when we need to redraw for per-scanline
-  // rendering.
-  float m_last_rendered_vertical_frequency = 0.0f;
 
   // Cursor state for text modes
   u8 m_cursor_counter = 0;

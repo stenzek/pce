@@ -6,9 +6,10 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "YBaseLib/Memory.h"
-#include "common/display.h"
+#include <retro2/retro2_framebuffer.h>
+#include <retro2/retro2_session.h>
 Log_SetChannel(HW::VGABase);
 
 namespace HW {
@@ -38,13 +39,9 @@ bool VGABase::Initialize(System* system, Bus* bus)
   m_vram.resize(m_vram_size);
   m_vram_mask = m_vram_size - 1;
 
-  m_display = system->GetHostInterface()->CreateDisplay(
-    SmallString::FromFormat("%s (%s)", m_identifier.GetCharArray(), m_type_info->GetTypeName()),
-    Display::Type::Primary);
-  if (!m_display)
+  if (!m_system->CreateFramebufferVideo())
     return false;
-  m_display->SetDisplayAspectRatio(4, 3);
-  m_display->ChangeFramebufferFormat(BASE_FRAMEBUFFER_FORMAT);
+
   m_display_event = m_system->CreateNanosecondEvent("VGA Render", 1, std::bind(&VGABase::Render, this), true);
   return true;
 }
@@ -573,8 +570,7 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
     u32 all_planes_value = 0;
     switch (m_graphics_registers.write_mode)
     {
-      case 0:
-      {
+      case 0: {
         // The input byte is rotated right by the amount specified in Rotate Count, with all bits shifted off being fed
         // into bit 7
         u8 rotated = (value >> m_graphics_registers.rotate_count) | (value << (8 - m_graphics_registers.rotate_count));
@@ -597,16 +593,14 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
       }
       break;
 
-      case 1:
-      {
+      case 1: {
         // In this mode, data is transferred directly from the 32 bit latch register to display memory, affected only by
         // the Memory Plane Write Enable field. The host data is not used in this mode.
         all_planes_value = m_latch;
       }
       break;
 
-      case 2:
-      {
+      case 2: {
         // In this mode, the bits 3-0 of the host data are replicated across all 8 bits of their respective planes.
         all_planes_value = mask16[value & 0x0F];
 
@@ -620,8 +614,7 @@ void VGABase::HandleVGAVRAMWrite(u32 segment_base, u32 offset, u8 value)
       }
       break;
 
-      case 3:
-      {
+      case 3: {
         // In this mode, the data in the Set/Reset field is used as if the Enable Set/Reset field were set to 1111b.
         u32 set_reset_data = mask16[m_graphics_registers.set_reset];
 
@@ -681,8 +674,10 @@ void VGABase::GetVGAMemoryMapping(PhysicalMemoryAddress* base_address, u32* size
 
 void VGABase::UpdateVGAMemoryMapping() {}
 
-void VGABase::SetOutputPalette16()
+void VGABase::SetOutputPalette16(void* palette)
 {
+  u8* palette_ptr = static_cast<u8*>(palette);
+
   // Control whether the color select controls the high bits or the palette index.
   if (m_attribute_registers.palette_bits_5_4_select)
   {
@@ -690,7 +685,9 @@ void VGABase::SetOutputPalette16()
     for (u32 i = 0; i < 16; i++)
     {
       const u32 index = base_index + ZeroExtend32(m_attribute_registers.palette[i] & 0x0F);
-      m_display->SetPaletteEntry(Truncate8(i), Convert6BitColorTo8Bit(m_dac_palette[index]));
+      const u32 color = Convert6BitColorTo8Bit(m_dac_palette[index]);
+      std::memcpy(palette_ptr, &color, sizeof(color));
+      palette_ptr += sizeof(color);
     }
   }
   else
@@ -699,15 +696,22 @@ void VGABase::SetOutputPalette16()
     for (u32 i = 0; i < 16; i++)
     {
       const u32 index = base_index + ZeroExtend32(m_attribute_registers.palette[i] & 0x3F);
-      m_display->SetPaletteEntry(Truncate8(i), Convert6BitColorTo8Bit(m_dac_palette[index]));
+      const u32 color = Convert6BitColorTo8Bit(m_dac_palette[index]);
+      std::memcpy(palette_ptr, &color, sizeof(color));
+      palette_ptr += sizeof(color);
     }
   }
 }
 
-void VGABase::SetOutputPalette256()
+void VGABase::SetOutputPalette256(void* palette)
 {
+  u8* palette_ptr = static_cast<u8*>(palette);
   for (u32 i = 0; i < 256; i++)
-    m_display->SetPaletteEntry(Truncate8(i), Convert6BitColorTo8Bit(m_dac_palette[i]));
+  {
+    const u32 color = Convert6BitColorTo8Bit(m_dac_palette[i]);
+    std::memcpy(palette_ptr, &color, sizeof(color));
+    palette_ptr += sizeof(color);
+  }
 }
 
 void VGABase::GetDisplayTiming(DisplayTiming& timing) const
@@ -779,8 +783,9 @@ void VGABase::UpdateDisplayTiming()
   if (!timing.IsValid())
   {
     // if we were valid, wipe out the framebuffer
+    // TODO: FIXME?
     if (m_display_timing.IsValid())
-      m_display->ClearFramebuffer();
+      R2FramebufferVideo.UploadFramebuffer(0, 0, NUM_RETRO2_PIXEL_FORMATS, nullptr, 0);
 
     m_display_event->SetActive(false);
     m_display_timing = timing;
@@ -801,6 +806,11 @@ void VGABase::UpdateDisplayTiming()
   m_display_event->SetActive(true);
   m_display_event->SetInterval(static_cast<SimulationTime>(m_display_timing.GetVerticalTotalDuration()));
   m_display_event->SetDowncount(static_cast<SimulationTime>(m_display_timing.GetVerticalTotalDuration()));
+
+  R2Session.SetVideoFrameRate(m_display_timing.GetVerticalFrequency());
+  R2Session.SetVideoDisplayAspectRatio(4.0f / 3.0f);
+  R2Session.SetVideoDisplayGeometry(m_display_timing.GetHorizontalVisible(), m_display_timing.GetVerticalVisible(), 0,
+                                    0, m_display_timing.GetHorizontalVisible(), m_display_timing.GetVerticalVisible());
 }
 
 void VGABase::LatchStartAddress()
@@ -885,19 +895,16 @@ void VGABase::Render()
     UpdateDisplayTiming();
   }
 
-  if (!m_display_timing.IsValid() || !m_display->IsActive())
+  if (!m_display_timing.IsValid())
+  {
+    R2FramebufferVideo.UploadFramebuffer(0, 0, NUM_RETRO2_PIXEL_FORMATS, nullptr, 0);
+    m_system->EndVideoFrame(false);
     return;
+  }
 
   // The latching of the start address technically happens on the previous frame's vsync.
   // But, we can get away with here because the render event always occurs before the next frame's vsync.
   LatchStartAddress();
-
-  if (m_display->GetFramebufferWidth() != m_render_latch.render_width ||
-      m_display->GetFramebufferHeight() != m_render_latch.render_height)
-  {
-    m_display->ResizeFramebuffer(m_render_latch.render_width, m_render_latch.render_height);
-    m_display->ResizeDisplay();
-  }
 
   // If video is not enabled,
   if (m_render_latch.graphics_mode)
@@ -905,7 +912,7 @@ void VGABase::Render()
   else
     RenderTextMode();
 
-  m_display->SwapFramebuffer();
+  m_system->EndVideoFrame(true);
 }
 
 u32 VGABase::ReadVRAMPlanes(u32 base_address, u32 address_counter, u32 row_scan_counter) const
@@ -1091,13 +1098,17 @@ void VGABase::RenderTextMode()
     font_base_pointers[i] = &m_vram[font_base_address[i] * 4];
   }
 
-  // Get text palette colors
-  SetOutputPalette16();
+  // Begin draw
+  void *framebuffer, *palette;
+  size_t framebuffer_pitch;
+  R2FramebufferVideo.MapPaletteFramebuffer(m_render_latch.render_width, m_render_latch.render_height,
+                                           RETRO2_PIXEL_FORMAT_P8, RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer,
+                                           &framebuffer_pitch, &palette);
+  SetOutputPalette16(palette);
 
   // TODO: This is wrong, it should support smooth scrolling of text!!
   u32 row_scan_counter = m_render_latch.row_scan_counter;
-  u8* fb_ptr = m_display->GetFramebufferPointer();
-  const u32 fb_stride = m_display->GetFramebufferStride();
+  u8* fb_ptr = static_cast<u8*>(framebuffer);
 
   for (u32 row = 0; row < character_rows; row++)
   {
@@ -1124,8 +1135,8 @@ void VGABase::RenderTextMode()
 
       // Actually draw the character
       const bool dup9 = (character >= 0xC0 && character <= 0xDF);
-      DrawTextGlyph(fb_row_ptr, fb_stride, glyph, m_render_latch.character_width, m_render_latch.character_height,
-                    fg_color_index, bg_color_index, dup9);
+      DrawTextGlyph(fb_row_ptr, static_cast<u32>(framebuffer_pitch), glyph, m_render_latch.character_width,
+                    m_render_latch.character_height, fg_color_index, bg_color_index, dup9);
 
       // To draw the cursor, we simply overwrite the pixels. Easier than branching in the character draw routine.
       if (current_address == m_render_latch.cursor_address)
@@ -1133,7 +1144,7 @@ void VGABase::RenderTextMode()
         // On the standard VGA, the cursor color is obtained from the foreground color of the character that the
         // cursor is superimposing. On the standard VGA there is no way to modify this behavior.
         // TODO: How is dup9 handled here?
-        u8* fb_cursor_ptr = fb_row_ptr + (m_render_latch.cursor_start_line * fb_stride);
+        u8* fb_cursor_ptr = fb_row_ptr + (m_render_latch.cursor_start_line * static_cast<u32>(framebuffer_pitch));
         for (u8 cursor_line = m_render_latch.cursor_start_line; cursor_line < m_render_latch.cursor_end_line;
              cursor_line++)
         {
@@ -1141,15 +1152,17 @@ void VGABase::RenderTextMode()
           for (u32 i = 0; i < m_render_latch.character_width; i++)
             *(fb_cursor_row_ptr++) = fg_color_index;
 
-          fb_cursor_ptr += fb_stride;
+          fb_cursor_ptr += framebuffer_pitch;
         }
       }
 
       fb_row_ptr += m_render_latch.character_width;
     }
 
-    fb_ptr += m_render_latch.character_height * fb_stride;
+    fb_ptr += m_render_latch.character_height * framebuffer_pitch;
   }
+
+  R2FramebufferVideo.UnmapPaletteFramebuffer(framebuffer, palette);
 }
 
 void VGABase::RenderGraphicsMode()
@@ -1164,16 +1177,22 @@ void VGABase::RenderGraphicsMode()
   u32 start_address = m_render_latch.start_address;
   u8 horizontal_pan = m_render_latch.horizontal_panning;
 
+  void *framebuffer, *palette;
+  size_t framebuffer_pitch;
+  R2FramebufferVideo.MapPaletteFramebuffer(m_render_latch.render_width, m_render_latch.render_height,
+                                           RETRO2_PIXEL_FORMAT_P8, RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer,
+                                           &framebuffer_pitch, &palette);
+
   // 4 or 16 color mode?
   if (!shift_256)
   {
     // This initializes 16 colours when we only need 4, but whatever.
-    SetOutputPalette16();
+    SetOutputPalette16(palette);
   }
   else
   {
     // Initialize all palette colours beforehand.
-    SetOutputPalette256();
+    SetOutputPalette256(palette);
   }
 
   // preset_row_scan[4:0] contains the starting row scan number, cleared when it hits max.
@@ -1181,8 +1200,7 @@ void VGABase::RenderGraphicsMode()
   u32 row_scan_counter = m_render_latch.row_scan_counter;
 
   // Draw lines
-  u8* fb_ptr = m_display->GetFramebufferPointer();
-  const u32 fb_stride = m_display->GetFramebufferStride();
+  u8* fb_ptr = static_cast<u8*>(framebuffer);
   for (u32 scanline = 0; scanline < render_height; scanline++)
   {
     if (scanline == line_compare)
@@ -1313,7 +1331,9 @@ void VGABase::RenderGraphicsMode()
       row_counter++;
     }
 
-    fb_ptr += fb_stride;
+    fb_ptr += framebuffer_pitch;
   }
+
+  R2FramebufferVideo.UnmapPaletteFramebuffer(framebuffer, palette);
 }
 } // namespace HW

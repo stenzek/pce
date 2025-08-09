@@ -37,14 +37,11 @@
   <ItemGroup>
     <ClInclude Include="audio.h" />
     <ClInclude Include="bitfield.h" />
-    <ClInclude Include="display.h" />
-    <ClInclude Include="display_renderer_d3d.h" />
-    <ClInclude Include="display_renderer.h" />
-    <ClInclude Include="display_renderer_gl.h" />
     <ClInclude Include="display_timing.h" />
     <ClInclude Include="fastjmp.h" />
     <ClInclude Include="hdd_image.h" />
     <ClInclude Include="jit_code_buffer.h" />
+    <ClInclude Include="log.h" />
     <ClInclude Include="object.h" />
     <ClInclude Include="object_type_info.h" />
     <ClInclude Include="property.h" />
@@ -54,13 +51,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="audio.cpp" />
-    <ClCompile Include="display.cpp" />
-    <ClCompile Include="display_renderer_d3d.cpp" />
-    <ClCompile Include="display_renderer.cpp" />
-    <ClCompile Include="display_renderer_gl.cpp" />
     <ClCompile Include="display_timing.cpp" />
     <ClCompile Include="hdd_image.cpp" />
     <ClCompile Include="jit_code_buffer.cpp" />
+    <ClCompile Include="log.cpp" />
     <ClCompile Include="object.cpp" />
     <ClCompile Include="object_type_info.cpp" />
     <ClCompile Include="property.cpp" />
@@ -73,9 +67,6 @@
     <MASM Include="fastjmp.asm" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\dep\glad\glad.vcxproj">
-      <Project>{43540154-9e1e-409c-834f-b84be5621388}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\dep\libsamplerate\libsamplerate.vcxproj">
       <Project>{2f2a2b7b-60b3-478c-921e-3633b3c45c3f}</Project>
     </ProjectReference>
@@ -220,7 +211,8 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -239,9 +231,10 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;WIN32;_DEBUGFAST;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <SupportJustMyCode>false</SupportJustMyCode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -260,7 +253,8 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -279,9 +273,10 @@
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=1;WIN32;_DEBUGFAST;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <SupportJustMyCode>false</SupportJustMyCode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -301,7 +296,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -323,8 +319,9 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OmitFramePointers>true</OmitFramePointers>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -346,7 +343,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -368,8 +366,9 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)dep\YBaseLib\Include;$(SolutionDir)dep\retro2\include;$(SolutionDir)dep\libsamplerate\include;$(SolutionDir)dep\glad\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OmitFramePointers>true</OmitFramePointers>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

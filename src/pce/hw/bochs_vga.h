@@ -97,7 +97,6 @@ private:
   void UpdateBIOSMemoryMapping();
 
   bool IsLFBEnabled() const;
-  void UpdateFramebufferFormat();
 
   u16 IOReadVBEDataRegister();
   void IOWriteVBEDataRegister(u16 value);

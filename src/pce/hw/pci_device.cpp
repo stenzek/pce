@@ -1,7 +1,7 @@
 #include "pce/hw/pci_device.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "common/state_wrapper.h"
 #include "pce/hw/pci_bus.h"
 Log_SetChannel(PCIDevice);

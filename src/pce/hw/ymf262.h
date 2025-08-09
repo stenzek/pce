@@ -6,7 +6,7 @@
 #include "pce/system.h"
 #include <array>
 
-#define YMF262_USE_THREAD 1
+//#define YMF262_USE_THREAD 1
 
 class TimingEvent;
 

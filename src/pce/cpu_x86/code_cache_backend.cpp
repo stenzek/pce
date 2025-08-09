@@ -1,5 +1,5 @@
 #include "pce/cpu_x86/code_cache_backend.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "pce/bus.h"
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"

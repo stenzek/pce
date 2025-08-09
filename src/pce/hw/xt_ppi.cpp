@@ -1,7 +1,7 @@
 #include "pce/hw/xt_ppi.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "YBaseLib/String.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"
@@ -38,8 +38,8 @@ bool XT_PPI::Initialize(System* system, Bus* bus)
 
   ConnectIOPorts(bus);
 
-  m_system->GetHostInterface()->AddKeyboardCallback(
-    this, std::bind(&XT_PPI::AddScanCode, this, std::placeholders::_1, std::placeholders::_2));
+  m_system->AddKeyboardCallback(this,
+                                std::bind(&XT_PPI::AddScanCode, this, std::placeholders::_1, std::placeholders::_2));
 
   return true;
 }

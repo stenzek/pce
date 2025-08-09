@@ -1,6 +1,6 @@
 #include "hdd_image.h"
 #include "YBaseLib/FileSystem.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 Log_SetChannel(HDDImage);
 
 #pragma pack(push, 1)

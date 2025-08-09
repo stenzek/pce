@@ -2,11 +2,12 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Memory.h"
-#include "common/display.h"
 #include "pce/bus.h"
 #include "pce/host_interface.h"
 #include "pce/mmio.h"
 #include "pce/system.h"
+#include <retro2/retro2_framebuffer.h>
+#include <retro2/retro2_session.h>
 #include <utility>
 
 namespace HW {
@@ -30,12 +31,13 @@ bool CGA::Initialize(System* system, Bus* bus)
   if (!BaseClass::Initialize(system, bus))
     return false;
 
-  m_display = system->GetHostInterface()->CreateDisplay(
-    SmallString::FromFormat("%s (CGA)", m_identifier.GetCharArray()), Display::Type::Primary);
-  if (!m_display)
+  if (!system->CreateFramebufferVideo())
     return false;
 
-  m_display->SetDisplayAspectRatio(4, 3);
+  R2Session.SetVideoDisplayGeometry(640, 200, 0, 0, 640, 200);
+  R2Session.SetVideoDisplayAspectRatio(4.0f / 3.0f);
+  R2Session.SetVideoFrameRate(59.92);
+
   ConnectIOPorts(bus);
 
   m_line_event = m_system->CreateClockedEvent("CGA Render Line", CLOCK_FREQUENCY, 1,
@@ -58,9 +60,6 @@ void CGA::Reset()
   m_mode_control_register.enable_blink = false;
   RecalculateEventTiming();
   BeginFrame();
-
-  // Start with a clear framebuffer.
-  m_display->ClearFramebuffer();
 }
 
 bool CGA::LoadState(BinaryReader& reader)
@@ -255,8 +254,7 @@ void CGA::BeginFrame()
       break;
     case 0:
     case 2:
-    case 3:
-    {
+    case 3: {
       if ((--m_cursor_frame_counter) == 0)
       {
         m_cursor_frame_counter = BLINK_INTERVAL << ((cursor_val == 3) ? 1 : 0);
@@ -388,19 +386,9 @@ void CGA::RenderLineBorder()
 
 void CGA::FlushFrame()
 {
-  const u32 frame_width = m_current_frame_width;
-  const u32 frame_height = m_current_frame_line;
-  if (frame_width > 0 && frame_height > 0)
-  {
-    if (m_display->GetFramebufferWidth() != frame_width || m_display->GetFramebufferHeight() != frame_height)
-    {
-      m_display->ResizeFramebuffer(frame_width, frame_height);
-      m_display->ResizeDisplay();
-    }
-
-    m_display->CopyToFramebuffer(m_current_frame.data(), m_current_frame_width * sizeof(u32));
-    m_display->SwapFramebuffer();
-  }
+  R2FramebufferVideo.UploadFramebuffer(m_current_frame_width, m_current_frame_line, RETRO2_PIXEL_FORMAT_RGBA8,
+                                       m_current_frame.data(), m_current_frame_width * sizeof(u32));
+  m_system->EndVideoFrame(true);
 
   // clear our buffered frame state, pull new width from the crtc
   const bool hires_graphics = m_mode_control_register.graphics_mode && m_mode_control_register.high_resolution_graphics;

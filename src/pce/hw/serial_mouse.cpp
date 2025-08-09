@@ -1,7 +1,7 @@
 #include "pce/hw/serial_mouse.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "YBaseLib/Timer.h"
 #include "pce/host_interface.h"
 #include "pce/hw/serial.h"
@@ -25,8 +25,6 @@ SerialMouse::SerialMouse(const String& identifier, const String& serial_port_nam
 
 SerialMouse::~SerialMouse()
 {
-  if (m_system)
-    m_system->GetHostInterface()->RemoveAllCallbacks(this);
 }
 
 bool SerialMouse::Initialize(System* system, Bus* bus)
@@ -102,9 +100,9 @@ void SerialMouse::Reset()
 
 void SerialMouse::ConnectCallbacks()
 {
-  m_system->GetHostInterface()->AddMousePositionChangeCallback(
+  m_system->AddMousePositionChangeCallback(
     this, std::bind(&SerialMouse::OnHostMousePositionChanged, this, std::placeholders::_1, std::placeholders::_2));
-  m_system->GetHostInterface()->AddMouseButtonChangeCallback(
+  m_system->AddMouseButtonChangeCallback(
     this, std::bind(&SerialMouse::OnHostMouseButtonChanged, this, std::placeholders::_1, std::placeholders::_2));
   m_serial_port->SetDataTerminalReadyChangedCallback(
     std::bind(&SerialMouse::OnSerialPortDTRChanged, this, std::placeholders::_1));

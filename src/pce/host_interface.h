@@ -1,10 +1,6 @@
 #pragma once
-#include "YBaseLib/Barrier.h"
-#include "YBaseLib/Semaphore.h"
 #include "YBaseLib/String.h"
-#include "YBaseLib/TaskQueue.h"
 #include "YBaseLib/Timer.h"
-#include "common/display.h"
 #include "cpu.h"
 #include "scancodes.h"
 #include "system.h"
@@ -14,7 +10,6 @@
 #include <memory>
 #include <mutex>
 #include <queue>
-#include <thread>
 #include <utility>
 #include <vector>
 
@@ -45,29 +40,21 @@ public:
     Writing
   };
 
-  using ExternalEventCallback = std::function<void()>;
-
   HostInterface();
-  virtual ~HostInterface();
+  ~HostInterface();
 
   // System pointer, can be null.
   System* GetSystem() { return m_system.get(); }
 
   // Loads/creates a system.
   bool CreateSystem(const char* inifile, Error* error);
-
-  // Resets the system.
-  void ResetSystem();
+  void ShutdownSystem();
 
   // Load/save state. If load fails, system is in an undefined state, Reset it.
   // This occurs asynchronously, the event maintains a reference to the stream.
   // The stream is committed upon success, or discarded upon fail.
   bool LoadSystemState(const char* filename, Error* error);
-  void SaveSystemState(const char* filename);
-
-  // External events, will interrupt the CPU and execute.
-  // Use care when calling this variant, deadlocks can occur.
-  void QueueExternalEvent(ExternalEventCallback callback, bool wait);
+  bool SaveSystemState(const char* filename);
 
   // Safely changes CPU backend.
   // This change is done asynchronously.
@@ -77,35 +64,8 @@ public:
   void SetCPUFrequency(float frequency);
   void FlushCPUCodeCache();
 
-  // Speed limiter.
-  bool IsSpeedLimiterEnabled() const { return m_speed_limiter_enabled; }
-  void SetSpeedLimiterEnabled(bool enabled);
-
-  // Simulation pausing/resuming/stopping.
-  void PauseSimulation();
-  void ResumeSimulation();
-  void StopSimulation();
-
-  // Display
-  virtual DisplayRenderer* GetDisplayRenderer() const = 0;
-  std::unique_ptr<Display> CreateDisplay(const char* name, Display::Type type, u8 priority = Display::DEFAULT_PRIORITY);
-
   // Audio
-  virtual Audio::Mixer* GetAudioMixer() const = 0;
-
-  // Remove all callbacks with this owner
-  void RemoveAllCallbacks(const void* owner);
-
-  // Keyboard
-  using KeyboardCallback = std::function<void(GenScanCode scancode, bool key_down)>;
-  void AddKeyboardCallback(const void* owner, KeyboardCallback callback);
-  void InjectKeyEvent(GenScanCode sc, bool down);
-
-  // Mouse
-  using MousePositionChangeCallback = std::function<void(s32 dx, s32 dy)>;
-  using MouseButtonChangeCallback = std::function<void(u32 button, bool state)>;
-  void AddMousePositionChangeCallback(const void* owner, MousePositionChangeCallback callback);
-  void AddMouseButtonChangeCallback(const void* owner, MouseButtonChangeCallback callback);
+  Audio::Mixer* GetAudioMixer() const { return m_mixer.get(); }
 
   // Error reporting. May block.
   virtual void ReportError(const char* message);
@@ -114,12 +74,6 @@ public:
   // Status message logging.
   virtual void ReportMessage(const char* message);
   void ReportFormattedMessage(const char* format, ...);
-
-  // Helper to check if the caller is on the simulation thread.
-  bool IsOnSimulationThread() const;
-
-  // Sends CTRL+ALT+DELETE to the simulated machine.
-  void SendCtrlAltDel();
 
   // UI elements.
   using UICallback = std::function<void()>;
@@ -159,81 +113,25 @@ protected:
     // TODO: Frames
   };
 
-  struct OSDMessage
-  {
-    String text;
-    Timer time;
-    float duration;
-  };
-
-  // Implemented in derived classes.
-  virtual void OnSystemInitialized();
-  virtual void OnSystemReset();
-  virtual void OnSystemStateLoaded();
-  virtual void OnSystemDestroy();
-  virtual void OnSimulationStatsUpdate(const SimulationStats& stats);
-  virtual void OnSimulationResumed();
-  virtual void OnSimulationPaused();
-
-  // Yields execution, so that the main thread doesn't deadlock.
-  virtual void YieldToUI();
-
-  void ExecuteKeyboardCallbacks(GenScanCode scancode, bool key_down);
-  void ExecuteMousePositionChangeCallbacks(s32 dx, s32 dy);
-  void ExecuteMouseButtonChangeCallbacks(u32 button, bool state);
-
-  // Simulation thread entry point.
-  void SimulationThreadRoutine();
-  void WaitForSimulationThread();
-  void StopSimulationThread();
-
   ComponentUIElement* CreateComponentUIElement(const Component* component);
   ComponentUIElement* GetOrCreateComponentUIElement(const Component* component);
   ComponentUIElement* GetComponentUIElement(const Component* component);
 
   std::unique_ptr<System> m_system;
   std::vector<ComponentUIElement> m_component_ui_elements;
-  std::deque<OSDMessage> m_osd_messages;
-  std::mutex m_osd_messages_lock;
 
 private:
-  SimulationTime GetSimulationSliceTime() const;
-  SimulationTime GetMaxSimulationVarianceTime() const;
-  void HandleStateChange();
-  bool ExecuteExternalEvents();
-  void ThrottleEvent();
   void UpdateExecutionSpeed();
-  void WaitForCallingThread();
-  void ShutdownSystem();
 
-  std::vector<std::pair<const void*, KeyboardCallback>> m_keyboard_callbacks;
-  std::vector<std::pair<const void*, MousePositionChangeCallback>> m_mouse_position_change_callbacks;
-  std::vector<std::pair<const void*, MouseButtonChangeCallback>> m_mouse_button_change_callbacks;
-
-  // Throttle event
-  std::unique_ptr<TimingEvent> m_throttle_event;
-  Timer m_throttle_timer;
-  u64 m_last_throttle_time = 0;
-  bool m_speed_limiter_enabled = true;
-  Timer m_speed_lost_time_timestamp;
-
-  // Emulation speed tracking
-  Timer m_speed_elapsed_real_time;
-  SimulationTime m_speed_elapsed_simulation_time = 0;
-  u64 m_speed_elapsed_user_time = 0;
-  u64 m_speed_elapsed_kernel_time = 0;
-
-  // Threaded running state
-  std::thread::id m_simulation_thread_id;
-  Barrier m_simulation_thread_barrier{2};
-  Semaphore m_simulation_thread_semaphore;
-  std::atomic_bool m_simulation_thread_running{true};
-  System::State m_last_system_state = System::State::Stopped;
-
-  // External event queue
-  std::queue<std::pair<ExternalEventCallback, bool>> m_external_events;
-  std::mutex m_external_events_lock;
+  std::unique_ptr<Audio::Mixer> m_mixer;
 
   // Stats tracking
   CPU::ExecutionStats m_last_cpu_execution_stats = {};
 };
+
+// Retro2 Interfaces
+extern struct IRetro2Error R2Error;
+extern struct IRetro2Log R2Log;
+extern struct IRetro2Session R2Session;
+extern struct IRetro2Settings R2Settings;
+extern struct IRetro2FramebufferVideo R2FramebufferVideo;

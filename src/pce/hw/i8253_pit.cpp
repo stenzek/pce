@@ -1,7 +1,7 @@
 #include "pce/hw/i8253_pit.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"
 #include "pce/interrupt_controller.h"

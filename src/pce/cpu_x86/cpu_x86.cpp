@@ -1,6 +1,6 @@
 #include "pce/cpu_x86/cpu_x86.h"
 #include "YBaseLib/Assert.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "YBaseLib/Memory.h"
 #include "common/state_wrapper.h"
 #include "pce/bus.h"

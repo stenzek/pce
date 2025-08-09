@@ -20,6 +20,8 @@ class HostInterface;
 class StateWraper;
 class TimingEvent;
 
+enum GenScanCode : u8;
+
 class System : public Object
 {
   DECLARE_OBJECT_TYPE_INFO(System, Object);
@@ -30,14 +32,6 @@ class System : public Object
   friend TimingEvent;
 
 public:
-  enum class State : u32
-  {
-    Initializing,
-    Paused,
-    Running,
-    Stopped
-  };
-
   System(const ObjectTypeInfo* type_info = &s_type_info);
   virtual ~System();
 
@@ -52,11 +46,7 @@ public:
   Bus* GetBus() const { return m_bus; }
 
   // Returns true if the CPU run loop should continue.
-  bool ShouldRunCPU() const { return m_state == System::State::Running && !m_interrupt_execution.load(); }
-
-  // State changes. Use with care.
-  State GetState() const { return m_state; }
-  void SetState(State state);
+  bool ShouldRunCPU() const;
 
   // Initialize all components, no need to call reset when starting for the first time
   virtual bool Initialize();
@@ -140,6 +130,25 @@ public:
   // TODO: Find a better place for this.. result is pair<ptr, size>.
   static std::pair<std::unique_ptr<byte[]>, u32> ReadFileToBuffer(const char* filename, u32 offset, u32 expected_size);
 
+  bool CreateFramebufferVideo();
+  void EndVideoFrame(bool is_unique_frame);
+
+  void ReceiveHostInputValue(u32 controller_index, u32 input_index, float value);
+
+  // Keyboard
+  using KeyboardCallback = std::function<void(GenScanCode scancode, bool key_down)>;
+  void AddKeyboardCallback(const void* owner, KeyboardCallback callback);
+  void InjectKeyEvent(GenScanCode sc, bool down);
+
+  // Mouse
+  using MousePositionChangeCallback = std::function<void(s32 dx, s32 dy)>;
+  using MouseButtonChangeCallback = std::function<void(u32 button, bool state)>;
+  void AddMousePositionChangeCallback(const void* owner, MousePositionChangeCallback callback);
+  void AddMouseButtonChangeCallback(const void* owner, MouseButtonChangeCallback callback);
+
+  // Sends CTRL+ALT+DELETE to the simulated machine.
+  void SendCtrlAltDel();
+
 protected:
   // State loading/saving.
   virtual bool LoadSystemState(BinaryReader& reader);
@@ -158,6 +167,11 @@ private:
   bool DoAllState(StateWrapper& sw);
   bool DoComponentsState(StateWrapper& sw);
   bool DoEventsState(StateWrapper& sw);
+
+  void SetHostInputDevices();
+  void ExecuteKeyboardCallbacks(GenScanCode scancode, bool key_down);
+  void ExecuteMousePositionChangeCallbacks(s32 dx, s32 dy);
+  void ExecuteMouseButtonChangeCallbacks(u32 button, bool state);
 
   // Active event management
   void AddActiveEvent(TimingEvent* event);
@@ -178,10 +192,14 @@ private:
   }
 
   std::vector<Component*> m_components;
-  State m_state = State::Initializing;
   std::atomic_bool m_interrupt_execution{false};
   String m_base_path;
 
+  std::vector<std::pair<const void*, KeyboardCallback>> m_keyboard_callbacks;
+  std::vector<std::pair<const void*, MousePositionChangeCallback>> m_mouse_position_change_callbacks;
+  std::vector<std::pair<const void*, MouseButtonChangeCallback>> m_mouse_button_change_callbacks;
+
+  // TODO: align to cache line?
   std::vector<TimingEvent*> m_events;
   SimulationTime m_simulation_time = 0;
   SimulationTime m_last_event_run_time = 0;

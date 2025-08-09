@@ -1,7 +1,7 @@
 #include "pce/hw/pcspeaker.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "YBaseLib/Timer.h"
 #include "pce/host_interface.h"
 Log_SetChannel(HW::PCSpeaker);

@@ -4,7 +4,7 @@
 #include "YBaseLib/Assert.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "YBaseLib/Memory.h"
 #include "common/state_wrapper.h"
 #include "pce/cpu.h"

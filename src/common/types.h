@@ -229,3 +229,23 @@ constexpr bool ConvertToBoolUnchecked(TValue value)
                              static_cast<std::underlying_type<type_>::type>(rhs));                                     \
     return lhs;                                                                                                        \
   }
+
+/// Strided memcpy/memcmp.
+ALWAYS_INLINE void StrideMemCpy(void* dst, std::size_t dst_stride, const void* src, std::size_t src_stride,
+                                std::size_t copy_size, std::size_t count)
+{
+  if (src_stride == dst_stride && src_stride == copy_size)
+  {
+    std::memcpy(dst, src, src_stride * count);
+    return;
+  }
+
+  const u8* src_ptr = static_cast<const u8*>(src);
+  u8* dst_ptr = static_cast<u8*>(dst);
+  for (std::size_t i = 0; i < count; i++)
+  {
+    std::memcpy(dst_ptr, src_ptr, copy_size);
+    src_ptr += src_stride;
+    dst_ptr += dst_stride;
+  }
+}

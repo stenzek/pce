@@ -1,6 +1,8 @@
 #include "pce/cpu_x86/debugger_interface.h"
 #include "pce/cpu_x86/decoder.h"
 #include "pce/system.h"
+#include "pce/host_interface.h"
+#include <retro2/retro2_session.h>
 
 namespace CPU_X86 {
 
@@ -208,10 +210,7 @@ void DebuggerInterface::SetStepping(bool enabled, u32 instructions_to_execute)
 {
   m_stepping = enabled;
   m_stepping_instructions = instructions_to_execute;
-  if (!enabled || m_stepping_instructions > 0)
-    m_cpu->GetSystem()->SetState(System::State::Running);
-  else
-    m_cpu->GetSystem()->SetState(System::State::Paused);
+  R2Session.SetPaused(!enabled || m_stepping_instructions == 0);
 }
 
 u32 DebuggerInterface::GetSteppingInstructionCount()

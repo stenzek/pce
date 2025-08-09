@@ -4,17 +4,19 @@
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Error.h"
 #include "YBaseLib/FileSystem.h"
-#include "YBaseLib/Log.h"
-#include "YBaseLib/Thread.h"
+#include "common/log.h"
 #include "common/audio.h"
-#include "common/display_renderer.h"
 #include "system.h"
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <retro2/retro2_session.h>
 Log_SetChannel(HostInterface);
 
-HostInterface::HostInterface() : m_simulation_thread_semaphore(0, std::numeric_limits<int>::max()) {}
+HostInterface::HostInterface()
+{
+  m_mixer = Audio::NullMixer::Create();
+}
 
 HostInterface::~HostInterface() {}
 
@@ -22,46 +24,23 @@ bool HostInterface::CreateSystem(const char* inifile, Error* error)
 {
   Assert(!m_system);
 
-  // Initialization happens on the simulation thread.
-  bool initialization_result = false;
-  QueueExternalEvent(
-    [this, inifile, error, &initialization_result]() {
-      m_system = System::ParseConfig(inifile, error);
-      if (!m_system)
-        return;
+  m_system = System::ParseConfig(inifile, error);
+  if (!m_system)
+    return false;
 
-      Log_InfoPrintf("Initializing system '%s'...", m_system->GetTypeInfo()->GetTypeName());
-      m_system->SetHostInterface(this);
-      if (!m_system->Initialize())
-      {
-        error->SetErrorUserFormatted(0, "System initialization failed.");
-        m_system.reset();
-        return;
-      }
+  Log_InfoPrintf("Initializing system '%s'...", m_system->GetTypeInfo()->GetTypeName());
+  m_system->SetHostInterface(this);
+  if (!m_system->Initialize())
+  {
+    error->SetErrorUserFormatted(0, "System initialization failed.");
+    m_system.reset();
+    return false;
+  }
 
-      // All good.
-      m_system->Reset();
-      OnSystemInitialized();
-      Log_InfoPrintf("System initialized successfully.");
-      m_system->SetState(System::State::Paused);
-      m_last_system_state = System::State::Paused;
-      initialization_result = true;
-    },
-    true);
-
-  return initialization_result;
-}
-
-void HostInterface::ResetSystem()
-{
-  // Always run after exiting the current simulation slice.
-  QueueExternalEvent(
-    [this]() {
-      Log_InfoPrintf("Resetting system...");
-      m_system->Reset();
-      OnSystemReset();
-    },
-    false);
+  // All good.
+  m_system->Reset();
+  Log_InfoPrintf("System initialized successfully.");
+  return true;
 }
 
 bool HostInterface::LoadSystemState(const char* filename, Error* error)
@@ -73,29 +52,15 @@ bool HostInterface::LoadSystemState(const char* filename, Error* error)
     return false;
   }
 
-  bool result = false;
-  QueueExternalEvent(
-    [this, stream, error, &result]() {
-      if (!m_system->LoadState(stream))
-      {
-        // Stream load failed, reset system, as it is now in an unknown state.
-        error->SetErrorUserFormatted(0, "Loading state failed.");
-        ReportMessage("Load state failed, resetting system.");
-        m_system->Reset();
-        OnSystemReset();
-        return;
-      }
-
-      OnSystemStateLoaded();
-      result = true;
-    },
-    true);
-
+  const bool result = m_system->LoadState(stream);
   stream->Release();
+  if (result)
+    GetAudioMixer()->ClearBuffers();
+
   return result;
 }
 
-void HostInterface::SaveSystemState(const char* filename)
+bool HostInterface::SaveSystemState(const char* filename)
 {
   ByteStream* stream =
     FileSystem::OpenFile(filename, BYTESTREAM_OPEN_CREATE | BYTESTREAM_OPEN_READ | BYTESTREAM_OPEN_WRITE |
@@ -103,37 +68,21 @@ void HostInterface::SaveSystemState(const char* filename)
   if (!stream)
   {
     ReportFormattedError("Failed to open file '%s'", filename);
-    return;
+    return false;
   }
 
-  QueueExternalEvent(
-    [this, stream]() {
-      if (!m_system->SaveState(stream))
-      {
-        // Stream load failed, reset system, as it is now in an unknown state.
-        stream->Discard();
-        stream->Release();
-        ReportFormattedError("Saving state failed.");
-        return;
-      }
+  if (!m_system->SaveState(stream))
+  {
+    // Stream load failed, reset system, as it is now in an unknown state.
+    stream->Discard();
+    stream->Release();
+    ReportFormattedError("Saving state failed.");
+    return false;
+  }
 
-      stream->Commit();
-      stream->Release();
-      ReportMessage("State saved.");
-    },
-    false);
-}
-
-void HostInterface::QueueExternalEvent(ExternalEventCallback callback, bool wait)
-{
-  m_external_events_lock.lock();
-  m_external_events.emplace(std::make_pair(std::move(callback), wait));
-  m_simulation_thread_semaphore.Post();
-  if (m_system)
-    m_system->InterruptRunLoop();
-  m_external_events_lock.unlock();
-  if (wait)
-    WaitForSimulationThread();
+  stream->Commit();
+  stream->Release();
+  return true;
 }
 
 CPU::BackendType HostInterface::GetCPUBackend() const
@@ -150,120 +99,27 @@ bool HostInterface::SetCPUBackend(CPU::BackendType backend)
 {
   Assert(m_system);
   if (!m_system->GetCPU()->SupportsBackend(backend))
+  {
+    ReportError("Backend is not supported by CPU Core");
     return false;
+  }
 
-  QueueExternalEvent(
-    [this, backend]() {
-      if (!m_system->GetCPU()->SupportsBackend(backend))
-      {
-        ReportError("Backend is not supported by CPU Core");
-        return;
-      }
-      m_system->GetCPU()->SetBackend(backend);
-    },
-    true);
+  m_system->GetCPU()->SetBackend(backend);
   return true;
 }
 
 void HostInterface::SetCPUFrequency(float frequency)
 {
   Assert(m_system);
-  QueueExternalEvent([this, frequency]() { m_system->GetCPU()->SetFrequency(frequency); }, false);
+  m_system->GetCPU()->SetFrequency(frequency);
+  ;
 }
 
 void HostInterface::FlushCPUCodeCache()
 {
   Assert(m_system);
-  QueueExternalEvent(
-    [this]() {
-      m_system->GetCPU()->FlushCodeCache();
-      ReportMessage("Flushed code cache.");
-    },
-    false);
-}
-
-void HostInterface::SetSpeedLimiterEnabled(bool enabled)
-{
-  if (m_speed_limiter_enabled == enabled)
-    return;
-
-  // Reset the wall time, so that we don't execute the "missed" time.
-  if (enabled)
-  {
-    m_throttle_timer.Reset();
-    m_last_throttle_time = 0;
-  }
-
-  // Not a big deal if this races.
-  m_speed_limiter_enabled = enabled;
-
-  // Flush audio buffers so we can start fresh and in-sync.
-  if (enabled)
-    GetAudioMixer()->ClearBuffers();
-}
-
-void HostInterface::PauseSimulation()
-{
-  Assert(m_system);
-  Log_InfoPrintf("Pausing simulation...");
-  QueueExternalEvent([this]() { m_system->SetState(System::State::Paused); }, true);
-  Log_InfoPrintf("Simulation paused.");
-}
-
-void HostInterface::ResumeSimulation()
-{
-  Assert(m_system);
-  Log_InfoPrintf("Resuming simulation.");
-  QueueExternalEvent(
-    [this]() {
-      // Post the semaphore so the thread stays awake.
-      m_system->SetState(System::State::Running);
-      m_simulation_thread_semaphore.Post();
-    },
-    true);
-}
-
-void HostInterface::StopSimulation()
-{
-  Assert(m_system);
-  Log_InfoPrintf("Stopping simulation...");
-  QueueExternalEvent([this]() { m_system->SetState(System::State::Stopped); }, false);
-  WaitForSimulationThread();
-  Log_InfoPrintf("Simulation stopped.");
-}
-
-std::unique_ptr<Display> HostInterface::CreateDisplay(const char* name, Display::Type type,
-                                                      u8 priority /*= Display::DEFAULT_PRIORITY*/)
-{
-  return GetDisplayRenderer()->CreateDisplay(name, type, priority);
-}
-
-void HostInterface::RemoveAllCallbacks(const void* owner)
-{
-  auto callback = [owner](const auto& it) { return (it.first == owner); };
-  std::remove_if(m_keyboard_callbacks.begin(), m_keyboard_callbacks.end(), callback);
-  std::remove_if(m_mouse_position_change_callbacks.begin(), m_mouse_position_change_callbacks.end(), callback);
-  std::remove_if(m_mouse_button_change_callbacks.begin(), m_mouse_button_change_callbacks.end(), callback);
-}
-
-void HostInterface::AddKeyboardCallback(const void* owner, KeyboardCallback callback)
-{
-  m_keyboard_callbacks.emplace_back(owner, std::move(callback));
-}
-
-void HostInterface::InjectKeyEvent(GenScanCode sc, bool down)
-{
-  QueueExternalEvent([this, sc, down]() { ExecuteKeyboardCallbacks(sc, down); }, false);
-}
-
-void HostInterface::AddMousePositionChangeCallback(const void* owner, MousePositionChangeCallback callback)
-{
-  m_mouse_position_change_callbacks.emplace_back(owner, std::move(callback));
-}
-
-void HostInterface::AddMouseButtonChangeCallback(const void* owner, MouseButtonChangeCallback callback)
-{
-  m_mouse_button_change_callbacks.emplace_back(owner, std::move(callback));
+  m_system->GetCPU()->FlushCodeCache();
+  ReportMessage("Flushed code cache.");
 }
 
 void HostInterface::ReportError(const char* message)
@@ -300,23 +156,7 @@ void HostInterface::ReportFormattedMessage(const char* format, ...)
   ReportMessage(message);
 }
 
-bool HostInterface::IsOnSimulationThread() const
-{
-  return (m_simulation_thread_id == std::this_thread::get_id());
-}
-
-void HostInterface::SendCtrlAltDel()
-{
-  // This has no delay, but the scancodes will still get enqueued.
-  InjectKeyEvent(GenScanCode_LeftControl, true);
-  InjectKeyEvent(GenScanCode_LeftAlt, true);
-  InjectKeyEvent(GenScanCode_Delete, true);
-  InjectKeyEvent(GenScanCode_LeftControl, false);
-  InjectKeyEvent(GenScanCode_LeftAlt, false);
-  InjectKeyEvent(GenScanCode_Delete, false);
-  ReportMessage("Sent CTRL+ALT+DEL to machine.");
-}
-
+#if 0
 void HostInterface::OnSystemInitialized()
 {
   // Create throttle event.
@@ -364,18 +204,7 @@ void HostInterface::OnSystemDestroy()
   m_mouse_button_change_callbacks.clear();
   m_component_ui_elements.clear();
 }
-
-void HostInterface::OnSimulationResumed()
-{
-  // Reset the last wall time, otherwise all the missed time will be executed.
-  m_throttle_timer.Reset();
-  m_last_throttle_time = 0;
-  m_speed_elapsed_real_time.Reset();
-}
-
-void HostInterface::OnSimulationPaused() {}
-
-void HostInterface::YieldToUI() {}
+#endif
 
 void HostInterface::AddUIIndicator(const Component* component, IndicatorType type)
 {
@@ -403,45 +232,7 @@ void HostInterface::AddUIFileCallback(const Component* component, const String& 
 
 void HostInterface::AddOSDMessage(const char* message, float duration /* = 2.0f */)
 {
-  OSDMessage msg;
-  msg.text = message;
-  msg.duration = duration;
-
-  std::unique_lock<std::mutex> lock(m_osd_messages_lock);
-  m_osd_messages.push_back(std::move(msg));
-}
-
-void HostInterface::ExecuteKeyboardCallbacks(GenScanCode scancode, bool key_down)
-{
-  Log_DevPrintf("Key scancode %u %s", u32(scancode), key_down ? "down" : "up");
-  QueueExternalEvent(
-    [this, scancode, key_down]() {
-      for (const auto& it : m_keyboard_callbacks)
-        it.second(scancode, key_down);
-    },
-    false);
-}
-
-void HostInterface::ExecuteMousePositionChangeCallbacks(s32 dx, s32 dy)
-{
-  Log_DevPrintf("Mouse position change: %d %d", dx, dy);
-  QueueExternalEvent(
-    [this, dx, dy]() {
-      for (const auto& it : m_mouse_position_change_callbacks)
-        it.second(dx, dy);
-    },
-    false);
-}
-
-void HostInterface::ExecuteMouseButtonChangeCallbacks(u32 button, bool state)
-{
-  Log_DevPrintf("Mouse button change: %u %s", button, state ? "down" : "up");
-  QueueExternalEvent(
-    [this, button, state]() {
-      for (const auto& it : m_mouse_button_change_callbacks)
-        it.second(button, state);
-    },
-    false);
+  R2Session.AddOSDMessage(nullptr, message, duration);
 }
 
 HostInterface::ComponentUIElement* HostInterface::CreateComponentUIElement(const Component* component)
@@ -472,6 +263,7 @@ HostInterface::ComponentUIElement* HostInterface::GetComponentUIElement(const Co
   return nullptr;
 }
 
+#if 0
 void HostInterface::SimulationThreadRoutine()
 {
   // Set the simulation thread to the caller, so that SetState works as intended.
@@ -525,29 +317,6 @@ void HostInterface::HandleStateChange()
     ShutdownSystem();
 
   m_last_system_state = new_state;
-}
-
-bool HostInterface::ExecuteExternalEvents()
-{
-  bool did_any_work = false;
-
-  m_external_events_lock.lock();
-  while (!m_external_events.empty())
-  {
-    auto elem = std::move(m_external_events.front());
-    m_external_events.pop();
-    m_external_events_lock.unlock();
-
-    elem.first();
-    if (elem.second)
-      WaitForCallingThread();
-
-    did_any_work = true;
-    m_external_events_lock.lock();
-  }
-
-  m_external_events_lock.unlock();
-  return did_any_work;
 }
 
 void HostInterface::ThrottleEvent()
@@ -667,3 +436,4 @@ void HostInterface::StopSimulationThread()
   m_simulation_thread_semaphore.Post();
   WaitForSimulationThread();
 }
+#endif

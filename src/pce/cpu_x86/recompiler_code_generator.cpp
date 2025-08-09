@@ -1,6 +1,6 @@
 #include "recompiler_code_generator.h"
 #include "../system.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "debugger_interface.h"
 #include "decoder.h"
 #include "interpreter.h"

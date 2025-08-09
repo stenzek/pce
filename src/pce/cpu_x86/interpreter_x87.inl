@@ -1,6 +1,6 @@
 #include "YBaseLib/Endian.h"
-#include "YBaseLib/Log.h"
 #include "YBaseLib/String.h"
+#include "common/log.h"
 #include "pce/bus.h"
 #include "pce/cpu_x86/interpreter.h"
 #include "pce/interrupt_controller.h"

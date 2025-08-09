@@ -3,7 +3,7 @@
 #include "../system.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "common/hdd_image.h"
 #include "hdc.h"
 #include <cinttypes>

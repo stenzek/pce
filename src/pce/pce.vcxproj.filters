@@ -186,6 +186,7 @@
     <ClCompile Include="cpu_x86\recompiler_code_generator_generic.cpp">
       <Filter>cpu_x86</Filter>
     </ClCompile>
+    <ClCompile Include="scancodes.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="system.h" />

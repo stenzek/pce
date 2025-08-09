@@ -3,7 +3,7 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/FileSystem.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "YBaseLib/Timestamp.h"
 #include "pce/bus.h"
 #include "pce/hw/fdc.h"

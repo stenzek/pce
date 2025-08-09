@@ -2,7 +2,7 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/Endian.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "pce/bus.h"
 #include "pce/dma_controller.h"
 #include "pce/host_interface.h"

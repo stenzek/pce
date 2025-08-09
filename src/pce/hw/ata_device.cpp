@@ -2,7 +2,7 @@
 #include "../system.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "hdc.h"
 Log_SetChannel(HW::ATADevice);
 

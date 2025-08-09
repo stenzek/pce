@@ -1,6 +1,6 @@
 #include "pce/systems/isapc.h"
 #include "YBaseLib/ByteStream.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "YBaseLib/Memory.h"
 #include "pce/bus.h"
 #include "pce/mmio.h"

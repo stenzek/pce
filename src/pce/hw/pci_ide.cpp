@@ -3,7 +3,7 @@
 #include "../interrupt_controller.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "ata_device.h"
 #include <cinttypes>
 Log_SetChannel(PCIIDE);

@@ -1,6 +1,6 @@
 #include "YBaseLib/Endian.h"
-#include "YBaseLib/Log.h"
 #include "YBaseLib/String.h"
+#include "common/log.h"
 #include "pce/bus.h"
 #include "pce/cpu_8086/cpu.h"
 #include "pce/interrupt_controller.h"
@@ -60,8 +60,7 @@ public:
   {
     switch (op_mode)
     {
-      case OperandMode_Immediate:
-      {
+      case OperandMode_Immediate: {
         if constexpr (op_size == OperandSize_8)
           cpu->idata.imm8 = cpu->FetchInstructionByte();
         else if constexpr (op_size == OperandSize_16)
@@ -69,8 +68,7 @@ public:
       }
       break;
 
-      case OperandMode_Immediate2:
-      {
+      case OperandMode_Immediate2: {
         if constexpr (op_size == OperandSize_8)
           cpu->idata.imm2_8 = cpu->FetchInstructionByte();
         else if constexpr (op_size == OperandSize_16)
@@ -78,8 +76,7 @@ public:
       }
       break;
 
-      case OperandMode_Relative:
-      {
+      case OperandMode_Relative: {
         if constexpr (op_size == OperandSize_8)
           cpu->idata.disp16 = SignExtend16(cpu->FetchInstructionByte());
         else if constexpr (op_size == OperandSize_16)
@@ -87,21 +84,18 @@ public:
       }
       break;
 
-      case OperandMode_Memory:
-      {
+      case OperandMode_Memory: {
         cpu->idata.disp16 = cpu->FetchInstructionWord();
       }
       break;
 
-      case OperandMode_FarAddress:
-      {
+      case OperandMode_FarAddress: {
         cpu->idata.disp16 = cpu->FetchInstructionWord();
         cpu->idata.imm16 = cpu->FetchInstructionWord();
       }
       break;
 
-      case OperandMode_ModRM_RM:
-      {
+      case OperandMode_ModRM_RM: {
         u8 index = ((cpu->idata.modrm >> 6) << 3) | (cpu->idata.modrm & 7);
         switch (index & 31)
         {
@@ -309,8 +303,7 @@ public:
         return cpu->idata.imm2_8;
       case OperandMode_Memory:
         return cpu->ReadMemoryByte(cpu->idata.segment, cpu->idata.disp16);
-      case OperandMode_ModRM_RM:
-      {
+      case OperandMode_ModRM_RM: {
         if (cpu->idata.ModRM_RM_IsReg())
           return cpu->m_registers.reg8[cpu->m_effective_address];
         else
@@ -339,8 +332,7 @@ public:
         return cpu->idata.imm2_16;
       case OperandMode_Memory:
         return cpu->ReadMemoryWord(cpu->idata.segment, cpu->idata.disp16);
-      case OperandMode_ModRM_RM:
-      {
+      case OperandMode_ModRM_RM: {
         if (cpu->idata.ModRM_RM_IsReg())
           return cpu->m_registers.reg16[cpu->m_effective_address];
         else
@@ -360,8 +352,7 @@ public:
   {
     switch (size)
     {
-      case OperandSize_8:
-      {
+      case OperandSize_8: {
         u8 value;
         switch (mode)
         {
@@ -405,8 +396,7 @@ public:
   {
     switch (size)
     {
-      case OperandSize_8:
-      {
+      case OperandSize_8: {
         u8 value;
         switch (mode)
         {
@@ -460,8 +450,7 @@ public:
         cpu->WriteMemoryByte(cpu->idata.segment, cpu->idata.disp16, value);
         break;
 
-      case OperandMode_ModRM_RM:
-      {
+      case OperandMode_ModRM_RM: {
         if (cpu->idata.ModRM_RM_IsReg())
           cpu->m_registers.reg8[cpu->m_effective_address] = value;
         else
@@ -491,8 +480,7 @@ public:
         cpu->WriteMemoryWord(cpu->idata.segment, cpu->idata.disp16, value);
         break;
 
-      case OperandMode_ModRM_RM:
-      {
+      case OperandMode_ModRM_RM: {
         if (cpu->idata.ModRM_RM_IsReg())
           cpu->m_registers.reg16[cpu->m_effective_address] = value;
         else
@@ -516,22 +504,19 @@ public:
     // Can either be far immediate, or memory
     switch (mode)
     {
-      case OperandMode_FarAddress:
-      {
+      case OperandMode_FarAddress: {
         *address = cpu->idata.disp16;
         *segment_selector = cpu->idata.imm16;
       }
       break;
 
-      case OperandMode_Memory:
-      {
+      case OperandMode_Memory: {
         *address = cpu->ReadMemoryWord(cpu->idata.segment, cpu->idata.disp16);
         *segment_selector = cpu->ReadMemoryWord(cpu->idata.segment, cpu->idata.disp16 + 2);
       }
       break;
 
-      case OperandMode_ModRM_RM:
-      {
+      case OperandMode_ModRM_RM: {
         *address = cpu->ReadMemoryWord(cpu->idata.segment, cpu->m_effective_address);
         *segment_selector = cpu->ReadMemoryWord(cpu->idata.segment, cpu->m_effective_address + 2);
       }
@@ -648,7 +633,7 @@ public:
       (regs)->FLAGS.bits &= ~(Flag_##flag);                                                                            \
     }                                                                                                                  \
   } while (0)
-  //#define SET_FLAG(regs, flag, expr) (regs)->FLAGS.flag = (expr)
+  // #define SET_FLAG(regs, flag, expr) (regs)->FLAGS.flag = (expr)
 
   static inline u8 ALUOp_Add8(CPU::Registers* registers, u8 lhs, u8 rhs)
   {

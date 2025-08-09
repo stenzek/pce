@@ -1,6 +1,6 @@
 #include "INIReader.h"
 #include "YBaseLib/Error.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "component.h"
 #include "system.h"
 Log_SetChannel(SystemConfig);

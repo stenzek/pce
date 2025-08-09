@@ -1,5 +1,5 @@
 #include "pce/hw/i8237_dma.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "common/state_wrapper.h"
 #include "pce/bus.h"
 #include "pce/cpu.h"

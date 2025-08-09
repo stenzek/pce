@@ -4,8 +4,6 @@
 #include "../system.h"
 #include "common/bitfield.h"
 
-class Display;
-
 namespace HW {
 
 class CGA : public Component
@@ -55,7 +53,6 @@ private:
   void RenderLineBorder();
   void FlushFrame();
 
-  std::unique_ptr<Display> m_display;
   u8 m_vram[VRAM_SIZE];
 
   // 03D8h: Mode control register

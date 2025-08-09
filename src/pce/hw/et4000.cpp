@@ -2,13 +2,13 @@
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
 #include "YBaseLib/ByteStream.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "YBaseLib/Memory.h"
-#include "common/display.h"
 #include "pce/bus.h"
 #include "pce/host_interface.h"
 #include "pce/mmio.h"
 #include "pce/system.h"
+#include <retro2/retro2_framebuffer.h>
 Log_SetChannel(HW::ET4000);
 
 namespace HW {
@@ -33,12 +33,6 @@ bool ET4000::Initialize(System* system, Bus* bus)
 {
   if (!BaseClass::Initialize(system, bus))
     return false;
-
-  m_display = system->GetHostInterface()->CreateDisplay(
-    SmallString::FromFormat("%s (ET4000)", m_identifier.GetCharArray()), Display::Type::Primary);
-  if (!m_display)
-    return false;
-  m_display->SetDisplayAspectRatio(4, 3);
 
   if (!LoadBIOSROM())
     return false;
@@ -250,9 +244,6 @@ void ET4000::Render()
     m_cursor_counter = 0;
     m_cursor_state ^= true;
   }
-
-  if (!m_display->IsActive())
-    return;
 
   if (m_graphics_registers.misc.text_mode_disable)
     RenderGraphicsMode();
@@ -947,8 +938,10 @@ inline u32 ConvertBGR565ToRGB24(u16 color)
   return (color & 0xFF000000) | ZeroExtend32(r) | (ZeroExtend32(g) << 8) | (ZeroExtend32(b) << 16);
 }
 
-void ET4000::SetOutputPalette16()
+void ET4000::SetOutputPalette16(void* palette)
 {
+  u8* palette_ptr = static_cast<u8*>(palette);
+
   for (u32 i = 0; i < 16; i++)
   {
     u32 index = ZeroExtend32(m_attribute_registers.palette[i]);
@@ -959,15 +952,21 @@ void ET4000::SetOutputPalette16()
     else
       index = ((m_attribute_registers.color_select & 0x0C) << 4) | (index & 0x3F);
 
-    m_output_palette[i] = Convert6BitColorTo8Bit(m_dac_palette[index]);
+    const u32 color = Convert6BitColorTo8Bit(m_dac_palette[index]);
+    std::memcpy(palette_ptr, &color, sizeof(color));
+    palette_ptr += sizeof(color);
   }
 }
 
-void ET4000::SetOutputPalette256()
+void ET4000::SetOutputPalette256(void* palette)
 {
+  u8* palette_ptr = static_cast<u8*>(palette);
+
   for (u32 i = 0; i < 256; i++)
   {
-    m_output_palette[i] = Convert6BitColorTo8Bit(m_dac_palette[i]);
+    const u32 color = Convert6BitColorTo8Bit(m_dac_palette[i]);
+    std::memcpy(palette_ptr, &color, sizeof(color));
+    palette_ptr += sizeof(color);
   }
 }
 
@@ -1131,22 +1130,17 @@ void ET4000::RenderTextMode()
     character_rows = 100;
 
   if (character_columns == 0 || character_rows == 0)
+  {
+    R2FramebufferVideo.UploadFramebuffer(0, 0, NUM_RETRO2_PIXEL_FORMATS, nullptr, 0);
     return;
+  }
 
   u32 screen_width = character_columns * character_width;
   u32 screen_height = character_rows * character_height;
   if (screen_width == 0 || screen_height == 0)
-    return;
-
-  if (m_display->GetFramebufferWidth() != screen_width || m_display->GetFramebufferHeight() != screen_height ||
-      m_last_rendered_vertical_frequency != m_timing.vertical_frequency)
   {
-    m_system->GetHostInterface()->ReportFormattedMessage("Screen format changed: %ux%u @ %.1f hz", screen_width,
-                                                         screen_height, m_timing.vertical_frequency);
-
-    m_last_rendered_vertical_frequency = m_timing.vertical_frequency;
-    m_display->ResizeFramebuffer(screen_width, screen_height);
-    m_display->ResizeDisplay();
+    R2FramebufferVideo.UploadFramebuffer(0, 0, NUM_RETRO2_PIXEL_FORMATS, nullptr, 0);
+    return;
   }
 
   // preset_row_scan[4:0] contains the starting row scan number, cleared when it hits max.
@@ -1200,7 +1194,12 @@ void ET4000::RenderTextMode()
   }
 
   // Get text palette colours
-  SetOutputPalette16();
+  void *framebuffer, *palette;
+  size_t framebuffer_pitch;
+  R2FramebufferVideo.MapPaletteFramebuffer(screen_width, screen_height,
+                                           RETRO2_PIXEL_FORMAT_P8, RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer,
+                                           &framebuffer_pitch, &palette);
+  SetOutputPalette16(palette);
 
   // Determine the starting address in VRAM of the text/attribute data from the CRTC registers
   u32 data_base_address =
@@ -1221,9 +1220,11 @@ void ET4000::RenderTextMode()
     cursor_address = VRAM_SIZE;
 
   // Draw
+  u8* fb_ptr = static_cast<u8*>(framebuffer);
   for (u32 row = 0; row < character_rows; row++)
   {
     // DebugAssert((vram_offset + (character_columns * 2)) <= VRAM_SIZE);
+    u8* fb_row_ptr = fb_ptr;
 
     u32 address_counter = data_base_address + (row_pitch * row);
     for (u32 col = 0; col < character_columns; col++)
@@ -1236,8 +1237,8 @@ void ET4000::RenderTextMode()
       u8 attribute = Truncate8(all_planes >> 8);
 
       // Grab foreground and background colours
-      u32 foreground_color = m_output_palette[(attribute & 0xF)];
-      u32 background_color = m_output_palette[(attribute >> 4) & 0xF];
+      u8 foreground_color = (attribute & 0xF);
+      u8 background_color = (attribute >> 4) & 0xF;
 
       // Offset into font table to get glyph, bit 4 determines the font to use
       // 32 bytes per character in the font bitmap, 4 bytes per plane, data in plane 2.
@@ -1249,17 +1250,16 @@ void ET4000::RenderTextMode()
       {
         default:
         case 8:
-          DrawTextGlyph8(col * character_width, row * character_height, glyph, character_height, foreground_color,
-                         background_color, -1);
+          DrawTextGlyph8(fb_row_ptr, framebuffer_pitch, glyph, character_height, foreground_color, background_color, -1);
           break;
 
         case 9:
-          DrawTextGlyph8(col * character_width, row * character_height, glyph, character_height, foreground_color,
+          DrawTextGlyph8(fb_row_ptr, framebuffer_pitch, glyph, character_height, foreground_color,
                          background_color, dup9);
           break;
 
         case 16:
-          DrawTextGlyph16(col * character_width, row * character_height, glyph, character_height, foreground_color,
+          DrawTextGlyph16(fb_row_ptr, framebuffer_pitch, glyph, character_height, foreground_color,
                           background_color);
           break;
       }
@@ -1272,75 +1272,89 @@ void ET4000::RenderTextMode()
         // TODO: How is dup9 handled here?
         cursor_start_line = std::min(cursor_start_line, character_height);
         cursor_end_line = std::min(cursor_end_line, character_height);
+        u8* cursor_fb_ptr = fb_row_ptr;
         for (u32 cursor_line = cursor_start_line; cursor_line < cursor_end_line; cursor_line++)
         {
           for (u32 i = 0; i < character_width; i++)
-            m_display->SetPixel(col * character_width + i, row * character_height + cursor_line, foreground_color);
+            *(cursor_fb_ptr++) = foreground_color;
+          cursor_fb_ptr += framebuffer_pitch;
         }
       }
+
+      fb_row_ptr += character_width;
     }
+
+    fb_row_ptr += character_height * framebuffer_pitch;
   }
 
-  m_display->SwapFramebuffer();
+  R2FramebufferVideo.UnmapPaletteFramebuffer(framebuffer, palette);
 }
 
-void ET4000::DrawTextGlyph8(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color, s32 dup9)
+void ET4000::DrawTextGlyph8(u8* fb_ptr, size_t fb_stride, const u8* glyph, u32 rows, u8 fg_color, u8 bg_color, s32 dup9)
 {
-  const u32 colors[2] = {bg_color, fg_color};
+  const u8 colors[2] = {bg_color, fg_color};
 
   for (u32 row = 0; row < rows; row++)
   {
     u8 source_row = *glyph;
-    m_display->SetPixel(fb_x + 0, fb_y + row, colors[(source_row >> 7) & 1]);
-    m_display->SetPixel(fb_x + 1, fb_y + row, colors[(source_row >> 6) & 1]);
-    m_display->SetPixel(fb_x + 2, fb_y + row, colors[(source_row >> 5) & 1]);
-    m_display->SetPixel(fb_x + 3, fb_y + row, colors[(source_row >> 4) & 1]);
-    m_display->SetPixel(fb_x + 4, fb_y + row, colors[(source_row >> 3) & 1]);
-    m_display->SetPixel(fb_x + 5, fb_y + row, colors[(source_row >> 2) & 1]);
-    m_display->SetPixel(fb_x + 6, fb_y + row, colors[(source_row >> 1) & 1]);
-    m_display->SetPixel(fb_x + 7, fb_y + row, colors[(source_row >> 0) & 1]);
+    u8* row_ptr = fb_ptr;
+    *(row_ptr++) = colors[(source_row >> 7) & 1];
+    *(row_ptr++) = colors[(source_row >> 6) & 1];
+    *(row_ptr++) = colors[(source_row >> 5) & 1];
+    *(row_ptr++) = colors[(source_row >> 4) & 1];
+    *(row_ptr++) = colors[(source_row >> 3) & 1];
+    *(row_ptr++) = colors[(source_row >> 2) & 1];
+    *(row_ptr++) = colors[(source_row >> 1) & 1];
+    *(row_ptr++) = colors[(source_row >> 0) & 1];
 
     if (dup9 == 0)
-      m_display->SetPixel(fb_x + 8, fb_y + row, bg_color);
+      *(row_ptr++) = bg_color;
     else if (dup9 > 0)
-      m_display->SetPixel(fb_x + 8, fb_y + row, colors[(source_row >> 0) & 1]);
+      *(row_ptr++) = colors[(source_row >> 0) & 1];
 
     // Have to read the second plane, so offset by 4
     glyph += 4;
+
+    fb_ptr += fb_stride;
   }
 }
 
-void ET4000::DrawTextGlyph16(u32 fb_x, u32 fb_y, const u8* glyph, u32 rows, u32 fg_color, u32 bg_color)
+void ET4000::DrawTextGlyph16(u8* fb_ptr, size_t fb_stride, const u8* glyph, u32 rows, u8 fg_color, u8 bg_color)
 {
-  const u32 colors[2] = {bg_color, fg_color};
+  const u8 colors[2] = {bg_color, fg_color};
 
   for (u32 row = 0; row < rows; row++)
   {
     u8 source_row = *glyph;
-    m_display->SetPixel(fb_x + 0, fb_y + row, colors[(source_row >> 7) & 1]);
-    m_display->SetPixel(fb_x + 1, fb_y + row, colors[(source_row >> 7) & 1]);
-    m_display->SetPixel(fb_x + 2, fb_y + row, colors[(source_row >> 6) & 1]);
-    m_display->SetPixel(fb_x + 3, fb_y + row, colors[(source_row >> 6) & 1]);
-    m_display->SetPixel(fb_x + 4, fb_y + row, colors[(source_row >> 5) & 1]);
-    m_display->SetPixel(fb_x + 5, fb_y + row, colors[(source_row >> 5) & 1]);
-    m_display->SetPixel(fb_x + 6, fb_y + row, colors[(source_row >> 4) & 1]);
-    m_display->SetPixel(fb_x + 7, fb_y + row, colors[(source_row >> 4) & 1]);
-    m_display->SetPixel(fb_x + 8, fb_y + row, colors[(source_row >> 3) & 1]);
-    m_display->SetPixel(fb_x + 9, fb_y + row, colors[(source_row >> 3) & 1]);
-    m_display->SetPixel(fb_x + 10, fb_y + row, colors[(source_row >> 2) & 1]);
-    m_display->SetPixel(fb_x + 11, fb_y + row, colors[(source_row >> 2) & 1]);
-    m_display->SetPixel(fb_x + 12, fb_y + row, colors[(source_row >> 1) & 1]);
-    m_display->SetPixel(fb_x + 13, fb_y + row, colors[(source_row >> 1) & 1]);
-    m_display->SetPixel(fb_x + 14, fb_y + row, colors[(source_row >> 0) & 1]);
-    m_display->SetPixel(fb_x + 15, fb_y + row, colors[(source_row >> 0) & 1]);
+    u8* row_ptr = fb_ptr;
+    *(row_ptr++) = colors[(source_row >> 7) & 1];
+    *(row_ptr++) = colors[(source_row >> 7) & 1];
+    *(row_ptr++) = colors[(source_row >> 6) & 1];
+    *(row_ptr++) = colors[(source_row >> 6) & 1];
+    *(row_ptr++) = colors[(source_row >> 5) & 1];
+    *(row_ptr++) = colors[(source_row >> 5) & 1];
+    *(row_ptr++) = colors[(source_row >> 4) & 1];
+    *(row_ptr++) = colors[(source_row >> 4) & 1];
+    *(row_ptr++) = colors[(source_row >> 3) & 1];
+    *(row_ptr++) = colors[(source_row >> 3) & 1];
+    *(row_ptr++) = colors[(source_row >> 2) & 1];
+    *(row_ptr++) = colors[(source_row >> 2) & 1];
+    *(row_ptr++) = colors[(source_row >> 1) & 1];
+    *(row_ptr++) = colors[(source_row >> 1) & 1];
+    *(row_ptr++) = colors[(source_row >> 0) & 1];
+    *(row_ptr++) = colors[(source_row >> 0) & 1];
 
     // Have to read the second plane, so offset by 4
     glyph += 4;
+
+    fb_ptr += fb_stride;
   }
 }
 
 void ET4000::RenderGraphicsMode()
 {
+#if 0
+  // TODO: FIXME
   u32 screen_width = m_crtc_registers.GetHorizontalDisplayed() * m_sequencer_registers.GetCharacterWidth();
   u32 screen_height = m_crtc_registers.GetVerticalDisplayed();
   u32 scanlines_per_row = m_crtc_registers.GetScanlinesPerRow();
@@ -1375,27 +1389,21 @@ void ET4000::RenderGraphicsMode()
     screen_width /= 2;
 
   // Update framebuffer size before drawing to it
-  if (m_display->GetFramebufferWidth() != screen_width || m_display->GetFramebufferHeight() != screen_height ||
-      m_last_rendered_vertical_frequency != m_timing.vertical_frequency)
-  {
-    m_system->GetHostInterface()->ReportFormattedMessage("Screen format changed: %ux%u @ %.1f hz", screen_width,
-                                                         screen_height, m_timing.vertical_frequency);
-
-    m_last_rendered_vertical_frequency = m_timing.vertical_frequency;
-    m_display->ResizeFramebuffer(screen_width, screen_height);
-    m_display->ResizeDisplay();
-  }
+  void *framebuffer, *palette;
+  size_t framebuffer_pitch;
+  R2FramebufferVideo.MapPaletteFramebuffer(screen_width, screen_height, RETRO2_PIXEL_FORMAT_P8,
+                                           RETRO2_PIXEL_FORMAT_RGBA8, &framebuffer, &framebuffer_pitch, &palette);
 
   // 4 or 16 color mode?
   if (!m_graphics_registers.mode.shift_256)
   {
     // This initializes 16 colours when we only need 4, but whatever.
-    SetOutputPalette16();
+    SetOutputPalette16(palette);
   }
   else
   {
     // Initialize all palette colours beforehand.
-    SetOutputPalette256();
+    SetOutputPalette256(palette);
   }
 
   // Determine the starting address in VRAM of the data from the CRTC registers
@@ -1595,5 +1603,6 @@ void ET4000::RenderGraphicsMode()
   }
 
   m_display->SwapFramebuffer();
+#endif
 }
 } // namespace HW

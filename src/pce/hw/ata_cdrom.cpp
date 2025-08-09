@@ -1,7 +1,7 @@
 #include "ata_cdrom.h"
 #include "YBaseLib/BinaryReader.h"
 #include "YBaseLib/BinaryWriter.h"
-#include "YBaseLib/Log.h"
+#include "common/log.h"
 #include "hdc.h"
 #include "pce/system.h"
 Log_SetChannel(HW::ATACDROM);
